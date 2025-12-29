@@ -15,7 +15,7 @@
 
                     {{-- Session Messages --}}
                     @if (session('error'))
-                        <div class="mb-4 p-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400" role="alert">
+                        <div id="intake-error-alert" class="mb-4 p-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 transition-opacity duration-500 ease-out" role="alert">
                             <span class="font-medium">Error!</span> {{ session('error') }}
                         </div>
                     @endif
