@@ -130,6 +130,15 @@
                     }
                 }
             });
+
+            // AJAX polling for live updates
+            const POLLING_INTERVAL = 15000; // 15 seconds
+            setInterval(() => {
+                // Only poll if the user is not actively typing in the search box
+                if (document.activeElement !== searchInput) {
+                    fetchDocuments(window.location.href);
+                }
+            }, POLLING_INTERVAL);
         });
     </script>
 </x-app-layout>

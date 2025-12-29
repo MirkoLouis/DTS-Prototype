@@ -27,10 +27,12 @@
         </div>
 
         <div class="text-center mt-4 bg-light p-3 rounded shadow-sm">
-            <a href="{{ route('welcome') }}" class="btn btn-secondary me-2">Submit a New Document</a>
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#trackAnotherModal">
-                Track Another Document
-            </button>
+            <div class="d-grid gap-2">
+                <a href="{{ route('welcome') }}" class="btn btn-secondary">Submit a New Document</a>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#trackAnotherModal">
+                    Track Another Document
+                </button>
+            </div>
         </div>
     </div>
 
@@ -139,6 +141,48 @@
                 });
             }
         });
+    </script>
+    <script>
+        // Real-time Polling Logic
+        const POLLING_INTERVAL = 5000; // 5 seconds
+
+        async function pollForUpdates() {
+            const documentCards = document.querySelectorAll('.document-card');
+            if (documentCards.length === 0) {
+                return; // No documents to track
+            }
+
+            const trackingCodes = Array.from(documentCards).map(card => card.dataset.trackingCode);
+            
+            try {
+                const response = await fetch(`/api/document-status?codes=${trackingCodes.join(',')}`);
+                if (!response.ok) {
+                    console.error('Polling request failed.');
+                    return;
+                }
+                const statuses = await response.json();
+
+                for (const update of statuses) {
+                    const card = document.querySelector(`.document-card[data-tracking-code="${update.tracking_code}"]`);
+                    if (card) {
+                        const isChanged = card.dataset.status !== update.status || card.dataset.currentStep != update.current_step;
+
+                        if (isChanged) {
+                            console.log(`Change detected for ${update.tracking_code}. Refreshing card.`);
+                            // Fetch the updated card HTML and replace the old one
+                            const cardResponse = await fetch(`/api/track-document/${update.tracking_code}`);
+                            const newCardHtml = await cardResponse.text();
+                            card.outerHTML = newCardHtml;
+                        }
+                    }
+                }
+
+            } catch (error) {
+                console.error('Error during polling:', error);
+            }
+        }
+
+        setInterval(pollForUpdates, POLLING_INTERVAL);
     </script>
 </body>
 </html>

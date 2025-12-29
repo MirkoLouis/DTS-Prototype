@@ -12,7 +12,7 @@ class TaskController extends Controller
     /**
      * Display the tasks page for Staff, showing documents assigned to their department.
      */
-    public function index()
+    public function index(Request $request)
     {
         // Get the authenticated user and load their department relationship
         $user = Auth::user()->load('department');
@@ -20,34 +20,33 @@ class TaskController extends Controller
 
         // If user is not in a department, they have no tasks.
         if (!$userDepartment) {
-            return view('tasks', ['documents' => collect()]);
+            $documentsForUser = collect();
+        } else {
+            // Get all documents that are currently in 'processing' status
+            $processingDocuments = Document::with('purpose')
+                                        ->where('status', 'processing')
+                                        ->latest()
+                                        ->get();
+
+            // Filter the documents to find only those where the current step matches the user's department
+            $documentsForUser = $processingDocuments->filter(function ($document) use ($userDepartment) {
+                if (empty($document->finalized_route) || is_null($document->current_step)) {
+                    return false;
+                }
+                $currentStepIndex = $document->current_step - 1;
+                if (isset($document->finalized_route[$currentStepIndex])) {
+                    return $document->finalized_route[$currentStepIndex] === $userDepartment->name;
+                }
+                return false;
+            });
         }
 
-        // Get all documents that are currently in 'processing' status
-        $processingDocuments = Document::with('purpose')
-                                       ->where('status', 'processing')
-                                       ->latest()
-                                       ->get();
+        // If the request is an AJAX request, return only the partial view
+        if ($request->ajax()) {
+            return view('partials.tasks-list', ['documents' => $documentsForUser]);
+        }
 
-        // Filter the documents to find only those where the current step matches the user's department
-        $documentsForUser = $processingDocuments->filter(function ($document) use ($userDepartment) {
-            // A document must have a route and a current step to be assigned
-            if (empty($document->finalized_route) || is_null($document->current_step)) {
-                return false;
-            }
-
-            // The current_step is 1-based, array indices are 0-based
-            $currentStepIndex = $document->current_step - 1;
-
-            // Check if the current step is valid for the route array
-            if (isset($document->finalized_route[$currentStepIndex])) {
-                // Return true if the department name at the current route step matches the user's department name
-                return $document->finalized_route[$currentStepIndex] === $userDepartment->name;
-            }
-
-            return false;
-        });
-
+        // Otherwise, return the full view
         return view('tasks', ['documents' => $documentsForUser]);
     }
 

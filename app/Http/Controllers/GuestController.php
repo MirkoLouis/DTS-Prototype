@@ -137,4 +137,26 @@ class GuestController extends Controller
 
         return response($html, 200);
     }
+
+    /**
+     * Get lightweight status updates for multiple documents for AJAX polling.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getStatusUpdates(Request $request)
+    {
+        $codesParam = $request->query('codes');
+        if (!$codesParam) {
+            return response()->json([]);
+        }
+
+        $trackingCodes = array_filter(explode(',', $codesParam));
+
+        $statuses = Document::whereIn('tracking_code', $trackingCodes)
+                            ->select('tracking_code', 'status', 'current_step')
+                            ->get();
+
+        return response()->json($statuses);
+    }
 }

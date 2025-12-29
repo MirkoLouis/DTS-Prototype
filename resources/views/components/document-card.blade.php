@@ -1,6 +1,11 @@
 @props(['document'])
 
-<div class="card shadow-sm mb-4">
+<div 
+    class="card shadow-sm mb-4 document-card" 
+    data-tracking-code="{{ $document->tracking_code }}"
+    data-status="{{ $document->status }}"
+    data-current-step="{{ $document->current_step }}"
+>
     <div class="card-header text-center">
         <h2 class="h4 mb-0">Document Status: {{ $document->tracking_code }}</h2>
     </div>
@@ -32,12 +37,17 @@
 
         <h3 class="h5 mt-4 mb-3">Tracking History</h3>
         <div class="subway-map-wrapper">
-            @if($document->status == 'pending' || empty($document->finalized_route))
+            @if($document->status == 'completed')
+                <div class="alert alert-success text-center">
+                    <h4 class="alert-heading">Document Processing Complete!</h4>
+                    <p class="mb-0">Your document has finished processing, please claim at the Records department.</p>
+                </div>
+            @elseif($document->status == 'pending' || empty($document->finalized_route))
                 <div class="alert alert-info text-center">
                     This document has been submitted and is waiting to be accepted by a Records Officer.
                     The route will be displayed here once it is finalized.
                 </div>
-            @else
+            @else {{-- Status is 'processing' or 'rejected' with a route --}}
                 <x-tracker-subway-map :finalized_route="$document->finalized_route" :current_step="$document->current_step" />
             @endif
         </div>

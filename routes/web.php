@@ -18,6 +18,9 @@ Route::get('/track', [GuestController::class, 'track'])->name('track'); // Modif
 // API route for fetching single document module via AJAX
 Route::get('/api/track-document/{tracking_code}', [GuestController::class, 'getTrackedDocumentModule']);
 
+// API route for AJAX polling to get status updates
+Route::get('/api/document-status', [GuestController::class, 'getStatusUpdates'])->name('api.document.status');
+
 // The main dashboard route, which redirects based on role.
 // This replaces the default Breeze dashboard route.
 Route::get('/dashboard', function () {
