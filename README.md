@@ -1,0 +1,45 @@
+# DepEd Iligan - Document Tracking System (DTS) Prototype
+
+This project is a functional prototype for a modern, web-based Document Tracking System (DTS) for the DepEd Division of Iligan City, built with the Laravel framework. It aims to digitize and streamline the process of submitting, tracking, and managing official documents.
+
+## Core Features
+
+- **Guest Submission Portal:** A public-facing form for guests to submit new document requests.
+- **Public Tracking Portal:** A dedicated page where guests can track the status of one or more documents using their unique tracking codes. Features dynamic multi-document display and an interactive subway map view.
+- **Role-Based Access Control:** Three distinct user roles with specific dashboards and permissions:
+    - **Records Officer:** Manages the intake of new documents.
+    - **Staff:** Views and processes ongoing documents.
+    - **Admin:** Monitors system integrity and manages users/settings.
+- **Dynamic Requirements:** The guest portal dynamically displays the required documents based on the selected purpose.
+- **Unique Tracking Code:** A unique tracking code is generated for every submission, allowing guests and staff to reference specific documents.
+- **Interactive Route Management:** A drag-and-drop interface for Records Officers to easily view, modify, add, and delete steps in a document's route.
+
+### Thesis Innovations Implemented
+
+1.  **Security (Hash-Chaining):** A `DocumentLogObserver` automatically creates an immutable, chained log of all actions performed on a document. Each log entry's hash is dependent on the previous entry's hash, ensuring the integrity of the document's history.
+2.  **AI (Route Prediction & Learning):** A `RoutePredictionService` automatically suggests a route for custom "Other" purposes based on keyword analysis. The system also "learns" from modifications made by Records Officers, updating the suggested routes for official purposes over time.
+3.  **HCI (Interactive UI):** The system prioritizes user experience with features like the dynamic requirements list, the drag-and-drop route editor, the `x-tracker-subway-map` Blade component for visual tracking, and a modular, AJAX-driven multi-document tracking portal.
+
+## Tech Stack
+
+- **Framework:** Laravel 11
+- **Database:** MySQL
+- **Frontend:** Laravel Blade templates, Bootstrap 5 (CDN for public pages), Tailwind CSS (via Laravel Breeze for dashboards).
+- **JavaScript:** Vanilla JavaScript, SortableJS (for drag-and-drop).
+
+## Setup & Installation
+
+1.  Clone the repository.
+2.  Install dependencies: `composer install` and `npm install`.
+3.  Create your `.env` file from `.env.example` and configure your database credentials.
+4.  Generate an application key: `php artisan key:generate`.
+5.  Run database migrations and seeders: `php artisan migrate:fresh --seed`. This will create the necessary tables and populate them with placeholder data (users, departments, purposes).
+6.  Build frontend assets: `npm run dev`.
+
+### Default Login Accounts
+
+The database seeder creates the following accounts. The password for all accounts is `password`.
+
+- **Admin:** `admin@dts.com`
+- **Records Officer:** `officer@dts.com`
+- **Staff:** `staff@dts.com`
