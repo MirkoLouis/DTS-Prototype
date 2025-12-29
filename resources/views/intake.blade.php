@@ -139,6 +139,17 @@
                     fetchDocuments(window.location.href);
                 }
             }, POLLING_INTERVAL);
+            // Auto-hide session error alerts
+            const errorAlert = document.getElementById('intake-error-alert');
+            if (errorAlert) {
+                setTimeout(() => {
+                    errorAlert.style.opacity = '0';
+                    // Remove from DOM after transition
+                    setTimeout(() => {
+                        errorAlert.remove();
+                    }, 0); // Must match transition duration
+                }, 2000); // 2 seconds
+            }
         });
     </script>
 </x-app-layout>
