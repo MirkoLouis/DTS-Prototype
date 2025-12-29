@@ -26,48 +26,55 @@ The application is designed around a role-based access control system, providing
 
 ### 2.3. The Records Officer Journey (Intake & Route Management)
 
-1.  **Login:** The officer logs in and is redirected to the `/intake` dashboard.
-2.  **Lookup:** The dashboard presents a field to enter a tracking code. This simulates the real-world action of receiving a document or QR code from a client.
-3.  **Management:** Upon finding a pending document, the officer is taken to the "Manage Route" page. Here, they are presented with the system's `suggested_route` in an interactive, horizontal drag-and-drop interface.
-4.  **Finalization:** The officer can re-order, add, or delete steps from the route. When satisfied, they click "Accept & Finalize Route". This action, handled by `DocumentController@finalize`, does three critical things:
+1.  **Login:** The Records Officer logs in and is redirected to the `/intake` dashboard. They can also navigate to the `/tasks` dashboard via a navbar link to process documents assigned to their department.
+2.  **Lookup:** On the `/intake` dashboard, they can enter a tracking code to find a pending document.
+3.  **Management:** Upon finding a pending document, the officer is taken to the "Manage Route" page, where they can view, re-order, add, or delete steps in the suggested route.
+4.  **Finalization:** Clicking "Accept & Finalize Route" (handled by `DocumentController@finalize`):
     a. Updates the document's status to `processing`.
     b. Saves the `finalized_route` to the document's record.
-    c. **Creates the first `DocumentLog` entry**, kicking off the hash chain.
-5.  **Learning Mechanism:** If the officer's finalized route differs from the purpose's original suggested route, the system updates the purpose with the new, improved route, making future suggestions more accurate.
+    c. **Creates the first `DocumentLog` entry**, with hash chain initialized via the `DocumentLog` model's `boot()` method.
+5.  **Learning Mechanism:** If the officer's finalized route differs from the purpose's original suggested route, the system updates the purpose with the new, improved route, making future predictions more accurate.
 
 ### 2.4. The Staff Journey (Processing)
 
-1.  **Login:** A general staff member logs in and is redirected to the `/tasks` dashboard.
-2.  **View Queue:** The dashboard displays a list of all documents that are currently in the `processing` state, allowing staff to see the queue of documents that need action. (Further implementation would involve assigning documents to specific staff members).
+1.  **Login:** A staff member logs in and is redirected to the `/tasks` dashboard.
+2.  **View Queue:** The dashboard displays a list of documents currently in the `processing` state, **filtered to show only those documents where the current step in the `finalized_route` is assigned to the logged-in staff member's department.**
+3.  **Task Completion:** Staff can click "Complete Step" for an assigned document. This action:
+    a. Increments the `current_step` on the document.
+    b. Updates the document's `status` to 'completed' if all steps in the route are finished.
+    c. Creates a `DocumentLog` entry, logging the completion and advancing the hash chain.
 
 ### 2.5. The Admin Journey (Integrity Monitoring)
 
 1.  **Login:** The admin logs in and is redirected to the `/integrity-monitor` dashboard.
 2.  **Monitor Logs:** This dashboard displays a raw view of the `document_logs` table, showing every action taken on every document. The key feature is the display of each log's `hash` and `previous_hash`, allowing an administrator to verify the integrity of the document's history chain.
+3.  **Copy Hashes:** Administrators can easily copy hash values to the clipboard for verification purposes.
 
 ## 3. Core Innovations in Detail
 
-### 3.1. Security: Hash-Chaining via Observers
+### 3.1. Security: Hash-Chaining
 
-- **Implementation:** This is handled by the `app/Observers/DocumentLogObserver.php`.
-- **Mechanism:** The observer listens for the `creating` event on the `DocumentLog` model. Before a new log is saved, the observer:
-    1.  Finds the most recent log for the same document to retrieve its hash. This becomes the `previous_hash` for the new log. If it's the first log, a "genesis_hash" is used.
+- **Implementation:** Handled robustly by the `DocumentLog` model's `boot()` method.
+- **Mechanism:** Before a new `DocumentLog` is saved, the `boot()` method:
+    1.  Finds the most recent log for the same document to retrieve its hash, which becomes the `previous_hash` for the new log. ("genesis_hash" is used for the first entry).
     2.  Creates a unique data string by combining the new log's data (document ID, user ID, action, timestamp) with the `previous_hash`.
     3.  Hashes this unique string to create the new log's `hash`.
-- **Benefit:** This creates an unbreakable chain. If a malicious actor were to alter a log entry in the database, its hash would no longer match the `previous_hash` of the subsequent log, immediately revealing the tampering.
+- **Benefit:** This creates an unbreakable chain. Any alteration to a log entry would break the chain, immediately revealing tampering. This mechanism is now more resilient as it doesn't rely on model observers which can be suppressed.
 
 ### 3.2. AI: Route Prediction and Learning
 
 - **Implementation:** `app/Services/RoutePredictionService.php` and `app/Http/Controllers/DocumentController.php`.
-- **Prediction:** When a guest submits an "Other" purpose, the `RoutePredictionService` performs simple keyword matching on the custom text to generate a sensible default route. For example, text containing "records" or "application" will automatically suggest the "Records" and "Human Resources" departments.
-- **Learning:** When a Records Officer finalizes a route in `DocumentController@finalize`, the system compares their finalized route to the original suggestion for that purpose. If a change was made, it updates the purpose's `suggested_route` in the database. This feedback loop allows the system to adapt and become more accurate over time.
+- **Prediction:** When a guest submits an "Other" purpose, the `RoutePredictionService` performs simple keyword matching on the custom text to generate a sensible default route.
+- **Learning:** When a Records Officer finalizes a route in `DocumentController@finalize`, the system updates the purpose's `suggested_route` if the officer made changes, allowing the system to adapt and become more accurate over time.
 
 ### 3.3. HCI: Interactive User Interfaces
 
-- **Implementation:** `resources/views/welcome.blade.php`, `resources/views/documents/manage.blade.php`, and `resources/views/track.blade.php`.
+- **Implementation:** `resources/views/welcome.blade.php`, `resources/views/documents/manage.blade.php`, `resources/views/track.blade.php`, `resources/views/tasks.blade.php`, `resources/views/intake.blade.php`, `resources/views/integrity-monitor.blade.php`.
 - **Features:** The system prioritizes a smooth user experience through:
     - **Dynamic Requirements:** The guest form provides immediate feedback by showing requirements as soon as a purpose is selected.
-    - **Drag-and-Drop:** The route management interface uses `SortableJS` to provide a tactile, intuitive way for officers to re-order complex document routes.
-    - **Add/Delete On-the-Fly:** Officers are empowered to build a document route from scratch for custom purposes, using simple "Add" and "Delete" buttons that modify the DOM instantly.
+    - **Drag-and-Drop Route Editor:** Officers can intuitively re-order complex document routes.
     - **Visual Tracking (Subway Map):** The `x-tracker-subway-map` Blade component provides a clear, at-a-glance visualization of a document's progress.
-    - **Modular & Dynamic Tracking Portal:** Guests can track multiple documents on a single page, adding new ones dynamically via AJAX without full page reloads, enhancing interactivity and user control.
+    - **Modular & Dynamic Tracking Portal:** Guests can track multiple documents dynamically.
+    - **Responsive Dashboard Layouts:** All main tables (`/intake`, `/tasks`, `/integrity-monitor`) automatically switch to a user-friendly card view on mobile devices.
+    - **Copy Hash Functionality:** Hashes on the Integrity Monitor can be easily copied to the clipboard.
+    - **Consistent Scrollbar:** A always-visible vertical scrollbar provides visual consistency across pages.
