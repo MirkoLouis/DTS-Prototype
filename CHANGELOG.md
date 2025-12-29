@@ -2,7 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased] - 2025-12-29
+## [Unreleased] - 2025-12-30
+
+### Added
+- **Automated Maintenance:**
+    - Created a scheduled Artisan command `documents:prune-pending` that runs daily.
+    - This command automatically deletes `pending` documents older than two weeks to maintain database health.
+
+### Changed
+- **Records Officer Workflow:**
+    - Records Officers can now decline and permanently delete a pending document from the 'Manage Route' page.
+
+## [Previous Version] - 2025-12-29
 
 ### Added
 - **Core Document Routing & Task Management:**

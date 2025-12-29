@@ -42,6 +42,7 @@ Route::middleware('auth')->group(function() {
     // Document management routes
     Route::get('/documents/{document}/manage', [DocumentController::class, 'manage'])->name('documents.manage');
     Route::post('/documents/{document}/finalize', [DocumentController::class, 'finalize'])->name('documents.finalize');
+    Route::delete('/documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
 });
 
 

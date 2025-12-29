@@ -20,7 +20,7 @@
                         </div>
                     @endif
                     @if (session('success'))
-                        <div class="mb-4 p-4 text-sm text-green-800 rounded-lg bg-green-50 dark:bg-gray-800 dark:text-green-400" role="alert">
+                        <div id="intake-success-alert" class="mb-4 p-4 text-sm text-green-800 rounded-lg bg-green-50 dark:bg-gray-800 dark:text-green-400 transition-opacity duration-500 ease-out" role="alert">
                             <span class="font-medium">Success!</span> {{ session('success') }}
                         </div>
                     @endif
@@ -139,6 +139,7 @@
                     fetchDocuments(window.location.href);
                 }
             }, POLLING_INTERVAL);
+
             // Auto-hide session error alerts
             const errorAlert = document.getElementById('intake-error-alert');
             if (errorAlert) {
@@ -147,7 +148,19 @@
                     // Remove from DOM after transition
                     setTimeout(() => {
                         errorAlert.remove();
-                    }, 0); // Must match transition duration
+                    }, 500); // Must match transition duration
+                }, 2000); // 2 seconds
+            }
+
+            // Auto-hide session success alerts
+            const successAlert = document.getElementById('intake-success-alert');
+            if (successAlert) {
+                setTimeout(() => {
+                    successAlert.style.opacity = '0';
+                    // Remove from DOM after transition
+                    setTimeout(() => {
+                        successAlert.remove();
+                    }, 500); // Must match transition duration
                 }, 2000); // 2 seconds
             }
         });

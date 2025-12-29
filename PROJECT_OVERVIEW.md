@@ -28,7 +28,9 @@ The application is designed around a role-based access control system, providing
 
 1.  **Login:** The Records Officer logs in and is redirected to the `/intake` dashboard. They can also navigate to the `/tasks` dashboard via a navbar link to process documents assigned to their department.
 2.  **Lookup:** On the `/intake` dashboard, they can enter a tracking code to find a pending document.
-3.  **Management:** Upon finding a pending document, the officer is taken to the "Manage Route" page, where they can view, re-order, add, or delete steps in the suggested route.
+3.  **Management:** Upon finding a pending document, the officer is taken to the "Manage Route" page, which provides two primary actions:
+    a. **Route Editing:** View, re-order, add, or delete steps in the suggested route.
+    b. **Decline Document:** Permanently delete a pending document from the system. This is used for submissions that are spam, duplicates, or cannot be processed.
 4.  **Finalization:** Clicking "Accept & Finalize Route" (handled by `DocumentController@finalize`):
     a. Updates the document's status to `processing`.
     b. Saves the `finalized_route` to the document's record.
@@ -78,3 +80,13 @@ The application is designed around a role-based access control system, providing
     - **Responsive Dashboard Layouts:** All main tables (`/intake`, `/tasks`, `/integrity-monitor`) automatically switch to a user-friendly card view on mobile devices.
     - **Copy Hash Functionality:** Hashes on the Integrity Monitor can be easily copied to the clipboard.
     - **Consistent Scrollbar:** A always-visible vertical scrollbar provides visual consistency across pages.
+
+## 4. Automated System Maintenance
+
+To ensure database health and prevent the accumulation of stale data, the system includes automated maintenance tasks.
+
+### 4.1. Pruning Pending Documents
+
+- **Implementation:** `app/Console/Commands/PrunePendingDocuments.php` scheduled in `routes/console.php`.
+- **Mechanism:** A scheduled Artisan command, `documents:prune-pending`, runs daily. This command automatically finds and deletes any documents that have remained in the `pending` status for more than two weeks.
+- **Benefit:** This prevents the database from being cluttered with abandoned document requests that were never processed, ensuring the system remains efficient.

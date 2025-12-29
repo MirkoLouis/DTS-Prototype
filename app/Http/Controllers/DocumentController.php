@@ -65,6 +65,50 @@ class DocumentController extends Controller
             'previous_hash' => '', // This will be set by the observer
         ]);
 
-        return redirect()->route('intake')->with('success', 'Document accepted and route has been finalized!');
-    }
-}
+                return redirect()->route('intake')->with('success', 'Document accepted and route has been finalized!');
+
+            }
+
+        
+
+            /**
+
+             * Decline and delete a pending document.
+
+             *
+
+             * @param  \App\Models\Document  $document
+
+             * @return \Illuminate\Http\RedirectResponse
+
+             */
+
+            public function destroy(Document $document)
+
+            {
+
+                // Ensure only pending documents can be deleted
+
+                if ($document->status !== 'pending') {
+
+                    return back()->with('error', 'This document cannot be declined as it is already being processed.');
+
+                }
+
+        
+
+                $document->delete();
+
+        
+
+                                return redirect()->route('intake')->with('success', 'Success! The document has been declined and removed from the system.');
+
+        
+
+                            }
+
+        
+
+                }
+
+        

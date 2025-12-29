@@ -8,9 +8,10 @@ This project is a functional prototype for a modern, web-based Document Tracking
 - **Public Tracking Portal:** A dedicated page where guests can track the status of one or more documents using their unique tracking codes. Features dynamic multi-document display and an interactive subway map view.
 - **Role-Based Access Control:** Distinct user roles with specific dashboards and permissions for streamlined workflows:
     - **Admin:** Monitors system integrity.
-    - **Records Officer:** Manages initial document intake and processing tasks for the Records department.
+    - **Records Officer:** Manages initial document intake, can decline and delete invalid or duplicate submissions, and handles processing tasks for the Records department.
     - **Department Staff:** Views and processes ongoing documents specifically assigned to their department.
 - **Full Document Lifecycle Management:** Documents progress through a defined route, with staff members completing steps and advancing documents through the system.
+- **Automated Database Maintenance:** A daily scheduled task automatically prunes stale, pending documents to ensure database health.
 - **Dynamic Requirements:** The guest portal dynamically displays the required documents based on the selected purpose.
 - **Unique Tracking Code:** A unique tracking code is generated for every submission, allowing guests and staff to reference specific documents.
 - **Interactive Route Management:** A drag-and-drop interface for Records Officers to easily view, modify, add, and delete steps in a document's route.

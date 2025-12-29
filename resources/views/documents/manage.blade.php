@@ -59,14 +59,22 @@
                                         </button>
                                     </div>
                                 </div>
-
-
                                 <div class="mt-6">
-                                    <button type="submit" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 active:bg-indigo-700 focus:outline-none focus:border-indigo-700 focus:ring focus:ring-200 disabled:opacity-25 transition">
+                                     <button type="submit" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 active:bg-indigo-700 focus:outline-none focus:border-indigo-700 focus:ring focus:ring-200 disabled:opacity-25 transition">
                                         Accept & Finalize Route
                                     </button>
                                 </div>
                             </form>
+
+                            <div class="mt-6 flex items-center space-x-4">
+                                <form id="decline-form" action="{{ route('documents.destroy', $document) }}" method="POST" class="m-0">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-500 active:bg-red-700 focus:outline-none focus:border-red-700 focus:ring focus:ring-red-200 disabled:opacity-25 transition">
+                                        Decline
+                                    </button>
+                                </form>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -154,6 +162,13 @@
             routeForm.addEventListener('submit', function (e) {
                 const finalRouteOrder = Array.from(routeList.querySelectorAll('.step-name')).map(el => el.textContent.trim());
                 hiddenInput.value = JSON.stringify(finalRouteOrder);
+            });
+
+            const declineForm = document.getElementById('decline-form');
+            declineForm.addEventListener('submit', function(e) {
+                if (!confirm('Are you sure you want to decline and permanently delete this document? This action cannot be undone.')) {
+                    e.preventDefault();
+                }
             });
         });
     </script>
