@@ -14,6 +14,7 @@ This project is a functional prototype for a modern, web-based Document Tracking
 - **Automated Database Maintenance:** A daily scheduled task automatically prunes stale, pending documents to ensure database health.
 - **Dynamic Requirements:** The guest portal dynamically displays the required documents based on the selected purpose.
 - **Unique Tracking Code:** A unique tracking code is generated for every submission, allowing guests and staff to reference specific documents.
+- **QR Code Integration:** Automatically generates QR codes for tracking numbers on submission success pages. Records officers can scan QR codes via webcam or phone camera on the intake page to auto-populate the tracking code input field and trigger search.
 - **Interactive Route Management:** A drag-and-drop interface for Records Officers to easily view, modify, add, and delete steps in a document's route.
 - **Task Completion Interface:** Staff members can mark document steps as complete, automatically advancing the document to the next stage in its route.
 - **Responsive Dashboard Layouts:** All primary dashboards (`/intake`, `/tasks`, `/integrity-monitor`) are fully responsive, providing optimal viewing on both desktop (table view) and mobile (card view).
@@ -21,15 +22,15 @@ This project is a functional prototype for a modern, web-based Document Tracking
 ### Thesis Innovations Implemented
 
 1.  **Security (Hash-Chaining):** An immutable, chained log of all actions performed on a document is automatically created. Each log entry's hash is dependent on the previous entry's hash, ensuring the integrity of the document's history. This logic is robustly implemented within the `DocumentLog` model's `boot()` method.
-2.  **AI (Route Prediction & Learning):** A `RoutePredictionService` automatically suggests a route for custom "Other" purposes based on keyword analysis. The system also "learns" from modifications made by Records Officers, updating the suggested routes for official purposes over time.
+2.  **AI (Database-Driven Route Prediction & Learning):** The `RoutePredictionService` has been upgraded from hardcoded logic to a dynamic, database-driven system. It now tokenizes purpose text and queries a `prediction_keywords` table, using weighted scores to suggest routes. The system "learns" from Records Officers' modifications; a background job (`UpdateKeywordWeights`) increases the weight of keywords for chosen departments, making future predictions more accurate.
 3.  **HCI (Interactive UI):** The system prioritizes user experience with features like the dynamic requirements list, the drag-and-drop route editor, the `x-tracker-subway-map` Blade component for visual tracking, a modular, AJAX-driven multi-document tracking portal, and copy-to-clipboard functionality for hashes on the Integrity Monitor.
 
 ## Tech Stack
 
-- **Framework:** Laravel 11
+- **Framework:** Laravel 11, simple-qrcode (for backend QR generation)
 - **Database:** MySQL
 - **Frontend:** Laravel Blade templates, Bootstrap 5 (CDN for public pages), Tailwind CSS (via Laravel Breeze for dashboards).
-- **JavaScript:** Vanilla JavaScript, SortableJS (for drag-and-drop).
+- **JavaScript:** Vanilla JavaScript, SortableJS (for drag-and-drop), html5-qrcode (for frontend QR scanning).
 
 ## Setup & Installation
 

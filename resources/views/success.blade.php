@@ -17,6 +17,9 @@
             <hr>
             <p class="mb-0">Please save your tracking code. You can use it to check the status of your document.</p>
             <h2 class="mt-3">Your Tracking Code:</h2>
+            <div class="mb-3" style="text-align: center;">
+                {!! $qrCode !!}
+            </div>
             <p class="display-4" style="font-weight: 500;">{{ $tracking_code }}</p>
             <a href="{{ route('track', ['codes' => $tracking_code]) }}" class="btn btn-info mt-3">Track Your Document</a>
         </div>

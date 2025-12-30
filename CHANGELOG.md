@@ -8,10 +8,19 @@ All notable changes to this project will be documented in this file.
 - **Automated Maintenance:**
     - Created a scheduled Artisan command `documents:prune-pending` that runs daily.
     - This command automatically deletes `pending` documents older than two weeks to maintain database health.
+- **QR Code System:**
+    - Implemented QR code generation for tracking codes on the `/success` page.
+    - Added QR code scanning functionality to the `/intake` page via a modal window, allowing officers to scan QR codes to auto-populate and submit tracking codes.
+    - Integrated `html5-qrcode` CDN for frontend QR code scanning.
 
 ### Changed
 - **Records Officer Workflow:**
     - Records Officers can now decline and permanently delete a pending document from the 'Manage Route' page.
+- **Backend Dependencies:**
+    - Added `simplesoftwareio/simple-qrcode` for backend QR code generation.
+- **AI: Route Prediction and Learning:**
+    - **Refactored:** Replaced the hardcoded `if/else` logic in `RoutePredictionService` with a dynamic, database-driven system using the new `prediction_keywords` table.
+    - **Added:** Implemented an `UpdateKeywordWeights` background job that "learns" from routing modifications made by Records Officers, increasing the weight of relevant keywords to improve future predictions.
 
 ## [Previous Version] - 2025-12-29
 

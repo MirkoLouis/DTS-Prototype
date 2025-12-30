@@ -7,6 +7,7 @@ use App\Models\Purpose;
 use App\Services\RoutePredictionService; // Import the service
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class GuestController extends Controller
 {
@@ -92,7 +93,8 @@ class GuestController extends Controller
      */
     public function success($tracking_code)
     {
-        return view('success', ['tracking_code' => $tracking_code]);
+        $qrCode = QrCode::size(200)->generate($tracking_code);
+        return view('success', ['tracking_code' => $tracking_code, 'qrCode' => $qrCode]);
     }
 
     /**
