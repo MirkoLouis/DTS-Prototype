@@ -6,6 +6,7 @@ use App\Http\Controllers\IntakeController;
 use App\Http\Controllers\IntegrityMonitorController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TaskController;
+use App\Http\Controllers\SystemHealthController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -37,7 +38,14 @@ Route::middleware('auth')->group(function() {
     Route::post('/intake/find', [IntakeController::class, 'find'])->name('intake.find');
     Route::get('/tasks', [TaskController::class, 'index'])->name('tasks');
     Route::post('/tasks/{document}/complete', [TaskController::class, 'complete'])->name('tasks.complete');
+    
+    // Admin specific routes
     Route::get('/integrity-monitor', [IntegrityMonitorController::class, 'index'])->name('integrity-monitor');
+
+    // System Health routes
+    Route::get('/system-health', [SystemHealthController::class, 'index'])->name('system.health');
+    Route::post('/system-health/run-check', [SystemHealthController::class, 'runIntegrityCheck'])->name('system.health.run-check');
+    Route::get('/system-health/results', [SystemHealthController::class, 'getIntegrityCheckResults'])->name('system.health.results');
 
     // Document management routes
     Route::get('/documents/{document}/manage', [DocumentController::class, 'manage'])->name('documents.manage');

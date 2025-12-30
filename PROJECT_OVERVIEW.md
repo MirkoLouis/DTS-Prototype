@@ -48,22 +48,42 @@ The application is designed around a role-based access control system, providing
     b. Updates the document's `status` to 'completed' if all steps in the route are finished.
     c. Creates a `DocumentLog` entry, logging the completion and advancing the hash chain.
 
-### 2.5. The Admin Journey (Integrity Monitoring)
+### 2.5. The Admin Journey (Integrity & System Health)
 
-1.  **Login:** The admin logs in and is redirected to the `/integrity-monitor` dashboard.
-2.  **Monitor Logs:** This dashboard displays a raw view of the `document_logs` table, showing every action taken on every document. The key feature is the display of each log's `hash` and `previous_hash`, allowing an administrator to verify the integrity of the document's history chain.
-3.  **Copy Hashes:** Administrators can easily copy hash values to the clipboard for verification purposes.
+The administrator role is split into two key areas, accessible via the main navigation:
+
+1.  **Dashboard (Integrity Monitor):**
+    -   The admin's main dashboard, located at `/integrity-monitor`, displays a raw, searchable view of the `document_logs` table.
+    -   This view allows the admin to monitor all actions taken on all documents and includes a powerful AJAX-powered search to filter logs by tracking code, action, user, or hash.
+
+2.  **System Page (System Health Monitor):**
+    -   A new, dedicated page at `/system-health` houses the "Trust Builder" tool.
+    -   On this page, the admin can click "Run Verification" to trigger a complete, on-demand integrity check of the entire hash chain in the database.
+    -   If any mismatched hashes are found, the page will display a paginated table listing the specific invalid logs, allowing for immediate investigation.
 
 ## 3. Core Innovations in Detail
 
 ### 3.1. Security: Hash-Chaining
 
-- **Implementation:** Handled robustly by the `DocumentLog` model's `boot()` method.
+- **Implementation:** Handled robustly by the `DocumentLog` model's `boot()` method using a `sha256` algorithm and a standardized `ISO-8601` timestamp format.
 - **Mechanism:** Before a new `DocumentLog` is saved, the `boot()` method:
     1.  Finds the most recent log for the same document to retrieve its hash, which becomes the `previous_hash` for the new log. ("genesis_hash" is used for the first entry).
     2.  Creates a unique data string by combining the new log's data (document ID, user ID, action, timestamp) with the `previous_hash`.
     3.  Hashes this unique string to create the new log's `hash`.
-- **Benefit:** This creates an unbreakable chain. Any alteration to a log entry would break the chain, immediately revealing tampering. This mechanism is now more resilient as it doesn't rely on model observers which can be suppressed.
+- **Benefit:** This creates an unbreakable and verifiable chain. Any alteration to a log entry would break the chain, immediately revealing tampering. The integrity of this chain can be verified at any time using the System Health Monitor tool.
+
+### 3.1.1. On-Demand Integrity Verification (The "Trust Builder")
+
+To build trust and provide concrete proof of the system's data integrity, an on-demand verification tool is built into the Admin's "System" page.
+
+- **Implementation:** `dts:verify-integrity` Artisan command, `SystemHealthController`, and the `/system-health` dashboard view.
+- **Mechanism:**
+    1. An administrator clicks the "Run Verification" button on the `/system-health` page.
+    2. An AJAX request triggers the `dts:verify-integrity` command on the backend.
+    3. The command iterates through every document's log chain, recalculates the `sha256` hash of each log based on its stored data (including the precise ISO-8601 timestamp), and compares it to the `hash` value stored in the database.
+    4. The result (e.g., "100% Verified"), the timestamp of the check, and a list of any mismatched log IDs are cached.
+    5. After the check is complete, the browser reloads the page, displaying the fresh results. If there are errors, a paginated table of the invalid logs is shown.
+- **Benefit:** This feature provides a powerful, transparent way to prove to stakeholders, auditors, or a thesis panel that the document history is immutable and has not been tampered with. It moves the concept of data integrity from a theoretical promise to a demonstrable reality.
 
 ### 3.2. AI: Database-Driven Route Prediction and Learning
 

@@ -37,21 +37,30 @@ class DocumentLog extends Model
         parent::boot();
 
         static::creating(function ($documentLog) {
+            // Do not recalculate if a hash is already being set (e.g., during seeding)
+            if ($documentLog->hash) {
+                return;
+            }
+
             // Find the most recent log for this document to chain the hash
             $lastLog = self::where('document_id', $documentLog->document_id)
                                 ->orderBy('id', 'desc')
                                 ->first();
 
-            // Determine the previous hash, using a genesis hash for the first entry
             $previousHash = $lastLog ? $lastLog->hash : 'genesis_hash';
             $documentLog->previous_hash = $previousHash;
 
-            // Create the data string for the new hash. Using a consistent timestamp is crucial.
-            $timestamp = Carbon::now()->toIso8601String();
-            $dataToHash = $documentLog->document_id . $documentLog->user_id . $documentLog->action . $timestamp . $previousHash;
+            // Ensure created_at is a Carbon instance if it's not already
+            $createdAt = $documentLog->created_at ? Carbon::parse($documentLog->created_at) : Carbon::now();
 
-            // Calculate and set the new hash
-            $documentLog->hash = Hash::make($dataToHash);
+            // The 'created_at' timestamp must be in a consistent format for hashing.
+            // ISO-8601 with microseconds provides the necessary precision.
+            $timestampForHashing = $createdAt->toIso8601String();
+            
+            $dataToHash = $documentLog->document_id . $documentLog->user_id . $documentLog->action . $timestampForHashing . $previousHash;
+
+            // Use a simple SHA256 hash, not bcrypt, to ensure it can be re-calculated for verification.
+            $documentLog->hash = hash('sha256', $dataToHash);
         });
     }
 

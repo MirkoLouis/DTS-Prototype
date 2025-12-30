@@ -2,144 +2,98 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased] - 2025-12-30
+## [1.0.0] - 2025-12-30
 
 ### Added
+- **Admin: System Health Monitor ("Trust Builder"):**
+    - Implemented a "System Health Monitor" on a new, dedicated "System" page (`/system-health`) for administrators.
+    - If the integrity check fails, the page now displays a paginated table listing the specific logs that have mismatched hashes, allowing for easy identification of data anomalies.
+    - Created a new Artisan command, `dts:verify-integrity`, which iterates through the entire `document_logs` table, recalculates the hash chain for each document, and compares it against the stored hashes.
+    - A "Run Verification" button on the dashboard allows an administrator to trigger the integrity check on-demand.
+- **Admin: Searchable Document Logs:**
+    - Implemented a search and pagination functionality for the "Document Log Integrity" table on the Admin's Dashboard (`/integrity-monitor`).
+    - The search covers Document Tracking Code, Action, Performed By, and Hashes.
 - **Automated Maintenance:**
-    - Created a scheduled Artisan command `documents:prune-pending` that runs daily.
-    - This command automatically deletes `pending` documents older than two weeks to maintain database health.
+    - Created a scheduled Artisan command `documents:prune-pending` that runs daily to delete `pending` documents older than two weeks.
 - **QR Code System:**
-    - Implemented QR code generation for tracking codes on the `/success` page.
-    - Added QR code scanning functionality to the `/intake` page via a modal window, allowing officers to scan QR codes to auto-populate and submit tracking codes.
-    - Integrated `html5-qrcode` CDN for frontend QR code scanning.
+    - Implemented QR code generation on the `/success` page and a QR code scanner on the `/intake` page.
 
 ### Changed
+- **Admin Dashboard UI:**
+    - Refactored the Admin Dashboard by moving the "System Health Monitor" to its own dedicated page.
+    - Changed the pagination for the main Document Log Integrity table from 15 to 10 items per page for consistency.
 - **Records Officer Workflow:**
     - Records Officers can now decline and permanently delete a pending document from the 'Manage Route' page.
-- **Backend Dependencies:**
-    - Added `simplesoftwareio/simple-qrcode` for backend QR code generation.
 - **AI: Route Prediction and Learning:**
-    - **Refactored:** Replaced the hardcoded `if/else` logic in `RoutePredictionService` with a dynamic, database-driven system using the new `prediction_keywords` table.
-    - **Added:** Implemented an `UpdateKeywordWeights` background job that "learns" from routing modifications made by Records Officers, increasing the weight of relevant keywords to improve future predictions.
-
-## [Previous Version] - 2025-12-29
-
-### Added
-- **Core Document Routing & Task Management:**
-    - `User` Model: Added `department()` relationship for easier access to user's department.
-    - `TaskController@complete()` method: Implemented logic to advance a document's `current_step`, update its status (to 'completed' if route finishes), and create a `DocumentLog` entry.
-    - `routes/web.php`: Added `POST /tasks/{document}/complete` route (`tasks.complete`) for task completion.
-    - Responsive card view for "Recently Handled Documents" on `/intake` page for mobile devices.
-    - Copy-to-clipboard functionality for document hashes on the Integrity Monitor.
-
-### Changed
-- **User Management:**
-    - `UserSeeder`: Consolidated 'Records Officer' and 'Records Staff' into a single `records@dts.com` user with 'officer' role.
-    - `UserSeeder`: Admin user (`admin@dts.com`) now has `department_id` set to `null` to reflect system-wide role.
-    - `UserSeeder`: All other departments have a dedicated 'staff' user (`[department_name]@dts.com`).
-- **Document Log Hashing:**
-    - **Refactored:** Moved hash-chaining logic from `DocumentLogObserver` to `DocumentLog` model's `boot()` method for robustness, ensuring hashes are always calculated even when model events are suppressed (e.g., during seeding).
-    - `AppServiceProvider`: Removed redundant `DocumentLogObserver` registration.
-    - `DocumentLog` Model: Corrected `$fillable` properties to include `remarks` and allow manual assignment of `hash` and `previous_hash` for seeding.
-    - `DocumentSeeder`: Rewritten to use `DocumentFactory`, create 5 pending documents, and 10 processing documents with initial `DocumentLog` entries (manually hashing due to seeding event suppression).
-    - `DocumentFactory`: Created to generate realistic dummy `Document` data for seeding.
-- **UI/UX & Responsiveness:**
-    - `integrity-monitor.blade.php`:
-        - Removed hash truncation.
-        - Eliminated horizontal scrollbar for desktop table by allowing `hash` and `previous_hash` to wrap (`break-all`, `max-w-xs`).
-        - Implemented responsive design: table on desktop, card view on mobile.
-    - `tasks.blade.php`:
-        - Updated `index()` method to filter documents based on logged-in user's department and document's `current_step`.
-        - Implemented responsive design: table on desktop, card view on mobile.
-        - Eliminated horizontal scrollbar for desktop table by allowing content to wrap (except Tracking Code and Submitted date).
-    - `partials/intake-table.blade.php`:
-        - Eliminated horizontal scrollbar for desktop table by allowing content to wrap (Tracking Code, Submitter, Purpose, Status, Date Handled).
-        - Fixed responsive visibility issues between table and card views.
-    - `layouts/navigation.blade.php`:
-        - Added "Tasks" link for 'officer' role in navbar.
-        - Improved "Dashboard" link active state logic for better UX across roles.
-    - `resources/css/app.css`: Added global `overflow-y: scroll;` to `body` for consistent scrollbar visibility.
-    - `AuthenticatedSessionController`: Changed post-logout redirect from `/` to `/login`.
+    - **Refactored:** Replaced hardcoded `if/else` logic in `RoutePredictionService` with a dynamic, database-driven system using the `prediction_keywords` table.
+    - **Added:** Implemented an `UpdateKeywordWeights` background job that "learns" from routing modifications made by Records Officers.
 
 ### Fixed
-- **Critical:** `DocumentLogObserver` not firing during seeding, causing `hash` to be null. Fixed by moving logic to model's `boot()` method and manually hashing in `DocumentSeeder`.
-- Duplicate IDs for "View Route" details in `partials/intake-table.blade.php` causing JS issues.
-- `intake.blade.php` and `tasks.blade.php` tables not being responsive on mobile.
-- Conflicting user roles in `UserSeeder` causing officer account to be downgraded to staff.
-- Inaccurate "Dashboard" active state in navbar.
-- Horizontal scrollbars on desktop tables (`/integrity-monitor` and `/intake`, `/tasks`).
+- **Critical: Hash Chain Verification & Seeding:**
+    - Standardized the hashing algorithm to `sha256` and the timestamp format to ISO-8601 across the `DocumentLog` model, `DocumentSeeder`, and `VerifyIntegrityChain` command to ensure consistent hash generation and verification.
+    - Corrected the verification logic in the `dts:verify-integrity` command to properly iterate through each document's individual hash chain.
+- **Critical: Controller & View Errors:**
+    - Fixed a `ParseError` on the `/integrity-monitor` page caused by a stray closing `</x-app-layout>` tag.
+    - Fixed a fatal `FatalError` on the `/system-health` page caused by a duplicate `use Illuminate\Http\Request;` statement in the `SystemHealthController`.
 
-## [Current Version] - 2025-12-29
+## [0.3.0] - 2025-12-29 (Public Tracking)
 
 ### Added
 - **Public Tracking Portal:**
-    - New `/track` route to display document status using query parameters (e.g., `?codes=CODE1,CODE2`).
-    - `GuestController@track` method to fetch multiple documents based on `codes` query parameter.
-    - `track.blade.php` view for the public tracking portal.
-    - `GuestController@getTrackedDocumentModule` method and API route (`/api/track-document/{tracking_code}`) to fetch and render single document cards via AJAX.
-    - **`x-tracker-subway-map` Blade Component:** Renders a horizontal progress bar visualizing document route progress.
-    - **`x-document-card` Blade Component:** Reusable component to display a single document's status, details, and tracking history.
-    - "Track Another Document" button with modal for dynamic, AJAX-driven addition of documents to the tracking page.
+    - New `/track` route to display document status using query parameters.
+    - `x-tracker-subway-map` and `x-document-card` Blade Components for modular display.
+    - "Track Another Document" button with modal for dynamic, AJAX-driven addition of documents.
 
 ### Changed
-- `success.blade.php`: "Track Your Document" button now links directly to the multi-document tracking portal (`/track?codes=...`).
-- `GuestController@track` method signature updated to accept `Request $request` and process query parameters.
-- `routes/web.php`: Updated `/track` route to accept query parameters and added `/api/track-document/{tracking_code}` API route.
-- `track.blade.php` visual consistency: Rewritten to use Bootstrap 5 for consistency with other public pages and a wider, "landscape" layout.
+- `success.blade.php`: "Track Your Document" button now links directly to the multi-document tracking portal.
+- `track.blade.php`: Rewritten to use Bootstrap 5 for visual consistency with other public pages.
 
 ### Fixed
-- "Track Your Document" button on `success.blade.php` now correctly redirects to the tracking portal.
-- Prevented duplicate document tracking: If a tracking code is already on the page, the modal now displays a "This document is already being tracked here" message.
+- Prevented duplicate document tracking via the "Track Another" modal.
 
-## [Older Changes] - 2025-12-26
+## [0.2.0] - 2025-12-29 (Workflow & Responsiveness)
 
 ### Added
-- **Initial Project Setup:**
-    - Initialized Laravel 11 project.
-    - Integrated Laravel Breeze for authentication scaffolding.
-    - Configured MySQL database connection.
-- **Database Schema:**
-    - Created migrations for `users`, `departments`, `purposes`, `documents`, and `document_logs` tables.
-    - Added `role` and `department_id` to `users` table.
-    - Added `finalized_route` and `current_step` to `documents` table.
-    - Added `hash` and `previous_hash` to `document_logs` table for integrity chain.
-    - Added `is_official` boolean flag to `purposes` table.
-- **Role-Based Access:**
-    - Implemented `CheckRole` middleware to redirect users (`admin`, `officer`, `staff`) to their respective dashboards.
-- **Dashboards:**
-    - Created placeholder dashboards for Records Officer (`/intake`), Staff (`/tasks`), and Admin (`/integrity-monitor`).
-    - Implemented data tables on all dashboards to display relevant documents and logs.
-- **Guest Portal:**
-    - Created a guest submission form with dynamic display of requirements based on purpose selection.
-    - Implemented "Other" purpose feature allowing users to input a custom purpose.
-- **Records Officer Features:**
-    - Implemented tracking code lookup on the `/intake` dashboard.
-    - Created a "Manage Route" page with a drag-and-drop interface (using SortableJS).
-    - Added functionality to add new steps to a route from a list of departments.
-    - Added functionality to delete steps from a route.
-- **Security Innovation: Hash-Chaining:**
-    - Created `DocumentLogObserver` to automatically calculate and link integrity hashes for all document logs upon creation.
-- **AI Innovation: Route Prediction & Learning:**
-    - Created `RoutePredictionService` to suggest a route for "Other" purposes based on keyword matching.
-    - Implemented a "learning" mechanism where the system updates an official purpose's `suggested_route` if an officer modifies it.
-- **Seeders:**
-    - Created seeders for `Departments`, `Users`, `Purposes`, and `Documents`.
-    - Populated seeders with comprehensive, realistic data for purposes and departments.
-- **Documentation:**
-    - Created `README.md`, `CHANGELOG.md`, and `PROJECT_OVERVIEW.md`.
+- **Core Document Routing & Task Management:**
+    - Implemented logic in `TaskController@complete()` to advance a document's `current_step`, update its status, and create a `DocumentLog` entry.
+    - Added responsive card views for tables on `/intake` and `/tasks` pages for mobile devices.
+    - Added copy-to-clipboard functionality for hashes on the Integrity Monitor page.
 
 ### Changed
-- Refactored `GuestController` to fetch official purposes from the database instead of using dummy data.
-- Upgraded tracking code algorithm to be based on a hash of user data and time for better uniqueness.
-- Refactored `TaskController` to only show documents with a 'processing' status.
-- Renamed "Accept" button to "Manage" for clarity in the intake workflow.
+- **User Management & Seeding:**
+    - Consolidated 'Records Officer' and 'Records Staff' into a single `records@dts.com` user.
+    - Refactored `DocumentLogObserver` logic into the `DocumentLog` model's `boot()` method for robustness.
+    - Rewrote `DocumentSeeder` to use a `DocumentFactory`.
+- **UI/UX & Responsiveness:**
+    - Implemented responsive designs for `integrity-monitor.blade.php` and `tasks.blade.php`.
+    - Eliminated horizontal scrollbars on all main tables.
+    - Added "Tasks" link to navbar for 'officer' role.
+    - Changed post-logout redirect from `/` to `/login`.
 
 ### Fixed
-- **Critical:** Resolved a persistent `ParseError` related to a corrupted controller file by recreating the file.
-- **Critical:** Fixed a `UrlGenerationException` caused by a typo (`trackingCode` vs `tracking_code`) when redirecting to the success page.
-- **Critical:** Fixed a `QueryException` (unknown column 'hash') by creating a migration to align the `document_logs` schema with the observer's logic.
-- Fixed a bug where submitting a duplicate "Other" purpose would fail due to a unique constraint.
-- Fixed a bug where "pending" documents were incorrectly appearing on the staff dashboard.
-- Fixed a bug where user-created "Other" purposes were incorrectly appearing in the main dropdown list for all users.
-- Fixed a UI bug where drag-and-drop was not working due to text selection interference.
-- Fixed a redirect loop on the `/tasks` dashboard.
+- **Critical:** Resolved `DocumentLogObserver` not firing during seeding by moving logic to the model's `boot()` method.
+- Fixed duplicate IDs in `partials/intake-table.blade.php`.
+- Fixed various responsiveness and UI bugs across multiple pages.
+
+## [0.1.0] - 2025-12-26 (Initial Prototype)
+
+### Added
+- **Initial Project Setup:** Laravel 11, Breeze, MySQL.
+- **Database Schema:** Created all initial migrations for `users`, `departments`, `purposes`, `documents`, and `document_logs`.
+- **Role-Based Access:** Implemented `CheckRole` middleware and placeholder dashboards for all user roles.
+- **Guest Portal:** Created submission form with dynamic requirements display.
+- **Records Officer Features:**
+    - Tracking code lookup.
+    - Drag-and-drop route management page.
+- **Security Innovation: Hash-Chaining:** Initial implementation via `DocumentLogObserver`.
+- **AI Innovation: Route Prediction & Learning:** Initial implementation of `RoutePredictionService`.
+- **Seeders:** Created initial seeders for all core tables.
+
+### Changed
+- Refactored `GuestController` to use the database for purposes.
+- Upgraded tracking code algorithm to be hash-based.
+- Refactored `TaskController` to show only 'processing' documents.
+
+### Fixed
+- **Critical:** Resolved `ParseError` (corrupted file), `UrlGenerationException` (typo), and `QueryException` (missing column) to stabilize the application.
+- Fixed bugs related to "Other" purpose submissions, incorrect document visibility, and UI issues.

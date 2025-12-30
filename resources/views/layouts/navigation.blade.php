@@ -12,12 +12,17 @@
 
                 <!-- Navigation Links -->
                 <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    <x-nav-link :href="route('dashboard')" :active="(request()->routeIs('dashboard', 'intake', 'integrity-monitor')) || (request()->routeIs('tasks') && Auth::user()->role !== 'officer')">
+                    <x-nav-link :href="route('dashboard')" :active="(request()->routeIs('dashboard', 'intake')) || (request()->routeIs('tasks') && Auth::user()->role !== 'officer')">
                         {{ __('Dashboard') }}
                     </x-nav-link>
                     @if (Auth::user()->role === 'officer')
                         <x-nav-link :href="route('tasks')" :active="request()->routeIs('tasks')">
                             {{ __('Tasks') }}
+                        </x-nav-link>
+                    @endif
+                    @if (Auth::user()->role === 'admin')
+                        <x-nav-link :href="route('system.health')" :active="request()->routeIs('system.health')">
+                            {{ __('System') }}
                         </x-nav-link>
                     @endif
                 </div>
@@ -72,12 +77,17 @@
     <!-- Responsive Navigation Menu -->
     <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
         <div class="pt-2 pb-3 space-y-1">
-            <x-responsive-nav-link :href="route('dashboard')" :active="(request()->routeIs('dashboard', 'intake', 'integrity-monitor')) || (request()->routeIs('tasks') && Auth::user()->role !== 'officer')">
+            <x-responsive-nav-link :href="route('dashboard')" :active="(request()->routeIs('dashboard', 'intake')) || (request()->routeIs('tasks') && Auth::user()->role !== 'officer')">
                 {{ __('Dashboard') }}
             </x-responsive-nav-link>
             @if (Auth::user()->role === 'officer')
                 <x-responsive-nav-link :href="route('tasks')" :active="request()->routeIs('tasks')">
                     {{ __('Tasks') }}
+                </x-responsive-nav-link>
+            @endif
+            @if (Auth::user()->role === 'admin')
+                <x-responsive-nav-link :href="route('system.health')" :active="request()->routeIs('system.health')">
+                    {{ __('System') }}
                 </x-responsive-nav-link>
             @endif
         </div>

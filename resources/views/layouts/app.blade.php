@@ -30,7 +30,7 @@
             <!-- Page Content -->
             <main>
                 {{ $slot }}
-            </main>
-        </div>
-    </body>
-</html>
+                    </main>
+                </div>
+                @stack('scripts')
+            </body></html>
