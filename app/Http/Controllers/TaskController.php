@@ -14,48 +14,45 @@ class TaskController extends Controller
      */
     public function index(Request $request)
     {
-        // Get the authenticated user and load their department relationship
         $user = Auth::user()->load('department');
         $userDepartment = $user->department;
 
-        // If user is not in a department, they have no tasks.
         if (!$userDepartment) {
             $documentsForUser = collect();
         } else {
-            // Get all documents that are currently in 'processing' status
             $processingDocuments = Document::with('purpose')
                                         ->where('status', 'processing')
                                         ->latest()
                                         ->get();
 
-            // Filter the documents to find only those where the current step matches the user's department
+            // Filter documents to find those where the current step matches the user's department
             $documentsForUser = $processingDocuments->filter(function ($document) use ($userDepartment) {
                 if (empty($document->finalized_route) || is_null($document->current_step)) {
                     return false;
                 }
+                
+                // The current step is 1-based, the array is 0-based
                 $currentStepIndex = $document->current_step - 1;
+                
+                // Check if the current step is valid for the route
                 if (isset($document->finalized_route[$currentStepIndex])) {
+                    // Check if the department name at the current step matches the user's department name
                     return $document->finalized_route[$currentStepIndex] === $userDepartment->name;
                 }
+
                 return false;
             });
         }
 
-        // If the request is an AJAX request, return only the partial view
         if ($request->ajax()) {
             return view('partials.tasks-list', ['documents' => $documentsForUser]);
         }
 
-        // Otherwise, return the full view
         return view('tasks', ['documents' => $documentsForUser]);
     }
 
     /**
      * Mark the current step for a document as complete and advance it.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Document  $document
-     * @return \Illuminate\Http\RedirectResponse
      */
     public function complete(Request $request, Document $document)
     {
@@ -73,13 +70,16 @@ class TaskController extends Controller
         // Advance the step
         $document->current_step += 1;
 
+        $totalSteps = count($document->finalized_route);
+
         // Check if the document's route is now complete
-        if ($document->current_step > count($document->finalized_route)) {
-            $document->status = 'completed';
-            $action = 'Processing complete. Document is now ' . $document->status . '.';
+        if ($document->current_step > $totalSteps) {
+            // This was the final internal processing step.
+            // The status remains 'processing' so it can appear on the 'Releasing' page.
+            $action = 'Final processing step completed. Document is now awaiting release.';
         } else {
-            $nextDepartment = $document->finalized_route[$document->current_step - 1];
-            $action = 'Step completed. Document forwarded to ' . $nextDepartment . '.';
+            $nextDepartmentName = $document->finalized_route[$document->current_step - 1];
+            $action = 'Step completed. Document forwarded to ' . $nextDepartmentName . '.';
         }
 
         $document->save();

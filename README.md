@@ -8,11 +8,13 @@ This project is a functional prototype for a modern, web-based Document Tracking
 - **Public Tracking Portal:** A dedicated page where guests can track the status of one or more documents using their unique tracking codes. Features dynamic multi-document display and an interactive subway map view.
 - **Role-Based Access Control:** Distinct user roles with specific dashboards and permissions for streamlined workflows:
     - **Admin:** Has access to a "System" page to run on-demand integrity checks (the "Trust Builder") and a dashboard to view and search all document logs.
-    - **Records Officer:** Manages initial document intake, can decline and delete invalid or duplicate submissions, and handles processing tasks for the Records department.
+    - **Records Officer:** Manages initial document intake, can decline and delete invalid or duplicate submissions, handles processing tasks for the Records department, and manages the final release of completed documents to clients.
     - **Department Staff:** Views and processes ongoing documents specifically assigned to their department.
 - **Full Document Lifecycle Management:** Documents progress through a defined route, with staff members completing steps and advancing documents through the system.
 - **Admin Process Analytics Dashboard:** A dashboard for administrators to view process analytics like department load and system throughput, acting as a "Bottleneck Detector."
 - **Searchable Document Logs:** Search and pagination functionality for the "Document Log Integrity" table on the Admin dashboard.
+- **Document Releasing Workflow:** A dedicated page for Records Officers to manage and finalize documents that have completed all internal processing and are ready for client release.
+- **Client Feedback & Rating System:** After a document is released, clients can provide a 1-5 star rating on the public tracking page, and administrators can view feedback analytics on a dedicated dashboard.
 - **Automated Database Maintenance:** A daily scheduled task automatically prunes stale, pending documents to ensure database health.
 - **Dynamic Requirements:** The guest portal dynamically displays the required documents based on the selected purpose.
 - **Unique Tracking Code:** A unique tracking code is generated for every submission, allowing guests and staff to reference specific documents.
@@ -26,7 +28,7 @@ This project is a functional prototype for a modern, web-based Document Tracking
 
 1.  **Security (Hash-Chaining & The "Trust Builder"):** An immutable, `sha256`-based chained log of all actions performed on a document is automatically created. Each log entry's hash is dependent on the previous entry's hash, ensuring the integrity of the document's history. This is complemented by the **System Health Monitor**, an on-demand tool that allows an administrator to verify the integrity of the entire database hash-chain at any time.
 2.  **AI (Database-Driven Route Prediction & Learning):** The `RoutePredictionService` has been upgraded from hardcoded logic to a dynamic, database-driven system. It now tokenizes purpose text and queries a `prediction_keywords` table, using weighted scores to suggest routes. The system "learns" from Records Officers' modifications; a background job (`UpdateKeywordWeights`) increases the weight of keywords for chosen departments, making future predictions more accurate.
-3.  **HCI (Interactive UI):** The system prioritizes user experience with features like the dynamic requirements list, the drag-and-drop route editor, the `x-tracker-subway-map` Blade component for visual tracking, a modular, AJAX-driven multi-document tracking portal, and searchable admin log tables.
+3.  **HCI (Interactive UI & Feedback Loop):** The system prioritizes user experience with features like the dynamic requirements list, the drag-and-drop route editor, the `x-tracker-subway-map` Blade component for visual tracking, and a modular, AJAX-driven multi-document tracking portal. It closes the feedback loop by allowing clients to provide a star rating after their document is completed, giving administrators direct insight into service quality.
 
 ## Tech Stack
 

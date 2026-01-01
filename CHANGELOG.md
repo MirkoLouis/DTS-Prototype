@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0] - 2026-01-01
+
+### Added
+- **Admin UI:** Added a "Back to System Health" button on the "System Feedback & Ratings" page for improved navigation.
+- **Client Feedback: Star Rating System:**
+    - Implemented a 1-5 star rating system on the public `/track` page for documents that have been `completed` (released).
+    - The previous "please claim" message is replaced with a "Thank you" message and a rating form.
+    - Added a new `rating` column to the `documents` table to store client feedback.
+    - Created a new "Ratings" dashboard (`/system/ratings`) for administrators, accessible via a new "Ratings" navigation link.
+    - The dashboard displays statistics like total ratings, average rating, and a paginated list of all rated documents.
+- **Records Officer: Document Releasing Workflow:**
+    - Implemented a new "Releasing" page (`/releasing`), accessible via a dedicated navigation link for Records Officers.
+    - This page displays a list of documents that have completed all internal processing steps and are awaiting final release to the client.
+    - Added a "Release Document" button, which marks the document's status as 'completed' and creates a final `DocumentLog` entry, officially concluding the document's lifecycle in the system.
+
+### Changed
+- **Admin UI:** Moved the "Client Feedback & Ratings" page from a top-level navigation tab to a link within the "System Health" page for better organization.
+- **Public Tracking Page UI:** Refined the status messages on the `/track` page. It now shows a distinct "Ready for Release" message after internal processing is complete, before the document is officially released by the Records Officer.
+
 ## [1.0.0] - 2025-12-30
 
 ### Added

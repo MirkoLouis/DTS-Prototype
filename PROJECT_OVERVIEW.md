@@ -24,6 +24,7 @@ The application is designed around a role-based access control system, providing
 2.  **Modular Display:** Each tracked document is displayed as a distinct "card" module, showing its details, current status, and a visual tracking history (the "subway map").
 3.  **Dynamic Addition:** Via an AJAX-powered modal, guests can add more tracking codes to the current page. The new document's status module is dynamically appended, and the browser's URL is updated without a full page reload, providing a seamless experience.
 4.  **Visual Progress:** The `x-tracker-subway-map` component visually represents the document's journey through its finalized route, highlighting completed, current, and upcoming steps.
+5.  **Granular Status Updates:** The tracking history provides clear, distinct messages for each phase of the document's journey: one for when it's being processed (the subway map), another for when it has finished internal processing and is ready for release, and a final one with the feedback form when the document has been completed.
 
 ### 2.3. The Records Officer Journey (Intake & Route Management)
 
@@ -38,6 +39,7 @@ The application is designed around a role-based access control system, providing
     b. Saves the `finalized_route` to the document's record.
     c. **Creates the first `DocumentLog` entry**, with hash chain initialized via the `DocumentLog` model's `boot()` method.
 5.  **Learning Mechanism:** If the officer's finalized route differs from the purpose's original suggested route, the system updates the purpose with the new, improved route, making future predictions more accurate.
+6.  **Document Releasing:** After a document has passed through all departments in its `finalized_route`, it returns to the Records Officer on a new "Releasing" page. Here, the officer can see all documents ready for client pickup. Once the client has received their document, the officer clicks "Release Document," which marks the document as `completed` and creates the final log entry, ending its lifecycle.
 
 ### 2.4. The Staff Journey (Processing)
 
@@ -161,3 +163,24 @@ When the System Health Monitor detects a mismatched hash, it is not an error to 
     3.  It then proceeds sequentially through all subsequent logs for that document, re-calculating each one's hash based on the newly fixed hash of the one before it.
     4.  **Logs the Action:** A final log entry is created to record that an administrator performed the rebuild, maintaining a transparent audit trail.
 -   **Automatic Re-verification:** After a successful rebuild, the system automatically triggers the `dts:verify-integrity` command again. This updates the system cache, and upon page reload, the fixed log is removed from the "Mismatched" list, giving the administrator immediate confirmation of a successful repair.
+
+## 7. Client Feedback and Service Quality
+
+To ensure continuous improvement and measure client satisfaction, the DTS includes an integrated feedback mechanism. This closes the loop on the service delivery process, turning a simple tracking system into a tool for quality assurance.
+
+### 7.1. Client-Side Rating
+
+-   **Implementation:** `resources/views/components/document-card.blade.php`, `DocumentController@rate`.
+-   **Mechanism:** Once a document's status is updated to `completed` (i.e., after it has been released by the Records Officer), the public tracking page for that document automatically changes. The final status message is replaced with a "Thank You" message and an interactive 1-5 star rating form.
+-   **User Experience:** The client can click on a star to submit their rating. The submission is handled seamlessly via an AJAX request, preventing a page reload. Once the rating is submitted, the form is replaced by a confirmation message. This can only be done once per document.
+
+### 7.2. Administrative Feedback Dashboard
+
+-   **Implementation:** `SystemRatingsController.php`, `resources/views/system/ratings.blade.php`.
+-   **Mechanism:** A new "Ratings" page, accessible only to administrators from the main navigation, provides an overview of all client feedback.
+-   **Features:** The dashboard presents key statistics, including:
+    -   Total number of ratings submitted.
+    -   The overall average rating across all services.
+    -   A breakdown of how many 1, 2, 3, 4, and 5-star ratings have been received.
+    -   A paginated list of every rated document, showing its tracking code, purpose, and the rating it received.
+-   **Benefit:** This provides the administration with direct, quantitative data on service performance, helping to identify areas of excellence and opportunities for improvement.

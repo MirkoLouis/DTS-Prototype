@@ -5,8 +5,10 @@ use App\Http\Controllers\GuestController;
 use App\Http\Controllers\IntakeController;
 use App\Http\Controllers\IntegrityMonitorController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ReleasingController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\SystemHealthController;
+use App\Http\Controllers\SystemRatingsController;
 use App\Http\Controllers\AdminDashboardController;
 use Illuminate\Support\Facades\Route;
 
@@ -22,6 +24,9 @@ Route::get('/api/track-document/{tracking_code}', [GuestController::class, 'getT
 
 // API route for AJAX polling to get status updates
 Route::get('/api/document-status', [GuestController::class, 'getStatusUpdates'])->name('api.document.status');
+
+// Public route for submitting a rating
+Route::post('/documents/{document:tracking_code}/rate', [DocumentController::class, 'rate'])->name('documents.rate');
 
 // The main dashboard route, which redirects based on role.
 // This replaces the default Breeze dashboard route.
@@ -39,6 +44,10 @@ Route::middleware('auth')->group(function() {
     Route::post('/intake/find', [IntakeController::class, 'find'])->name('intake.find');
     Route::get('/tasks', [TaskController::class, 'index'])->name('tasks');
     Route::post('/tasks/{document}/complete', [TaskController::class, 'complete'])->name('tasks.complete');
+
+    // Releasing routes
+    Route::get('/releasing', [ReleasingController::class, 'index'])->name('releasing');
+    Route::post('/releasing/{document}/complete', [ReleasingController::class, 'complete'])->name('releasing.complete');
     
     // Admin specific routes
     Route::get('/integrity-monitor', [IntegrityMonitorController::class, 'index'])->name('integrity-monitor');
@@ -51,6 +60,7 @@ Route::middleware('auth')->group(function() {
     Route::post('/system-health/run-check', [SystemHealthController::class, 'runIntegrityCheck'])->name('system.health.run-check');
     Route::get('/system-health/results', [SystemHealthController::class, 'getIntegrityCheckResults'])->name('system.health.results');
     Route::post('/system-health/rebuild-chain/{log}', [SystemHealthController::class, 'rebuildChain'])->name('system.health.rebuild-chain');
+    Route::get('/system/ratings', [SystemRatingsController::class, 'index'])->name('system.ratings');
 
     // Document management routes
     Route::get('/documents/{document}/manage', [DocumentController::class, 'manage'])->name('documents.manage');

@@ -51,6 +51,16 @@
                         </div>
                     </div>
 
+                    <!-- Other System Reports -->
+                    <div class="mb-8">
+                        <a href="{{ route('system.ratings') }}" class="block p-6 bg-gray-50 dark:bg-gray-700/50 rounded-lg shadow hover:bg-gray-100 dark:hover:bg-gray-700">
+                            <h4 class="text-lg font-bold mb-2 text-indigo-600 dark:text-indigo-400">View Client Feedback & Ratings &rarr;</h4>
+                            <p class="text-sm text-gray-600 dark:text-gray-300">
+                                Analyze client satisfaction by viewing the 1-5 star ratings submitted for completed documents.
+                            </p>
+                        </a>
+                    </div>
+
                     <!-- Database Integrity Section -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                         <div class="md:col-span-1 bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg shadow">
