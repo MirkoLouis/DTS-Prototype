@@ -72,7 +72,7 @@ class RebuildHashChain extends Command
         DocumentLog::create([
             'document_id' => $startLog->document_id,
             'user_id' => Auth::id() ?? User::where('role', 'admin')->first()->id, // Fallback for CLI
-            'action' => 'ADMIN: Hash chain rebuilt from log ID ' . $startLogId,
+            'action' => 'ADMIN: Hash chain rebuilt for Log ID: ' . $startLogId,
             'remarks' => 'An administrator manually triggered a hash chain rebuild to resolve an integrity mismatch.',
         ]);
 
