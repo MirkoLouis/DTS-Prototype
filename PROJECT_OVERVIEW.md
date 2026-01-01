@@ -63,9 +63,9 @@ The administrator role now has three distinct navigation sections:
     -   It allows the admin to monitor all actions taken on all documents and includes a powerful AJAX-powered search to filter logs by tracking code, action, user, or hash.
 
 3.  **System Page (System Health Monitor):**
-    -   Also accessible via a top-level navigation tab, this page (at `/system-health`) houses the "Trust Builder" tool.
-    -   On this page, the admin can click "Run Verification" to trigger a complete, on-demand integrity check of the entire hash chain in the database.
-    -   If any mismatched hashes are found, the page will display a paginated table listing the specific invalid logs, along with administrative actions like "View", "Freeze/Unfreeze", and "Rebuild Chain".
+    -   Also accessible via a top-level navigation tab, this page (at `/system-health`) houses the "Trust Builder" tool and application health metrics.
+    -   **Application Health:** The top of the page displays key performance indicators (KPIs) like Average Document Processing Time, Failed Jobs Count, and Cache Status.
+    -   **Database Integrity:** An admin can click "Run Verification" to trigger a complete, on-demand integrity check of the entire hash chain in the database. If any mismatched hashes are found, the page will display a paginated table listing the specific invalid logs, along with administrative actions like "View", "Freeze/Unfreeze", and "Rebuild Chain".
 
 ## 3. Core Innovations in Detail
 

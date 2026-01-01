@@ -9,8 +9,50 @@
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900 dark:text-gray-100">
+
+                    <!-- Page Heading -->
+                    <h3 class="text-2xl font-bold mb-6">System Health & Analytics</h3>
+
+                    <!-- App Health Metrics -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        @php
+                            $seconds = $appHealthMetrics['average_processing_time'];
+                            if ($seconds <= 0) {
+                                $formattedTime = 'N/A';
+                            } else {
+                                $days = floor($seconds / 86400);
+                                $hours = floor(($seconds % 86400) / 3600);
+                                $minutes = floor(($seconds % 3600) / 60);
+
+                                if ($days > 0) {
+                                    $formattedTime = round($seconds / 86400, 1) . ' <span class="text-lg font-normal">days</span>';
+                                } elseif ($hours > 0) {
+                                    $formattedTime = round($seconds / 3600, 1) . ' <span class="text-lg font-normal">hours</span>';
+                                } else {
+                                    $formattedTime = round($seconds / 60, 1) . ' <span class="text-lg font-normal">minutes</span>';
+                                }
+                            }
+                        @endphp
+                        <div class="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg shadow">
+                            <h4 class="text-lg font-bold mb-2">Avg. Processing Time</h4>
+                            <p class="text-3xl font-semibold">{!! $formattedTime !!}</p>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg shadow">
+                            <h4 class="text-lg font-bold mb-2">Failed Jobs</h4>
+                            <p class="text-3xl font-semibold @if($appHealthMetrics['failed_jobs_count'] > 0) text-red-500 @endif">{{ $appHealthMetrics['failed_jobs_count'] }}</p>
+                        </div>
+                        <div class="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg shadow">
+                            <h4 class="text-lg font-bold mb-2">Cache Status</h4>
+                            @if($appHealthMetrics['cache_status'])
+                                <p class="text-3xl font-semibold text-green-500">Operational</p>
+                            @else
+                                <p class="text-3xl font-semibold text-red-500">Not Responding</p>
+                            @endif
+                        </div>
+                    </div>
+
+                    <!-- Database Integrity Section -->
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                        <!-- System Health Monitor -->
                         <div class="md:col-span-1 bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg shadow">
                             <h3 class="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Database Integrity</h3>
                             <div id="integrity-status-container" class="text-center">
