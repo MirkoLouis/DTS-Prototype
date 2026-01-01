@@ -146,16 +146,28 @@
                         </div>
                     @endif
 
-                    <!-- Other System Reports -->
-                    <div class="mb-8">
-                        <a href="{{ route('system.ratings') }}" class="block p-6 bg-gray-50 dark:bg-gray-700/50 rounded-lg shadow hover:bg-gray-100 dark:hover:bg-gray-700">
-                            <h4 class="text-lg font-bold mb-2 text-indigo-600 dark:text-indigo-400">View Client Ratings &rarr;</h4>
-                            <p class="text-sm text-gray-600 dark:text-gray-300">
-                                View the 1-5 star ratings submitted for completed documents.
-                            </p>
-                        </a>
+                    <!-- Admin Utilities -->
+                    <div class="mt-8 bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+                        <div class="text-gray-900 dark:text-gray-100">
+                            <h3 class="text-2xl font-bold mb-4">Admin Utilities</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <!-- Backup Manager Link -->
+                                <a href="{{ route('system.backups.index') }}" class="block p-6 bg-gray-50 dark:bg-gray-700/50 rounded-lg shadow hover:bg-gray-100 dark:hover:bg-gray-700 transition ease-in-out duration-150">
+                                    <h4 class="text-lg font-bold mb-2 text-indigo-600 dark:text-indigo-400">Backup Manager &rarr;</h4>
+                                    <p class="text-sm text-gray-600 dark:text-gray-300">
+                                        Create, download, and manage database backups.
+                                    </p>
+                                </a>
+                                <!-- Ratings Link -->
+                                <a href="{{ route('system.ratings') }}" class="block p-6 bg-gray-50 dark:bg-gray-700/50 rounded-lg shadow hover:bg-gray-100 dark:hover:bg-gray-700">
+                                    <h4 class="text-lg font-bold mb-2 text-indigo-600 dark:text-indigo-400">View Client Ratings &rarr;</h4>
+                                    <p class="text-sm text-gray-600 dark:text-gray-300">
+                                        View the 1-5 star ratings submitted for completed documents.
+                                    </p>
+                                </a>
+                            </div>
+                        </div>
                     </div>
-
                 </div>
             </div>
         </div>

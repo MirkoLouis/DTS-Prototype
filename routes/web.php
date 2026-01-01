@@ -9,6 +9,7 @@ use App\Http\Controllers\ReleasingController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\SystemHealthController;
 use App\Http\Controllers\SystemRatingsController;
+use App\Http\Controllers\BackupManagerController;
 use App\Http\Controllers\AdminDashboardController;
 use Illuminate\Support\Facades\Route;
 
@@ -55,12 +56,19 @@ Route::middleware('auth')->group(function() {
     Route::get('/api/admin-dashboard/current-load', [AdminDashboardController::class, 'getCurrentLoadData'])->name('api.admin-dashboard.current-load');
     Route::get('/api/admin-dashboard/throughput', [AdminDashboardController::class, 'getThroughputData'])->name('api.admin-dashboard.throughput');
 
-    // System Health routes
+    // System pages
     Route::get('/system-health', [SystemHealthController::class, 'index'])->name('system.health');
     Route::post('/system-health/run-check', [SystemHealthController::class, 'runIntegrityCheck'])->name('system.health.run-check');
     Route::get('/system-health/results', [SystemHealthController::class, 'getIntegrityCheckResults'])->name('system.health.results');
     Route::post('/system-health/rebuild-chain/{log}', [SystemHealthController::class, 'rebuildChain'])->name('system.health.rebuild-chain');
     Route::get('/system/ratings', [SystemRatingsController::class, 'index'])->name('system.ratings');
+
+    // Backup Manager routes
+    Route::get('/system/backups', [BackupManagerController::class, 'index'])->name('system.backups.index');
+    Route::post('/system/backups/create', [BackupManagerController::class, 'create'])->name('system.backups.create');
+    Route::get('/system/backups/download/{fileName}', [BackupManagerController::class, 'download'])->name('system.backups.download');
+    Route::delete('/system/backups/delete/{fileName}', [BackupManagerController::class, 'delete'])->name('system.backups.delete');
+    Route::post('/system/backups/restore/{fileName}', [BackupManagerController::class, 'restore'])->name('system.backups.restore');
 
     // Document management routes
     Route::get('/documents/{document}/manage', [DocumentController::class, 'manage'])->name('documents.manage');

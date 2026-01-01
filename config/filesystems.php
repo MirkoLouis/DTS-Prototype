@@ -60,6 +60,11 @@ return [
             'report' => false,
         ],
 
+        'database_backups' => [
+            'driver' => 'local',
+            'root' => database_path('database_backups'),
+        ],
+
     ],
 
     /*

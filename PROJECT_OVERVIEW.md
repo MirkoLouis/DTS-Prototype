@@ -184,3 +184,15 @@ To ensure continuous improvement and measure client satisfaction, the DTS includ
     -   A breakdown of how many 1, 2, 3, 4, and 5-star ratings have been received.
     -   A paginated list of every rated document, showing its tracking code, purpose, and the rating it received.
 -   **Benefit:** This provides the administration with direct, quantitative data on service performance, helping to identify areas of excellence and opportunities for improvement.
+
+## 8. Data Redundancy: The "Safety Net" Backup Manager
+
+To provide administrators with peace of mind and an enterprise-grade safety net against data loss, a simple yet powerful Backup Manager is integrated into the system.
+
+-   **Implementation:** `BackupManagerController.php`, `spatie/laravel-backup` package.
+-   **Access:** The Backup Manager is accessible via the "System Utilities" section on the main Admin Dashboard.
+-   **On-Demand Backups:** Administrators can trigger an on-demand database backup at any time. To ensure the UI remains responsive, this action is queued and runs in the background. A success message notifies the admin that the backup is being created.
+-   **Backup Management:** The page displays a list of all available backup files, sorted with the newest first. Each entry shows the file name, size, and creation date.
+-   **Download & Restore:**
+    -   **Download:** A "Download" link is available for every backup, allowing an administrator to save a copy of the `.zip` backup file to their local machine for archival.
+    -   **Restore (Safeguarded):** A "Restore" button is present but is intentionally disabled by default. Clicking it opens a modal that explains the destructive nature of restoring from a backup and requires the user to confirm they wish for the full one-click restore functionality to be built. This acts as a crucial safeguard in the prototype.

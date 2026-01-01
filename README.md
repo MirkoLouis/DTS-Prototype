@@ -15,6 +15,7 @@ This project is a functional prototype for a modern, web-based Document Tracking
 - **Searchable Document Logs:** Search and pagination functionality for the "Document Log Integrity" table on the Admin dashboard.
 - **Document Releasing Workflow:** A dedicated page for Records Officers to manage and finalize documents that have completed all internal processing and are ready for client release.
 - **Client Feedback & Rating System:** After a document is released, clients can provide a 1-5 star rating on the public tracking page, and administrators can view feedback analytics on a dedicated dashboard.
+- **Database Backup Manager ("The Safety Net"):** An admin-only dashboard to create and download on-demand database backups, providing a crucial safety net for data recovery.
 - **Automated Database Maintenance:** A daily scheduled task automatically prunes stale, pending documents to ensure database health.
 - **Dynamic Requirements:** The guest portal dynamically displays the required documents based on the selected purpose.
 - **Unique Tracking Code:** A unique tracking code is generated for every submission, allowing guests and staff to reference specific documents.
@@ -32,7 +33,7 @@ This project is a functional prototype for a modern, web-based Document Tracking
 
 ## Tech Stack
 
-- **Framework:** Laravel 11, simple-qrcode (for backend QR generation)
+- **Framework:** Laravel 11, simple-qrcode (for backend QR generation), spatie/laravel-backup
 - **Database:** MySQL
 - **Frontend:** Laravel Blade templates, Bootstrap 5 (CDN for public pages), Tailwind CSS (via Laravel Breeze for dashboards).
 - **JavaScript:** Vanilla JavaScript, SortableJS (for drag-and-drop), html5-qrcode (for frontend QR scanning).
