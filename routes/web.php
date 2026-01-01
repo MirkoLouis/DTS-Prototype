@@ -46,10 +46,14 @@ Route::middleware('auth')->group(function() {
     Route::get('/system-health', [SystemHealthController::class, 'index'])->name('system.health');
     Route::post('/system-health/run-check', [SystemHealthController::class, 'runIntegrityCheck'])->name('system.health.run-check');
     Route::get('/system-health/results', [SystemHealthController::class, 'getIntegrityCheckResults'])->name('system.health.results');
+    Route::post('/system-health/rebuild-chain/{log}', [SystemHealthController::class, 'rebuildChain'])->name('system.health.rebuild-chain');
 
     // Document management routes
     Route::get('/documents/{document}/manage', [DocumentController::class, 'manage'])->name('documents.manage');
+    Route::get('/documents/{document}', [DocumentController::class, 'show'])->name('documents.show');
     Route::post('/documents/{document}/finalize', [DocumentController::class, 'finalize'])->name('documents.finalize');
+    Route::post('/documents/{document}/freeze', [DocumentController::class, 'freeze'])->name('documents.freeze');
+    Route::post('/documents/{document}/unfreeze', [DocumentController::class, 'unfreeze'])->name('documents.unfreeze');
     Route::delete('/documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
 });
 

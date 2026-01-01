@@ -115,3 +115,43 @@ To ensure database health and prevent the accumulation of stale data, the system
 - **Implementation:** `app/Console/Commands/PrunePendingDocuments.php` scheduled in `routes/console.php`.
 - **Mechanism:** A scheduled Artisan command, `documents:prune-pending`, runs daily. This command automatically finds and deletes any documents that have remained in the `pending` status for more than two weeks.
 - **Benefit:** This prevents the database from being cluttered with abandoned document requests that were never processed, ensuring the system remains efficient.
+
+## 5. Testing Strategy for Integrity Verification
+
+To ensure the reliability and trustworthiness of the hash-chaining mechanism, a dedicated testing strategy has been implemented. This allows developers to simulate data corruption and verify that the system's integrity checks correctly identify tampering.
+
+### 5.1. Simulated Data Corruption Tool
+
+- **Implementation:** `dts:corrupt-log {logId}` Artisan command (`app/Console/Commands/CorruptDocumentLog.php`).
+- **Mechanism:** This command allows an administrator or developer to intentionally modify a specific `DocumentLog` entry (e.g., changing its 'action' field) in the database. Since the 'action' field is part of the hash calculation, this deliberate change will break the hash chain for that particular log and all subsequent logs in its chain.
+- **Benefit:** Provides a controlled method for creating a known point of failure, which is essential for testing the "Trust Builder" functionality.
+
+### 5.2. Automated Integrity Test Suite
+
+- **Implementation:** `tests/Integrity/IntegrityCheckTest.php` (PHPUnit test).
+- **Mechanism:** This test suite performs the following steps:
+    1.  Starts with a fresh, seeded database to ensure a clean state.
+    2.  Runs the `dts:verify-integrity` command and asserts that it reports 100% integrity.
+    3.  Uses the `dts:corrupt-log` command to deliberately corrupt a random `DocumentLog` entry.
+    4.  Runs `dts:verify-integrity` again and asserts that it now correctly reports a failure, indicating the specific corrupted log(s).
+- **Benefit:** This automated test provides continuous validation that the hash-chaining security feature is working as intended, assuring that any data tampering will be detected.
+
+## 6. Administrative Recovery Workflow
+
+When the System Health Monitor detects a mismatched hash, it is not an error to be "fixed" automatically, but an alert that requires administrative action. The system provides a suite of tools for this investigation and recovery process.
+
+### 6.1. Investigation and Triage
+
+-   **View Data:** The "View" button next to a mismatched log allows the administrator to see the full details and complete history of the affected document. This is the first step in any investigation.
+-   **Freeze/Unfreeze:**
+    -   The "Freeze" button changes a document's status to `frozen`. This is a critical first step to prevent any further actions on a document while it is under investigation.
+    -   Once an issue is resolved, the "Unfreeze" button (which conditionally replaces "Freeze") reverts the document's status to `processing`, allowing it to continue its workflow. Both actions are logged in the document's history.
+
+### 6.2. Chain Rebuilding
+
+-   **Mechanism:** The "Rebuild Chain" button triggers the `dts:rebuild-chain {logId}` command for the specific corrupted log. The command executes the following logic:
+    1.  **Finds the Last Good Link:** It identifies the last valid log in the document's chain before the point of corruption.
+    2.  **Iterative Re-hashing:** Starting with the corrupted log, it recalculates its hash based on its current data and the last good hash.
+    3.  It then proceeds sequentially through all subsequent logs for that document, re-calculating each one's hash based on the newly fixed hash of the one before it.
+    4.  **Logs the Action:** A final log entry is created to record that an administrator performed the rebuild, maintaining a transparent audit trail.
+-   **Automatic Re-verification:** After a successful rebuild, the system automatically triggers the `dts:verify-integrity` command again. This updates the system cache, and upon page reload, the fixed log is removed from the "Mismatched" list, giving the administrator immediate confirmation of a successful repair.

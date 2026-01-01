@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 ## [1.0.0] - 2025-12-30
 
 ### Added
+- **Admin: Document Log Integrity View Button:**
+    - Added a "View" button next to each document's tracking code in the Integrity Monitor log table, providing a direct link to the document's detailed view.
+- **Admin: System Health Recovery Tools:**
+    - Added administrative action buttons ("View", "Freeze", "Rebuild Chain") to the mismatched logs table on the System Health page.
+    - Created a `dts:rebuild-chain {logId}` Artisan command to programmatically fix a broken hash chain from a specific point forward.
+    - Implemented controller methods to handle freezing a document (setting its status to 'frozen') and showing a detailed view of a document and its full history, providing administrators with tools for both investigation and recovery.
+- **Testing: Database Integrity Check Verification:**
+    - Created a new Artisan command, `dts:corrupt-log {logId}`, to intentionally corrupt a specific `DocumentLog` entry, enabling controlled testing of the integrity verification system.
+    - Implemented a dedicated PHPUnit test suite (`tests/Integrity/IntegrityCheckTest.php`) that:
+        - Verifies the `dts:verify-integrity` command reports 100% success on a clean database.
+        - Uses `dts:corrupt-log` to tamper with a log.
+        - Asserts that `dts:verify-integrity` then correctly reports a failure with mismatched logs.
 - **Admin: System Health Monitor ("Trust Builder"):**
     - Implemented a "System Health Monitor" on a new, dedicated "System" page (`/system-health`) for administrators.
     - If the integrity check fails, the page now displays a paginated table listing the specific logs that have mismatched hashes, allowing for easy identification of data anomalies.
@@ -22,6 +34,10 @@ All notable changes to this project will be documented in this file.
 - **Admin Dashboard UI:**
     - Refactored the Admin Dashboard by moving the "System Health Monitor" to its own dedicated page.
     - Changed the pagination for the main Document Log Integrity table from 15 to 10 items per page for consistency.
+- **Document Details Page:**
+    - Added a "Back" button to the document details page (`documents.show`) to easily return to the previous view (e.g., System Health).
+    - Enhanced the conditional display of "Freeze" and "Unfreeze" buttons, ensuring "Unfreeze" is shown only for frozen documents and "Freeze" for unfrozen ones.
+    - The "Rebuild Chain" button on the System Health Monitor is now only visible if the associated document is NOT in a 'frozen' state, enforcing the correct administrative workflow.
 - **Records Officer Workflow:**
     - Records Officers can now decline and permanently delete a pending document from the 'Manage Route' page.
 - **AI: Route Prediction and Learning:**

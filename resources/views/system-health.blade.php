@@ -57,7 +57,7 @@
                                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Action</th>
                                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Performed By</th>
                                                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Stored Hash</th>
-                                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Previous Hash</th>
+                                                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
                                                 </tr>
                                             </thead>
                                             <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -67,7 +67,30 @@
                                                         <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-300 align-top">{{ $log->action }}</td>
                                                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300 align-top">{{ $log->user->name ?? 'System' }}</td>
                                                         <td class="px-6 py-4 text-sm text-red-500 dark:text-red-400 font-mono break-all max-w-xs">{{ $log->hash }}</td>
-                                                        <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-300 font-mono break-all max-w-xs">{{ $log->previous_hash }}</td>
+                                                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                                            <div class="flex items-center space-x-2">
+                                                                <a href="{{ route('documents.show', $log->document_id) }}" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200">View</a>
+                                                                
+                                                                @if($log->document->status === 'frozen')
+                                                                    <form action="{{ route('documents.unfreeze', $log->document_id) }}" method="POST" class="unfreeze-form">
+                                                                        @csrf
+                                                                        <button type="submit" class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-200">Unfreeze</button>
+                                                                    </form>
+                                                                @else
+                                                                    <form action="{{ route('documents.freeze', $log->document_id) }}" method="POST" class="freeze-form">
+                                                                        @csrf
+                                                                        <button type="submit" class="text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-200">Freeze</button>
+                                                                    </form>
+                                                                @endif
+
+                                                                @if($log->document->status !== 'frozen')
+                                                                    <form action="{{ route('system.health.rebuild-chain', $log->id) }}" method="POST" class="rebuild-form">
+                                                                        @csrf
+                                                                        <button type="submit" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200">Rebuild Chain</button>
+                                                                    </form>
+                                                                @endif
+                                                            </div>
+                                                        </td>
                                                     </tr>
                                                 @endforeach
                                             </tbody>
@@ -88,44 +111,93 @@
     @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            // Run Integrity Check
             const runCheckButton = document.getElementById('run-integrity-check');
-            const buttonSpinner = document.getElementById('button-spinner');
-            const buttonText = document.getElementById('button-text');
-            const percentageDiv = document.getElementById('verified-percentage');
-            const lastCheckedDiv = document.getElementById('last-checked-at');
+            if (runCheckButton) {
+                const buttonSpinner = document.getElementById('button-spinner');
+                const buttonText = document.getElementById('button-text');
 
-            runCheckButton.addEventListener('click', function() {
-                buttonSpinner.classList.remove('hidden');
-                buttonText.textContent = 'Verifying...';
-                runCheckButton.disabled = true;
+                runCheckButton.addEventListener('click', function() {
+                    buttonSpinner.classList.remove('hidden');
+                    buttonText.textContent = 'Verifying...';
+                    runCheckButton.disabled = true;
 
-                fetch('{{ route('system.health.run-check') }}', {
-                    method: 'POST',
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                        'X-Requested-With': 'XMLHttpRequest',
+                    fetch('{{ route('system.health.run-check') }}', {
+                        method: 'POST',
+                        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'X-Requested-With': 'XMLHttpRequest' }
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'success') {
+                            window.location.reload();
+                        } else {
+                            alert('An error occurred while starting the integrity check.');
+                            resetButton();
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error running integrity check:', error);
+                        resetButton();
+                    });
+                });
+
+                function resetButton() {
+                    buttonSpinner.classList.add('hidden');
+                    buttonText.textContent = 'Run Verification';
+                    runCheckButton.disabled = false;
+                }
+            }
+
+            // Handle form submissions for actions
+            document.querySelectorAll('.rebuild-form, .freeze-form, .unfreeze-form').forEach(form => {
+                form.addEventListener('submit', function(event) {
+                    event.preventDefault();
+                    
+                    let confirmationMessage = 'Are you sure you want to proceed with this action?';
+                    if (form.classList.contains('rebuild-form')) {
+                        confirmationMessage = 'Are you sure you want to rebuild the hash chain from this point? This action cannot be undone and will create a log entry.';
+                    } else if (form.classList.contains('freeze-form')) {
+                        confirmationMessage = 'Are you sure you want to freeze this document? This will prevent any further actions on it.';
+                    } else if (form.classList.contains('unfreeze-form')) {
+                        confirmationMessage = 'Are you sure you want to unfreeze this document?';
                     }
+
+                    if (confirm(confirmationMessage)) {
+                        submitForm(this);
+                    }
+                });
+            });
+
+            function submitForm(form) {
+                const button = form.querySelector('button[type="submit"]');
+                button.disabled = true;
+                button.textContent = 'Processing...';
+
+                fetch(form.action, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'X-Requested-With': 'XMLHttpRequest' },
                 })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        // Instead of polling, just reload the page to get the fresh results
+                .then(response => response.json().then(data => ({ status: response.status, body: data })))
+                .then(response => {
+                    alert(response.body.message || (response.status === 200 ? 'Action completed successfully.' : 'An error occurred.'));
+                    if (response.status === 200) {
                         window.location.reload();
                     } else {
-                        resetButton();
-                        alert('An error occurred while starting the integrity check.');
+                        button.disabled = false;
+                        // Reset text based on original form class
+                        if (form.classList.contains('rebuild-form')) button.textContent = 'Rebuild Chain';
+                        else if (form.classList.contains('freeze-form')) button.textContent = 'Freeze';
+                        else if (form.classList.contains('unfreeze-form')) button.textContent = 'Unfreeze';
                     }
                 })
                 .catch(error => {
-                    resetButton();
-                    console.error('Error running integrity check:', error)
+                    console.error('Form submission error:', error);
+                    alert('A network error occurred. Please try again.');
+                    button.disabled = false;
+                    if (form.classList.contains('rebuild-form')) button.textContent = 'Rebuild Chain';
+                    else if (form.classList.contains('freeze-form')) button.textContent = 'Freeze';
+                    else if (form.classList.contains('unfreeze-form')) button.textContent = 'Unfreeze';
                 });
-            });
-            
-            function resetButton() {
-                buttonSpinner.classList.add('hidden');
-                buttonText.textContent = 'Run Verification';
-                runCheckButton.disabled = false;
             }
         });
     </script>

@@ -58,4 +58,25 @@ class SystemHealthController extends Controller
 
         return response()->json($result);
     }
+
+    /**
+     * Trigger the hash chain rebuild for a specific log.
+     *
+     * @param  \App\Models\DocumentLog  $log
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function rebuildChain(DocumentLog $log)
+    {
+        try {
+            // Rebuild the chain for the specific document
+            Artisan::call('dts:rebuild-chain', ['logId' => $log->id]);
+            
+            // Immediately run a new integrity check to update the cache
+            Artisan::call('dts:verify-integrity');
+
+            return response()->json(['status' => 'success', 'message' => 'Hash chain rebuilt and system re-verified successfully.']);
+        } catch (\Exception $e) {
+            return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
+        }
+    }
 }

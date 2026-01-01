@@ -91,6 +91,62 @@ class DocumentController extends Controller
 
         return redirect()->route('intake')->with('success', 'Success! The document has been declined and removed from the system.');
     }
+
+    /**
+     * Display the specified document's data and logs.
+     *
+     * @param  \App\Models\Document  $document
+     * @return \Illuminate\View\View
+     */
+    public function show(Document $document)
+    {
+        $document->load(['purpose', 'logs.user']);
+        return view('documents.show', ['document' => $document]);
+    }
+
+    /**
+     * Freeze the specified document.
+     *
+     * @param  \App\Models\Document  $document
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function freeze(Document $document)
+    {
+        $document->status = 'frozen';
+        $document->save();
+
+        DocumentLog::create([
+            'document_id' => $document->id,
+            'user_id' => Auth::id(),
+            'action' => 'ADMIN: Document frozen.',
+            'remarks' => 'An administrator has frozen this document, likely pending an integrity investigation.',
+        ]);
+
+        return response()->json(['status' => 'success', 'message' => 'Document has been frozen successfully.']);
+    }
+
+    /**
+     * Unfreeze the specified document.
+     *
+     * @param  \App\Models\Document  $document
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function unfreeze(Document $document)
+    {
+        // Add logic to determine what the previous status was, or just revert to 'processing'.
+        // For simplicity, we'll revert to 'processing'.
+        $document->status = 'processing';
+        $document->save();
+
+        DocumentLog::create([
+            'document_id' => $document->id,
+            'user_id' => Auth::id(),
+            'action' => 'ADMIN: Document unfrozen.',
+            'remarks' => 'An administrator has unfrozen this document, allowing it to continue processing.',
+        ]);
+
+        return response()->json(['status' => 'success', 'message' => 'Document has been unfrozen successfully.']);
+    }
 }
 
         

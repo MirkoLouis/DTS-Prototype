@@ -24,7 +24,12 @@
             @forelse ($logs as $log)
                 <tr>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100 align-top">
-                        {{ $log->document->tracking_code }}
+                        <div class="flex flex-col">
+                            <span>{{ $log->document->tracking_code }}</span>
+                            <a href="{{ route('documents.show', $log->document_id) }}" class="text-xs text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200">
+                                View
+                            </a>
+                        </div>
                     </td>
                     <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-300 align-top">
                         {{ $log->action }}
