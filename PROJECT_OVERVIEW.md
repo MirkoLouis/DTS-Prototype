@@ -52,22 +52,21 @@ The application is designed around a role-based access control system, providing
 
 ### 2.5. The Admin Journey (Analytics, Integrity & System Health)
 
-The administrator role now has three distinct navigation sections:
+The administrator role now has a streamlined navigation structure:
 
 1.  **Admin Dashboard (Process Analytics):**
     -   The main admin dashboard, located at `/admin-dashboard`, provides process analytics. This includes:
         -   A "Bottleneck Detector" (bar chart) visualizing current document load at each department.
         -   "Throughput" (line chart) showing documents processed over time (daily, weekly, monthly, yearly).
     -   This dashboard is the default landing page for administrators.
+    -   A new "System Utilities" section on this dashboard provides quick access to:
+        -   **System Health Monitor ("Trust Builder"):** (at `/system-health`) This page houses the "Trust Builder" tool and application health metrics. An admin can click "Run Verification" to trigger a complete, on-demand integrity check of the entire hash chain. If mismatched hashes are found, a paginated table of invalid logs is displayed with recovery tools.
+        -   **Client Ratings Dashboard:** (at `/system/ratings`) Provides an overview of all client feedback, including total ratings, average rating, and a paginated list of all rated documents.
+        -   **Backup Manager ("The Safety Net"):** (accessible via a dedicated link from the Admin Dashboard) Allows administrators to create on-demand database backups, download existing backups, and delete old backups.
 
 2.  **Document Integrity (Monitor):**
     -   Accessible via a new top-level navigation tab, this section (at `/integrity-monitor`) displays a raw, searchable view of the `document_logs` table.
     -   It allows the admin to monitor all actions taken on all documents and includes a powerful AJAX-powered search to filter logs by tracking code, action, user, or hash. A "View" button is available next to each log entry, linking directly to the document's detailed view.
-
-3.  **System Page (System Health Monitor):**
-    -   Also accessible via a top-level navigation tab, this page (at `/system-health`) houses the "Trust Builder" tool and application health metrics.
-    -   **Application Health:** The top of the page displays key performance indicators (KPIs) like Average Document Processing Time, Failed Jobs Count, and Cache Status.
-    -   **Database Integrity:** An admin can click "Run Verification" to trigger a complete, on-demand integrity check of the entire hash chain in the database. If any mismatched hashes are found, the page will display a paginated table listing the specific invalid logs, along with administrative actions like "View", "Freeze/Unfreeze", and "Rebuild Chain".
 
 ## 3. Core Innovations in Detail
 
@@ -195,4 +194,5 @@ To provide administrators with peace of mind and an enterprise-grade safety net 
 -   **Backup Management:** The page displays a list of all available backup files, sorted with the newest first. Each entry shows the file name, size, and creation date.
 -   **Download & Restore:**
     -   **Download:** A "Download" link is available for every backup, allowing an administrator to save a copy of the `.zip` backup file to their local machine for archival.
+    -   **Delete:** A "Delete" button is provided to remove specific backup files directly from the UI, protected by a confirmation dialog.
     -   **Restore (Safeguarded):** A "Restore" button is present but is intentionally disabled by default. Clicking it opens a modal that explains the destructive nature of restoring from a backup and requires the user to confirm they wish for the full one-click restore functionality to be built. This acts as a crucial safeguard in the prototype.
