@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 ## [1.0.0] - 2025-12-30
 
 ### Added
+- **Admin: Process Analytics Dashboard ("Bottleneck Detector"):**
+    - Implemented a new "Admin Dashboard" (`/admin-dashboard`) accessible via a dedicated navigation link for admin users.
+    - Features a bar chart displaying the "Current Load" by department (number of documents pending at each step).
+    - Includes a line chart showing "Throughput" (documents processed over time), with options to view daily, weekly, monthly, or yearly data.
+    - Utilizes API endpoints (`/api/admin-dashboard/current-load`, `/api/admin-dashboard/throughput`) to fetch chart data dynamically.
 - **Admin: Document Log Integrity View Button:**
     - Added a "View" button next to each document's tracking code in the Integrity Monitor log table, providing a direct link to the document's detailed view.
 - **Admin: System Health Recovery Tools:**
@@ -32,7 +37,9 @@ All notable changes to this project will be documented in this file.
 
 ### Changed
 - **Admin Dashboard UI:**
-    - Refactored the Admin Dashboard by moving the "System Health Monitor" to its own dedicated page.
+    - Refactored the Admin Dashboard navigation: The main "Dashboard" link now intelligently adapts its destination and active state based on the user's role. Admin users are redirected to the process analytics dashboard (`/admin-dashboard`) via this link.
+    - The "Integrity Monitor" was moved from the main "Dashboard" link to its own top-level "Document Integrity" navigation link.
+    - The "System Health Monitor" was moved to its own dedicated "System" page.
     - Changed the pagination for the main Document Log Integrity table from 15 to 10 items per page for consistency.
 - **Document Details Page:**
     - Added a "Back" button to the document details page (`documents.show`) to easily return to the previous view (e.g., System Health).

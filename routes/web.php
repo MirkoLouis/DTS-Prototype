@@ -7,6 +7,7 @@ use App\Http\Controllers\IntegrityMonitorController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\SystemHealthController;
+use App\Http\Controllers\AdminDashboardController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -41,6 +42,9 @@ Route::middleware('auth')->group(function() {
     
     // Admin specific routes
     Route::get('/integrity-monitor', [IntegrityMonitorController::class, 'index'])->name('integrity-monitor');
+    Route::get('/admin-dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
+    Route::get('/api/admin-dashboard/current-load', [AdminDashboardController::class, 'getCurrentLoadData'])->name('api.admin-dashboard.current-load');
+    Route::get('/api/admin-dashboard/throughput', [AdminDashboardController::class, 'getThroughputData'])->name('api.admin-dashboard.throughput');
 
     // System Health routes
     Route::get('/system-health', [SystemHealthController::class, 'index'])->name('system.health');

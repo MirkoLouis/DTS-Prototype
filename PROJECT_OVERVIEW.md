@@ -48,18 +48,24 @@ The application is designed around a role-based access control system, providing
     b. Updates the document's `status` to 'completed' if all steps in the route are finished.
     c. Creates a `DocumentLog` entry, logging the completion and advancing the hash chain.
 
-### 2.5. The Admin Journey (Integrity & System Health)
+### 2.5. The Admin Journey (Analytics, Integrity & System Health)
 
-The administrator role is split into two key areas, accessible via the main navigation:
+The administrator role now has three distinct navigation sections:
 
-1.  **Dashboard (Integrity Monitor):**
-    -   The admin's main dashboard, located at `/integrity-monitor`, displays a raw, searchable view of the `document_logs` table.
-    -   This view allows the admin to monitor all actions taken on all documents and includes a powerful AJAX-powered search to filter logs by tracking code, action, user, or hash.
+1.  **Admin Dashboard (Process Analytics):**
+    -   The main admin dashboard, located at `/admin-dashboard`, provides process analytics. This includes:
+        -   A "Bottleneck Detector" (bar chart) visualizing current document load at each department.
+        -   "Throughput" (line chart) showing documents processed over time (daily, weekly, monthly, yearly).
+    -   This dashboard is the default landing page for administrators.
 
-2.  **System Page (System Health Monitor):**
-    -   A new, dedicated page at `/system-health` houses the "Trust Builder" tool.
+2.  **Document Integrity (Monitor):**
+    -   Accessible via a new top-level navigation tab, this section (at `/integrity-monitor`) displays a raw, searchable view of the `document_logs` table.
+    -   It allows the admin to monitor all actions taken on all documents and includes a powerful AJAX-powered search to filter logs by tracking code, action, user, or hash.
+
+3.  **System Page (System Health Monitor):**
+    -   Also accessible via a top-level navigation tab, this page (at `/system-health`) houses the "Trust Builder" tool.
     -   On this page, the admin can click "Run Verification" to trigger a complete, on-demand integrity check of the entire hash chain in the database.
-    -   If any mismatched hashes are found, the page will display a paginated table listing the specific invalid logs, allowing for immediate investigation.
+    -   If any mismatched hashes are found, the page will display a paginated table listing the specific invalid logs, along with administrative actions like "View", "Freeze/Unfreeze", and "Rebuild Chain".
 
 ## 3. Core Innovations in Detail
 

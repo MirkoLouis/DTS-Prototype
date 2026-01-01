@@ -24,7 +24,7 @@ class CheckRole
 
         switch ($user->role) {
             case 'admin':
-                return redirect('/integrity-monitor');
+                return redirect('/admin-dashboard');
             case 'officer': // Records Officer
                 return redirect('/intake');
             case 'staff':
