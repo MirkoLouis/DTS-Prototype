@@ -60,7 +60,7 @@ The administrator role now has three distinct navigation sections:
 
 2.  **Document Integrity (Monitor):**
     -   Accessible via a new top-level navigation tab, this section (at `/integrity-monitor`) displays a raw, searchable view of the `document_logs` table.
-    -   It allows the admin to monitor all actions taken on all documents and includes a powerful AJAX-powered search to filter logs by tracking code, action, user, or hash.
+    -   It allows the admin to monitor all actions taken on all documents and includes a powerful AJAX-powered search to filter logs by tracking code, action, user, or hash. A "View" button is available next to each log entry, linking directly to the document's detailed view.
 
 3.  **System Page (System Health Monitor):**
     -   Also accessible via a top-level navigation tab, this page (at `/system-health`) houses the "Trust Builder" tool and application health metrics.

@@ -11,12 +11,14 @@ This project is a functional prototype for a modern, web-based Document Tracking
     - **Records Officer:** Manages initial document intake, can decline and delete invalid or duplicate submissions, and handles processing tasks for the Records department.
     - **Department Staff:** Views and processes ongoing documents specifically assigned to their department.
 - **Full Document Lifecycle Management:** Documents progress through a defined route, with staff members completing steps and advancing documents through the system.
+- **Admin Process Analytics Dashboard:** A dashboard for administrators to view process analytics like department load and system throughput, acting as a "Bottleneck Detector."
+- **Searchable Document Logs:** Search and pagination functionality for the "Document Log Integrity" table on the Admin dashboard.
 - **Automated Database Maintenance:** A daily scheduled task automatically prunes stale, pending documents to ensure database health.
 - **Dynamic Requirements:** The guest portal dynamically displays the required documents based on the selected purpose.
 - **Unique Tracking Code:** A unique tracking code is generated for every submission, allowing guests and staff to reference specific documents.
 - **QR Code Integration:** Automatically generates QR codes for tracking numbers on submission success pages. Records officers can scan QR codes via webcam or phone camera on the intake page to auto-populate the tracking code input field and trigger search.
 - **Interactive Route Management:** A drag-and-drop interface for Records Officers to easily view, modify, add, and delete steps in a document's route.
-- **System Health Monitor ("Trust Builder"):** An on-demand tool for administrators to verify the entire document log hash-chain, proving data immutability. If errors are found, it displays a list of the invalid logs.
+- **System Health Monitor ("Trust Builder"):** An on-demand tool for administrators to verify the entire document log hash-chain, proving data immutability. If errors are found, it displays a list of the invalid logs, along with recovery tools like "View", "Freeze", and "Rebuild Chain" options.
 - **Task Completion Interface:** Staff members can mark document steps as complete, automatically advancing the document to the next stage in its route.
 - **Responsive Dashboard Layouts:** All primary dashboards are fully responsive, providing optimal viewing on both desktop (table view) and mobile (card view).
 
