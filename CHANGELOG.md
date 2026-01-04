@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-01-04
+
+### Added
+- **AJAX Polling for Releasing Page:** Implemented an AJAX polling mechanism on the `/releasing` page to automatically refresh the list of documents awaiting release every 60 seconds, ensuring the view is always up-to-date for the Records Officer.
+
+### Changed
+- **Project Dependencies:** Made the project fully standalone by removing all external CDN dependencies.
+    - **Bootstrap 5:** The Bootstrap CSS/JS library, previously loaded via CDN for public pages, has been installed as a local NPM package and is now compiled into the project's assets via Vite.
+    - **Figtree Font:** The Figtree web font, previously loaded from `fonts.bunny.net`, has been downloaded and is now hosted locally within the project. The `@font-face` rules are compiled into the main stylesheet via Vite.
+    - **Chart.js:** The Chart.js library, previously loaded via CDN on the Admin Dashboard, has been installed as a local NPM package. The chart-building logic has been moved to a separate JavaScript file and is compiled via Vite.
+
 ## [1.1.0] - 2026-01-01
 
 ### Added

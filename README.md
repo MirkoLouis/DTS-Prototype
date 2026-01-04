@@ -35,8 +35,8 @@ This project is a functional prototype for a modern, web-based Document Tracking
 
 - **Framework:** Laravel 11, simple-qrcode (for backend QR generation), spatie/laravel-backup
 - **Database:** MySQL
-- **Frontend:** Laravel Blade templates, Bootstrap 5 (CDN for public pages), Tailwind CSS (via Laravel Breeze for dashboards).
-- **JavaScript:** Vanilla JavaScript, SortableJS (for drag-and-drop), html5-qrcode (for frontend QR scanning).
+- **Frontend:** Laravel Blade templates, Bootstrap 5, Tailwind CSS (via Laravel Breeze for dashboards).
+- **JavaScript:** Vanilla JavaScript, Chart.js, SortableJS (for drag-and-drop), html5-qrcode (for frontend QR scanning, currently via CDN).
 
 ## Setup & Installation
 

@@ -39,7 +39,7 @@ The application is designed around a role-based access control system, providing
     b. Saves the `finalized_route` to the document's record.
     c. **Creates the first `DocumentLog` entry**, with hash chain initialized via the `DocumentLog` model's `boot()` method.
 5.  **Learning Mechanism:** If the officer's finalized route differs from the purpose's original suggested route, the system updates the purpose with the new, improved route, making future predictions more accurate.
-6.  **Document Releasing:** After a document has passed through all departments in its `finalized_route`, it returns to the Records Officer on a new "Releasing" page. Here, the officer can see all documents ready for client pickup. Once the client has received their document, the officer clicks "Release Document," which marks the document as `completed` and creates the final log entry, ending its lifecycle.
+6.  **Document Releasing:** After a document has passed through all departments in its `finalized_route`, it returns to the Records Officer on a new "Releasing" page. Here, the officer can see all documents ready for client pickup. The list on this page automatically refreshes every 60 seconds. Once the client has received their document, the officer clicks "Release Document," which marks the document as `completed` and creates the final log entry, ending its lifecycle.
 
 ### 2.4. The Staff Journey (Processing)
 
