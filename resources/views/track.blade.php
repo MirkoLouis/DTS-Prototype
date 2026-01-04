@@ -144,7 +144,7 @@
     </script>
     <script>
         // Real-time Polling Logic
-        const POLLING_INTERVAL = 5000; // 5 seconds
+        const POLLING_INTERVAL = 60000; // 60 seconds
 
         async function pollForUpdates() {
             const documentCards = document.querySelectorAll('.document-card');

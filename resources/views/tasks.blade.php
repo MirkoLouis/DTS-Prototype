@@ -23,7 +23,7 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            const POLLING_INTERVAL = 10000; // 10 seconds
+            const POLLING_INTERVAL = 60000; // 60 seconds
 
             const refreshTasks = async () => {
                 try {

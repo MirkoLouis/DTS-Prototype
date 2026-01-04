@@ -13,7 +13,7 @@ class ReleasingController extends Controller
     /**
      * Display a listing of the documents ready for release.
      */
-    public function index()
+    public function index(Request $request)
     {
         // Get all documents that are in 'processing' status.
         $processingDocuments = Document::where('status', 'processing')->latest()->get();
@@ -38,6 +38,10 @@ class ReleasingController extends Controller
             $page,
             ['path' => request()->url()]
         );
+
+        if ($request->ajax()) {
+            return view('partials.releasing-table', ['documents' => $paginatedResults]);
+        }
 
         return view('releasing.index', [
             'documents' => $paginatedResults,

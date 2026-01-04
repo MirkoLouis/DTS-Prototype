@@ -32,4 +32,34 @@
             </div>
         </div>
     </div>
+    @push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const POLLING_INTERVAL = 60000; // 60 seconds
+
+            const refreshReleasingList = async () => {
+                try {
+                    const response = await fetch('{{ route("releasing") }}', {
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    });
+                    if (!response.ok) {
+                        console.error('Failed to refresh releasing list.');
+                        return;
+                    }
+                    const html = await response.text();
+                    const container = document.getElementById('releasing-container');
+                    if (container) {
+                        container.innerHTML = html;
+                    }
+                } catch (error) {
+                    console.error('Error refreshing releasing list:', error);
+                }
+            };
+
+            setInterval(refreshReleasingList, POLLING_INTERVAL);
+        });
+    </script>
+    @endpush
 </x-app-layout>

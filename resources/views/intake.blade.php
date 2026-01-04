@@ -183,7 +183,7 @@
             });
 
             // AJAX polling for live updates
-            const POLLING_INTERVAL = 15000; // 15 seconds
+            const POLLING_INTERVAL = 60000; // 60 seconds
             setInterval(() => {
                 // Only poll if the user is not actively typing in the search box
                 if (document.activeElement !== searchInput) {
