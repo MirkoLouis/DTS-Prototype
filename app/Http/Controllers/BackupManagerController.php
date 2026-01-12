@@ -21,7 +21,7 @@ class BackupManagerController extends Controller
         $disk = Storage::disk($diskName);
         $appName = config('backup.backup.name');
         
-        $files = $disk->allFiles($appName);
+        $files = $disk->allFiles();
 
         $backups = collect($files)
             ->filter(function ($file) {
@@ -30,13 +30,13 @@ class BackupManagerController extends Controller
             ->map(function ($file) use ($disk) {
                 return [
                     'file_path' => $file,
-                    'file_name' => basename($file),
+                    'file_name' => $file, // Use the full relative path including the subdirectory
                     'file_size' => Format::humanReadableSize($disk->size($file)),
                     'last_modified' => Carbon::createFromTimestamp($disk->lastModified($file)),
                 ];
             })
-            ->reverse()
-            ->values(); // Reset keys after reversing
+            ->sortByDesc('last_modified') // Sort by last modified date, most recent first
+            ->values(); // Reset keys after sorting
 
         if ($request->ajax()) {
             return response()->json($backups);
@@ -76,8 +76,8 @@ class BackupManagerController extends Controller
     public function download($fileName)
     {
         $diskName = config('backup.backup.destination.disks')[0];
-        $appName = config('backup.backup.name');
-        $filePath = $appName . '/' . $fileName;
+        // $appName = config('backup.backup.name'); // Not needed anymore
+        $filePath = $fileName; // $fileName now contains the full relative path (e.g., 'DTS_Prototype/2026-01-12-...')
 
         if (Storage::disk($diskName)->exists($filePath)) {
             return Storage::disk($diskName)->download($filePath);
@@ -95,8 +95,8 @@ class BackupManagerController extends Controller
     public function delete($fileName)
     {
         $diskName = config('backup.backup.destination.disks')[0];
-        $appName = config('backup.backup.name');
-        $filePath = $appName . '/' . $fileName;
+        // $appName = config('backup.backup.name'); // Not needed anymore
+        $filePath = $fileName; // $fileName now contains the full relative path (e.g., 'DTS_Prototype/2026-01-12-...')
 
         if (Storage::disk($diskName)->exists($filePath)) {
             Storage::disk($diskName)->delete($filePath);

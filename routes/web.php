@@ -66,9 +66,9 @@ Route::middleware('auth')->group(function() {
     // Backup Manager routes
     Route::get('/system/backups', [BackupManagerController::class, 'index'])->name('system.backups.index');
     Route::post('/system/backups/create', [BackupManagerController::class, 'create'])->name('system.backups.create');
-    Route::get('/system/backups/download/{fileName}', [BackupManagerController::class, 'download'])->name('system.backups.download');
-    Route::delete('/system/backups/delete/{fileName}', [BackupManagerController::class, 'delete'])->name('system.backups.delete');
-    Route::post('/system/backups/restore/{fileName}', [BackupManagerController::class, 'restore'])->name('system.backups.restore');
+    Route::get('/system/backups/download/{fileName}', [BackupManagerController::class, 'download'])->where('fileName', '.*')->name('system.backups.download');
+    Route::delete('/system/backups/delete/{fileName}', [BackupManagerController::class, 'delete'])->where('fileName', '.*')->name('system.backups.delete');
+    Route::post('/system/backups/restore/{fileName}', [BackupManagerController::class, 'restore'])->where('fileName', '.*')->name('system.backups.restore');
 
     // Document management routes
     Route::get('/documents/{document}/manage', [DocumentController::class, 'manage'])->name('documents.manage');
