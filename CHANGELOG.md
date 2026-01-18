@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2026-01-04
+
+### Added
+- **Guest Tracking Page: QR Code Scanner:** Added a "Scan QR Code" option to the "Track Another Document" modal on the public `/track` page, allowing guests to easily add documents to their tracking view using their device's camera.
+- **Records Officer Intake: Advanced Filtering:** Implemented a comprehensive set of new filters on the `/intake` page to allow for more granular searching of recently handled documents.
+    - Filters include: Submitter (dynamic list of submitters from the past week), Purpose, Status, and Date Handled.
+    - Added a "Clear Filters" button to easily reset all filter inputs.
+
+### Changed
+- **Guest Submission:** Custom purposes submitted via the "Other" option on the guest form are now saved with an "Others: " prefix (e.g., "Others: My custom purpose") to distinguish them from official purposes.
+- **Project Dependencies:** The `html5-qrcode` library, previously loaded via CDN on the intake page, is now installed as a local NPM package and compiled into the project's main `app.js` asset via Vite.
+
+### Fixed
+- **Routing:** Corrected a `MethodNotAllowedHttpException` by changing the `documents.finalize` route from `GET` to `POST` to match the form submission method.
+- **Blade Template:** Resolved a `ParseError` on the intake page caused by a typo in a Blade directive (`@end{foreach}` was written as `@end{foreach}`).
+- **PDF Generation:** Fixed an `ErrorException` in the printable tracking form (`tracking-form-pdf.blade.php`) that occurred when generating a PDF for a document with a finalized route. The error was caused by incorrectly attempting to access a `->name` property on a route step, which is a string.
+- **Styling & Layout:**
+    - Adjusted the styling on the printable tracking form PDF to reduce the excess vertical space above the QR code, aligning it to the top of its container.
+    - Fixed the vertical alignment of the "Clear Filters" button on the intake page to ensure it aligns correctly with the other filter inputs.
+
 ## [1.2.0] - 2026-01-04
 
 ### Added

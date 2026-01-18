@@ -22,6 +22,7 @@
             </div>
             <p class="display-4" style="font-weight: 500;">{{ $tracking_code }}</p>
             <a href="{{ route('track', ['codes' => $tracking_code]) }}" class="btn btn-info mt-3">Track Your Document</a>
+            <a href="{{ route('documents.print-tracking-form', ['document' => $document_id]) }}" class="btn btn-secondary mt-3" target="_blank">Print Document Tracking Form</a>
         </div>
         <div class="text-center mt-4">
             <a href="{{ route('welcome') }}" class="btn btn-primary">Submit Another Request</a>

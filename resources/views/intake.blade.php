@@ -44,14 +44,51 @@
                 </div>
             </div>
 
-            {{-- Recently Handled Documents Section --}}
+            {{-- Recently Added Documents Section --}}
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900 dark:text-gray-100">
                     <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-2xl font-bold">Recently Handled Documents</h3>
-                        <div class="w-1/3">
-                            <label for="table-search" class="sr-only">Search</label>
-                            <input type="text" id="table-search" class="block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" placeholder="Search...">
+                        <h3 class="text-2xl font-bold">Recently Added Documents</h3>
+                        {{-- Filters and Search --}}
+                        <div class="flex items-end space-x-2">
+                            <div>
+                                <label for="date-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Date Handled</label>
+                                <input type="date" id="date-filter" class="filter-input block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                            </div>
+                            <div>
+                                <label for="status-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
+                                <select id="status-filter" class="filter-input block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                    <option value="all">All Statuses</option>
+                                    @foreach($statuses as $status)
+                                        <option value="{{ $status }}">{{ ucfirst($status) }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label for="purpose-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Purpose</label>
+                                <select id="purpose-filter" class="filter-input block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                    <option value="all">All Purposes</option>
+                                    @foreach($purposes as $purpose)
+                                        <option value="{{ $purpose->name }}">{{ $purpose->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label for="submitter-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Submitter</label>
+                                <select id="submitter-filter" class="filter-input block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                    <option value="all">All Submitters</option>
+                                    @foreach($submitters as $submitter)
+                                        <option value="{{ $submitter }}">{{ $submitter }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label for="table-search" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Search</label>
+                                <input type="text" id="table-search" class="block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" placeholder="Search...">
+                            </div>
+                            <button id="clear-filters-btn" class="inline-flex items-center px-4 py-2 bg-gray-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-500 active:bg-gray-700 focus:outline-none focus:border-gray-700 focus:ring focus:ring-gray-200 disabled:opacity-25 transition">
+                                Clear
+                            </button>
                         </div>
                     </div>
                     
@@ -71,6 +108,10 @@
     </div>
 
     <style>
+        /* Add styles for filters if needed */
+        .filter-input {
+            min-width: 150px; /* Adjust as needed */
+        }
         .qr-modal {
             display: none; 
             position: fixed; 
@@ -109,7 +150,6 @@
         }
     </style>
 
-    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const documentsContainer = document.getElementById('documents-container');
@@ -133,19 +173,53 @@
                 }
             };
 
-            // Live search logic
+            // Combined search and filter logic
             const searchInput = document.getElementById('table-search');
+            const statusFilter = document.getElementById('status-filter');
+            const purposeFilter = document.getElementById('purpose-filter');
+            const submitterFilter = document.getElementById('submitter-filter');
+            const dateFilter = document.getElementById('date-filter');
+            const clearFiltersBtn = document.getElementById('clear-filters-btn');
+
             let debounceTimer;
-            searchInput.addEventListener('keyup', (e) => {
+
+            function handleFilterChange() {
                 clearTimeout(debounceTimer);
                 debounceTimer = setTimeout(() => {
-                    const searchTerm = e.target.value;
-                    const url = new URL('{{ route("intake") }}'); // Use route for base URL
-                    url.searchParams.set('search', searchTerm);
-                    url.searchParams.set('page', '1'); // Reset to page 1 on new search
+                    const searchTerm = searchInput.value;
+                    const status = statusFilter.value;
+                    const purpose = purposeFilter.value;
+                    const submitter = submitterFilter.value;
+                    const date = dateFilter.value;
+                    
+                    const url = new URL('{{ route("intake") }}');
+                    if (searchTerm) url.searchParams.set('search', searchTerm);
+                    if (status && status !== 'all') url.searchParams.set('status', status);
+                    if (purpose && purpose !== 'all') url.searchParams.set('purpose', purpose);
+                    if (submitter && submitter !== 'all') url.searchParams.set('submitter', submitter);
+                    if (date) url.searchParams.set('date_handled', date);
+                    url.searchParams.set('page', '1'); // Reset to page 1 on new search/filter
+
                     fetchDocuments(url.toString());
                 }, 300); // 300ms debounce
-            });
+            }
+
+            function clearFilters() {
+                searchInput.value = '';
+                statusFilter.value = 'all';
+                purposeFilter.value = 'all';
+                submitterFilter.value = 'all';
+                dateFilter.value = '';
+                handleFilterChange();
+            }
+
+            searchInput.addEventListener('keyup', handleFilterChange);
+            statusFilter.addEventListener('change', handleFilterChange);
+            purposeFilter.addEventListener('change', handleFilterChange);
+            submitterFilter.addEventListener('change', handleFilterChange);
+            dateFilter.addEventListener('change', handleFilterChange);
+            clearFiltersBtn.addEventListener('click', clearFilters);
+
 
             // AJAX pagination and route-toggle logic using event delegation
             documentsContainer.addEventListener('click', (e) => {
@@ -185,9 +259,10 @@
             // AJAX polling for live updates
             const POLLING_INTERVAL = 60000; // 60 seconds
             setInterval(() => {
-                // Only poll if the user is not actively typing in the search box
-                if (document.activeElement !== searchInput) {
-                    fetchDocuments(window.location.href);
+                // Only poll if the user is not actively typing in the search box or date picker
+                if (document.activeElement !== searchInput && document.activeElement !== dateFilter) {
+                    // Re-apply filters on poll
+                    handleFilterChange();
                 }
             }, POLLING_INTERVAL);
 

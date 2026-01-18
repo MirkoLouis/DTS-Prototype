@@ -17,7 +17,7 @@ use Illuminate\Support\Facades\Route;
 // Guest-facing routes
 Route::get('/', [GuestController::class, 'welcome'])->name('welcome');
 Route::post('/submit-document', [GuestController::class, 'store'])->name('document.store');
-Route::get('/success/{tracking_code}', [GuestController::class, 'success'])->name('success');
+Route::get('/success/{tracking_code}/{document_id}', [GuestController::class, 'success'])->name('success');
 Route::get('/track', [GuestController::class, 'track'])->name('track'); // Modified to accept query parameter
 
 // API route for fetching single document module via AJAX
@@ -28,6 +28,7 @@ Route::get('/api/document-status', [GuestController::class, 'getStatusUpdates'])
 
 // Public route for submitting a rating
 Route::post('/documents/{document:tracking_code}/rate', [DocumentController::class, 'rate'])->name('documents.rate');
+Route::get('/documents/{document}/print-tracking-form', [DocumentController::class, 'printTrackingForm'])->name('documents.print-tracking-form');
 
 // The main dashboard route, which redirects based on role.
 // This replaces the default Breeze dashboard route.
@@ -74,10 +75,14 @@ Route::middleware('auth')->group(function() {
     Route::get('/documents/{document}/manage', [DocumentController::class, 'manage'])->name('documents.manage');
     Route::get('/documents/{document}', [DocumentController::class, 'show'])->name('documents.show');
     Route::post('/documents/{document}/finalize', [DocumentController::class, 'finalize'])->name('documents.finalize');
+
+    // Admin-specific routes
+    Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::post('/documents/{document}/freeze', [DocumentController::class, 'freeze'])->name('documents.freeze');
     Route::post('/documents/{document}/unfreeze', [DocumentController::class, 'unfreeze'])->name('documents.unfreeze');
     Route::delete('/documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
 });
+}); // This was missing
 
 
 // Breeze's Profile routes

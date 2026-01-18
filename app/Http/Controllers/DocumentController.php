@@ -8,6 +8,8 @@ use App\Models\DocumentLog;
 use App\Jobs\UpdateKeywordWeights;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Barryvdh\DomPDF\Facade\Pdf;
+use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class DocumentController extends Controller
 {
@@ -173,6 +175,27 @@ class DocumentController extends Controller
         $document->save();
 
         return response()->json(['status' => 'success', 'message' => 'Thank you for your feedback!']);
+    }
+
+    /**
+     * Generate a printable PDF tracking form for the specified document.
+     *
+     * @param  \App\Models\Document  $document
+     * @return \Illuminate\Http\Response
+     */
+    public function printTrackingForm(Document $document)
+    {
+        // Eager load relationships to prevent N+1 issues in the view
+        $document->load('purpose');
+
+        $qrCode = base64_encode(QrCode::format('png')->size(110)->generate($document->tracking_code));
+
+        $pdf = Pdf::loadView('documents.tracking-form-pdf', [
+            'document' => $document,
+            'qrCode' => $qrCode,
+        ]);
+
+        return $pdf->setPaper('a4')->stream('document-tracking-form-'.$document->tracking_code.'.pdf');
     }
 }
 

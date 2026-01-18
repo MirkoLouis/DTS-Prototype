@@ -52,7 +52,7 @@ class GuestController extends Controller
 
         // Handle "Other" purpose
         if ($finalPurposeId == 0) {
-            $otherPurposeText = $request->input('other_purpose_text');
+            $otherPurposeText = "Others: " . $request->input('other_purpose_text'); // Prepend "Others: "
             // Check if a similar non-official purpose already exists to prevent duplicates
             $existingPurpose = Purpose::where('name', $otherPurposeText)->where('is_official', false)->first();
 
@@ -85,16 +85,23 @@ class GuestController extends Controller
             'status' => 'pending',
         ]);
 
-        return redirect()->route('success', ['tracking_code' => $document->tracking_code]);
+        return redirect()->route('success', [
+            'tracking_code' => $document->tracking_code,
+            'document_id' => $document->id
+        ]);
     }
 
     /**
      * Show the success page with the tracking code.
      */
-    public function success($tracking_code)
+    public function success($tracking_code, $document_id)
     {
         $qrCode = QrCode::size(200)->generate($tracking_code);
-        return view('success', ['tracking_code' => $tracking_code, 'qrCode' => $qrCode]);
+        return view('success', [
+            'tracking_code' => $tracking_code,
+            'qrCode' => $qrCode,
+            'document_id' => $document_id
+        ]);
     }
 
     /**

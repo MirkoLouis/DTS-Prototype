@@ -75,6 +75,9 @@
                 <div class="text-sm text-gray-500 dark:text-gray-400">
                     <strong>Performed By:</strong> {{ $log->user->name ?? 'System' }}
                 </div>
+                <a href="{{ route('documents.show', $log->document_id) }}" class="text-xs text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 mt-1 inline-block">
+                    View Details
+                </a>
             </div>
             <div class="border-t border-gray-200 dark:border-gray-600 pt-3 font-mono text-xs">
                 <div class="flex justify-between items-start">

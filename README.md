@@ -5,10 +5,10 @@ This project is a functional prototype for a modern, web-based Document Tracking
 ## Core Features
 
 - **Guest Submission Portal:** A public-facing form for guests to submit new document requests.
-- **Public Tracking Portal:** A dedicated page where guests can track the status of one or more documents using their unique tracking codes. Features dynamic multi-document display and an interactive subway map view.
+- **Public Tracking Portal:** A dedicated page where guests can track the status of one or more documents using their unique tracking codes. Features dynamic multi-document display, an interactive subway map view, and a QR code scanner to easily add new documents.
 - **Role-Based Access Control:** Distinct user roles with specific dashboards and permissions for streamlined workflows:
     - **Admin:** Has access to a "System" page to run on-demand integrity checks (the "Trust Builder") and a dashboard to view and search all document logs.
-    - **Records Officer:** Manages initial document intake, can decline and delete invalid or duplicate submissions, handles processing tasks for the Records department, and manages the final release of completed documents to clients.
+    - **Records Officer:** Manages initial document intake with advanced filtering (by submitter, purpose, status, and date). Can decline/delete invalid submissions, handles processing tasks, and manages the final release of completed documents.
     - **Department Staff:** Views and processes ongoing documents specifically assigned to their department.
 - **Full Document Lifecycle Management:** Documents progress through a defined route, with staff members completing steps and advancing documents through the system.
 - **Admin Process Analytics Dashboard:** A dashboard for administrators to view process analytics like department load and system throughput, acting as a "Bottleneck Detector."
@@ -19,7 +19,7 @@ This project is a functional prototype for a modern, web-based Document Tracking
 - **Automated Database Maintenance:** A daily scheduled task automatically prunes stale, pending documents to ensure database health.
 - **Dynamic Requirements:** The guest portal dynamically displays the required documents based on the selected purpose.
 - **Unique Tracking Code:** A unique tracking code is generated for every submission, allowing guests and staff to reference specific documents.
-- **QR Code Integration:** Automatically generates QR codes for tracking numbers on submission success pages. Records officers can scan QR codes via webcam or phone camera on the intake page to auto-populate the tracking code input field and trigger search.
+- **QR Code Integration:** Automatically generates QR codes for tracking numbers on submission success pages. Both Records Officers (on the intake page) and guests (on the tracking page) can scan QR codes to look up documents.
 - **Interactive Route Management:** A drag-and-drop interface for Records Officers to easily view, modify, add, and delete steps in a document's route.
 - **System Health Monitor ("Trust Builder"):** An on-demand tool for administrators to verify the entire document log hash-chain, proving data immutability. If errors are found, it displays a list of the invalid logs, along with recovery tools like "View", "Freeze", and "Rebuild Chain" options.
 - **Task Completion Interface:** Staff members can mark document steps as complete, automatically advancing the document to the next stage in its route.
@@ -29,14 +29,14 @@ This project is a functional prototype for a modern, web-based Document Tracking
 
 1.  **Security (Hash-Chaining & The "Trust Builder"):** An immutable, `sha256`-based chained log of all actions performed on a document is automatically created. Each log entry's hash is dependent on the previous entry's hash, ensuring the integrity of the document's history. This is complemented by the **System Health Monitor**, an on-demand tool that allows an administrator to verify the integrity of the entire database hash-chain at any time.
 2.  **AI (Database-Driven Route Prediction & Learning):** The `RoutePredictionService` has been upgraded from hardcoded logic to a dynamic, database-driven system. It now tokenizes purpose text and queries a `prediction_keywords` table, using weighted scores to suggest routes. The system "learns" from Records Officers' modifications; a background job (`UpdateKeywordWeights`) increases the weight of keywords for chosen departments, making future predictions more accurate.
-3.  **HCI (Interactive UI & Feedback Loop):** The system prioritizes user experience with features like the dynamic requirements list, the drag-and-drop route editor, the `x-tracker-subway-map` Blade component for visual tracking, and a modular, AJAX-driven multi-document tracking portal. It closes the feedback loop by allowing clients to provide a star rating after their document is completed, giving administrators direct insight into service quality.
+3.  **HCI (Interactive UI & Feedback Loop):** The system prioritizes user experience with features like the dynamic requirements list, the drag-and-drop route editor, QR code scanners on both guest and staff pages, the `x-tracker-subway-map` Blade component for visual tracking, and a modular, AJAX-driven multi-document tracking portal. It closes the feedback loop by allowing clients to provide a star rating after their document is completed, giving administrators direct insight into service quality.
 
 ## Tech Stack
 
 - **Framework:** Laravel 11, simple-qrcode (for backend QR generation), spatie/laravel-backup
 - **Database:** MySQL
-- **Frontend:** Laravel Blade templates, Bootstrap 5, Tailwind CSS (via Laravel Breeze for dashboards).
-- **JavaScript:** Vanilla JavaScript, Chart.js, SortableJS (for drag-and-drop), html5-qrcode (for frontend QR scanning, currently via CDN).
+- **Frontend:** Laravel Blade templates, Bootstrap 5, Tailwind CSS. All frontend libraries are locally managed via NPM/Vite.
+- **JavaScript:** Vanilla JavaScript, Chart.js, SortableJS, html5-qrcode.
 
 ## Setup & Installation
 

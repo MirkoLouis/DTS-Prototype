@@ -51,6 +51,12 @@
                             <input type="text" class="form-control" id="tracking_code_input" placeholder="e.g., DEPED-A1B2C3D4E5" required>
                         </div>
                         <div id="track-error-message" class="alert alert-danger d-none" role="alert"></div>
+                        
+                        <div class="text-center my-3">
+                            <button type="button" id="scan-qr-button" class="btn btn-outline-primary">
+                                <i class="bi bi-qr-code-scan"></i> Scan QR Code
+                            </button>
+                        </div>
                     </div>
                     <div class="modal-footer">
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -61,7 +67,53 @@
         </div>
     </div>
 
+    {{-- QR Scanner Modal --}}
+    <div id="qr-scanner-modal" class="qr-modal">
+        <div class="qr-modal-content">
+            <span id="close-qr-modal" class="qr-modal-close">&times;</span>
+            <div id="qr-reader" style="width: 100%;"></div>
+        </div>
+    </div>
+
+    <style>
+        .qr-modal {
+            display: none; 
+            position: fixed; 
+            z-index: 1056; /* Higher than Bootstrap modal z-index */
+            left: 0;
+            top: 0;
+            width: 100%; 
+            height: 100%; 
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.4);
+        }
+        .qr-modal-content {
+            background-color: #fefefe;
+            margin: 15% auto; 
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            position: relative;
+        }
+        .qr-modal-close {
+            color: #aaa;
+            float: right;
+            font-size: 36px;
+            font-weight: bold;
+            position: absolute;
+            top: -15px;
+            right: 0px;
+        }
+        .qr-modal-close:hover,
+        .qr-modal-close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
     
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const trackForm = document.getElementById('track-another-form');
@@ -69,6 +121,12 @@
             const trackingCodeInput = document.getElementById('tracking_code_input');
             const trackedDocumentsContainer = document.getElementById('tracked-documents-container');
             const trackErrorMessage = document.getElementById('track-error-message');
+
+            // QR Scanner Elements
+            const scanQrButton = document.getElementById('scan-qr-button');
+            const qrScannerModal = document.getElementById('qr-scanner-modal');
+            const closeQrModal = document.getElementById('close-qr-modal');
+            let html5QrCode = null;
 
             function displayError(message) {
                 trackErrorMessage.textContent = message;
@@ -84,62 +142,112 @@
             document.getElementById('trackAnotherModal').addEventListener('show.bs.modal', clearError);
             trackingCodeInput.addEventListener('input', clearError);
 
+            async function trackDocument(trackingCode) {
+                clearError();
+                if (!trackingCode) {
+                    displayError('Please enter a tracking code.');
+                    return;
+                }
+
+                const urlParams = new URLSearchParams(window.location.search);
+                let currentCodes = urlParams.get('codes') ? urlParams.get('codes').split(',') : [];
+                
+                if (currentCodes.includes(trackingCode)) {
+                    displayError(`Document ${trackingCode} is already being tracked on this page.`);
+                    trackAnotherModal.hide();
+                    return;
+                }
+
+                currentCodes.push(trackingCode);
+                urlParams.set('codes', currentCodes.join(','));
+                history.pushState(null, '', `?${urlParams.toString()}`);
+
+                try {
+                    const response = await fetch(`/api/track-document/${trackingCode}`);
+                    if (!response.ok) {
+                        if (response.status === 404) {
+                            displayError(`Document with tracking code ${trackingCode} not found.`);
+                        } else {
+                            displayError('Error tracking document. Please try again.');
+                        }
+                        // Remove the bad code from URL
+                        const failedCodeIndex = currentCodes.indexOf(trackingCode);
+                        if(failedCodeIndex > -1) {
+                            currentCodes.splice(failedCodeIndex, 1);
+                            urlParams.set('codes', currentCodes.join(','));
+                            history.pushState(null, '', `?${urlParams.toString()}`);
+                        }
+                        return; // Important: stop execution if document not found
+                    }
+                    const htmlContent = await response.text();
+                    
+                    const noDocumentsAlert = trackedDocumentsContainer.querySelector('.alert.alert-info');
+                    if (noDocumentsAlert) {
+                        noDocumentsAlert.remove();
+                    }
+                    trackedDocumentsContainer.insertAdjacentHTML('beforeend', htmlContent);
+
+                } catch (error) {
+                    console.error('Error fetching document module:', error);
+                    displayError('Network error. Please try again.');
+                } finally {
+                    trackAnotherModal.hide();
+                    trackingCodeInput.value = '';
+                }
+            }
+
 
             if (trackForm) {
-                trackForm.addEventListener('submit', async function (e) {
+                trackForm.addEventListener('submit', function (e) {
                     e.preventDefault();
-                    clearError(); // Clear previous errors
                     const trackingCode = trackingCodeInput.value.trim();
-                    if (!trackingCode) {
-                        displayError('Please enter a tracking code.');
-                        return;
-                    }
-
-                    // Get currently tracked codes from URL or data attributes
-                    const urlParams = new URLSearchParams(window.location.search);
-                    let currentCodes = urlParams.get('codes') ? urlParams.get('codes').split(',') : [];
-                    
-                    // Check if code is already being tracked
-                    if (currentCodes.includes(trackingCode)) {
-                        displayError(`Document ${trackingCode} is already being tracked on this page.`);
-                        return;
-                    }
-
-                    // Update URL
-                    currentCodes.push(trackingCode); // Add new code
-                    urlParams.set('codes', currentCodes.join(','));
-                    history.pushState(null, '', `?${urlParams.toString()}`);
-
-                    // Make AJAX call to get the new document card
-                    try {
-                        const response = await fetch(`/api/track-document/${trackingCode}`);
-                        if (!response.ok) {
-                            if (response.status === 404) {
-                                displayError(`Document with tracking code ${trackingCode} not found.`);
-                            } else {
-                                displayError('Error tracking document. Please try again.');
-                            }
-                            return;
-                        }
-                        const htmlContent = await response.text();
-                        
-                        // Append the new card to the container
-                        // First, check if the "No documents" alert is present and remove it
-                        const noDocumentsAlert = trackedDocumentsContainer.querySelector('.alert.alert-info');
-                        if (noDocumentsAlert) {
-                            noDocumentsAlert.remove();
-                        }
-                        trackedDocumentsContainer.insertAdjacentHTML('beforeend', htmlContent);
-
-                    } catch (error) {
-                        console.error('Error fetching document module:', error);
-                        displayError('Network error. Please try again.');
-                    } finally {
-                        trackAnotherModal.hide(); // Hide the modal
-                        trackingCodeInput.value = ''; // Clear input
-                    }
+                    trackDocument(trackingCode);
                 });
             }
+
+            // --- QR Code Scanner Logic ---
+            function onScanSuccess(decodedText, decodedResult) {
+                stopQrCodeScanner();
+                trackDocument(decodedText);
+            }
+
+            function onScanError(errorMessage) {
+                // handle scan error as you like
+            }
+
+            function startQrCodeScanner() {
+                trackAnotherModal.hide(); // Hide the first modal
+                qrScannerModal.style.display = 'block';
+                if (!html5QrCode) {
+                    html5QrCode = new Html5Qrcode("qr-reader");
+                }
+                html5QrCode.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: { width: 250, height: 250 } },
+                    onScanSuccess,
+                    onScanError
+                ).catch(err => {
+                    alert("Could not start QR scanner. Please grant camera permissions and refresh.");
+                    stopQrCodeScanner();
+                });
+            }
+
+            function stopQrCodeScanner() {
+                if (html5QrCode && html5QrCode.isScanning) {
+                    html5QrCode.stop().catch(err => {
+                        // errors are fine, scanner might already be stopping
+                    });
+                }
+                qrScannerModal.style.display = 'none';
+            }
+
+            scanQrButton.addEventListener('click', startQrCodeScanner);
+            closeQrModal.addEventListener('click', stopQrCodeScanner);
+            window.addEventListener('click', function(event) {
+                if (event.target == qrScannerModal) {
+                    stopQrCodeScanner();
+                }
+            });
         });
     </script>
     <script>

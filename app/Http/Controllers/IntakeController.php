@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Models\Document;
 use App\Models\DocumentLog;
+use App\Models\Purpose;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class IntakeController extends Controller
 {
@@ -18,10 +21,14 @@ class IntakeController extends Controller
     {
         $officerId = Auth::id();
         $searchTerm = $request->input('search');
+        $filterStatus = $request->input('status');
+        $filterPurpose = $request->input('purpose');
+        $filterSubmitter = $request->input('submitter');
+        $filterDate = $request->input('date_handled');
 
         $logsQuery = DocumentLog::where('user_id', $officerId)
             ->where('action', 'Accepted and route finalized.')
-            ->whereHas('document', function ($query) use ($searchTerm) {
+            ->whereHas('document', function ($query) use ($searchTerm, $filterStatus, $filterPurpose, $filterSubmitter) {
                 if ($searchTerm) {
                     $query->where('tracking_code', 'like', '%' . $searchTerm . '%')
                           ->orWhere('guest_info->name', 'like', '%' . $searchTerm . '%')
@@ -29,17 +36,49 @@ class IntakeController extends Controller
                               $subQuery->where('name', 'like', '%' . $searchTerm . '%');
                           });
                 }
+                
+                if ($filterStatus && $filterStatus !== 'all') {
+                    $query->where('status', $filterStatus);
+                }
+
+                if ($filterPurpose && $filterPurpose !== 'all') {
+                    $query->whereHas('purpose', function ($subQuery) use ($filterPurpose) {
+                        $subQuery->where('name', $filterPurpose);
+                    });
+                }
+                
+                if ($filterSubmitter && $filterSubmitter !== 'all') {
+                    $query->where('guest_info->name', $filterSubmitter);
+                }
             })
-            ->with(['document.purpose']) // Eager load the document and its purpose
+            ->with(['document.purpose'])
+            ->when($filterDate, function ($query) use ($filterDate) {
+                $query->whereDate('created_at', $filterDate);
+            })
             ->latest();
 
         $handledLogs = $logsQuery->paginate(10)->withQueryString();
+        
+        // Data for filters
+        $purposes = Purpose::orderBy('name')->get();
+        $statuses = ['pending', 'processing', 'completed', 'frozen']; // All possible statuses
+        $submitters = Document::where('created_at', '>=', Carbon::now()->subWeek())
+                              ->select(DB::raw('JSON_UNQUOTE(guest_info->"$.name") as name'))
+                              ->distinct()
+                              ->orderBy('name')
+                              ->get()
+                              ->pluck('name');
 
         if ($request->ajax()) {
             return view('partials.intake-table', ['handledLogs' => $handledLogs])->render();
         }
 
-        return view('intake', ['handledLogs' => $handledLogs]);
+        return view('intake', [
+            'handledLogs' => $handledLogs, 
+            'purposes' => $purposes,
+            'statuses' => $statuses,
+            'submitters' => $submitters,
+        ]);
     }
 
     /**
