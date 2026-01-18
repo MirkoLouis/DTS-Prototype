@@ -40,36 +40,24 @@ class AppServiceProvider extends ServiceProvider
 
      */
 
-    public function boot(): void
+            public function boot(): void
 
-    {
+            {
 
-        // Explicitly register the listener for debugging purposes
+                if (!$this->app->runningInConsole()) {
 
-        // Event::listen(BackupWasSuccessful::class, SetBackupPermissions::class); // Not needed anymore
+                    config(['app.url' => request()->getSchemeAndHttpHost()]);
 
+                }
 
+        
 
-        // Only run this check if we are not in production
+                // if (config('app.env') !== 'local' || str_contains(config('app.url'), 'https')) {
 
-        if (config('app.env') !== 'production') {
+                //     URL::forceScheme('https');
 
-            // Get the current host (e.g. 'localhost' or 'your-tunnel.trycloudflare.com')
-
-            $host = request()->getHost();
-
-
-
-            // If the host is NOT localhost, assume it's the tunnel and force HTTPS
-
-            if (!in_array($host, ['localhost', '127.0.0.1'])) {
-
-                URL::forceScheme('https');
+                // }
 
             }
-
-        }
-
-    }
 
 }
