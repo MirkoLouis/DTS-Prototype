@@ -62,8 +62,7 @@ class IntakeController extends Controller
         // Data for filters
         $purposes = Purpose::orderBy('name')->get();
         $statuses = ['pending', 'processing', 'completed', 'frozen']; // All possible statuses
-        $submitters = Document::where('created_at', '>=', Carbon::now()->subWeek())
-                              ->select(DB::raw('JSON_UNQUOTE(guest_info->"$.name") as name'))
+        $submitters = Document::select(DB::raw('JSON_UNQUOTE(guest_info->"$.name") as name'))
                               ->distinct()
                               ->orderBy('name')
                               ->get()
