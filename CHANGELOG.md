@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.1] - 2026-01-18
+
+### Fixed
+- **QR Code Scanner:** Corrected and hardened the implementation of the QR Code scanner on the guest submission page (`welcome.blade.php`). The inline JavaScript is now properly wrapped in a `DOMContentLoaded` event listener, necessary styles for the scanner modal have been added, and the logic has been updated to correctly use the locally bundled `html5-qrcode` library provided by Vite, removing a previous erroneous CDN link. Added logging and checks to improve debuggability.
+
 ## [1.3.0] - 2026-01-04
 
 ### Added

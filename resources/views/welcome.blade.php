@@ -31,6 +31,41 @@
         .other-purpose-input {
             display: none; /* Hidden by default */
         }
+        .qr-modal {
+            display: none; 
+            position: fixed; 
+            z-index: 1056; /* Higher than Bootstrap modal z-index */
+            left: 0;
+            top: 0;
+            width: 100%; 
+            height: 100%; 
+            overflow: auto; 
+            background-color: rgba(0,0,0,0.4);
+        }
+        .qr-modal-content {
+            background-color: #fefefe;
+            margin: 15% auto; 
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            max-width: 500px;
+            position: relative;
+        }
+        .qr-modal-close {
+            color: #aaa;
+            float: right;
+            font-size: 36px;
+            font-weight: bold;
+            position: absolute;
+            top: -15px;
+            right: 0px;
+        }
+        .qr-modal-close:hover,
+        .qr-modal-close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body class="antialiased">
@@ -140,136 +175,157 @@
     </div>
 
     <script>
-        const purposeSelect = document.getElementById('purpose-select');
-        const otherPurposeInput = document.querySelector('.other-purpose-input');
-        const otherPurposeTextField = document.getElementById('other_purpose_text');
-        const requirementsSection = document.getElementById('requirements-section');
-        const requirementsList = document.getElementById('requirements-list');
+        document.addEventListener('DOMContentLoaded', function () {
+            console.log("Attempting to use QR Code Scanner. Html5Qrcode:", window.Html5Qrcode);
 
-        function updatePurposeFields() {
-            const selectedOptionValue = purposeSelect.value;
-            const selectedOption = purposeSelect.options[purposeSelect.selectedIndex];
+            const purposeSelect = document.getElementById('purpose-select');
+            const otherPurposeInput = document.querySelector('.other-purpose-input');
+            const otherPurposeTextField = document.getElementById('other_purpose_text');
+            const requirementsSection = document.getElementById('requirements-section');
+            const requirementsList = document.getElementById('requirements-list');
 
-            // Handle "Other" purpose input visibility
-            if (selectedOptionValue === '0') {
-                otherPurposeInput.style.display = 'block';
-                otherPurposeTextField.setAttribute('required', 'required');
-                requirementsSection.style.display = 'none'; // Hide requirements for "Other"
-                requirementsList.innerHTML = '';
-            } else {
-                otherPurposeInput.style.display = 'none';
-                otherPurposeTextField.removeAttribute('required');
-                otherPurposeTextField.value = ''; // Clear input if not "Other"
+            function updatePurposeFields() {
+                const selectedOptionValue = purposeSelect.value;
+                const selectedOption = purposeSelect.options[purposeSelect.selectedIndex];
 
-                // Handle requirements display for specific purposes
-                const requirements = JSON.parse(selectedOption.dataset.requirements || '[]');
-                requirementsList.innerHTML = ''; // Clear previous list
-
-                if (requirements.length > 0) {
-                    requirements.forEach(req => {
-                        const li = document.createElement('li');
-                        li.textContent = req;
-                        requirementsList.appendChild(li);
-                    });
-                    requirementsSection.style.display = 'block';
-                } else {
+                if (selectedOptionValue === '0') {
+                    otherPurposeInput.style.display = 'block';
+                    otherPurposeTextField.setAttribute('required', 'required');
                     requirementsSection.style.display = 'none';
+                    requirementsList.innerHTML = '';
+                } else {
+                    otherPurposeInput.style.display = 'none';
+                    otherPurposeTextField.removeAttribute('required');
+                    otherPurposeTextField.value = '';
+
+                    const requirements = selectedOption.dataset.requirements ? JSON.parse(selectedOption.dataset.requirements) : [];
+                    requirementsList.innerHTML = '';
+
+                    if (requirements.length > 0) {
+                        requirements.forEach(req => {
+                            const li = document.createElement('li');
+                            li.textContent = req;
+                            requirementsList.appendChild(li);
+                        });
+                        requirementsSection.style.display = 'block';
+                    } else {
+                        requirementsSection.style.display = 'none';
+                    }
                 }
             }
-        }
 
-        // Initial call to set up the form correctly on page load
-        updatePurposeFields();
-
-        // Add event listener for changes
-        purposeSelect.addEventListener('change', updatePurposeFields);
-
-        // --- Track Document Modal Logic ---
-        const trackForm = document.getElementById('track-document-form');
-        const trackDocumentModal = new bootstrap.Modal(document.getElementById('trackAnotherModal')); // Using the same ID as the modal
-        const trackingCodeInput = document.getElementById('tracking_code_input');
-        const trackErrorMessage = document.getElementById('track-error-message');
-
-        // QR Scanner Elements
-        const scanQrButton = document.getElementById('scan-qr-button');
-        const qrScannerModal = document.getElementById('qr-scanner-modal');
-        const closeQrModal = document.getElementById('close-qr-modal');
-        let html5QrCode = null;
-
-        function displayError(message) {
-            trackErrorMessage.textContent = message;
-            trackErrorMessage.classList.remove('d-none');
-        }
-
-        function clearError() {
-            trackErrorMessage.classList.add('d-none');
-            trackErrorMessage.textContent = '';
-        }
-
-        // Clear error message when modal is opened or input changes
-        document.getElementById('trackAnotherModal').addEventListener('show.bs.modal', clearError);
-        trackingCodeInput.addEventListener('input', clearError);
-
-        async function trackAndRedirect(trackingCode) {
-            clearError();
-            if (!trackingCode) {
-                displayError('Please enter a tracking code.');
-                return;
+            if (purposeSelect) {
+                updatePurposeFields();
+                purposeSelect.addEventListener('change', updatePurposeFields);
             }
 
-            // Redirect to the track page with the tracking code
-            window.location.href = `/track?codes=${trackingCode}`;
-        }
+            const trackForm = document.getElementById('track-document-form');
+            const trackDocumentModalEl = document.getElementById('trackAnotherModal');
+            const trackDocumentModal = trackDocumentModalEl ? new bootstrap.Modal(trackDocumentModalEl) : null;
+            const trackingCodeInput = document.getElementById('tracking_code_input');
+            const trackErrorMessage = document.getElementById('track-error-message');
 
-        if (trackForm) {
-            trackForm.addEventListener('submit', function (e) {
-                e.preventDefault();
-                const trackingCode = trackingCodeInput.value.trim();
-                trackAndRedirect(trackingCode);
-            });
-        }
+            const scanQrButton = document.getElementById('scan-qr-button');
+            const qrScannerModal = document.getElementById('qr-scanner-modal');
+            const closeQrModal = document.getElementById('close-qr-modal');
+            let html5QrCode = null;
 
-        // --- QR Code Scanner Logic ---
-        function onScanSuccess(decodedText, decodedResult) {
-            stopQrCodeScanner();
-            trackAndRedirect(decodedText);
-        }
-
-        function onScanError(errorMessage) {
-            // handle scan error as you like
-        }
-
-        function startQrCodeScanner() {
-            trackDocumentModal.hide(); // Hide the first modal
-            qrScannerModal.style.display = 'block';
-            if (!html5QrCode) {
-                html5QrCode = new Html5Qrcode("qr-reader");
+            function displayError(message) {
+                if(trackErrorMessage) {
+                    trackErrorMessage.textContent = message;
+                    trackErrorMessage.classList.remove('d-none');
+                }
             }
-            html5QrCode.start(
-                { facingMode: "environment" },
-                { fps: 10, qrbox: { width: 250, height: 250 } },
-                onScanSuccess,
-                onScanError
-            ).catch(err => {
-                alert("Could not start QR scanner. Please grant camera permissions and refresh.");
-                stopQrCodeScanner();
-            });
-        }
 
-        function stopQrCodeScanner() {
-            if (html5QrCode && html5QrCode.isScanning) {
-                html5QrCode.stop().catch(err => {
-                    // errors are fine, scanner might already be stopping
+            function clearError() {
+                if(trackErrorMessage) {
+                    trackErrorMessage.classList.add('d-none');
+                    trackErrorMessage.textContent = '';
+                }
+            }
+
+            if(trackDocumentModalEl) {
+                trackDocumentModalEl.addEventListener('show.bs.modal', clearError);
+            }
+            if(trackingCodeInput) {
+                trackingCodeInput.addEventListener('input', clearError);
+            }
+            
+            function trackAndRedirect(trackingCode) {
+                clearError();
+                if (!trackingCode) {
+                    displayError('Please enter a tracking code.');
+                    return;
+                }
+                window.location.href = `/track?codes=${encodeURIComponent(trackingCode)}`;
+            }
+
+            if (trackForm) {
+                trackForm.addEventListener('submit', function (e) {
+                    e.preventDefault();
+                    const trackingCode = trackingCodeInput.value.trim();
+                    trackAndRedirect(trackingCode);
                 });
             }
-            qrScannerModal.style.display = 'none';
-        }
 
-        scanQrButton.addEventListener('click', startQrCodeScanner);
-        closeQrModal.addEventListener('click', stopQrCodeScanner);
-        window.addEventListener('click', function(event) {
-            if (event.target == qrScannerModal) {
+            function onScanSuccess(decodedText, decodedResult) {
                 stopQrCodeScanner();
+                trackAndRedirect(decodedText);
             }
+
+            function onScanError(errorMessage) {
+                console.warn(`QR Code Scan Error: ${errorMessage}`);
+            }
+
+            function startQrCodeScanner() {
+                if (trackDocumentModal) {
+                    trackDocumentModal.hide();
+                }
+                if (qrScannerModal) {
+                    qrScannerModal.style.display = 'block';
+                }
+
+                if (!html5QrCode && window.Html5Qrcode) {
+                    html5QrCode = new window.Html5Qrcode("qr-reader");
+                    html5QrCode.start(
+                        { facingMode: "environment" },
+                        { fps: 10, qrbox: { width: 250, height: 250 } },
+                        onScanSuccess,
+                        onScanError
+                    ).catch(err => {
+                        console.error("Could not start QR scanner.", err);
+                        alert("Could not start QR scanner. Please grant camera permissions and refresh.");
+                        stopQrCodeScanner();
+                    });
+                } else if (!window.Html5Qrcode) {
+                    alert("QR Scanner library not loaded.");
+                }
+            }
+
+            function stopQrCodeScanner() {
+                if (html5QrCode && html5QrCode.isScanning) {
+                    html5QrCode.stop().catch(err => {
+                        console.error("Error stopping the QR scanner.", err);
+                    });
+                }
+                if (qrScannerModal) {
+                    qrScannerModal.style.display = 'none';
+                }
+            }
+            
+            if (scanQrButton) {
+                scanQrButton.addEventListener('click', startQrCodeScanner);
+            }
+            if (closeQrModal) {
+                closeQrModal.addEventListener('click', stopQrCodeScanner);
+            }
+
+            window.addEventListener('click', function(event) {
+                if (event.target == qrScannerModal) {
+                    stopQrCodeScanner();
+                }
+            });
         });
     </script>
+</body>
+</html>
