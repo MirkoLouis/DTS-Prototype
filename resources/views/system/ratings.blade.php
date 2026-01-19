@@ -16,11 +16,11 @@
             <!-- Stats Cards -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg p-6 text-center">
-                    <div class="text-2xl font-bold">{{ $stats->total_ratings ?? 0 }}</div>
+                    <div class="text-2xl font-bold text-white">{{ $stats->total_ratings ?? 0 }}</div>
                     <div class="text-sm text-gray-500 dark:text-gray-400">Total Ratings</div>
                 </div>
                 <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg p-6 text-center">
-                    <div class="text-2xl font-bold">{{ number_format($stats->average_rating ?? 0, 2) }} / 5.00</div>
+                    <div class="text-2xl font-bold text-white">{{ number_format($stats->average_rating ?? 0, 2) }} / 5.00</div>
                     <div class="text-sm text-gray-500 dark:text-gray-400">Average Rating</div>
                 </div>
                 <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg p-6 text-center">
