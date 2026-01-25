@@ -1,30 +1,84 @@
-*.log
-.DS_Store
-.env
-.env.backup
-.env.production
-.phpactor.json
-.phpunit.result.cache
-/.fleet
-/.idea
-/.nova
-/.phpunit.cache
-/.vscode
-/.zed
+*.log                                                                                 │
+.DS_Store                                                                             │
+.env                                                                                  │
+.env.backup                                                                           │
+.env.production                                                                       │
+.phpactor.json                                                                        │
+.phpunit.result.cache                                                                 │
+/.fleet                                                                               │
+/.idea                                                                                │
+/.nova                                                                                │
+/.phpunit.cache                                                                       │
+/.vscode                                                                              │
+/.zed                                                                                 │
 /auth.json
 /node_modules
 /public/build
 /public/hot
 /public/storage
 /storage/*.key
-/storage/pail
 /vendor
+/lang
+/storage/pail
 Homestead.json
 Homestead.yaml
+.env
+.env.backup
+.phpunit.result.cache
+*.key
+*.crt
+homestead.box
+homestead.vagrant
+
+# Applications
+app-debug.apk
+app-release.apk
+
+# Folders
+.idea
+.vscode/
+.history/
+dumps/
+dist/
+
+# Files
+.DS_Store
 Thumbs.db
-/lang
+.babelrc
+.eslintrc
+.eslintrc.js
+.eslintrc.json
+.gitlab-ci.yml
+.travis.yml
+npm-debug.log
+yarn-error.log
+package-lock.json
+*.log
+
+# Temp files
+*.swp
+*~
+*.bak
+*.tmp
 /database/database_backups/*
-GEMINI.md
-ARTISAN_COMMANDS.md
-DEPARTMENT_ROLES.md
-PRESENTATION_SCRIPT.md
+
+!/database/database_backups/.gitignore
+/database/database.sqlite
+/database/database.sqlite-journal
+/sources/
+/old/
+/documentation/
+
+Homestead.yaml
+Homestead.json
+npm-debug.log
+yarn-error.log
+.fleet
+.idea
+phpstan-baseline.neon
+
+GEMINI.md                                                                             │
+ARTISAN_COMMANDS.md                                                                   │
+DEPARTMENT_ROLES.md                                                                   │
+PRESENTATION_SCRIPT.md                                                                │
+TROUBLESHOOTING_SUMMARY.md 

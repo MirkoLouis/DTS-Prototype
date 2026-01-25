@@ -1,7 +1,19 @@
 import { defineConfig } from 'vite';
 import laravel from 'laravel-vite-plugin';
+import fs from 'fs';
 
 export default defineConfig({
+    server: {
+        host: '0.0.0.0',
+        hmr: {
+            host: 'localhost',
+        },
+        https: {
+            key: fs.readFileSync('localhost.key'),
+            cert: fs.readFileSync('localhost.crt'),
+        },
+        cors: true,
+    },
     plugins: [
         laravel({
             input: [
@@ -14,4 +26,11 @@ export default defineConfig({
             refresh: true,
         }),
     ],
+    css: {
+        preprocessorOptions: {
+            scss: {
+                quietDeps: true,
+            },
+        },
+    },
 });
