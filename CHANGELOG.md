@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.2] - 2026-01-25
+
+### Development
+- **Local HTTPS Setup:** Implemented a local HTTPS development environment using Vite and `mkcert`. This allows for local testing of features that require a secure context (like camera access) and provides a more robust developer experience. The setup enables access from `localhost` and other devices on the same local network.
+
 ## [1.3.1] - 2026-01-18
 
 ### Fixed

@@ -45,9 +45,46 @@ This project is a functional prototype for a modern, web-based Document Tracking
 3.  Create your `.env` file from `.env.example` and configure your database credentials.
 4.  Generate an application key: `php artisan key:generate`.
 5.  Run database migrations and seeders: `php artisan migrate:fresh --seed`. This will create the necessary tables and populate them with comprehensive, realistic data.
-6.  Build frontend assets: `npm run build`.
+6.  Set up your local development environment by following the instructions in the section below.
 
-### Default Login Accounts
+## Local Development Environment
+
+This project uses Vite for frontend asset handling and requires a local SSL certificate to run properly.
+
+### 1. One-Time Setup: Local SSL Certificate
+
+Because the local SSL certificate is not committed to Git, you must generate it on your machine.
+
+1.  **Install `mkcert`:** Follow the installation instructions for your OS here: [mkcert on GitHub](https://github.com/FiloSottile/mkcert). For most Linux distributions, you can use your package manager (e.g., `sudo apt install mkcert` or `sudo dnf install mkcert`).
+2.  **Install the `mkcert` CA:** Run this command to install the local certificate authority in your system's trust stores.
+    ```bash
+    mkcert -install
+    ```
+3.  **Generate the Certificate:** Navigate to the project root directory and run the following command. This will create the `localhost.crt` and `localhost.key` files that the Vite configuration expects.
+    ```bash
+    mkcert localhost
+    ```
+    *(Note: If you need to access the site from other devices on your network, you will need to include your machine's local IP address in the command, e.g., `mkcert localhost 192.168.1.10`)*
+
+### 2. Running the Development Servers
+
+You must run two processes in separate terminals:
+
+1.  **Terminal 1: Start the PHP Backend Server:**
+    ```bash
+    php artisan serve
+    ```
+2.  **Terminal 2: Start the Vite Frontend Server:**
+    ```bash
+    npm run dev
+    ```
+
+### 3. Accessing the Application
+
+- **On your laptop:** Open your browser and navigate to **`http://localhost:3001`**. The UI should be fully functional.
+- **Note on Camera Access:** Features that require a secure context, like the QR code scanner, will not work when accessing via `http://`. This is a browser security feature.
+
+## Default Login Accounts
 
 The database seeder creates the following accounts. The password for all accounts is `password`.
 
