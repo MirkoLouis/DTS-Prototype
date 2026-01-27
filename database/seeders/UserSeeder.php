@@ -16,7 +16,23 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        // Admin User is a system admin, not tied to a department
+        // 1. Ensure 'Records Unit' department exists and create the essential Records Officer.
+        // This is critical for other seeders (like DocumentSeeder) that rely on this specific user.
+        $recordsDepartment = Department::firstOrCreate(
+            ['name' => 'Records Unit'],
+        );
+        
+        User::updateOrCreate(
+            ['email' => 'records@dts.com'], // This email is hardcoded in DocumentSeeder
+            [
+                'name' => 'Records Officer',
+                'password' => Hash::make('password'),
+                'role' => 'officer',
+                'department_id' => $recordsDepartment->id,
+            ]
+        );
+        
+        // 2. Create the Admin User (system-wide, not tied to a department)
         User::updateOrCreate(
             ['email' => 'admin@dts.com'],
             [
@@ -27,21 +43,18 @@ class UserSeeder extends Seeder
             ]
         );
 
-        // Create a user for each department, with a special role for 'Records'
-        $departments = Department::all();
+        // 3. Create 'staff' users for all other departments.
+        $otherDepartments = Department::where('name', '!=', 'Records Unit')->get();
 
-        foreach ($departments as $department) {
-            $email = Str::slug($department->name, '_') . '@dts.com';
+        foreach ($otherDepartments as $department) {
+            $email = Str::slug($department->name, '.') . '@dts.com';
             
-            // The user for the 'Records' department is the 'officer', all others are 'staff'
-            $role = ($department->name === 'Records') ? 'officer' : 'staff';
-
             User::updateOrCreate(
                 ['email' => $email],
                 [
-                    'name' => $department->name . ' Staff', // e.g., "Records Staff", "Accounting Staff"
+                    'name' => $department->name . ' Staff',
                     'password' => Hash::make('password'),
-                    'role' => $role,
+                    'role' => 'staff',
                     'department_id' => $department->id,
                 ]
             );

@@ -90,7 +90,8 @@
             'Document Title:' => e($document->title),
             'Purpose:' => e($document->purpose->name),
             'Submitted By:' => e($document->guest_info["name"] ?? "N/A (Guest)"),
-            'Route:' => e($routeString),
+            'District:' => e($document->district ?? 'N/A'),
+            'Unit/Department:' => e($document->department ?? 'N/A'),
         ];
         $rowCount = count($details);
         $trackingUrl = route('track', ['codes' => $document->tracking_code]);

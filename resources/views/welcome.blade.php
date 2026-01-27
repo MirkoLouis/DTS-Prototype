@@ -94,6 +94,39 @@
                         </div>
                     </div>
 
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="district" class="form-label"><strong>District</strong></label>
+                            <select class="form-select" id="district" name="district" required>
+                                <option selected disabled value="">Choose a district...</option>
+                                <option value="East I District">East I District</option>
+                                <option value="East II District">East II District</option>
+                                <option value="South I District">South I District</option>
+                                <option value="South II District">South II District</option>
+                                <option value="West I District">West I District</option>
+                                <option value="West II District">West II District</option>
+                                <option value="North I District">North I District</option>
+                                <option value="North II District">North II District</option>
+                                <option value="North III District">North III District</option>
+                                <option value="City Central District">City Central District</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="department" class="form-label"><strong>Unit/Department</strong></label>
+                            <select class="form-select" id="department" name="department" required>
+                                <option selected disabled value="">Choose a unit/department...</option>
+                                @foreach ($departments as $department)
+                                    <option value="{{ $department->name }}">{{ $department->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="title" class="form-label"><strong>Document Title</strong></label>
+                        <input type="text" class="form-control" id="title" name="title" required placeholder="N/A if inapplicable.">
+                    </div>
+
                     <div class="mb-3">
                         <label for="purpose_id" class="form-label"><strong>1. Select Purpose of Request</strong></label>
                         <select class="form-select" id="purpose-select" name="purpose_id" required>

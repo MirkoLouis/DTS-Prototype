@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Document;
 use App\Models\Purpose;
+use App\Models\Department;
 use App\Services\RoutePredictionService; // Import the service
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -18,8 +19,12 @@ class GuestController extends Controller
     {
         // Only show official purposes in the dropdown
         $purposes = Purpose::where('is_official', true)->get();
+        $departments = Department::orderBy('name')->get();
 
-        return view('welcome', ['purposes' => $purposes]);
+        return view('welcome', [
+            'purposes' => $purposes,
+            'departments' => $departments
+        ]);
     }
 
     /**
@@ -34,6 +39,9 @@ class GuestController extends Controller
         $rules = [
             'guest_name' => 'required|string|max:255',
             'guest_email' => 'required|email|max:255',
+            'district' => 'required|string|max:255',
+            'department' => 'required|string|max:255',
+            'title' => 'required|string|max:255',
             'purpose_id' => 'required|integer',
         ];
 
@@ -77,10 +85,13 @@ class GuestController extends Controller
 
         $document = Document::create([
             'tracking_code' => $trackingCode,
+            'title' => $request->input('title'),
             'guest_info' => [
                 'name' => $request->input('guest_name'),
                 'email' => $request->input('guest_email'),
             ],
+            'district' => $request->input('district'),
+            'department' => $request->input('department'),
             'purpose_id' => $finalPurposeId,
             'status' => 'pending',
         ]);

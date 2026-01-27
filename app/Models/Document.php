@@ -16,8 +16,12 @@ class Document extends Model
      */
     protected $fillable = [
         'tracking_code',
+        'title',
         'guest_info',
         'purpose_id',
+        'details',
+        'district',
+        'department',
         'status',
         'finalized_route',
         'current_step',
