@@ -68,6 +68,9 @@
                 <div class="alert alert-danger text-center">
                     <h4 class="alert-heading">Document Declined</h4>
                     <p class="mb-0"><strong>Reason:</strong> <span class="fw-bold">{{ $document->decline_reason ?? 'No reason provided.' }}</span></p>
+                    <p class="mt-2 text-sm text-gray-700 dark:text-gray-300">
+                        For more information and to retrieve your document, please visit the Records Section.
+                    </p>
                 </div>
             @else {{-- Status is 'processing' --}}
                 @php
