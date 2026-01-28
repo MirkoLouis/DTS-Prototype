@@ -26,6 +26,8 @@ class DocumentFactory extends Factory
 
         return [
             'tracking_code' => $trackingCode,
+            'title' => fake()->sentence(rand(3, 8)), // Add a title
+            'details' => fake()->paragraph(), // Add details
             'guest_info' => [
                 'name' => $guestName,
                 'email' => $guestEmail,

@@ -10,7 +10,7 @@
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900 dark:text-gray-100">
                     <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-2xl font-bold">Document Log Integrity</h2>
+                        <h2 class="text-2xl font-bold">All Documents</h2>
                         <div class="w-1/3">
                             <form id="log-search-form">
                                 <label for="log-search" class="sr-only">Search</label>
@@ -20,14 +20,14 @@
                                             <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
                                         </svg>
                                     </div>
-                                    <input type="text" name="search" id="log-search" class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:placeholder-gray-400 dark:focus:placeholder-gray-500 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Search logs..." value="{{ request('search') }}">
+                                    <input type="text" name="search" id="log-search" class="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md leading-5 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-200 placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:placeholder-gray-400 dark:focus:placeholder-gray-500 focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" placeholder="Search documents..." value="{{ request('search') }}">
                                 </div>
                             </form>
                         </div>
                     </div>
 
                     <div id="log-table-container">
-                        @include('partials.integrity-log-table', ['logs' => $logs])
+                        @include('partials.document-list-table', ['documents' => $documents])
                     </div>
 
                 </div>
@@ -89,18 +89,18 @@
             searchInput.addEventListener('keyup', function () {
                 clearTimeout(searchTimeout);
                 searchTimeout = setTimeout(function () {
-                    fetchLogs(searchInput.value);
+                    fetchDocuments(searchInput.value);
                 }, 300);
             });
 
-            function fetchLogs(query) {
+            function fetchDocuments(query) {
                 const url = `{{ route('integrity-monitor') }}?search=${encodeURIComponent(query)}`;
                 fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } })
                 .then(response => response.text())
                 .then(html => {
                     document.getElementById('log-table-container').innerHTML = html;
                 })
-                .catch(error => console.error('Error fetching logs:', error));
+                .catch(error => console.error('Error fetching documents:', error));
             }
 
             // AJAX Pagination

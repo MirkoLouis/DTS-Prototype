@@ -18,7 +18,7 @@
                                 <p><strong>Submitter Name:</strong> {{ $document->guest_info['name'] }}</p>
                                 <p><strong>Submitter Email:</strong> {{ $document->guest_info['email'] }}</p>
                                 <p><strong>Purpose:</strong> {{ $document->purpose->name }}</p>
-                                <p><strong>Status:</strong> <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">{{ $document->status }}</span></p>
+                                <p><strong>Status:</strong> <x-status-badge :status="$document->status" /></p>
                                 <p><strong>Submitted At:</strong> {{ $document->created_at->format('M d, Y h:i A') }}</p>
                             </div>
                         </div>
@@ -45,8 +45,8 @@
                     <div class="mt-8">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-2xl font-bold">Document History</h3>
-                            <a href="{{ route('dashboard') }}" class="inline-flex items-center px-4 py-2 bg-gray-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-500 active:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150">
-                                Back to Dashboard
+                            <a href="{{ $backUrl ?? route('integrity-monitor') }}" class="inline-flex items-center px-4 py-2 bg-gray-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-500 active:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150">
+                                Back
                             </a>
                         </div>
                         <div class="overflow-x-auto">

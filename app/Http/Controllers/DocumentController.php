@@ -119,7 +119,12 @@ class DocumentController extends Controller
     public function show(Document $document)
     {
         $document->load(['purpose', 'logs.user']);
-        return view('documents.show', ['document' => $document]);
+        $backUrl = url()->previous();
+
+        return view('documents.show', [
+            'document' => $document,
+            'backUrl' => $backUrl,
+        ]);
     }
 
     /**

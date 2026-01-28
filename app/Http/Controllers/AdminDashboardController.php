@@ -17,16 +17,30 @@ class AdminDashboardController extends Controller
      */
     public function index()
     {
-        return view('admin.dashboard');
+        $departments = Department::all();
+        return view('admin.dashboard', ['departments' => $departments]);
     }
 
     /**
      * Get data for the 'Current Load' chart (documents pending at each department).
      */
-    public function getCurrentLoadData()
+    public function getCurrentLoadData(Request $request)
     {
-        // Get all processing documents
-        $processingDocuments = Document::where('status', 'processing')->get();
+        $departmentId = $request->get('department_id');
+
+        // Base query for processing documents
+        $query = Document::where('status', 'processing');
+
+        if ($departmentId && $departmentId !== 'all') {
+            $department = Department::find($departmentId);
+            if ($department) {
+                // This is a bit tricky since the route is a JSON array of names.
+                // We'll have to filter in the collection.
+                $query->whereJsonContains('finalized_route', $department->name);
+            }
+        }
+
+        $processingDocuments = $query->get();
 
         $departmentLoads = [];
 
@@ -34,16 +48,32 @@ class AdminDashboardController extends Controller
         foreach ($processingDocuments as $document) {
             if (!empty($document->finalized_route) && $document->current_step > 0 && $document->current_step <= count($document->finalized_route)) {
                 $currentDepartmentName = $document->finalized_route[$document->current_step - 1];
-                $departmentLoads[$currentDepartmentName] = ($departmentLoads[$currentDepartmentName] ?? 0) + 1;
+
+                // If a specific department is selected, only count for that one
+                if ($departmentId && $departmentId !== 'all') {
+                    $selectedDepartment = Department::find($departmentId);
+                    if ($selectedDepartment && $currentDepartmentName === $selectedDepartment->name) {
+                        $departmentLoads[$currentDepartmentName] = ($departmentLoads[$currentDepartmentName] ?? 0) + 1;
+                    }
+                } else {
+                    $departmentLoads[$currentDepartmentName] = ($departmentLoads[$currentDepartmentName] ?? 0) + 1;
+                }
             }
         }
 
-        // Ensure all departments are represented, even if load is 0
-        $allDepartments = Department::pluck('name')->toArray();
-        foreach ($allDepartments as $deptName) {
-            if (!isset($departmentLoads[$deptName])) {
-                $departmentLoads[$deptName] = 0;
+        // Ensure all departments are represented if 'all' is selected, or just the selected one
+        if (!$departmentId || $departmentId === 'all') {
+            $allDepartments = Department::pluck('name')->toArray();
+            foreach ($allDepartments as $deptName) {
+                if (!isset($departmentLoads[$deptName])) {
+                    $departmentLoads[$deptName] = 0;
+                }
             }
+        } else {
+             $selectedDepartment = Department::find($departmentId);
+             if ($selectedDepartment && !isset($departmentLoads[$selectedDepartment->name])) {
+                 $departmentLoads[$selectedDepartment->name] = 0;
+             }
         }
 
         // Sort by load (descending)
@@ -64,38 +94,68 @@ class AdminDashboardController extends Controller
     public function getThroughputData(Request $request)
     {
         $period = $request->get('period', 'daily'); // daily, weekly, monthly, yearly
+        $departmentId = $request->get('department_id');
 
         $endDate = Carbon::now();
         $startDate = match ($period) {
-            'weekly' => Carbon::now()->subWeeks(4), // Last 4 weeks
-            'monthly' => Carbon::now()->subMonths(12), // Last 12 months
-            'yearly' => Carbon::now()->subYears(5), // Last 5 years
-            default => Carbon::now()->subDays(30), // Default to last 30 days
+            'weekly' => Carbon::now()->subWeeks(4),
+            'monthly' => Carbon::now()->subMonths(12),
+            'yearly' => Carbon::now()->subYears(5),
+            default => Carbon::now()->subDays(30),
         };
 
         $dateFormat = match ($period) {
-            'weekly' => '%Y-%W', // Year-Week number
-            'monthly' => '%Y-%m', // Year-Month
-            'yearly' => '%Y', // Year
-            default => '%Y-%m-%d', // Year-Month-Day
+            'weekly' => '%Y-%W',
+            'monthly' => '%Y-%m',
+            'yearly' => '%Y',
+            default => '%Y-%m-%d',
         };
 
-        $processedDocuments = DocumentLog::select(
-                DB::raw("DATE_FORMAT(created_at, '{$dateFormat}') as period_label"),
-                DB::raw('COUNT(DISTINCT document_id) as processed_count')
+        $query = DocumentLog::select(
+                DB::raw("DATE_FORMAT(document_logs.created_at, '{$dateFormat}') as period_label"),
+                DB::raw('COUNT(DISTINCT document_logs.document_id) as processed_count')
             )
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->where('action', 'like', '%completed%') // Or any action that signifies 'processed'
-            ->groupBy('period_label')
+            ->join('users', 'document_logs.user_id', '=', 'users.id')
+            ->whereBetween('document_logs.created_at', [$startDate, $endDate])
+            ->where('document_logs.action', 'like', '%completed%');
+
+        if ($departmentId && $departmentId !== 'all') {
+            $query->where('users.department_id', $departmentId);
+        }
+
+        $processedDocuments = $query->groupBy('period_label')
             ->orderBy('period_label')
             ->get();
 
         $labels = $processedDocuments->pluck('period_label')->toArray();
         $data = $processedDocuments->pluck('processed_count')->toArray();
 
+        // This part needs to be more robust to fill in gaps for the chart
+        $periodMap = [];
+        $current = $startDate->clone();
+        while ($current <= $endDate) {
+            $label = match($period) {
+                'weekly' => $current->format('Y-W'),
+                'monthly' => $current->format('Y-m'),
+                'yearly' => $current->format('Y'),
+                default => $current->format('Y-m-d')
+            };
+            $periodMap[$label] = 0;
+            $current = match($period) {
+                'weekly' => $current->addWeek(),
+                'monthly' => $current->addMonth(),
+                'yearly' => $current->addYear(),
+                default => $current->addDay()
+            };
+        }
+
+        foreach ($processedDocuments as $result) {
+            $periodMap[$result->period_label] = $result->processed_count;
+        }
+
         return response()->json([
-            'labels' => $labels,
-            'data' => $data,
+            'labels' => array_keys($periodMap),
+            'data' => array_values($periodMap),
         ]);
     }
 }

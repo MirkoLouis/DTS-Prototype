@@ -2,40 +2,37 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\DocumentLog;
+use App\Models\Document;
 use Illuminate\Http\Request;
 
 class IntegrityMonitorController extends Controller
 {
     /**
-     * Display the integrity monitor page for Admins.
+     * Display the integrity monitor page for Admins, showing all documents.
      */
     public function index(Request $request)
     {
         $searchTerm = $request->input('search');
 
-        $logsQuery = DocumentLog::with(['document', 'user'])
+        $documentsQuery = Document::with('purpose')
             ->where(function ($query) use ($searchTerm) {
                 if ($searchTerm) {
-                    $query->where('action', 'like', '%' . $searchTerm . '%')
-                          ->orWhere('hash', 'like', '%' . $searchTerm . '%')
-                          ->orWhere('previous_hash', 'like', '%' . $searchTerm . '%')
-                          ->orWhereHas('document', function ($subQuery) use ($searchTerm) {
-                              $subQuery->where('tracking_code', 'like', '%' . $searchTerm . '%');
-                          })
-                          ->orWhereHas('user', function ($subQuery) use ($searchTerm) {
+                    $query->where('tracking_code', 'like', '%' . $searchTerm . '%')
+                          ->orWhere('title', 'like', '%' . $searchTerm . '%')
+                           ->orWhere('status', 'like', '%' . $searchTerm . '%')
+                          ->orWhereHas('purpose', function ($subQuery) use ($searchTerm) {
                               $subQuery->where('name', 'like', '%' . $searchTerm . '%');
                           });
                 }
             })
             ->latest();
 
-        $logs = $logsQuery->paginate(10)->withQueryString();
+        $documents = $documentsQuery->paginate(15)->withQueryString();
 
         if ($request->ajax()) {
-            return view('partials.integrity-log-table', ['logs' => $logs])->render();
+            return view('partials.document-list-table', ['documents' => $documents])->render();
         }
 
-        return view('integrity-monitor', ['logs' => $logs]);
+        return view('integrity-monitor', ['documents' => $documents]);
     }
 }
