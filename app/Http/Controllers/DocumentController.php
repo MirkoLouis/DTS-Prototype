@@ -77,21 +77,37 @@ class DocumentController extends Controller
     }
 
     /**
-     * Decline and delete a pending document.
+     * Decline a pending document.
      *
+     * @param  \Illuminate\Http\Request  $request
      * @param  \App\Models\Document  $document
      * @return \Illuminate\Http\RedirectResponse
      */
-    public function destroy(Document $document)
+    public function decline(Request $request, Document $document)
     {
-        // Ensure only pending documents can be deleted
+        // Ensure only pending documents can be declined
         if ($document->status !== 'pending') {
             return back()->with('error', 'This document cannot be declined as it is already being processed.');
         }
 
-        $document->delete();
+        $request->validate([
+            'decline_reason' => 'required|string|max:1000',
+        ]);
 
-        return redirect()->route('intake')->with('success', 'Success! The document has been declined and removed from the system.');
+        $document->update([
+            'status' => 'declined',
+            'decline_reason' => $request->decline_reason,
+            'declined_at' => now(),
+        ]);
+
+        DocumentLog::create([
+            'document_id' => $document->id,
+            'user_id' => Auth::id(),
+            'action' => 'Document Declined',
+            'remarks' => $request->decline_reason,
+        ]);
+
+        return redirect()->route('intake')->with('success', 'The document has been successfully declined.');
     }
 
     /**
