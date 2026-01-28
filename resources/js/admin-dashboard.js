@@ -1,11 +1,14 @@
 import Chart from 'chart.js/auto';
 
 document.addEventListener('DOMContentLoaded', function() {
-    const chartContainer = document.querySelector('.grid.grid-cols-1'); // A bit fragile, an ID would be better.
+    const chartContainer = document.querySelector('.grid.grid-cols-1');
     if (!chartContainer) return;
 
     const currentLoadUrl = chartContainer.dataset.currentLoadUrl;
     const throughputUrl = chartContainer.dataset.throughputUrl;
+
+    const departmentFilterEl = document.getElementById('department-filter');
+    const throughputPeriodEl = document.getElementById('throughputPeriod');
 
     const currentLoadCtx = document.getElementById('currentLoadChart')?.getContext('2d');
     const throughputCtx = document.getElementById('throughputChart')?.getContext('2d');
@@ -13,45 +16,55 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!currentLoadCtx || !throughputCtx) {
         return;
     }
-    
-    let throughputChart; // To store the instance of the throughput chart
 
-    // Initialize Current Load Chart
-    const currentLoadChart = new Chart(currentLoadCtx, {
-        type: 'bar',
-        data: {
-            labels: [],
-            datasets: [{
-                label: 'Documents Pending',
-                data: [],
-                backgroundColor: 'rgba(54, 162, 235, 0.5)',
-                borderColor: 'rgba(54, 162, 235, 1)',
-                borderWidth: 1
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Number of Documents'
-                    }
-                }
+    let currentLoadChart, throughputChart;
+
+    function initializeCharts() {
+        currentLoadChart = new Chart(currentLoadCtx, {
+            type: 'bar',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Documents Pending',
+                    data: [],
+                    backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
             },
-            plugins: {
-                title: {
-                    display: false,
-                    text: 'Current Load by Department'
-                }
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'Number of Documents' } } },
+                plugins: { title: { display: false } }
             }
-        }
-    });
+        });
 
-    // Fetch and update Current Load Chart data
-    function fetchCurrentLoadData() {
-        fetch(currentLoadUrl)
+        throughputChart = new Chart(throughputCtx, {
+            type: 'line',
+            data: {
+                labels: [],
+                datasets: [{
+                    label: 'Documents Processed',
+                    data: [],
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    fill: true,
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true, title: { display: true, text: 'Number of Documents' } } },
+                plugins: { title: { display: false } }
+            }
+        });
+    }
+
+    function fetchCurrentLoadData(departmentId = 'all') {
+        const url = new URL(currentLoadUrl);
+        url.searchParams.append('department_id', departmentId);
+
+        fetch(url)
             .then(response => response.json())
             .then(data => {
                 currentLoadChart.data.labels = data.labels;
@@ -61,43 +74,12 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(error => console.error('Error fetching current load data:', error));
     }
 
-    // Initialize Throughput Chart
-    throughputChart = new Chart(throughputCtx, {
-        type: 'line',
-        data: {
-            labels: [],
-            datasets: [{
-                label: 'Documents Processed',
-                data: [],
-                borderColor: 'rgba(75, 192, 192, 1)',
-                backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                fill: true,
-                tension: 0.1
-            }]
-        },
-        options: {
-            responsive: true,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: {
-                        display: true,
-                        text: 'Number of Documents'
-                    }
-                }
-            },
-            plugins: {
-                title: {
-                    display: false,
-                    text: 'Documents Processed Over Time'
-                }
-            }
-        }
-    });
+    function fetchThroughputData(period = 'daily', departmentId = 'all') {
+        const url = new URL(throughputUrl);
+        url.searchParams.append('period', period);
+        url.searchParams.append('department_id', departmentId);
 
-    // Fetch and update Throughput Chart data
-    function fetchThroughputData(period) {
-        fetch(`${throughputUrl}?period=${period}`)
+        fetch(url)
             .then(response => response.json())
             .then(data => {
                 throughputChart.data.labels = data.labels;
@@ -107,15 +89,20 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(error => console.error('Error fetching throughput data:', error));
     }
 
-    // Event listener for period selection
-    const throughputPeriodEl = document.getElementById('throughputPeriod');
-    if (throughputPeriodEl) {
-        throughputPeriodEl.addEventListener('change', function() {
-            fetchThroughputData(this.value);
-        });
+    function updateCharts() {
+        const selectedDepartment = departmentFilterEl.value;
+        const selectedPeriod = throughputPeriodEl.value;
+        fetchCurrentLoadData(selectedDepartment);
+        fetchThroughputData(selectedPeriod, selectedDepartment);
     }
 
-    // Initial data fetch for both charts
-    fetchCurrentLoadData();
-    fetchThroughputData('daily'); // Default to daily
+    if (departmentFilterEl) {
+        departmentFilterEl.addEventListener('change', updateCharts);
+    }
+    if (throughputPeriodEl) {
+        throughputPeriodEl.addEventListener('change', updateCharts);
+    }
+
+    initializeCharts();
+    updateCharts(); // Initial data fetch
 });

@@ -36,9 +36,7 @@
                         {{ $document->purpose->name }}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
-                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800">
-                            {{ ucfirst($document->status) }}
-                        </span>
+                        <x-status-badge :status="$document->status" />
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
                         {{ $document->created_at->format('M d, Y h:i A') }}
@@ -72,9 +70,7 @@
                     <div class="font-bold text-lg text-gray-900 dark:text-gray-100">{{ $document->tracking_code }}</div>
                     <div class="text-sm text-gray-500 dark:text-gray-400">{{ $document->purpose->name }}</div>
                 </div>
-                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">
-                    {{ ucfirst($document->status) }}
-                </span>
+                <x-status-badge :status="$document->status" />
             </div>
             
             <div class="border-t border-gray-200 dark:border-gray-600 pt-3 text-sm text-gray-500 dark:text-gray-400 space-y-1">
