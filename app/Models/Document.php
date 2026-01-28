@@ -23,6 +23,8 @@ class Document extends Model
         'district',
         'department',
         'status',
+        'decline_reason',
+        'declined_at',
         'finalized_route',
         'current_step',
     ];
@@ -35,6 +37,7 @@ class Document extends Model
     protected $casts = [
         'guest_info' => 'array',
         'finalized_route' => 'array',
+        'declined_at' => 'datetime',
     ];
 
     /**

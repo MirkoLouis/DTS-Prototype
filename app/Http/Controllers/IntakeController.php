@@ -61,7 +61,7 @@ class IntakeController extends Controller
         
         // Data for filters
         $purposes = Purpose::orderBy('name')->get();
-        $statuses = ['pending', 'processing', 'completed', 'frozen']; // All possible statuses
+        $statuses = ['pending', 'processing', 'completed', 'frozen', 'declined']; // All possible statuses
         $submitters = Document::select(DB::raw('JSON_UNQUOTE(guest_info->"$.name") as name'))
                               ->distinct()
                               ->orderBy('name')
@@ -96,6 +96,10 @@ class IntakeController extends Controller
 
         if (!$document) {
             return redirect()->route('intake')->with('error', 'No document found with that tracking code.');
+        }
+
+        if ($document->status === 'declined') {
+            return redirect()->route('intake')->with('error', 'This document has been declined and cannot be processed.');
         }
 
         if ($document->status !== 'pending') {

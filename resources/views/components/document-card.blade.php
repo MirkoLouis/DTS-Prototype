@@ -22,7 +22,7 @@
                             @case('pending') text-bg-warning @break
                             @case('processing') text-bg-primary @break
                             @case('completed') text-bg-success @break
-                            @case('rejected') text-bg-danger @break
+                            @case('declined') text-bg-danger @break
                             @default text-bg-secondary
                         @endswitch
                     ">
@@ -59,12 +59,17 @@
                         </div>
                     @endif
                 </div>
-            @elseif($document->status == 'pending' || empty($document->finalized_route))
+            @elseif($document->status == 'pending')
                 <div class="alert alert-info text-center">
                     This document has been submitted and is waiting to be accepted by a Records Officer.
                     The route will be displayed here once it is finalized.
                 </div>
-            @else {{-- Status is 'processing' or 'rejected' --}}
+            @elseif($document->status == 'declined')
+                <div class="alert alert-danger text-center">
+                    <h4 class="alert-heading">Document Declined</h4>
+                    <p class="mb-0"><strong>Reason:</strong> <span class="fw-bold">{{ $document->decline_reason ?? 'No reason provided.' }}</span></p>
+                </div>
+            @else {{-- Status is 'processing' --}}
                 @php
                     $totalSteps = count($document->finalized_route);
                 @endphp

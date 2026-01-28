@@ -76,11 +76,12 @@ Route::middleware('auth')->group(function() {
     Route::get('/documents/{document}', [DocumentController::class, 'show'])->name('documents.show');
     Route::post('/documents/{document}/finalize', [DocumentController::class, 'finalize'])->name('documents.finalize');
 
+    Route::post('/documents/{document}/decline', [DocumentController::class, 'decline'])->name('documents.decline');
+
     // Admin-specific routes
     Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::post('/documents/{document}/freeze', [DocumentController::class, 'freeze'])->name('documents.freeze');
     Route::post('/documents/{document}/unfreeze', [DocumentController::class, 'unfreeze'])->name('documents.unfreeze');
-    Route::delete('/documents/{document}', [DocumentController::class, 'destroy'])->name('documents.destroy');
 });
 }); // This was missing
 
