@@ -27,8 +27,12 @@
 
             <!-- Page Content -->
             <main>
-                {{ $slot }}
-                    </main>
+                <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 pt-4">
+                    <x-flash-messages />
                 </div>
-                @stack('scripts')
-            </body></html>
+                {{ $slot }}
+            </main>
+        </div>
+        @stack('scripts')
+    </body>
+</html>

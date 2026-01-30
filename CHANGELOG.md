@@ -2,6 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2026-01-30
+
+### Added
+-   **QR Code-Powered Physical Document Workflow:** Implemented a comprehensive physical document handoff system utilizing QR codes for tracking. Documents now move through new `in_transit`, `processing`, and `ready_for_release` statuses, requiring physical scanning by responsible departments at each stage.
+-   **Universal Scan Functionality:** Integrated `DocumentController@scan` as a central, robust endpoint for all document receiving actions initiated via QR code or manual input across various dashboards.
+-   **"Return Request" Feature:** Introduced a dedicated "Return Requests" page and workflow (`/return-requests`) allowing any department to dynamically inject themselves into a document's route for corrections or re-processing, providing a flexible non-linear process.
+-   **Initial Guest Submission Log:** A "genesis" log entry is now created immediately upon guest document submission, providing a complete audit trail from the moment of creation.
+-   **Test Purpose for Full Route:** Added a "System Test: Full Route" purpose to the `PurposeSeeder`, automatically including all departments, for comprehensive end-to-end testing of the physical workflow.
+-   **Reusable Flash Message Component:** Created a `flash-messages.blade.php` component to centralize the display and auto-hiding logic for `success`, `error`, and `info` session messages across the entire application.
+-   **Reusable QR Scanner Modal Component:** Extracted the common HTML structure for the QR scanner modal into a reusable `qr-scanner-modal.blade.php` component.
+
+### Changed
+-   **Document Statuses:** Introduced `in_transit` (document physically moving between departments) and `ready_for_release` (document ready for final collection by client) statuses.
+-   **Records Officer Intake Workflow:** Adjusted `DocumentController@finalize` to set the initial document status to `in_transit` after route finalization.
+-   **Department Staff Processing Workflow:** Modified `TaskController@complete` to set document status to `in_transit` after a step is processed.
+-   **Document Releasing Workflow:** Updated `ReleasingController` to specifically query documents with the `ready_for_release` status and integrated a "Receive Document" section with manual input and QR scanning functionality onto the `/releasing` page.
+-   **Guest Success Page:** Enhanced `success.blade.php` to clearly instruct guests to print the mandatory Document Tracking Form, which includes the document's QR code.
+-   **Scanner UI/UX:** Relocated the universal scan functionality from the main navigation bar to dedicated "Receive Document" sections on the `/tasks` and `/releasing` dashboards, mirroring the design and functionality of the `/intake` page.
+-   **Flash Message Display:** Integrated the global `flash-messages` component into `app.blade.php`, removing redundant session message blocks from individual views (`intake`, `tasks`, `releasing`, `return-requests`).
+-   **QR Scanner Modal Display:** Replaced hardcoded QR scanner modal HTML in `intake`, `tasks`, and `releasing` views with the new `<x-qr-scanner-modal />` component.
+-   **`ReturnRequestController@store` Logic:** Refactored status validation to use a `switch` statement, providing more granular and consistent feedback messages for different document states.
+
+### Fixed
+-   **Scan Error Handling:** Refined error handling in `DocumentController@scan` to provide specific, contextual feedback messages (e.g., "already processing," "pending intake," "frozen") instead of silent redirects for invalid scan attempts.
+-   **Records Officer Releasing Bug:** Corrected an issue that prevented Records Officers from receiving documents for release by fixing an incorrect user role check in `DocumentController@scan`.
+-   **Feedback Message Inconsistencies:** Standardized `info` and `error` message types and content across `/intake`, `/tasks`, `/releasing`, and `/return-requests` pages for all document status feedback.
+-   **"Double Error!" Bug:** Fixed the redundant "Error! Error!" message display on the Intake page.
+-   **Missing Info Messages:** Ensured `info` flash messages are correctly displayed on the Intake page.
+-   **UI Duplication:** Resolved the accidental duplication of the "Receive Document for Releasing" section on the Releasing page.
+-   **Auto-Hiding Messages:** Implemented consistent auto-hide functionality for `success`, `error`, and `info` messages using the new global flash message component.
+
 ## [1.3.2] - 2026-01-25
 
 ### Development

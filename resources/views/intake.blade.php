@@ -13,18 +13,6 @@
                     <h3 class="text-2xl font-bold mb-4">Add Document by Tracking Code</h3>
                     <p class="mb-6 text-gray-600 dark:text-gray-400">Enter the tracking code from the client's QR code or receipt to begin processing.</p>
 
-                    {{-- Session Messages --}}
-                    @if (session('error'))
-                        <div id="intake-error-alert" class="mb-4 p-4 text-sm text-red-800 rounded-lg bg-red-50 dark:bg-gray-800 dark:text-red-400 transition-opacity duration-500 ease-out" role="alert">
-                            <span class="font-medium">Error!</span> {{ session('error') }}
-                        </div>
-                    @endif
-                    @if (session('success'))
-                        <div id="intake-success-alert" class="mb-4 p-4 text-sm text-green-800 rounded-lg bg-green-50 dark:bg-gray-800 dark:text-green-400 transition-opacity duration-500 ease-out" role="alert">
-                            <span class="font-medium">Success!</span> {{ session('success') }}
-                        </div>
-                    @endif
-
                     <form action="{{ route('intake.find') }}" method="POST">
                         @csrf
                         <div>
@@ -100,55 +88,7 @@
         </div>
     </div>
     
-    <div id="qr-scanner-modal" class="qr-modal">
-        <div class="qr-modal-content">
-            <span id="close-qr-modal" class="qr-modal-close">&times;</span>
-            <div id="qr-reader" style="width: 100%;"></div>
-        </div>
-    </div>
-
-    <style>
-        /* Add styles for filters if needed */
-        .filter-input {
-            min-width: 150px; /* Adjust as needed */
-        }
-        .qr-modal {
-            display: none; 
-            position: fixed; 
-            z-index: 1000; 
-            left: 0;
-            top: 0;
-            width: 100%; 
-            height: 100%; 
-            overflow: auto; 
-            background-color: rgb(0,0,0); 
-            background-color: rgba(0,0,0,0.4);
-        }
-        .qr-modal-content {
-            background-color: #fefefe;
-            margin: 15% auto; 
-            padding: 20px;
-            border: 1px solid #888;
-            width: 80%;
-            max-width: 500px;
-            position: relative;
-        }
-        .qr-modal-close {
-            color: #aaa;
-            float: right;
-            font-size: 36px;
-            font-weight: bold;
-            position: absolute;
-            top: -15px;
-            right: 0px;
-        }
-        .qr-modal-close:hover,
-        .qr-modal-close:focus {
-            color: black;
-            text-decoration: none;
-            cursor: pointer;
-        }
-    </style>
+    <x-qr-scanner-modal />
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
@@ -265,30 +205,6 @@
                     handleFilterChange();
                 }
             }, POLLING_INTERVAL);
-
-            // Auto-hide session error alerts
-            const errorAlert = document.getElementById('intake-error-alert');
-            if (errorAlert) {
-                setTimeout(() => {
-                    errorAlert.style.opacity = '0';
-                    // Remove from DOM after transition
-                    setTimeout(() => {
-                        errorAlert.remove();
-                    }, 500); // Must match transition duration
-                }, 2000); // 2 seconds
-            }
-
-            // Auto-hide session success alerts
-            const successAlert = document.getElementById('intake-success-alert');
-            if (successAlert) {
-                setTimeout(() => {
-                    successAlert.style.opacity = '0';
-                    // Remove from DOM after transition
-                    setTimeout(() => {
-                        successAlert.remove();
-                    }, 500); // Must match transition duration
-                }, 2000); // 2 seconds
-            }
 
             // QR Code Scanning Logic
             const scanQrButton = document.getElementById('scan-qr-button');

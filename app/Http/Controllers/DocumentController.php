@@ -46,9 +46,13 @@ class DocumentController extends Controller
 
         $finalizedRoute = json_decode($request->final_route);
 
+        if (empty($finalizedRoute)) {
+            return back()->with('error', 'The route cannot be empty. Please add at least one step.');
+        }
+
         // Update the document
         $document->update([
-            'status' => 'processing',
+            'status' => 'in_transit', // Changed from 'processing'
             'finalized_route' => $finalizedRoute,
             'current_step' => 1, // Set the current step to the first step in the route
         ]);
@@ -65,15 +69,15 @@ class DocumentController extends Controller
         }
 
         // Create the initial document log
+        $firstDepartment = $finalizedRoute[0];
         DocumentLog::create([
             'document_id' => $document->id,
             'user_id' => Auth::id(),
-            'action' => 'Accepted and route finalized.',
-            'hash' => '', // This will be set by the observer
-            'previous_hash' => '', // This will be set by the observer
+            'action' => 'Accepted and Finalized',
+            'remarks' => "Route finalized. In transit to {$firstDepartment}.",
         ]);
 
-        return redirect()->route('intake')->with('success', 'Document accepted and route has been finalized!');
+        return redirect()->route('intake')->with('success', 'Document accepted and is now in transit!');
     }
 
     /**
@@ -108,6 +112,84 @@ class DocumentController extends Controller
         ]);
 
         return redirect()->route('intake')->with('success', 'The document has been successfully declined.');
+    }
+
+    /**
+     * Handle a document scan action.
+     * This is the core of the new physical forwarding workflow.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function scan(Request $request)
+    {
+        $request->validate([
+            'tracking_code' => 'required|string|exists:documents,tracking_code',
+        ]);
+
+        $document = Document::where('tracking_code', $request->tracking_code)->firstOrFail();
+        $user = Auth::user()->load('department');
+
+        // CASE 1: Document is ready to be received by the scanning user.
+        if ($document->status === 'in_transit') {
+            $route = $document->finalized_route;
+            $currentStepIndex = $document->current_step - 1;
+
+            // Is it waiting for the final receive by Records Unit?
+            if ($currentStepIndex >= count($route)) {
+                if ($user->department && $user->department->name === 'Records Unit') {
+                    $document->update(['status' => 'ready_for_release']);
+                    DocumentLog::create([
+                        'document_id' => $document->id, 'user_id' => $user->id, 'action' => 'Ready for Releasing',
+                        'remarks' => 'All processing steps completed. Document received by Records Unit for final releasing.',
+                    ]);
+                    return redirect()->route('releasing')->with('success', "Document {$document->tracking_code} is now ready for releasing.");
+                }
+            }
+            // Is it waiting for an intermediate department?
+            else {
+                $responsibleDepartmentName = $route[$currentStepIndex];
+                if ($user->department && $user->department->name === $responsibleDepartmentName) {
+                    $document->update(['status' => 'processing']);
+                    DocumentLog::create([
+                        'document_id' => $document->id, 'user_id' => $user->id, 'action' => 'Received',
+                        'remarks' => "Document received by {$user->department->name}.",
+                    ]);
+                    return redirect()->route('tasks')->with('success', "Document {$document->tracking_code} has been received and added to your tasks.");
+                }
+            }
+
+            // If we reach here, it means the document is in_transit, but not for the scanning user's department.
+            $responsibleDepartmentName = $currentStepIndex >= count($route) ? 'the Records Unit' : $route[$currentStepIndex];
+            return redirect()->back()->with('error', "This document is not for your department. It is waiting to be received by {$responsibleDepartmentName}.");
+        }
+        
+        // CASE 2: Document is NOT in a receivable state. Provide specific feedback.
+        $redirect = redirect()->back(); // Default redirect back to the page they scanned from (tasks or intake)
+
+        switch ($document->status) {
+            case 'processing':
+                $currentStepIndex = $document->current_step - 1;
+                $responsibleDepartmentName = $document->finalized_route[$currentStepIndex] ?? 'an unknown department';
+                if ($user->department && $user->department->name === $responsibleDepartmentName) {
+                    return $redirect->with('info', 'You are already processing this document.');
+                }
+                return $redirect->with('error', "This document is currently being processed by the {$responsibleDepartmentName}.");
+            
+            case 'pending':
+                return $redirect->with('error', 'This document is still pending intake by the Records Office and cannot be received yet.');
+
+            case 'ready_for_release':
+                return $redirect->with('info', 'This document is already in the "Awaiting Release" list.');
+
+            case 'completed':
+            case 'declined':
+                return $redirect->with('info', 'This document has already been released, please check your tracking code again.');
+            
+            default:
+                // Fallback for any other status (like 'frozen')
+                return $redirect->with('error', 'This document cannot be received at this time. Its current status is: ' . ucfirst($document->status));
+        }
     }
 
     /**

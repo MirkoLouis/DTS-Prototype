@@ -89,23 +89,31 @@ class IntakeController extends Controller
     public function find(Request $request)
     {
         $request->validate([
-            'tracking_code' => 'required|string',
+            'tracking_code' => 'required|string|exists:documents,tracking_code',
         ]);
 
-        $document = Document::where('tracking_code', $request->tracking_code)->first();
+        $document = Document::where('tracking_code', $request->tracking_code)->firstOrFail();
 
-        if (!$document) {
-            return redirect()->route('intake')->with('error', 'No document found with that tracking code.');
+        // Use a switch statement for clarity, mirroring DocumentController@scan
+        switch ($document->status) {
+            case 'pending':
+                // This is the only successful case for intake, redirect to the manage page.
+                return redirect()->route('documents.manage', $document);
+
+            case 'processing':
+            case 'in_transit':
+                // Active documents are "already intaked".
+                return redirect()->route('intake')->with('info', 'This document is already in process and cannot be intaked again.');
+
+            case 'ready_for_release':
+            case 'completed':
+            case 'declined':
+                // For terminal statuses, display a message and stay on the intake page.
+                return redirect()->route('intake')->with('info', 'This document has already been released, please check your tracking code again.');
+
+            default:
+                // Fallback for any other status (like 'frozen')
+                return redirect()->route('intake')->with('error', 'This document cannot be processed at this time. Its current status is: ' . ucfirst($document->status));
         }
-
-        if ($document->status === 'declined') {
-            return redirect()->route('intake')->with('error', 'This document has been declined and cannot be processed.');
-        }
-
-        if ($document->status !== 'pending') {
-            return redirect()->route('intake')->with('error', 'This document has already been processed and is no longer pending intake.');
-        }
-
-        return redirect()->route('documents.manage', $document);
     }
 }
