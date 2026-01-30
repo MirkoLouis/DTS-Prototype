@@ -50,6 +50,10 @@ Route::middleware('auth')->group(function() {
     // Releasing routes
     Route::get('/releasing', [ReleasingController::class, 'index'])->name('releasing');
     Route::post('/releasing/{document}/complete', [ReleasingController::class, 'complete'])->name('releasing.complete');
+
+    // Return Request routes
+    Route::get('/return-requests', [\App\Http\Controllers\ReturnRequestController::class, 'index'])->name('return-requests.index');
+    Route::post('/return-requests', [\App\Http\Controllers\ReturnRequestController::class, 'store'])->name('return-requests.store');
     
     // Admin specific routes
     Route::get('/integrity-monitor', [IntegrityMonitorController::class, 'index'])->name('integrity-monitor');
@@ -77,6 +81,9 @@ Route::middleware('auth')->group(function() {
     Route::post('/documents/{document}/finalize', [DocumentController::class, 'finalize'])->name('documents.finalize');
 
     Route::post('/documents/{document}/decline', [DocumentController::class, 'decline'])->name('documents.decline');
+
+    // Route for handling QR code scans
+    Route::post('/scan', [DocumentController::class, 'scan'])->name('documents.scan');
 
     // Admin-specific routes
     Route::middleware(['auth', 'role:admin'])->group(function () {

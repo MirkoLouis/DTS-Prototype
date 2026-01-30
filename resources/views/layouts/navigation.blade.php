@@ -22,6 +22,9 @@
                         <x-nav-link :href="route('releasing')" :active="request()->routeIs('releasing')">
                             {{ __('Releasing') }}
                         </x-nav-link>
+                        <x-nav-link :href="route('return-requests.index')" :active="request()->routeIs('return-requests.index')">
+                            {{ __('Return Requests') }}
+                        </x-nav-link>
                     @endif
                     @if (Auth::user()->role === 'admin')
                         <x-nav-link :href="route('integrity-monitor')" :active="request()->routeIs('integrity-monitor')">
@@ -92,6 +95,9 @@
                 </x-responsive-nav-link>
                 <x-responsive-nav-link :href="route('releasing')" :active="request()->routeIs('releasing')">
                     {{ __('Releasing') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('return-requests.index')" :active="request()->routeIs('return-requests.index')">
+                    {{ __('Return Requests') }}
                 </x-responsive-nav-link>
             @endif
             @if (Auth::user()->role === 'admin')

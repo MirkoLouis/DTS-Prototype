@@ -63,23 +63,24 @@ class TaskController extends Controller
         $currentStepIndex = $document->current_step - 1;
         $currentDepartmentOnRoute = $document->finalized_route[$currentStepIndex] ?? null;
 
-        if (!$userDepartment || $currentDepartmentOnRoute !== $userDepartment->name) {
+        if (!$userDepartment || $document->status !== 'processing' || $currentDepartmentOnRoute !== $userDepartment->name) {
             return back()->with('error', 'You are not authorized to perform this action on this document.');
         }
 
-        // Advance the step
+        // Advance the step and set status to 'in_transit'
         $document->current_step += 1;
+        $document->status = 'in_transit';
 
         $totalSteps = count($document->finalized_route);
-
-        // Check if the document's route is now complete
+        $action = 'Processing Complete';
+        
+        // Determine the remarks for the log
         if ($document->current_step > $totalSteps) {
             // This was the final internal processing step.
-            // The status remains 'processing' so it can appear on the 'Releasing' page.
-            $action = 'Final processing step completed. Document is now awaiting release.';
+            $remarks = "Final step processed by {$userDepartment->name}. In transit to Records Unit for releasing.";
         } else {
             $nextDepartmentName = $document->finalized_route[$document->current_step - 1];
-            $action = 'Step completed. Document forwarded to ' . $nextDepartmentName . '.';
+            $remarks = "Step processed by {$userDepartment->name}. In transit to {$nextDepartmentName}.";
         }
 
         $document->save();
@@ -89,9 +90,9 @@ class TaskController extends Controller
             'document_id' => $document->id,
             'user_id' => $user->id,
             'action' => $action,
-            'remarks' => 'Step processed by ' . $userDepartment->name . ' department.',
+            'remarks' => $remarks,
         ]);
 
-        return redirect()->route('tasks')->with('success', 'Document step completed successfully!');
+        return redirect()->route('tasks')->with('success', 'Step completed. Document is now in transit.');
     }
 }

@@ -96,6 +96,14 @@ class GuestController extends Controller
             'status' => 'pending',
         ]);
 
+        // Create the "genesis" log for the document's history
+        \App\Models\DocumentLog::create([
+            'document_id' => $document->id,
+            'user_id' => null, // Guest submission, no authenticated user
+            'action' => 'Submitted',
+            'remarks' => 'Document submitted by guest via the public portal.',
+        ]);
+
         return redirect()->route('success', [
             'tracking_code' => $document->tracking_code,
             'document_id' => $document->id

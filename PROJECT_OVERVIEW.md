@@ -35,22 +35,32 @@ The application is designed around a role-based access control system, providing
     b. **Decline Document:** Permanently delete a pending document from the system. This is used for submissions that are spam, duplicates, or cannot be processed.
     c. **QR Code Scanning:** On the `/intake` dashboard, officers can activate a modal window to use their webcam or phone camera to scan QR codes. This automatically populates the tracking code field and submits the form for instant lookup.
 4.  **Finalization:** Clicking "Accept & Finalize Route" (handled by `DocumentController@finalize`):
-    a. Updates the document's status to `processing`.
+    a. Updates the document's status to `in_transit`.
     b. Saves the `finalized_route` to the document's record.
-    c. **Creates the first `DocumentLog` entry**, with hash chain initialized via the `DocumentLog` model's `boot()` method.
+    c. **Creates the initial `DocumentLog` entry for the finalized route**, with hash chain initialized via the `DocumentLog` model's `boot()` method. (The 'genesis' log is created on guest submission).
 5.  **Learning Mechanism:** If the officer's finalized route differs from the purpose's original suggested route, the system updates the purpose with the new, improved route, making future predictions more accurate.
-6.  **Document Releasing:** After a document has passed through all departments in its `finalized_route`, it returns to the Records Officer on a new "Releasing" page. Here, the officer can see all documents ready for client pickup. The list on this page automatically refreshes every 60 seconds. Once the client has received their document, the officer clicks "Release Document," which marks the document as `completed` and creates the final log entry, ending its lifecycle.
+6.  **Document Releasing:** After a document has passed through all departments in its `finalized_route`, it enters an `in_transit` state back to the Records Officer. The Records Officer then scans the document (via a dedicated "Receive" section on the `/releasing` page), which changes its status to `ready_for_release`. The officer can then see all `ready_for_release` documents in the "Documents Awaiting Release" list (which refreshes every 60 seconds). Once the client has received their document, the officer clicks "Release Document," which marks the document as `completed` and creates the final log entry, ending its lifecycle.
 
 ### 2.4. The Staff Journey (Processing)
 
 1.  **Login:** A staff member logs in and is redirected to the `/tasks` dashboard.
+1.a. **Receive Document:** Upon receiving a physical document, the staff member scans its QR code (or enters the tracking code) via the "Receive Document" section on the `/tasks` dashboard. This action changes the document's status from `in_transit` to `processing`, making it appear in their queue.
 2.  **View Queue:** The dashboard displays a list of documents currently in the `processing` state, **filtered to show only those documents where the current step in the `finalized_route` is assigned to the logged-in staff member's department.**
 3.  **Task Completion:** Staff can click "Complete Step" for an assigned document. This action:
     a. Increments the `current_step` on the document.
-    b. Updates the document's `status` to 'completed' if all steps in the route are finished.
+    b. Updates the document's `status` to `in_transit` (for physical transfer to the next department or back to Records).
     c. Creates a `DocumentLog` entry, logging the completion and advancing the hash chain.
 
-### 2.5. The Admin Journey (Analytics, Integrity & System Health)
+### 2.6. The Return Request Workflow
+
+1.  **Access:** Any staff member can navigate to the dedicated "Return Requests" page.
+2.  **Request Form:** The page provides a form to input a document's tracking code and a mandatory reason for the return request.
+3.  **Dynamic Route Modification:** Upon submission, if the document is in an active processing state (`processing` or `in_transit`), the system dynamically modifies its `finalized_route`. The requesting staff member's department is injected into the route immediately after the document's current step. This effectively "reroutes" the document to the requesting department.
+4.  **Logging:** A `DocumentLog` entry is created, detailing the reroute request, the requesting department, and the reason provided.
+5.  **Receiving:** The requesting department will then need to physically receive the document and scan its QR code (via their dashboard's "Receive Document" section) to pull it into their queue for processing.
+
+### 2.7. The Admin Journey (Analytics, Integrity & System Health)
+
 
 The administrator role now has a streamlined navigation structure:
 
@@ -102,15 +112,16 @@ The route prediction system has been upgraded from a hardcoded, code-based logic
 
 ### 3.3. HCI: Interactive User Interfaces
 
-- **Implementation:** `resources/views/welcome.blade.php`, `resources/views/documents/manage.blade.php`, `resources/views/track.blade.php`, `resources/views/tasks.blade.php`, `resources/views/intake.blade.php`, `resources/views/integrity-monitor.blade.php`. All frontend libraries (`html5-qrcode`, `SortableJS`, `Chart.js`) are locally managed via NPM and compiled with Vite.
+- **Implementation:** `resources/views/welcome.blade.php`, `resources/views/documents/manage.blade.php`, `resources/views/track.blade.php`, `resources/views/tasks.blade.php`, `resources/views/intake.blade.php`, `resources/views/integrity-monitor.blade.php`, `resources/views/return-requests/index.blade.php`. All frontend libraries (`html5-qrcode`, `SortableJS`, `Chart.js`) are locally managed via NPM and compiled with Vite. UI components for session messages and QR scanner modals are now reusable Blade components.
 - **Features:** The system prioritizes a smooth user experience through:
+    - **Consistent User Feedback:** Centralized `success`, `error`, and `info` messages displayed consistently across all dashboards with auto-hide functionality.
     - **Dynamic Requirements:** The guest form provides immediate feedback by showing requirements as soon as a purpose is selected.
     - **Drag-and-Drop Route Editor:** Officers can intuitively re-order complex document routes.
     - **Visual Tracking (Subway Map):** The `x-tracker-subway-map` Blade component provides a clear, at-a-glance visualization of a document's progress.
     - **Modular & Dynamic Tracking Portal:** Guests can track multiple documents dynamically.
     - **Responsive Dashboard Layouts:** All main tables (`/intake`, `/tasks`, `/integrity-monitor`) automatically switch to a user-friendly card view on mobile devices.
     - **Copy Hash Functionality:** Hashes on the Integrity Monitor can be easily copied to the clipboard.
-    - **QR Code Integration:** To streamline interactions, QR code scanning is available for both guests (on the `/track` page) and Records Officers (on the `/intake` page), allowing for quick, camera-based document lookups.
+    - **Enhanced QR Code Integration:** To streamline interactions, QR code scanning (via a reusable component) is integrated into dedicated "Receive Document" sections on the `/intake`, `/tasks`, and `/releasing` dashboards for quick, camera-based document processing and status updates.
 
 ## 4. Automated System Maintenance
 
