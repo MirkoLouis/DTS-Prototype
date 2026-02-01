@@ -95,4 +95,23 @@ class TaskController extends Controller
 
         return redirect()->route('tasks')->with('success', 'Step completed. Document is now in transit.');
     }
+    /**
+     * Display a list of documents previously completed by the user.
+     */
+    public function completed()
+    {
+        $userId = Auth::id();
+
+        // Find all logs where the user completed a processing step
+        $completedLogs = DocumentLog::where('user_id', $userId)
+            ->where('action', 'Processing Complete')
+            ->with('document.purpose') // Eager load for efficiency
+            ->latest()
+            ->get();
+
+        // Get the unique documents from the logs
+        $documents = $completedLogs->unique('document_id')->pluck('document');
+
+        return view('tasks-completed', ['documents' => $documents]);
+    }
 }

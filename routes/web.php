@@ -45,6 +45,7 @@ Route::middleware('auth')->group(function() {
     Route::get('/intake', [IntakeController::class, 'index'])->name('intake');
     Route::post('/intake/find', [IntakeController::class, 'find'])->name('intake.find');
     Route::get('/tasks', [TaskController::class, 'index'])->name('tasks');
+    Route::get('/completed-tasks', [TaskController::class, 'completed'])->name('tasks.completed');
     Route::post('/tasks/{document}/complete', [TaskController::class, 'complete'])->name('tasks.complete');
 
     // Releasing routes

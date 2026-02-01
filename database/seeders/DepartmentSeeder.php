@@ -35,8 +35,13 @@ class DepartmentSeeder extends Seeder
             ['name' => 'School Governance and Operations Division']
         ];
 
+        $this->command->info('Creating departments...');
+
         foreach ($departments as $department) {
             Department::updateOrCreate(['name' => $department['name']]);
+            $this->command->line('  - Created department: ' . $department['name']);
         }
+
+        $this->command->info('Department seeding complete.');
     }
 }

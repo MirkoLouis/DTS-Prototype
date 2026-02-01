@@ -22,8 +22,13 @@
                         <x-nav-link :href="route('releasing')" :active="request()->routeIs('releasing')">
                             {{ __('Releasing') }}
                         </x-nav-link>
+                    @endif
+                    @if (Auth::user()->role === 'officer' || Auth::user()->role === 'staff')
                         <x-nav-link :href="route('return-requests.index')" :active="request()->routeIs('return-requests.index')">
                             {{ __('Return Requests') }}
+                        </x-nav-link>
+                        <x-nav-link :href="route('tasks.completed')" :active="request()->routeIs('tasks.completed')">
+                            {{ __('Completed') }}
                         </x-nav-link>
                     @endif
                     @if (Auth::user()->role === 'admin')
@@ -96,8 +101,13 @@
                 <x-responsive-nav-link :href="route('releasing')" :active="request()->routeIs('releasing')">
                     {{ __('Releasing') }}
                 </x-responsive-nav-link>
+            @endif
+            @if (Auth::user()->role === 'officer' || Auth::user()->role === 'staff')
                 <x-responsive-nav-link :href="route('return-requests.index')" :active="request()->routeIs('return-requests.index')">
                     {{ __('Return Requests') }}
+                </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('tasks.completed')" :active="request()->routeIs('tasks.completed')">
+                    {{ __('Completed') }}
                 </x-responsive-nav-link>
             @endif
             @if (Auth::user()->role === 'admin')

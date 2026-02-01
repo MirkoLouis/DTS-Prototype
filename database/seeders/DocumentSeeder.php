@@ -42,7 +42,7 @@ class DocumentSeeder extends Seeder
                 // Manually replicate the SHA256 hashing logic for the seeder
                 // NOTE: We do this manually because we need to control the timestamp
                 $previousHash = 'genesis_hash'; // This is the first log for each document
-                $action = 'Accepted and route finalized.';
+                $action = 'Accepted and Document Routing finalized';
                 
                 // Use the consistent timestamp for hashing and for the record itself
                 $dataToHash = $document->id . $recordsOfficer->id . $action . $now->toIso8601String() . $previousHash;
