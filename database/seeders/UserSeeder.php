@@ -16,6 +16,8 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
+        $this->command->info('Creating users...');
+
         // 1. Ensure 'Records Unit' department exists and create the essential Records Officer.
         // This is critical for other seeders (like DocumentSeeder) that rely on this specific user.
         $recordsDepartment = Department::firstOrCreate(
@@ -31,6 +33,7 @@ class UserSeeder extends Seeder
                 'department_id' => $recordsDepartment->id,
             ]
         );
+        $this->command->line('  - Created Records Officer: records@dts.com');
         
         // 2. Create the Admin User (system-wide, not tied to a department)
         User::updateOrCreate(
@@ -42,6 +45,7 @@ class UserSeeder extends Seeder
                 'department_id' => null,
             ]
         );
+        $this->command->line('  - Created Admin: admin@dts.com');
 
         // 3. Create 'staff' users for all other departments.
         $otherDepartments = Department::where('name', '!=', 'Records Unit')->get();
@@ -58,6 +62,8 @@ class UserSeeder extends Seeder
                     'department_id' => $department->id,
                 ]
             );
+            $this->command->line('  - Created Staff: ' . $email);
         }
+        $this->command->info('User seeding complete.');
     }
 }
