@@ -73,7 +73,7 @@ class DocumentController extends Controller
         DocumentLog::create([
             'document_id' => $document->id,
             'user_id' => Auth::id(),
-            'action' => 'Accepted and Finalized',
+            'action' => 'Accepted and Document Routing finalized',
             'remarks' => "Route finalized. In transit to {$firstDepartment}.",
         ]);
 
