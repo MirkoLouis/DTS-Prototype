@@ -27,7 +27,7 @@ class IntakeController extends Controller
         $filterDate = $request->input('date_handled');
 
         $logsQuery = DocumentLog::where('user_id', $officerId)
-            ->where('action', 'Accepted and route finalized.')
+            ->where('action', 'Accepted and Document Routing finalized')
             ->whereHas('document', function ($query) use ($searchTerm, $filterStatus, $filterPurpose, $filterSubmitter) {
                 if ($searchTerm) {
                     $query->where('tracking_code', 'like', '%' . $searchTerm . '%')
