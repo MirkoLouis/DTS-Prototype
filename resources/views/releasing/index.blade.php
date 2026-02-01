@@ -13,7 +13,7 @@
                     <h3 class="text-2xl font-bold mb-4">Receive Document for Releasing</h3>
                     <p class="mb-6 text-gray-600 dark:text-gray-400">Scan or enter the tracking code of a document that has completed its route to add it to the releasing queue.</p>
 
-                    <form id="scan-form" action="{{ route('documents.scan') }}" method="POST">
+                    <form id="scan-form" action="{{ route('releasing.receive') }}" method="POST">
                         @csrf
                         <div>
                             <label for="tracking_code" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tracking Code</label>

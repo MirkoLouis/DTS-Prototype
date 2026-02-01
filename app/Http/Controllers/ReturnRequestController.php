@@ -51,6 +51,32 @@ class ReturnRequestController extends Controller
                 break;
 
             case 'ready_for_release':
+                // Special case: Document is in the release queue but not yet released.
+                // It can be pulled back into the workflow.
+                $currentRoute = $document->finalized_route;
+                $currentStep = $document->current_step;
+
+                // Modify the route: Inject the requesting department's name to be the new last step
+                $newRoute = $currentRoute;
+                // Since it's ready for release, the current step is "past the end" of the route array.
+                // We'll insert the new step right before that, making it the new last step.
+                array_splice($newRoute, $currentStep - 1, 0, [$requestingDepartment->name]);
+
+                // Update the document
+                $document->finalized_route = $newRoute;
+                $document->status = 'in_transit'; // The document must be put back in transit to the requesting department
+                $document->save();
+
+                // Log the action
+                DocumentLog::create([
+                    'document_id' => $document->id,
+                    'user_id' => $user->id,
+                    'action' => 'Returned from Releasing',
+                    'remarks' => "{$requestingDepartment->name} requested the document back from the releasing queue. Reason: " . $request->input('reason'),
+                ]);
+
+                return redirect()->route('return-requests.index')->with('success', "Success! Document {$document->tracking_code} has been pulled back from releasing and is now in transit to {$requestingDepartment->name}.");
+
             case 'completed':
             case 'declined':
                 return back()->with('info', 'This document has already been released, please check your tracking code again.')->withInput();

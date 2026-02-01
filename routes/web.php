@@ -50,6 +50,7 @@ Route::middleware('auth')->group(function() {
 
     // Releasing routes
     Route::get('/releasing', [ReleasingController::class, 'index'])->name('releasing');
+    Route::post('/releasing/receive', [ReleasingController::class, 'receive'])->name('releasing.receive');
     Route::post('/releasing/{document}/complete', [ReleasingController::class, 'complete'])->name('releasing.complete');
 
     // Return Request routes
