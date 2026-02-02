@@ -10,7 +10,7 @@
     font-style: normal;
     font-weight: 300 900;
     font-display: swap;
-    src: url('/fonts/Figtree[wght].woff2') format('woff2');
+    src: url('../../public/fonts/Figtree[wght].woff2') format('woff2');
 }
 
 @font-face {
@@ -18,5 +18,5 @@
     font-style: italic;
     font-weight: 300 900;
     font-display: swap;
-    src: url('/fonts/Figtree-Italic[wght].woff2') format('woff2');
+    src: url('../../public/fonts/Figtree-Italic[wght].woff2') format('woff2');
 }

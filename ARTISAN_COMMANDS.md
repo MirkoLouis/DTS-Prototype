@@ -100,11 +100,12 @@ This project includes several custom Artisan commands to manage specific feature
 *   `php artisan dts:corrupt-log {logId}`: **(Development/Testing only)** Intentionally corrupts a specific `DocumentLog` entry. This command is used to simulate data tampering and test the effectiveness of the `dts:verify-integrity` tool. Replace `{logId}` with the ID of the log you wish to corrupt.
 *   `php artisan dts:rebuild-chain {logId}`: An administrative tool to rebuild the hash-chain for a document starting from a specific log ID.
 *   `php artisan backup:run`: Triggers an on-demand database backup using the `spatie/laravel-backup` package.
+*   `php artisan dts:restore-database {filename}`: Restores the database from a specific backup file located in the storage directory.
 
 ### Running Integrity Tests
 To verify the hash-chaining security mechanism, you can run the dedicated PHPUnit test suite:
 ```bash
-php artisan test tests/Integrity/IntegrityCheckTest.php
+php artisan test
 ```
 This test will first verify a clean database, then intentionally corrupt a log using `dts:corrupt-log`, and finally assert that `dts:verify-integrity` correctly reports the tampering.
 

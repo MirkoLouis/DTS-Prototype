@@ -38,6 +38,9 @@
                         <x-nav-link :href="route('system.health')" :active="request()->routeIs('system.health')">
                             {{ __('System') }}
                         </x-nav-link>
+                        <x-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')">
+                            {{ __('User Management') }}
+                        </x-nav-link>
                     @endif
                 </div>
             </div>
@@ -58,10 +61,6 @@
                     </x-slot>
 
                     <x-slot name="content">
-                        <x-dropdown-link :href="route('profile.edit')">
-                            {{ __('Profile') }}
-                        </x-dropdown-link>
-
                         <!-- Authentication -->
                         <form method="POST" action="{{ route('logout') }}">
                             @csrf
@@ -117,6 +116,9 @@
                 <x-responsive-nav-link :href="route('system.health')" :active="request()->routeIs('system.health')">
                     {{ __('System') }}
                 </x-responsive-nav-link>
+                <x-responsive-nav-link :href="route('users.index')" :active="request()->routeIs('users.*')">
+                    {{ __('User Management') }}
+                </x-responsive-nav-link>
             @endif
         </div>
 
@@ -128,10 +130,6 @@
             </div>
 
             <div class="mt-3 space-y-1">
-                <x-responsive-nav-link :href="route('profile.edit')">
-                    {{ __('Profile') }}
-                </x-responsive-nav-link>
-
                 <!-- Authentication -->
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
