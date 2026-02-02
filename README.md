@@ -6,10 +6,7 @@ This project is a functional prototype for a modern, web-based Document Tracking
 
 - **Guest Submission Portal:** A public-facing form for guests to submit new document requests.
 - **Public Tracking Portal:** A dedicated page where guests can track the status of one or more documents using their unique tracking codes. Features dynamic multi-document display, an interactive subway map view, and a QR code scanner to easily add new documents.
-- **Role-Based Access Control:** Distinct user roles with specific dashboards and permissions for streamlined workflows:
-    - **Admin:** Has access to a "System" page to run on-demand integrity checks (the "Trust Builder") and a dashboard to view and search all document logs.
-    - **Records Officer:** Manages initial document intake with advanced filtering (by submitter, purpose, status, and date). Can decline/delete invalid submissions, handles processing tasks, and manages the final release of completed documents.
-    - **Department Staff:** Views and processes ongoing documents specifically assigned to their department.
+- **Role-Based Access Control:** A robust access control system powered by a dedicated `RoleMiddleware` ensures users can only access pages appropriate for their role. Routes are organized into groups protected by this middleware, granting access to `admin`, `officer`, or `staff` personnel based on clearly defined permissions.
 - **Full Document Lifecycle Management:** Documents progress through a defined route, with staff members completing steps and advancing documents through the system.
 - **Admin Process Analytics Dashboard:** A dashboard for administrators to view process analytics like department load and system throughput, acting as a "Bottleneck Detector."
 - **Searchable Document Logs:** Search and pagination functionality for the "Document Log Integrity" table on the Admin dashboard.

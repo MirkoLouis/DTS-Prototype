@@ -8,48 +8,49 @@ The primary goal of this project is to create a modern, efficient, and secure we
 
 ## 2. System Architecture & Workflow
 
-The application is designed around a role-based access control system, providing distinct workflows for different user types.
+The application is built on a robust Role-Based Access Control (RBAC) system, enforced by a dedicated `RoleMiddleware`. This middleware ensures that users can only access the routes and dashboards appropriate for their assigned role (`admin`, `officer`, `staff`). All routes are organized into middleware groups in `routes/web.php` to guarantee security.
 
 ### 2.1. The Guest Journey (Document Submission)
 
-1.  **Submission:** A guest visits the homepage, which contains the document submission form.
-2.  **Dynamic Form:** The guest selects a purpose from a dropdown list. A JavaScript front-end immediately displays the list of required documents for the selected purpose. An "Other" option allows the user to specify a custom purpose.
-3.  **Creation:** Upon submission, the `GuestController` validates the data. If an "Other" purpose is submitted, the `RoutePredictionService` is used to generate a suggested route. A `Document` record is created with a `pending` status.
-4.  **Tracking Code:** A unique tracking code (e.g., `DEPED-A1B2C3D4E5`) is generated and displayed to the user on a success page.
-5.  **QR Code Generation:** Alongside the tracking code, a scannable QR code is also generated and displayed on the success page, allowing guests to easily save or share their tracking information. From here, the guest can directly proceed to the Public Tracking Portal.
+1.  **Submission:** A guest visits the homepage and fills out the document submission form.
+2.  **Dynamic Form:** The form dynamically shows requirements based on the selected purpose.
+3.  **Creation:** The `GuestController` validates the data. For custom purposes, the `RoutePredictionService` suggests a route. A new `Document` is created with a `pending` status.
+4.  **Tracking Code & QR Code:** A unique tracking code and a scannable QR code are generated and displayed on the success page, allowing the guest to proceed directly to the Public Tracking Portal.
 
 ### 2.2. The Public Tracking Portal (Guest Document Status)
 
-1.  **Access:** Guests can access the tracking portal directly from the success page or by navigating to `/track` and entering a tracking code. The URL can support tracking multiple documents simultaneously (e.g., `/track?codes=CODE1,CODE2`).
-2.  **Modular Display:** Each tracked document is displayed as a distinct "card" module, showing its details, current status, and a visual tracking history (the "subway map").
-3.  **Dynamic Addition:** Via an AJAX-powered modal, guests can add more tracking codes to the current page by either typing the code manually or using their device's camera to scan the document's QR code. The new document's status module is dynamically appended, and the browser's URL is updated without a full page reload, providing a seamless experience.
-4.  **Visual Progress:** The `x-tracker-subway-map` component visually represents the document's journey through its finalized route, highlighting completed, current, and upcoming steps.
-5.  **Granular Status Updates:** The tracking history provides clear, distinct messages for each phase of the document's journey: one for when it's being processed (the subway map), another for when it has finished internal processing and is ready for release, and a final one with the feedback form when the document has been completed.
+1.  **Access:** Guests can visit `/track` and enter one or more tracking codes to view document statuses.
+2.  **Modular & Dynamic Display:** The page shows each document's status in a separate "card" module, complete with a visual "subway map" of its progress. Guests can add more documents to the view by typing a code or scanning a QR code, all without a full page reload.
+3.  **Feedback:** Once a document is `completed`, the tracking card is replaced with a 1-5 star rating form, allowing the guest to provide feedback on the service.
 
-### 2.3. The Records Officer Journey (Intake & Route Management)
+### 2.3. The Records Officer Journey (`officer` role)
 
-1.  **Login:** The Records Officer logs in and is redirected to the `/intake` dashboard. This dashboard now features a comprehensive filtering system allowing the officer to search and filter the list of recently handled documents by Status, Purpose, Submitter (from the past week), and the specific Date Handled. A "Clear" button is also provided to reset the filters.
-2.  **Lookup:** On the `/intake` dashboard, they can enter a tracking code to find a pending document.
-3.  **Management:** Upon finding a pending document, the officer is taken to the "Manage Route" page, which provides two primary actions:
-    a. **Route Editing:** View, re-order, add, or delete steps in the suggested route.
-    b. **Decline Document:** Permanently delete a pending document from the system. This is used for submissions that are spam, duplicates, or cannot be processed.
-    c. **QR Code Scanning:** On the `/intake` dashboard, officers can activate a modal window to use their webcam or phone camera to scan QR codes. This automatically populates the tracking code field and submits the form for instant lookup.
-4.  **Finalization:** Clicking "Accept & Finalize Route" (handled by `DocumentController@finalize`):
-    a. Updates the document's status to `in_transit`.
-    b. Saves the `finalized_route` to the document's record.
-    c. **Creates the initial `DocumentLog` entry for the finalized route**, with hash chain initialized via the `DocumentLog` model's `boot()` method. (The 'genesis' log is created on guest submission).
-5.  **Learning Mechanism:** If the officer's finalized route differs from the purpose's original suggested route, the system updates the purpose with the new, improved route, making future predictions more accurate.
-6.  **Document Releasing:** After a document has passed through all departments in its `finalized_route`, it enters an `in_transit` state back to the Records Officer. The Records Officer then scans the document (via a dedicated "Receive" section on the `/releasing` page), which changes its status to `ready_for_release`. The officer can then see all `ready_for_release` documents in the "Documents Awaiting Release" list (which refreshes every 60 seconds). Once the client has received their document, the officer clicks "Release Document," which marks the document as `completed` and creates the final log entry, ending its lifecycle.
+1.  **Login & Redirection:** Upon login, the `RoleMiddleware` redirects the officer to their primary dashboard at `/intake`.
+2.  **Permissions:** Officers have access to all routes within the `role:officer` and `role:officer,staff` groups. This includes intake, releasing, return requests, and task management.
+3.  **Intake (`/intake`):** The officer finds pending documents by tracking code, using search/filter tools or the integrated QR scanner.
+4.  **Route Management:** On the "Manage Route" page, the officer can edit the document's route (using a drag-and-drop interface), decline the submission, or finalize the route.
+5.  **Finalization:** Clicking "Accept & Finalize Route" changes the document status to `in_transit`, saves the route, and creates the first secure entry in the document's hash-chain log. The system also "learns" from any manual route corrections to improve future AI predictions.
+6.  **Task Management (`/tasks`):** Officers can also view and process document tasks assigned to their own department (the Records Unit).
+7.  **Releasing (`/releasing`):** When a document has completed its journey, it returns to the Records Officer, who scans it to mark it `ready_for_release` and then `completed` upon handoff to the client.
 
-### 2.4. The Staff Journey (Processing)
+### 2.4. The Staff Journey (`staff` role)
 
-1.  **Login:** A staff member logs in and is redirected to the `/tasks` dashboard.
-1.a. **Receive Document:** Upon receiving a physical document, the staff member scans its QR code (or enters the tracking code) via the "Receive Document" section on the `/tasks` dashboard. This action changes the document's status from `in_transit` to `processing`, making it appear in their queue.
-2.  **View Queue:** The dashboard displays a list of documents currently in the `processing` state, **filtered to show only those documents where the current step in the `finalized_route` is assigned to the logged-in staff member's department.**
-3.  **Task Completion:** Staff can click "Complete Step" for an assigned document. This action:
-    a. Increments the `current_step` on the document.
-    b. Updates the document's `status` to `in_transit` (for physical transfer to the next department or back to Records).
-    c. Creates a `DocumentLog` entry, logging the completion and advancing the hash chain.
+1.  **Login & Redirection:** Upon login, the `RoleMiddleware` redirects the staff member to their dashboard at `/tasks`.
+2.  **Permissions:** Staff members have access to routes within the `role:staff` and `role:officer,staff` groups.
+3.  **Receive Document:** When a physical document arrives, the staff member scans its QR code to change its status from `in_transit` to `processing`, which adds it to their department's queue.
+4.  **View Queue (`/tasks`):** The dashboard shows a list of documents currently assigned to the staff member's department.
+5.  **Task Completion:** After finishing their work, the staff member clicks "Complete Step." This advances the document's `current_step`, sets its status back to `in_transit` for transfer, and creates a new, secure log in the hash chain.
+
+### 2.5. The Admin Journey (`admin` role)
+
+1.  **Login & Redirection:** Upon login, the `RoleMiddleware` redirects the administrator to the main analytics dashboard at `/admin-dashboard`.
+2.  **Permissions:** Administrators have access to all routes within the `role:admin` group.
+3.  **Process Analytics (`/admin-dashboard`):** The main dashboard provides charts for system throughput and department workload, acting as a "Bottleneck Detector."
+4.  **System Utilities:** From the dashboard, the admin can access specialized pages:
+    *   **System Health Monitor (`/system-health`):** The "Trust Builder" tool for running on-demand integrity checks of the hash chain and managing data recovery.
+    *   **Client Ratings Dashboard (`/system/ratings`):** A view of all client feedback and satisfaction scores.
+    *   **Backup Manager (`/system/backups`):** The "Safety Net" for creating, downloading, and managing database backups.
+    *   **Integrity Monitor (`/integrity-monitor`):** A raw, searchable view of the entire `document_logs` table for deep-dive analysis.
 
 ### 2.6. The Return Request Workflow
 
@@ -59,24 +60,6 @@ The application is designed around a role-based access control system, providing
 4.  **Logging:** A `DocumentLog` entry is created, detailing the reroute request, the requesting department, and the reason provided.
 5.  **Receiving:** The requesting department will then need to physically receive the document and scan its QR code (via their dashboard's "Receive Document" section) to pull it into their queue for processing.
 
-### 2.7. The Admin Journey (Analytics, Integrity & System Health)
-
-
-The administrator role now has a streamlined navigation structure:
-
-1.  **Admin Dashboard (Process Analytics):**
-    -   The main admin dashboard, located at `/admin-dashboard`, provides process analytics. This includes:
-        -   A "Bottleneck Detector" (bar chart) visualizing current document load at each department.
-        -   "Throughput" (line chart) showing documents processed over time (daily, weekly, monthly, yearly).
-    -   This dashboard is the default landing page for administrators.
-    -   A new "System Utilities" section on this dashboard provides quick access to:
-        -   **System Health Monitor ("Trust Builder"):** (at `/system-health`) This page houses the "Trust Builder" tool and application health metrics. An admin can click "Run Verification" to trigger a complete, on-demand integrity check of the entire hash chain. If mismatched hashes are found, a paginated table of invalid logs is displayed with recovery tools.
-        -   **Client Ratings Dashboard:** (at `/system/ratings`) Provides an overview of all client feedback, including total ratings, average rating, and a paginated list of all rated documents.
-        -   **Backup Manager ("The Safety Net"):** (accessible via a dedicated link from the Admin Dashboard) Allows administrators to create on-demand database backups, download existing backups, and delete old backups.
-
-2.  **Document Integrity (Monitor):**
-    -   Accessible via a new top-level navigation tab, this section (at `/integrity-monitor`) displays a raw, searchable view of the `document_logs` table.
-    -   It allows the admin to monitor all actions taken on all documents and includes a powerful AJAX-powered search to filter logs by tracking code, action, user, or hash. A "View" button is available next to each log entry, linking directly to the document's detailed view.
 
 ## 3. Core Innovations in Detail
 

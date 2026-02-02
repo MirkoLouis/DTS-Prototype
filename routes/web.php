@@ -41,22 +41,29 @@ Route::get('/dashboard', function () {
 
 
 // Specific routes for each role's dashboard
-Route::middleware('auth')->group(function() {
+Route::middleware(['auth', 'role:officer'])->group(function () {
     Route::get('/intake', [IntakeController::class, 'index'])->name('intake');
     Route::post('/intake/find', [IntakeController::class, 'find'])->name('intake.find');
-    Route::get('/tasks', [TaskController::class, 'index'])->name('tasks');
-    Route::get('/completed-tasks', [TaskController::class, 'completed'])->name('tasks.completed');
-    Route::post('/tasks/{document}/complete', [TaskController::class, 'complete'])->name('tasks.complete');
-
+    
     // Releasing routes
     Route::get('/releasing', [ReleasingController::class, 'index'])->name('releasing');
     Route::post('/releasing/receive', [ReleasingController::class, 'receive'])->name('releasing.receive');
     Route::post('/releasing/{document}/complete', [ReleasingController::class, 'complete'])->name('releasing.complete');
+});
 
+Route::middleware(['auth', 'role:officer,staff'])->group(function () {
+    Route::get('/tasks', [TaskController::class, 'index'])->name('tasks');
+    Route::get('/completed-tasks', [TaskController::class, 'completed'])->name('tasks.completed');
+    Route::post('/tasks/{document}/complete', [TaskController::class, 'complete'])->name('tasks.complete');
+    
     // Return Request routes
     Route::get('/return-requests', [\App\Http\Controllers\ReturnRequestController::class, 'index'])->name('return-requests.index');
     Route::post('/return-requests', [\App\Http\Controllers\ReturnRequestController::class, 'store'])->name('return-requests.store');
-    
+});
+
+
+Route::middleware(['auth', 'role:admin'])->group(function () {
+    Route::resource('users', \App\Http\Controllers\UserManagementController::class);
     // Admin specific routes
     Route::get('/integrity-monitor', [IntegrityMonitorController::class, 'index'])->name('integrity-monitor');
     Route::get('/admin-dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
@@ -76,7 +83,14 @@ Route::middleware('auth')->group(function() {
     Route::get('/system/backups/download/{fileName}', [BackupManagerController::class, 'download'])->where('fileName', '.*')->name('system.backups.download');
     Route::delete('/system/backups/delete/{fileName}', [BackupManagerController::class, 'delete'])->where('fileName', '.*')->name('system.backups.delete');
     Route::post('/system/backups/restore/{fileName}', [BackupManagerController::class, 'restore'])->where('fileName', '.*')->name('system.backups.restore');
+    
+    // Admin-specific document actions
+    Route::post('/documents/{document}/freeze', [DocumentController::class, 'freeze'])->name('documents.freeze');
+    Route::post('/documents/{document}/unfreeze', [DocumentController::class, 'unfreeze'])->name('documents.unfreeze');
+});
 
+// Routes accessible by any authenticated user
+Route::middleware('auth')->group(function() {
     // Document management routes
     Route::get('/documents/{document}/manage', [DocumentController::class, 'manage'])->name('documents.manage');
     Route::get('/documents/{document}', [DocumentController::class, 'show'])->name('documents.show');
@@ -86,21 +100,9 @@ Route::middleware('auth')->group(function() {
 
     // Route for handling QR code scans
     Route::post('/scan', [DocumentController::class, 'scan'])->name('documents.scan');
-
-    // Admin-specific routes
-    Route::middleware(['auth', 'role:admin'])->group(function () {
-    Route::post('/documents/{document}/freeze', [DocumentController::class, 'freeze'])->name('documents.freeze');
-    Route::post('/documents/{document}/unfreeze', [DocumentController::class, 'unfreeze'])->name('documents.unfreeze');
 });
-}); // This was missing
 
 
-// Breeze's Profile routes
-Route::middleware('auth')->group(function () {
-    Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
-    Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
-});
 
 // Breeze's Authentication routes
 require __DIR__.'/auth.php';
