@@ -81,7 +81,7 @@
                     </div>
                     
                     <div id="documents-container" class="overflow-x-auto">
-                        @include('partials.intake-table', ['handledLogs' => $handledLogs])
+                        @include('general.partials.intake-table', ['handledLogs' => $handledLogs])
                     </div>
                 </div>
             </div>

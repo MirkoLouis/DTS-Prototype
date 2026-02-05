@@ -27,7 +27,7 @@
                     </div>
 
                     <div id="log-table-container">
-                        @include('partials.document-list-table', ['documents' => $documents])
+                        @include('general.partials.document-list-table', ['documents' => $documents])
                     </div>
 
                 </div>

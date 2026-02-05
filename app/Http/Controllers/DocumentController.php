@@ -25,7 +25,7 @@ class DocumentController extends Controller
         $document->load('purpose');
         $departments = Department::all();
 
-        return view('documents.manage', [
+        return view('officer.manage-documents', [
             'document' => $document,
             'departments' => $departments,
         ]);
@@ -208,7 +208,7 @@ class DocumentController extends Controller
         $document->load(['purpose', 'logs.user']);
         $backUrl = url()->previous();
 
-        return view('documents.show', [
+        return view('general.show-document', [
             'document' => $document,
             'backUrl' => $backUrl,
         ]);
@@ -298,7 +298,7 @@ class DocumentController extends Controller
 
         $qrCode = base64_encode(QrCode::format('png')->size(110)->generate($document->tracking_code));
 
-        $pdf = Pdf::loadView('documents.tracking-form-pdf', [
+        $pdf = Pdf::loadView('general.tracking-form-pdf', [
             'document' => $document,
             'qrCode' => $qrCode,
         ]);

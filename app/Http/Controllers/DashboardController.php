@@ -15,6 +15,6 @@ class DashboardController extends Controller
         $user = Auth::user();
         $role = $user ? $user->role : 'guest'; // Should not be guest due to middleware
 
-        return view('dashboard', ['role' => $role]);
+        return view('general.dashboard', ['role' => $role]);
     }
 }

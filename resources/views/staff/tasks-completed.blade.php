@@ -14,7 +14,7 @@
                     <p class="mb-6 text-gray-600 dark:text-gray-400">This is a list of documents you have previously processed. You can use their tracking codes to initiate a return request if needed.</p>
 
                     <div id="tasks-container">
-                        @include('partials.completed-tasks-list', ['documents' => $documents])
+                        @include('general.partials.completed-tasks-list', ['documents' => $documents])
                     </div>
 
                 </div>

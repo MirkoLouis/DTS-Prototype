@@ -45,10 +45,10 @@ class TaskController extends Controller
         }
 
         if ($request->ajax()) {
-            return view('partials.tasks-list', ['documents' => $documentsForUser]);
+            return view('general.partials.tasks-list', ['documents' => $documentsForUser]);
         }
 
-        return view('tasks', ['documents' => $documentsForUser]);
+        return view('staff.tasks', ['documents' => $documentsForUser]);
     }
 
     /**
@@ -112,6 +112,6 @@ class TaskController extends Controller
         // Get the unique documents from the logs
         $documents = $completedLogs->unique('document_id')->pluck('document');
 
-        return view('tasks-completed', ['documents' => $documents]);
+        return view('staff.tasks-completed', ['documents' => $documents]);
     }
 }

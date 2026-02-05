@@ -69,10 +69,10 @@ class IntakeController extends Controller
                               ->pluck('name');
 
         if ($request->ajax()) {
-            return view('partials.intake-table', ['handledLogs' => $handledLogs])->render();
+            return view('general.partials.intake-table', ['handledLogs' => $handledLogs])->render();
         }
 
-        return view('intake', [
+        return view('officer.intake', [
             'handledLogs' => $handledLogs, 
             'purposes' => $purposes,
             'statuses' => $statuses,

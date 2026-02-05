@@ -31,7 +31,7 @@ class SystemRatingsController extends Controller
             ->latest('updated_at') // Sort by when they were completed/rated
             ->paginate(15);
 
-        return view('system.ratings', [
+        return view('admin.system.ratings', [
             'stats' => $stats,
             'documents' => $documents,
         ]);

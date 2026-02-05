@@ -20,10 +20,10 @@ class ReleasingController extends Controller
                                 ->paginate(10);
 
         if ($request->ajax()) {
-            return view('partials.releasing-table', ['documents' => $documents]);
+            return view('general.partials.releasing-table', ['documents' => $documents]);
         }
 
-        return view('releasing.index', [
+        return view('officer.releasing.index', [
             'documents' => $documents,
         ]);
     }
