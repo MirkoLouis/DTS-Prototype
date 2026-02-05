@@ -143,7 +143,7 @@ class GuestController extends Controller
             return redirect()->route('welcome')->with('info', 'Please enter a tracking code to view its status.');
         }
 
-        $documents = Document::with('purpose')
+        $documents = Document::with(['purpose', 'logs'])
                             ->whereIn('tracking_code', $trackingCodes)
                             ->get();
 
@@ -158,7 +158,7 @@ class GuestController extends Controller
      */
     public function getTrackedDocumentModule($tracking_code)
     {
-        $document = Document::with('purpose')->where('tracking_code', $tracking_code)->firstOrFail();
+        $document = Document::with(['purpose', 'logs'])->where('tracking_code', $tracking_code)->firstOrFail();
 
         // Render the component as a string
         $html = view('components.document-card', ['document' => $document])->render();

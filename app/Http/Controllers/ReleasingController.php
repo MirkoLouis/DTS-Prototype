@@ -59,7 +59,7 @@ class ReleasingController extends Controller
         $currentStepIndex = $document->current_step - 1;
 
         if ($currentStepIndex < count($route)) {
-            $nextDepartment = $route[$currentStepIndex] ?? 'an unknown department';
+            $nextDepartment = $route[$currentStepIndex]['name'] ?? 'an unknown department';
             return redirect()->route('releasing')->with('error', "This document has not completed its route. It is still in transit to {$nextDepartment}.");
         }
 

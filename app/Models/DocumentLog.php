@@ -80,4 +80,29 @@ class DocumentLog extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    /**
+     * Get the formatted remarks for display, bolding the reason if present.
+     *
+     * @return string
+     */
+    public function getFormattedRemarksAttribute()
+    {
+        $remarks = $this->remarks;
+        $reasonPrefix = 'Reason: '; // The original string to search for
+
+        $pos = strpos($remarks, $reasonPrefix);
+
+        if ($pos !== false) {
+            // Get the part of the string before "Reason: "
+            $mainRemark = substr($remarks, 0, $pos);
+            // Get the actual reason text after "Reason: "
+            $reasonText = substr($remarks, $pos + strlen($reasonPrefix));
+            
+            // Rebuild the string with a line break and bolding, while escaping user content
+            return e($mainRemark) . '<br/><strong>Reason: ' . e($reasonText) . '</strong>';
+        }
+
+        return e($remarks);
+    }
 }

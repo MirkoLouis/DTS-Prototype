@@ -51,23 +51,23 @@ class ReturnRequestController extends Controller
                 break;
 
             case 'ready_for_release':
-                // Special case: Document is in the release queue but not yet released.
-                // It can be pulled back into the workflow.
-                $currentRoute = $document->finalized_route;
-                $currentStep = $document->current_step;
+                // Special case: Document is in the release queue. It can be pulled back into the workflow.
+                $currentRoute = $document->finalized_route ?? [];
 
-                // Modify the route: Inject the requesting department's name to be the new last step
+                // 1. Modify the route: Add the requesting department to the end of the processing route.
                 $newRoute = $currentRoute;
-                // Since it's ready for release, the current step is "past the end" of the route array.
-                // We'll insert the new step right before that, making it the new last step.
-                array_splice($newRoute, $currentStep - 1, 0, [$requestingDepartment->name]);
+                $newRoute[] = ['name' => $requestingDepartment->name, 'type' => 'returned'];
 
-                // Update the document
+                // 2. IMPORTANT: Set the current step to the index of this new, last step.
+                $newStep = count($newRoute);
+
+                // 3. Update the document
                 $document->finalized_route = $newRoute;
-                $document->status = 'in_transit'; // The document must be put back in transit to the requesting department
+                $document->status = 'in_transit'; // Put the document back in transit to the new step.
+                $document->current_step = $newStep; // Set the pointer to the new, correct step.
                 $document->save();
 
-                // Log the action
+                // 4. Log the action
                 DocumentLog::create([
                     'document_id' => $document->id,
                     'user_id' => $user->id,
@@ -93,20 +93,21 @@ class ReturnRequestController extends Controller
         $currentStepIndex = $currentStep - 1;
 
         // 2. Prevent rerouting if the requesting department is ALREADY the current or next in line
-        $departmentCurrentlyProcessing = $currentRoute[$currentStepIndex] ?? null;
+        $departmentCurrentlyProcessing = $currentRoute[$currentStepIndex]['name'] ?? null;
         if ($departmentCurrentlyProcessing === $requestingDepartment->name) {
             return back()->with('error', 'This document is already assigned to your department for processing.')->withInput();
         }
         
-        $nextDepartmentInLine = $currentRoute[$currentStep] ?? null;
+        $nextDepartmentInLine = $currentRoute[$currentStep]['name'] ?? null;
         if ($nextDepartmentInLine === $requestingDepartment->name) {
              return back()->with('error', 'Your department is already the next step in this document\'s route.')->withInput();
         }
 
         // 3. Modify the route
         $newRoute = $currentRoute;
-        // Inject the requesting department's name immediately after the current step
-        array_splice($newRoute, $currentStep, 0, [$requestingDepartment->name]);
+        // Inject the requesting department's data immediately after the current step
+        $newStepData = ['name' => $requestingDepartment->name, 'type' => 'returned'];
+        array_splice($newRoute, $currentStep, 0, [$newStepData]);
 
         // 4. Update the document
         $document->finalized_route = $newRoute;

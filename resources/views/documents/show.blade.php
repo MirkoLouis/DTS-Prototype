@@ -25,19 +25,25 @@
                         <!-- Routing Information -->
                         <div>
                             <h3 class="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Routing</h3>
-                            <div class="space-y-4">
-                                <p><strong>Current Step:</strong> {{ $document->current_step ?? 'N/A' }} of {{ count($document->finalized_route ?? []) }}</p>
-                                <div>
-                                    <strong>Finalized Route:</strong>
-                                    <ol class="list-decimal list-inside mt-2">
-                                        @forelse ($document->finalized_route ?? [] as $step)
-                                            <li>{{ $step }}</li>
-                                        @empty
-                                            <li>No route finalized.</li>
-                                        @endforelse
-                                    </ol>
+                            
+                            <p class="mb-2"><strong>Status:</strong> <x-status-badge :status="$document->status" /></p>
+
+                            @if($document->status == 'declined')
+                                <p class="mt-2"><strong>Reason:</strong> {{ $document->decline_reason }}</p>
+                            @elseif($document->status == 'pending')
+                                <p class="mt-2 text-gray-500 dark:text-gray-400">The route will be finalized upon intake.</p>
+                            @else
+                                {{-- For all other statuses, including 'completed', show the route that was taken --}}
+                                @php
+                                    $displayStep = $document->status === 'completed' 
+                                        ? count($document->display_route_objects) + 1 
+                                        : $document->display_current_step;
+                                @endphp
+                                <h4 class="font-semibold text-md text-gray-700 dark:text-gray-300 mt-4">Document Path:</h4>
+                                <div class="mt-2">
+                                    <x-tracker-subway-map :route_objects="$document->display_route_objects" :current_step="$displayStep" />
                                 </div>
-                            </div>
+                            @endif
                         </div>
                     </div>
 
@@ -65,7 +71,7 @@
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{{ $log->created_at->format('M d, Y h:i A') }}</td>
                                             <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-300">{{ $log->action }}</td>
                                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{{ $log->user->name ?? 'System' }}</td>
-                                            <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-300">{{ $log->remarks }}</td>
+                                            <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-300">{!! $log->formatted_remarks !!}</td>
                                         </tr>
                                     @empty
                                         <tr>

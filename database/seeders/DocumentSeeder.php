@@ -28,14 +28,19 @@ class DocumentSeeder extends Seeder
 
             // Create 50 documents and loop through each one
             Document::factory()->count(50)->create()->each(function ($document) use ($recordsOfficer, &$now) {
-                $route = $document->purpose->suggested_route ?: ['Accounting', 'Records'];
+                $routeNames = $document->purpose->suggested_route ?: ['Accounting', 'Records'];
                 
+                // Convert the simple array of names into the new structured format for seeding.
+                $finalizedRouteForSeeder = array_map(function ($name) {
+                    return ['name' => $name, 'type' => 'initial'];
+                }, $routeNames);
+
                 // Increment time slightly for each document to ensure unique timestamps
                 $now->addSeconds(1);
 
                 $document->update([
                     'status' => 'processing',
-                    'finalized_route' => $route,
+                    'finalized_route' => $finalizedRouteForSeeder,
                     'current_step' => 1,
                 ]);
 

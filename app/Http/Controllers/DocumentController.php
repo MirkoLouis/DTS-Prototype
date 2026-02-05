@@ -44,11 +44,16 @@ class DocumentController extends Controller
             'final_route' => 'required|json',
         ]);
 
-        $finalizedRoute = json_decode($request->final_route);
+        $routeNames = json_decode($request->final_route);
 
-        if (empty($finalizedRoute)) {
+        if (empty($routeNames)) {
             return back()->with('error', 'The route cannot be empty. Please add at least one step.');
         }
+
+        // Convert the simple array of names into the new structured format.
+        $finalizedRoute = array_map(function ($name) {
+            return ['name' => $name, 'type' => 'initial'];
+        }, $routeNames);
 
         // Update the document
         $document->update([
@@ -59,17 +64,17 @@ class DocumentController extends Controller
 
         // "Learn" from the officer's changes
         $purpose = $document->purpose;
-        if ($purpose->suggested_route !== $finalizedRoute) {
+        if ($purpose->suggested_route !== $routeNames) {
             // If the purpose is not official, dispatch a job to learn from the changes.
             if (!$purpose->is_official) {
-                UpdateKeywordWeights::dispatch($purpose->name, $finalizedRoute);
+                UpdateKeywordWeights::dispatch($purpose->name, $routeNames);
             }
             // Update the purpose's suggested_route for immediate use
-            $purpose->update(['suggested_route' => $finalizedRoute]);
+            $purpose->update(['suggested_route' => $routeNames]);
         }
 
         // Create the initial document log
-        $firstDepartment = $finalizedRoute[0];
+        $firstDepartment = $finalizedRoute[0]['name'];
         DocumentLog::create([
             'document_id' => $document->id,
             'user_id' => Auth::id(),
@@ -148,7 +153,7 @@ class DocumentController extends Controller
             }
             // Is it waiting for an intermediate department?
             else {
-                $responsibleDepartmentName = $route[$currentStepIndex];
+                $responsibleDepartmentName = $route[$currentStepIndex]['name'];
                 if ($user->department && $user->department->name === $responsibleDepartmentName) {
                     $document->update(['status' => 'processing']);
                     DocumentLog::create([
@@ -160,7 +165,7 @@ class DocumentController extends Controller
             }
 
             // If we reach here, it means the document is in_transit, but not for the scanning user's department.
-            $responsibleDepartmentName = $currentStepIndex >= count($route) ? 'the Records Unit' : $route[$currentStepIndex];
+            $responsibleDepartmentName = ($currentStepIndex >= count($route)) ? 'the Records Unit' : ($route[$currentStepIndex]['name'] ?? 'an unknown department');
             return redirect()->back()->with('error', "This document is not for your department. It is waiting to be received by {$responsibleDepartmentName}.");
         }
         
@@ -170,7 +175,7 @@ class DocumentController extends Controller
         switch ($document->status) {
             case 'processing':
                 $currentStepIndex = $document->current_step - 1;
-                $responsibleDepartmentName = $document->finalized_route[$currentStepIndex] ?? 'an unknown department';
+                $responsibleDepartmentName = $document->finalized_route[$currentStepIndex]['name'] ?? 'an unknown department';
                 if ($user->department && $user->department->name === $responsibleDepartmentName) {
                     return $redirect->with('info', 'You are already processing this document.');
                 }

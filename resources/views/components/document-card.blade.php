@@ -36,11 +36,23 @@
         <hr>
 
         <h3 class="h5 mt-4 mb-3">Tracking History</h3>
+
+        @php
+            $lastLog = $document->logs->last();
+            $wasJustRerouted = $lastLog && in_array($lastLog->action, ['Rerouted', 'Returned from Releasing']);
+        @endphp
+
+        {{-- Show a temporary notice if the document was just rerouted --}}
+        @if ($wasJustRerouted)
+            <div class="alert alert-info small mb-3">
+                <p class="mb-0"><i class="bi bi-info-circle-fill"></i> This document's route was just updated for additional processing and is now in transit.</p>
+            </div>
+        @endif
+
         <div class="subway-map-wrapper">
             @if($document->status == 'completed')
                 <div id="rating-section-{{ $document->tracking_code }}">
                     @if($document->rating === null)
-                        {{-- Rating Form --}}
                         <div class="text-center border p-4 rounded-3 bg-light">
                             <h4 class="h5">Thank you for using our service!</h4>
                             <p>Your document has been released. Please rate your experience.</p>
@@ -52,7 +64,6 @@
                             <div id="rating-feedback-{{ $document->tracking_code }}" class="text-danger small"></div>
                         </div>
                     @else
-                        {{-- Already Rated --}}
                         <div class="alert alert-success text-center">
                             <h4 class="alert-heading">Thank You!</h4>
                             <p class="mb-0">We have received your rating of {{ $document->rating }} star(s). We appreciate your feedback.</p>
@@ -72,21 +83,13 @@
                         For more information and to retrieve your document, please visit the Records Section.
                     </p>
                 </div>
-            @else {{-- Status is 'processing' --}}
-                @php
-                    $totalSteps = count($document->finalized_route);
-                @endphp
-
-                @if ($document->current_step > $totalSteps)
-                    {{-- This means it's finished internal processing and is ready for release --}}
-                    <div class="alert alert-primary text-center">
-                        <h4 class="alert-heading">Processing Complete!</h4>
-                        <p class="mb-0">Your document has finished internal processing and is now ready for release at the Records Department.</p>
-                    </div>
-                @else
-                    {{-- Still in processing, show the subway map --}}
-                    <x-tracker-subway-map :finalized_route="$document->finalized_route" :current_step="$document->current_step" />
-                @endif
+            @elseif($document->status == 'ready_for_release')
+                <div class="alert alert-primary text-center">
+                    <h4 class="alert-heading">Processing Complete!</h4>
+                    <p class="mb-0">Your document has finished internal processing and is now ready for release at the Records Department.</p>
+                </div>
+            @else {{-- Status is 'processing' or 'in_transit' --}}
+                <x-tracker-subway-map :route_objects="$document->display_route_objects" :current_step="$document->display_current_step" />
             @endif
         </div>
     </div>

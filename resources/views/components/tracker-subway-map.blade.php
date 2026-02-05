@@ -1,4 +1,4 @@
-@props(['finalized_route' => [], 'current_step' => 0])
+@props(['route_objects' => [], 'current_step' => 0])
 
 <style>
     .subway-map-container {
@@ -97,12 +97,17 @@
 </style>
 
 <div class="subway-map-container">
-    @foreach($finalized_route as $index => $step)
+    @foreach($route_objects as $index => $step)
         @php
             $loopIndex = $index + 1;
             $isDone = $current_step > $loopIndex;
             $isCurrent = $current_step == $loopIndex;
             $isUpcoming = $current_step < $loopIndex;
+
+            $displayName = $step['name'];
+            if (isset($step['type']) && $step['type'] === 'returned') {
+                $displayName .= ' (Requested for return)';
+            }
         @endphp
 
         <div class="station 
@@ -120,7 +125,7 @@
                 </div>
                 <div class="station-track station-track-right"></div>
             </div>
-            <div class="station-label">{{ $step }}</div>
+            <div class="station-label">{{ $displayName }}</div>
         </div>
     @endforeach
 </div>

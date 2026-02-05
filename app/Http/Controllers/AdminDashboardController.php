@@ -34,9 +34,9 @@ class AdminDashboardController extends Controller
         if ($departmentId && $departmentId !== 'all') {
             $department = Department::find($departmentId);
             if ($department) {
-                // This is a bit tricky since the route is a JSON array of names.
-                // We'll have to filter in the collection.
-                $query->whereJsonContains('finalized_route', $department->name);
+                // Since the route is now an array of objects, we need a more specific query
+                // to check if any object in the JSON array has a 'name' field matching the department name.
+                $query->whereJsonContains('finalized_route', [['name' => $department->name]]);
             }
         }
 
@@ -47,7 +47,7 @@ class AdminDashboardController extends Controller
         // Aggregate documents by their current step's department
         foreach ($processingDocuments as $document) {
             if (!empty($document->finalized_route) && $document->current_step > 0 && $document->current_step <= count($document->finalized_route)) {
-                $currentDepartmentName = $document->finalized_route[$document->current_step - 1];
+                $currentDepartmentName = $document->finalized_route[$document->current_step - 1]['name'];
 
                 // If a specific department is selected, only count for that one
                 if ($departmentId && $departmentId !== 'all') {
