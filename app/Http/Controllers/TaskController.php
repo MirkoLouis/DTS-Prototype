@@ -37,7 +37,7 @@ class TaskController extends Controller
                 // Check if the current step is valid for the route
                 if (isset($document->finalized_route[$currentStepIndex])) {
                     // Check if the department name at the current step matches the user's department name
-                    return $document->finalized_route[$currentStepIndex] === $userDepartment->name;
+                    return $document->finalized_route[$currentStepIndex]['name'] === $userDepartment->name;
                 }
 
                 return false;
@@ -61,7 +61,7 @@ class TaskController extends Controller
 
         // Authorization: Check if the document is actually assigned to this user's department
         $currentStepIndex = $document->current_step - 1;
-        $currentDepartmentOnRoute = $document->finalized_route[$currentStepIndex] ?? null;
+        $currentDepartmentOnRoute = $document->finalized_route[$currentStepIndex]['name'] ?? null;
 
         if (!$userDepartment || $document->status !== 'processing' || $currentDepartmentOnRoute !== $userDepartment->name) {
             return back()->with('error', 'You are not authorized to perform this action on this document.');
@@ -79,7 +79,7 @@ class TaskController extends Controller
             // This was the final internal processing step.
             $remarks = "Final step processed by {$userDepartment->name}. In transit to Records Unit for releasing.";
         } else {
-            $nextDepartmentName = $document->finalized_route[$document->current_step - 1];
+            $nextDepartmentName = $document->finalized_route[$document->current_step - 1]['name'];
             $remarks = "Step processed by {$userDepartment->name}. In transit to {$nextDepartmentName}.";
         }
 
