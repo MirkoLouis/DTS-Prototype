@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use Illuminate\Support\ServiceProvider;
+use Illuminate\Support\Facades\Blade;
 
 use Illuminate\Support\Facades\URL;
 // use Spatie\Backup\Events\BackupWasSuccessful; // Not needed anymore
@@ -24,6 +25,6 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        Blade::anonymousComponentPath(base_path('resources/views/general/components'));
     }
 }

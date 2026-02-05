@@ -31,7 +31,7 @@ class SystemHealthController extends Controller
 
         $appHealthMetrics = $this->getApplicationHealthMetrics();
 
-        return view('system-health', [
+        return view('admin.system-health', [
             'integrityCheckResult' => $integrityCheckResult,
             'mismatchedLogs' => $mismatchedLogs,
             'appHealthMetrics' => $appHealthMetrics,

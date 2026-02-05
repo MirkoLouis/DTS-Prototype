@@ -1,19 +1,19 @@
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-            {{ __('Staff Tasks') }}
+            {{ __('Document Releasing') }}
         </h2>
     </x-slot>
 
     <div class="py-12">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
-            {{-- Receive Document Section --}}
+            {{-- Receive Document for Releasing Section --}}
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900 dark:text-gray-100">
-                    <h3 class="text-2xl font-bold mb-4">Receive In-Transit Document</h3>
-                    <p class="mb-6 text-gray-600 dark:text-gray-400">Scan or enter the tracking code of a document that has been physically delivered to your department to add it to your queue.</p>
+                    <h3 class="text-2xl font-bold mb-4">Receive Document for Releasing</h3>
+                    <p class="mb-6 text-gray-600 dark:text-gray-400">Scan or enter the tracking code of a document that has completed its route to add it to the releasing queue.</p>
 
-                    <form id="scan-form" action="{{ route('documents.scan') }}" method="POST">
+                    <form id="scan-form" action="{{ route('releasing.receive') }}" method="POST">
                         @csrf
                         <div>
                             <label for="tracking_code" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tracking Code</label>
@@ -31,15 +31,15 @@
                     </button>
                 </div>
             </div>
-
-            {{-- Documents Awaiting Action Section --}}
+            
+            {{-- Documents Awaiting Release Section --}}
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900 dark:text-gray-100">
-                    <h2 class="text-2xl font-bold mb-4">Documents Awaiting Action</h2>
+                    <h2 class="text-2xl font-bold mb-4">Documents Awaiting Release</h2>
                     
-                    {{-- This container will be the target for our AJAX updates --}}
-                    <div id="tasks-container">
-                        @include('partials.tasks-list', ['documents' => $documents])
+                    {{-- This container will hold the table of documents --}}
+                    <div id="releasing-container">
+                        @include('general.partials.releasing-table', ['documents' => $documents])
                     </div>
 
                 </div>
@@ -103,27 +103,27 @@
                 }
             });
 
-            // AJAX Polling for the tasks list
+            // AJAX Polling for the releasing list
             const POLLING_INTERVAL = 60000; // 60 seconds
-            const refreshTasks = async () => {
+            const refreshReleasingList = async () => {
                 try {
-                    const response = await fetch('{{ route("tasks") }}', {
+                    const response = await fetch('{{ route("releasing") }}', {
                         headers: { 'X-Requested-With': 'XMLHttpRequest' }
                     });
                     if (!response.ok) {
-                        console.error('Failed to refresh tasks.');
+                        console.error('Failed to refresh releasing list.');
                         return;
                     }
                     const html = await response.text();
-                    const tasksContainer = document.getElementById('tasks-container');
-                    if (tasksContainer) {
-                        tasksContainer.innerHTML = html;
+                    const container = document.getElementById('releasing-container');
+                    if (container) {
+                        container.innerHTML = html;
                     }
                 } catch (error) {
-                    console.error('Error refreshing tasks:', error);
+                    console.error('Error refreshing releasing list:', error);
                 }
             };
-            setInterval(refreshTasks, POLLING_INTERVAL);
+            setInterval(refreshReleasingList, POLLING_INTERVAL);
         });
     </script>
     @endpush

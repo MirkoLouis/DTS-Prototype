@@ -21,7 +21,7 @@ class GuestController extends Controller
         $purposes = Purpose::where('is_official', true)->get();
         $departments = Department::orderBy('name')->get();
 
-        return view('welcome', [
+        return view('guest.welcome', [
             'purposes' => $purposes,
             'departments' => $departments
         ]);
@@ -116,7 +116,7 @@ class GuestController extends Controller
     public function success($tracking_code, $document_id)
     {
         $qrCode = QrCode::size(200)->generate($tracking_code);
-        return view('success', [
+        return view('guest.success', [
             'tracking_code' => $tracking_code,
             'qrCode' => $qrCode,
             'document_id' => $document_id
@@ -147,7 +147,7 @@ class GuestController extends Controller
                             ->whereIn('tracking_code', $trackingCodes)
                             ->get();
 
-        return view('track', ['documents' => $documents]);
+        return view('guest.track', ['documents' => $documents]);
     }
 
     /**
@@ -161,7 +161,7 @@ class GuestController extends Controller
         $document = Document::with(['purpose', 'logs'])->where('tracking_code', $tracking_code)->firstOrFail();
 
         // Render the component as a string
-        $html = view('components.document-card', ['document' => $document])->render();
+        $html = view('general.components.document-card', ['document' => $document])->render();
 
         return response($html, 200);
     }

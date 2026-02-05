@@ -30,9 +30,9 @@ class IntegrityMonitorController extends Controller
         $documents = $documentsQuery->paginate(15)->withQueryString();
 
         if ($request->ajax()) {
-            return view('partials.document-list-table', ['documents' => $documents])->render();
+            return view('general.partials.document-list-table', ['documents' => $documents])->render();
         }
 
-        return view('integrity-monitor', ['documents' => $documents]);
+        return view('admin.integrity-monitor', ['documents' => $documents]);
     }
 }

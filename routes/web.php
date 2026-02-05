@@ -36,7 +36,7 @@ Route::get('/dashboard', function () {
     // This route is protected by the 'auth' and 'role' middleware.
     // The 'role' middleware will handle the redirection.
     // We can just return a simple view here as a fallback.
-    return view('dashboard');
+    return view('general.dashboard');
 })->middleware(['auth', 'verified', 'role'])->name('dashboard');
 
 
