@@ -35,9 +35,8 @@ class Document extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'guest_info' => 'array',
-        'finalized_route' => 'array',
-        'declined_at' => 'datetime',
+                                'guest_info' => 'array',
+                                'finalized_route' => 'array',        'declined_at' => 'datetime',
     ];
 
     /**

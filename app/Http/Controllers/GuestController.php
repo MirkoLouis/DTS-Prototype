@@ -37,8 +37,9 @@ class GuestController extends Controller
     public function store(Request $request, RoutePredictionService $routePredictionService)
     {
         $rules = [
-            'guest_name' => 'required|string|max:255',
-            'guest_email' => 'required|email|max:255',
+            'guest_name' => 'required|string|max:255|regex:/^(?!.*@.*\..*)(?!.*\s+@).*$/', // Disallow email-like strings
+            'guest_email' => 'nullable|email|max:255',
+            'guest_phone' => 'nullable|string|max:255', // Add phone number validation
             'district' => 'required|string|max:255',
             'department' => 'required|string|max:255',
             'title' => 'required|string|max:255',
@@ -89,6 +90,7 @@ class GuestController extends Controller
             'guest_info' => [
                 'name' => $request->input('guest_name'),
                 'email' => $request->input('guest_email'),
+                'phone' => $request->input('guest_phone'), // Add phone number to guest info
             ],
             'district' => $request->input('district'),
             'department' => $request->input('department'),
