@@ -84,13 +84,26 @@
                 <form method="POST" action="/submit-document">
                     @csrf
                     <div class="row">
-                        <div class="col-md-6 mb-3">
+                        <div class="col-md-12 mb-3">
                             <label for="guest_name" class="form-label"><strong>Your Full Name</strong></label>
                             <input type="text" class="form-control" id="guest_name" name="guest_name" required>
                         </div>
+                    </div>
+
+                    <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="guest_email" class="form-label"><strong>Your Email Address</strong></label>
-                            <input type="email" class="form-control" id="guest_email" name="guest_email" required>
+                            <label for="guest_email" class="form-label"><strong>Your Email Address (Optional)</strong></label>
+                            <input type="email" class="form-control" id="guest_email" name="guest_email">
+                            @error('guest_email')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                            @enderror
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="guest_phone" class="form-label"><strong>Your Phone Number (Optional)</strong></label>
+                            <input type="text" class="form-control" id="guest_phone" name="guest_phone">
+                            @error('guest_phone')
+                                <div class="text-danger mt-1">{{ $message }}</div>
+                            @enderror
                         </div>
                     </div>
 

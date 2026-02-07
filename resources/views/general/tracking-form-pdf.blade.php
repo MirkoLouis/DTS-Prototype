@@ -64,6 +64,9 @@
         }
         .content-table .value-col {
             width: 45%;
+            word-break: break-word; /* Allow words to break to wrap */
+            white-space: normal; /* Ensure text wraps */
+            height: auto;
         }
         .content-table .qr-col {
             width: 30%;
@@ -90,6 +93,7 @@
             'Document Title:' => e($document->title),
             'Purpose:' => e($document->purpose->name),
             'Submitted By:' => e($document->guest_info["name"] ?? "N/A (Guest)"),
+            'Email:' => e($document->guest_info["email"] ?? "N/A"),
             'District:' => e($document->district ?? 'N/A'),
             'Unit/Department:' => e($document->department ?? 'N/A'),
         ];
