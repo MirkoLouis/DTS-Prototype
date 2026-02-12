@@ -11,6 +11,7 @@ use App\Http\Controllers\SystemHealthController;
 use App\Http\Controllers\SystemRatingsController;
 use App\Http\Controllers\BackupManagerController;
 use App\Http\Controllers\AdminDashboardController;
+use App\Http\Controllers\StatisticsController;
 use Illuminate\Support\Facades\Route;
 
 
@@ -45,20 +46,34 @@ Route::middleware(['auth', 'role:officer'])->group(function () {
     Route::get('/intake', [IntakeController::class, 'index'])->name('intake');
     Route::post('/intake/find', [IntakeController::class, 'find'])->name('intake.find');
     
+    // Officer-specific Task routes
+    Route::get('/officer-tasks', [TaskController::class, 'index'])->name('officer.tasks');
+    Route::post('/officer-tasks/{document}/complete', [TaskController::class, 'complete'])->name('officer.tasks.complete');
+    Route::get('/officer-completed-tasks', [TaskController::class, 'completed'])->name('officer.tasks.completed');
+    
     // Releasing routes
     Route::get('/releasing', [ReleasingController::class, 'index'])->name('releasing');
     Route::post('/releasing/receive', [ReleasingController::class, 'receive'])->name('releasing.receive');
     Route::post('/releasing/{document}/complete', [ReleasingController::class, 'complete'])->name('releasing.complete');
 });
 
+// Specific routes for Staff
+Route::middleware(['auth', 'role:staff'])->group(function () {
+    Route::get('/staff-tasks', [TaskController::class, 'index'])->name('staff.tasks');
+    Route::post('/staff-tasks/{document}/complete', [TaskController::class, 'complete'])->name('staff.tasks.complete');
+    Route::get('/staff-completed-tasks', [TaskController::class, 'completed'])->name('staff.tasks.completed');
+});
+
 Route::middleware(['auth', 'role:officer,staff'])->group(function () {
-    Route::get('/tasks', [TaskController::class, 'index'])->name('tasks');
-    Route::get('/completed-tasks', [TaskController::class, 'completed'])->name('tasks.completed');
-    Route::post('/tasks/{document}/complete', [TaskController::class, 'complete'])->name('tasks.complete');
-    
     // Return Request routes
     Route::get('/return-requests', [\App\Http\Controllers\ReturnRequestController::class, 'index'])->name('return-requests.index');
     Route::post('/return-requests', [\App\Http\Controllers\ReturnRequestController::class, 'store'])->name('return-requests.store');
+
+    // Statistics routes
+    Route::get('/statistics', [\App\Http\Controllers\StatisticsController::class, 'index'])->name('statistics.index');
+    Route::get('/api/statistics/throughput', [\App\Http\Controllers\StatisticsController::class, 'getThroughputData'])->name('api.statistics.throughput');
+    Route::get('/api/statistics/current-load', [\App\Http\Controllers\StatisticsController::class, 'getCurrentLoadData'])->name('api.statistics.current-load');
+    Route::get('/api/statistics/avg-processing-time', [\App\Http\Controllers\StatisticsController::class, 'getAverageProcessingTimeData'])->name('api.statistics.avg-processing-time');
 });
 
 

@@ -67,7 +67,47 @@ class Document extends Model
         $intakeStep = [['name' => 'Intake', 'type' => 'intake']];
         $releasingStep = [['name' => 'Releasing', 'type' => 'releasing']];
 
-        return array_merge($intakeStep, $processingSteps, $releasingStep);
+        $displayRoute = array_merge($intakeStep, $processingSteps, $releasingStep);
+
+        // Load logs if not already loaded, ordered by created_at for chronological processing
+        $logs = $this->logs()->orderBy('created_at', 'asc')->get();
+
+        $stepTimestamps = [];
+
+        // Pre-process logs to get timestamps for each relevant action
+        foreach ($logs as $log) {
+            // Intake step (reflects when the records officer finalized the route)
+            if ($log->action === 'Accepted and Document Routing finalized') {
+                $stepTimestamps['Intake'] = $log->created_at->format('M d, Y h:i A');
+            }
+            // Processing steps
+            if ($log->action === 'Processing Complete' && preg_match('/processed by (.+?)\./', $log->remarks, $matches)) {
+                $departmentName = trim($matches[1]);
+                $stepTimestamps[$departmentName] = $log->created_at->format('M d, Y h:i A');
+            }
+            // Releasing step
+            if ($log->action === 'Ready for Releasing' || $log->action === 'Document Released') {
+                // Take the latest timestamp for releasing, which would be 'Document Released' if it exists.
+                // We'll prioritize the 'Document Released' if multiple exist, otherwise use 'Ready for Releasing'.
+                if ($log->action === 'Document Released') {
+                    $stepTimestamps['Releasing'] = $log->created_at->format('M d, Y h:i A');
+                } elseif (!isset($stepTimestamps['Releasing'])) {
+                    // Only set Ready for Releasing if Document Released isn't already set
+                    $stepTimestamps['Releasing'] = $log->created_at->format('M d, Y h:i A');
+                }
+            }
+        }
+
+        // Attach timestamps to the display route objects
+        foreach ($displayRoute as $key => $step) {
+            $timestamp = null;
+            if (isset($stepTimestamps[$step['name']])) {
+                $timestamp = $stepTimestamps[$step['name']];
+            }
+            $displayRoute[$key]['timestamp'] = $timestamp;
+        }
+
+        return $displayRoute;
     }
 
     /**
@@ -95,7 +135,12 @@ class Document extends Model
             return count($this->getDisplayRouteObjectsAttribute());
         }
 
-        // For 'completed', 'declined', 'frozen', etc., there is no current step.
+        if ($status === 'completed') {
+            // For completed documents, all steps including 'Releasing' should be marked as completed.
+            return count($this->getDisplayRouteObjectsAttribute()) + 1;
+        }
+
+        // For 'declined', 'frozen', etc., there is no current step.
         return null;
     }
 }

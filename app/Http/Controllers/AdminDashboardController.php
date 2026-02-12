@@ -158,4 +158,5 @@ class AdminDashboardController extends Controller
             'data' => array_values($periodMap),
         ]);
     }
+
 }

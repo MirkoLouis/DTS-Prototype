@@ -17,7 +17,7 @@ class ReturnRequestController extends Controller
      */
     public function index()
     {
-        return view('officer.return-requests.index');
+        return view('staff.return-requests.index');
     }
 
     /**

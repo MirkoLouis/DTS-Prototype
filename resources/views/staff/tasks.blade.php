@@ -1,7 +1,7 @@
 <x-app-layout>
     <x-slot name="header">
         <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-            {{ __('Staff Tasks') }}
+            {{ __($departmentName . ' Tasks') }}
         </h2>
     </x-slot>
 
@@ -107,7 +107,7 @@
             const POLLING_INTERVAL = 60000; // 60 seconds
             const refreshTasks = async () => {
                 try {
-                    const response = await fetch('{{ route("tasks") }}', {
+                    const response = await fetch('{{ route("staff.tasks") }}', {
                         headers: { 'X-Requested-With': 'XMLHttpRequest' }
                     });
                     if (!response.ok) {
