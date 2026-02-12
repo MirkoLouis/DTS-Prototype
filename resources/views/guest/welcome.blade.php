@@ -99,7 +99,7 @@
                             @enderror
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label for="guest_phone" class="form-label"><strong>Your Phone Number (Optional)</strong></label>
+                            <label for="guest_phone" class="form-label"><strong>Your Phone Number</strong></label>
                             <input type="text" class="form-control" id="guest_phone" name="guest_phone">
                             @error('guest_phone')
                                 <div class="text-danger mt-1">{{ $message }}</div>

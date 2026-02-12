@@ -44,7 +44,9 @@
                         <td colspan="6" class="p-4 bg-gray-50 dark:bg-gray-900/50">
                             <h4 class="font-bold mb-2 text-gray-800 dark:text-gray-200">Route for {{ $document->tracking_code }}:</h4>
                             @if($document->finalized_route)
-                                <x-tracker-subway-map :route_objects="$document->display_route_objects" :current_step="$document->display_current_step" />
+                                <div class="overflow-x-auto">
+                                    <x-tracker-subway-map :route_objects="$document->display_route_objects" :current_step="$document->display_current_step" />
+                                </div>
                             @else
                                 <p class="text-gray-500 dark:text-gray-400">No finalized route for this document.</p>
                             @endif
@@ -94,11 +96,13 @@
                 
                 <div id="details-row-mobile-{{ $document->id }}" class="details-row mt-2" style="display: none;">
                     <h4 class="font-bold mb-2 text-gray-800 dark:text-gray-200">Route:</h4>
-                    @if($document->finalized_route)
-                        <x-tracker-subway-map :route_objects="$document->display_route_objects" :current_step="$document->display_current_step" />
-                    @else
-                        <p class="text-gray-500 dark:text-gray-400">No finalized route for this document.</p>
-                    @endif
+                    <div class="overflow-x-auto">
+                        @if($document->finalized_route)
+                            <x-tracker-subway-map :route_objects="$document->display_route_objects" :current_step="$document->display_current_step" />
+                        @else
+                            <p class="text-gray-500 dark:text-gray-400">No finalized route for this document.</p>
+                        @endif
+                    </div>
                 </div>
             </div>
         @empty

@@ -48,7 +48,15 @@ class TaskController extends Controller
             return view('general.partials.tasks-list', ['documents' => $documentsForUser]);
         }
 
-        return view('staff.tasks', ['documents' => $documentsForUser]);
+        $viewName = 'staff.tasks'; // Default for staff
+        if (Auth::user()->role === 'officer') {
+            $viewName = 'officer.tasks-overview'; // New view for officers
+        }
+
+        return view($viewName, [
+            'documents' => $documentsForUser,
+            'departmentName' => $userDepartment ? $userDepartment->name : 'Your' // Provide a fallback
+        ]);
     }
 
     /**
@@ -63,8 +71,32 @@ class TaskController extends Controller
         $currentStepIndex = $document->current_step - 1;
         $currentDepartmentOnRoute = $document->finalized_route[$currentStepIndex]['name'] ?? null;
 
-        if (!$userDepartment || $document->status !== 'processing' || $currentDepartmentOnRoute !== $userDepartment->name) {
-            return back()->with('error', 'You are not authorized to perform this action on this document.');
+        // Authorization: Check if the user is authorized to perform this action on this document.
+        // Get the department name for the current step in the document's route
+        $currentStepInRouteName = $document->finalized_route[$currentStepIndex]['name'] ?? null;
+
+        if ($user->role === 'officer') {
+            if (!$userDepartment) {
+                return back()->with('error', 'Your user account (Records Officer) is not assigned to a department, thus cannot complete this step.');
+            }
+            if ($document->status !== 'processing') {
+                return back()->with('error', 'The document is not in a processing state.');
+            }
+            if ($currentStepInRouteName !== $userDepartment->name) {
+                return back()->with('error', "As a Records Officer, you cannot complete this step. The document is currently at '{$currentStepInRouteName}' but your department is '{$userDepartment->name}'.");
+            }
+        }
+        // Staff-specific authorization (or general authorization if not officer)
+        else {
+            if (!$userDepartment) {
+                return back()->with('error', 'Your user account is not assigned to a department, thus cannot complete this step.');
+            }
+            if ($document->status !== 'processing') {
+                return back()->with('error', 'The document is not in a processing state.');
+            }
+            if ($currentStepInRouteName !== $userDepartment->name) {
+                return back()->with('error', "You are not authorized to complete this step. The document is currently at '{$currentStepInRouteName}' but your department is '{$userDepartment->name}'.");
+            }
         }
 
         // Advance the step and set status to 'in_transit'
@@ -93,7 +125,11 @@ class TaskController extends Controller
             'remarks' => $remarks,
         ]);
 
-        return redirect()->route('tasks')->with('success', 'Step completed. Document is now in transit.');
+        // Determine the redirect route based on user role
+        $userRole = Auth::user()->role;
+        $redirectRoute = ($userRole === 'officer') ? 'officer.tasks' : 'staff.tasks';
+
+        return redirect()->route($redirectRoute)->with('success', 'Step completed. Document is now in transit.');
     }
     /**
      * Display a list of documents previously completed by the user.

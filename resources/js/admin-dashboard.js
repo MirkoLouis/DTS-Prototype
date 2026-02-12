@@ -1,7 +1,7 @@
 import Chart from 'chart.js/auto';
 
 document.addEventListener('DOMContentLoaded', function() {
-    const chartContainer = document.querySelector('.grid.grid-cols-1');
+    const chartContainer = document.querySelector('[data-current-load-url]');
     if (!chartContainer) return;
 
     const currentLoadUrl = chartContainer.dataset.currentLoadUrl;

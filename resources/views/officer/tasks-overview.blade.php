@@ -107,7 +107,7 @@
             const POLLING_INTERVAL = 60000; // 60 seconds
             const refreshTasks = async () => {
                 try {
-                    const response = await fetch('{{ route("staff.tasks") }}', {
+                    const response = await fetch('{{ route("officer.tasks") }}', {
                         headers: { 'X-Requested-With': 'XMLHttpRequest' }
                     });
                     if (!response.ok) {

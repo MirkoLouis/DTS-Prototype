@@ -160,7 +160,10 @@ class DocumentController extends Controller
                         'document_id' => $document->id, 'user_id' => $user->id, 'action' => 'Received',
                         'remarks' => "Document received by {$user->department->name}.",
                     ]);
-                    return redirect()->route('tasks')->with('success', "Document {$document->tracking_code} has been received and added to your tasks.");
+                    // Determine the redirect route based on user role
+                    $userRole = Auth::user()->role;
+                    $redirectRoute = ($userRole === 'officer') ? 'officer.tasks' : 'staff.tasks';
+                    return redirect()->route($redirectRoute)->with('success', "Document {$document->tracking_code} has been received and added to your tasks.");
                 }
             }
 

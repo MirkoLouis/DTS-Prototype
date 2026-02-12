@@ -4,7 +4,7 @@
     .subway-map-container {
         display: flex;
         align-items: flex-start;
-        overflow-x: auto;
+        flex-wrap: wrap;
         padding: 1rem 0;
     }
     .station {
@@ -12,7 +12,7 @@
         flex-direction: column;
         align-items: center;
         position: relative;
-        min-width: 120px; /* 30 * 4 */
+        min-width: 150px; /* Increased for horizontal spacing */
     }
     .station-track {
         flex-grow: 1;
@@ -126,6 +126,9 @@
                 <div class="station-track station-track-right"></div>
             </div>
             <div class="station-label">{{ $displayName }}</div>
+            @if(isset($step['timestamp']))
+                <div class="station-timestamp text-xs text-gray-500 dark:text-gray-400 mt-1">{{ $step['timestamp'] }}</div>
+            @endif
         </div>
     @endforeach
 </div>
