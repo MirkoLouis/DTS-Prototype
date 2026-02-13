@@ -138,7 +138,7 @@
                     </div>
                     
                     <div id="released-documents-container" class="overflow-x-auto">
-                        @include('general.partials.released-documents-table', ['releasedDocuments' => $releasedDocuments])
+                        @include('officer.partials.released-documents-table', ['releasedDocuments' => $releasedDocuments])
                     </div>
                 </div>
             </div>

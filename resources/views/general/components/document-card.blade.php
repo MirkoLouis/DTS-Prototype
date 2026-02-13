@@ -49,6 +49,9 @@
             </div>
         @endif
 
+        @php
+            $isFinalTransit = $document->status == 'in_transit' && $document->current_step > count($document->finalized_route ?? []);
+        @endphp
         <div class="subway-map-wrapper">
             @if($document->status == 'completed')
                 <div id="rating-section-{{ $document->tracking_code }}">
@@ -83,12 +86,17 @@
                         For more information and to retrieve your document, please visit the Records Section.
                     </p>
                 </div>
+            @elseif ($isFinalTransit)
+                <div class="alert alert-info text-center">
+                    <h4 class="alert-heading">Processing Finished</h4>
+                    <p class="mb-0">All processing steps are complete. The document is now in transit back to the Records Department to be ready for releasing.</p>
+                </div>
             @elseif($document->status == 'ready_for_release')
-                <div class="alert alert-primary text-center">
+                <div class="alert alert-success text-center">
                     <h4 class="alert-heading">Processing Complete!</h4>
                     <p class="mb-0">Your document has finished internal processing and is now ready for release at the Records Department.</p>
                 </div>
-            @else {{-- Status is 'processing' or 'in_transit' --}}
+            @else {{-- Status is 'processing' or 'in_transit' but not final --}}
                 <x-tracker-subway-map :route_objects="$document->display_route_objects" :current_step="$document->display_current_step" />
             @endif
         </div>
