@@ -74,6 +74,7 @@ Route::middleware(['auth', 'role:officer,staff'])->group(function () {
     Route::get('/api/statistics/throughput', [\App\Http\Controllers\StatisticsController::class, 'getThroughputData'])->name('api.statistics.throughput');
     Route::get('/api/statistics/current-load', [\App\Http\Controllers\StatisticsController::class, 'getCurrentLoadData'])->name('api.statistics.current-load');
     Route::get('/api/statistics/avg-processing-time', [\App\Http\Controllers\StatisticsController::class, 'getAverageProcessingTimeData'])->name('api.statistics.avg-processing-time');
+    Route::post('/statistics/report', [\App\Http\Controllers\StatisticsController::class, 'generateReport'])->name('statistics.report');
 });
 
 

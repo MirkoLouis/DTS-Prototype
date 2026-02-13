@@ -24,6 +24,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     let currentLoadChart, throughputChart, avgProcessingTimeChart;
+    window.dtsCharts = { currentLoadChart, throughputChart, avgProcessingTimeChart };
+
 
     const defaultLineOptions = {
         responsive: true,
@@ -81,6 +83,10 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             options: { ...defaultLineOptions, scales: { y: { ...defaultLineOptions.scales.y, title: { display: true, text: 'Number of Documents' } } } }
         });
+
+        window.dtsCharts.currentLoadChart = currentLoadChart;
+        window.dtsCharts.avgProcessingTimeChart = avgProcessingTimeChart;
+        window.dtsCharts.throughputChart = throughputChart;
     }
 
     function fetchChartData(chart, baseUrl, period, chartName) {

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use App\Models\Department;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class StatisticsController extends Controller
 {
@@ -96,6 +97,73 @@ class StatisticsController extends Controller
         }
 
         return view('general.statistics', $viewData);
+    }
+
+    public function generateReport(Request $request)
+    {
+        // Re-use the same filtering logic from the index method
+        $departmentId = Auth::user()->department_id;
+        $filterPurposeId = $request->input('purpose_id');
+        $filterSubmitter = $request->input('submitter');
+        $searchTerm = $request->input('search');
+        $filterYear = $request->input('year');
+        $filterMonth = $request->input('month');
+        $filterDay = $request->input('day');
+
+        $query = Document::query();
+
+        $query->whereHas('logs', function ($q) use ($departmentId, $filterYear, $filterMonth, $filterDay) {
+            $q->where('action', 'Document Released');
+            $q->whereHas('user', function ($userQuery) use ($departmentId) {
+                $userQuery->where('department_id', $departmentId);
+            });
+            if ($filterYear && $filterYear !== 'all') {
+                $q->whereYear('created_at', $filterYear);
+            }
+            if ($filterMonth && $filterMonth !== 'all') {
+                $q->whereMonth('created_at', $filterMonth);
+            }
+            if ($filterDay && $filterDay !== 'all') {
+                $q->whereDay('created_at', $filterDay);
+            }
+        });
+
+        if ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('tracking_code', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('guest_info->name', 'like', '%' . $searchTerm . '%');
+            });
+        }
+
+        if ($filterPurposeId && $filterPurposeId !== 'all') {
+            $query->where('purpose_id', $filterPurposeId);
+        }
+
+        if ($filterSubmitter && $filterSubmitter !== 'all') {
+            $query->where('guest_info->name', $filterSubmitter);
+        }
+
+        // Get all matching documents without pagination for the report
+        $releasedDocuments = $query->with('purpose')->latest('updated_at')->get();
+
+        $charts = [];
+        if ($request->input('include_charts')) {
+            $charts = [
+                'load' => $request->input('chart_load_img'),
+                'avg_time' => $request->input('chart_avg_time_img'),
+                'throughput' => $request->input('chart_throughput_img'),
+            ];
+        }
+
+        $pdf = Pdf::loadView('officer.report-pdf', [
+            'releasedDocuments' => $releasedDocuments,
+            'charts' => $charts,
+            'filters' => $request->only(['purpose_id', 'submitter', 'search', 'year', 'month', 'day']),
+            'departmentName' => Auth::user()->department->name,
+        ]);
+
+        $pdf->setPaper('a4', 'landscape');
+        return $pdf->stream('released-documents-report-' . now()->format('Y-m-d') . '.pdf');
     }
 
     /**
