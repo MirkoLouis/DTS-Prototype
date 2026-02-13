@@ -50,7 +50,7 @@ class TaskController extends Controller
 
         $viewName = 'staff.tasks'; // Default for staff
         if (Auth::user()->role === 'officer') {
-            $viewName = 'officer.tasks-overview'; // New view for officers
+            $viewName = 'officer.officer-tasks'; // New view for officers
         }
 
         return view($viewName, [

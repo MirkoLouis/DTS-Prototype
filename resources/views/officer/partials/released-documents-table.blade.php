@@ -19,7 +19,7 @@
                         <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{{ $document->purpose->name }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ $document->updated_at->format('M d, Y h:i A') }}</td>
                         <td class="px-6 py-4 text-right text-sm font-medium">
-                            <a href="{{ route('track', ['tracking_code' => $document->tracking_code]) }}" target="_blank" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200">View</a>
+                            <a href="{{ route('documents.show', $document) }}" target="_blank" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200">View</a>
                         </td>
                     </tr>
                 @empty
@@ -42,7 +42,7 @@
                     <p><strong>Released:</strong> {{ $document->updated_at->format('M d, Y h:i A') }}</p>
                 </div>
                 <div class="text-right">
-                    <a href="{{ route('track', ['tracking_code' => $document->tracking_code]) }}" target="_blank" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200">View Details</a>
+                    <a href="{{ route('documents.show', $document) }}" target="_blank" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200">View Details</a>
                 </div>
             </div>
         @empty

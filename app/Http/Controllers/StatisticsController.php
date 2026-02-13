@@ -92,7 +92,7 @@ class StatisticsController extends Controller
         }
         
         if ($request->ajax() && Auth::user()->role === 'officer') {
-            return view('general.partials.released-documents-table', $viewData);
+            return view('officer.partials.released-documents-table', $viewData);
         }
 
         return view('general.statistics', $viewData);
