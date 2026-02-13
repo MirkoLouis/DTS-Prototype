@@ -117,7 +117,7 @@ class AdminDashboardController extends Controller
             )
             ->join('users', 'document_logs.user_id', '=', 'users.id')
             ->whereBetween('document_logs.created_at', [$startDate, $endDate])
-            ->where('document_logs.action', 'like', '%completed%');
+            ->where('document_logs.action', 'Processing Complete');
 
         if ($departmentId && $departmentId !== 'all') {
             $query->where('users.department_id', $departmentId);

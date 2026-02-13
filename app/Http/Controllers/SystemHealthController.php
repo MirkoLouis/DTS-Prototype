@@ -46,8 +46,8 @@ class SystemHealthController extends Controller
         // 1. Average Processing Time
         $processingTimes = DocumentLog::select(
                 'document_id',
-                DB::raw('MIN(CASE WHEN action LIKE "%Accepted and route finalized%" THEN created_at END) as start_time'),
-                DB::raw('MAX(CASE WHEN action LIKE "%Processing complete%" THEN created_at END) as end_time')
+                DB::raw('MIN(CASE WHEN action = "Accepted and Document Routing finalized" THEN created_at END) as start_time'),
+                DB::raw('MAX(CASE WHEN action = "Document Released" THEN created_at END) as end_time')
             )
             ->groupBy('document_id')
             ->havingNotNull('start_time')
