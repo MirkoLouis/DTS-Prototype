@@ -37,20 +37,33 @@ class DocumentSeeder extends Seeder
             return;
         }
 
-        $this->command->info('Creating 1000 documents with complex, year-spanning history...');
+        $documentsToCreate = 10000;
+
+        // Stage 1: Create base document records
+        $this->command->info('');
+        $this->command->info('Stage 1 of 2: Creating ' . $documentsToCreate . ' base document records (this may take a moment)...');
+        $documents = Document::factory()->count($documentsToCreate)->create();
+        $this->command->info('Stage 1 complete.');
+        $this->command->info('');
+
+        // Stage 2: Generate detailed document history
+        $this->command->info('Stage 2 of 2: Generating detailed document history...');
+        $progressBar = $this->command->getOutput()->createProgressBar($documentsToCreate);
+        $progressBar->start();
         
         $maxTotalDays = 14;
         $maxStepDays = 3;
 
-        Document::factory()->count(1000)->create()->each(function (Document $document) use ($recordsOfficer, $processingUsers, $departments, $maxTotalDays, $maxStepDays) {
+        $documents->each(function (Document $document) use ($recordsOfficer, $processingUsers, $departments, $maxTotalDays, $maxStepDays, $progressBar) {
             
-            $currentTimestamp = Carbon::now()->subDays(rand(0, 365))->setHour(rand(8, 16))->setMinutes(rand(0, 59))->setSeconds(rand(0, 59));
+            $currentTimestamp = Carbon::now()->subYears(rand(0, 5))->subDays(rand(0, 365))->setHour(rand(8, 16))->setMinutes(rand(0, 59))->setSeconds(rand(0, 59));
+            if ($currentTimestamp->isWeekend()) {
+                $currentTimestamp->next(Carbon::MONDAY)->setTime(rand(8, 16), rand(0, 59), rand(0, 59));
+            }
+
             $intakeTimestamp = $currentTimestamp->copy();
 
             $aimForReleased = (mt_rand() / mt_getrandmax()) < 0.95;
-            if ($intakeTimestamp->lt(Carbon::now()->subMonth())) {
-                $aimForReleased = true;
-            }
 
             $routeNames = $document->purpose->suggested_route;
             $routeDepartments = collect();
@@ -156,10 +169,11 @@ class DocumentSeeder extends Seeder
 
             $document->updated_at = $currentTimestamp;
             $document->save();
-
-            $this->command->line('  - Created document: ' . $document->tracking_code . ' (Date: ' . $intakeTimestamp->toDateString() . ', Status: ' . $document->status . ')');
+            $progressBar->advance();
         });
 
+        $progressBar->finish();
+        $this->command->info(''); // Add a new line after the progress bar
         $this->command->info('Complex document seeding complete.');
     }
 }
