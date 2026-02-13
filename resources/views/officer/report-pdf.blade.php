@@ -63,14 +63,35 @@
             border-collapse: collapse;
             font-size: 10px;
             margin-bottom: .3in;
+            table-layout: fixed; /* Added to ensure fixed column widths are respected */
         }
         .styled-table th, .styled-table td {
             border: 1px solid #ddd;
             padding: 6px;
+            word-wrap: break-word; /* Allow long words to break within cells */
         }
         .styled-table th {
             background-color: #f2f2f2;
             text-align: left;
+        }
+        /* Custom styles for columns */
+        .no-wrap {
+            white-space: nowrap;
+        }
+        .tracking-code-col {
+            width: 15%; /* Adjusted width */
+        }
+        .title-col {
+            width: 30%; /* Give more space for title, it can wrap */
+        }
+        .purpose-col {
+            width: 25%; /* Shortened width for purpose */
+        }
+        .submitted-by-col {
+            width: 15%; /* Default width */
+        }
+        .released-at-col {
+            width: 15%; /* Adjusted width */
         }
         .footer {
             text-align: right;
@@ -128,21 +149,21 @@
     <table class="styled-table">
         <thead>
             <tr>
-                <th>Tracking Code</th>
-                <th>Title</th>
-                <th>Purpose</th>
-                <th>Submitted By</th>
-                <th>Released At</th>
+                <th class="tracking-code-col no-wrap">Tracking Code</th>
+                <th class="title-col">Title</th>
+                <th class="purpose-col">Purpose</th>
+                <th class="submitted-by-col">Submitted By</th>
+                <th class="released-at-col no-wrap">Released At</th>
             </tr>
         </thead>
         <tbody>
             @forelse ($releasedDocuments as $doc)
                 <tr>
-                    <td>{{ $doc->tracking_code }}</td>
+                    <td class="no-wrap">{{ $doc->tracking_code }}</td>
                     <td>{{ $doc->title }}</td>
-                    <td>{{ $doc->purpose->name }}</td>
+                    <td class="purpose-col">{{ $doc->purpose->name }}</td>
                     <td>{{ $doc->guest_info['name'] ?? 'N/A' }}</td>
-                    <td>{{ $doc->updated_at->format('Y-m-d h:i A') }}</td>
+                    <td class="no-wrap">{{ $doc->updated_at->format('Y-m-d h:i A') }}</td>
                 </tr>
             @empty
                 <tr>
