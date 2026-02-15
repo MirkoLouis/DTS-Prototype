@@ -44,9 +44,13 @@ The application is built on a robust Role-Based Access Control (RBAC) system, en
 ### 2.5. The Admin Journey (`admin` role)
 
 1.  **Login & Redirection:** Upon login, the `RoleMiddleware` redirects the administrator to the main analytics dashboard at `/admin-dashboard`.
-2.  **Permissions:** Administrators have access to all routes within the `role:admin` group.
-3.  **Process Analytics (`/admin-dashboard`):** The main dashboard provides charts for system throughput and department workload, acting as a "Bottleneck Detector."
-4.  **System Utilities:** From the dashboard, the admin can access specialized pages:
+2.  **Permissions:** Administrators have access to all routes within the `role:admin` group, including user management and all system utilities.
+3.  **Process Analytics (`/admin-dashboard`):** The dashboard is a comprehensive, multi-section interface providing a deep-dive into system performance and potential bottlenecks.
+    *   **Main Overview:** A top-level, three-column view showing the most critical at-a-glance metrics: the current **Document Status Distribution** across the entire system, the **Global Average Processing Time (hrs)** for all documents, and a "Top 5 Fastest Depts. (Avg)" chart to immediately highlight efficient departments.
+    *   **Returns & Declines Analysis:** A dedicated section that groups together charts for **Return & Decline Rate Trends** and **Return Request Sources**, allowing for focused analysis on why documents are being rejected or sent back.
+    *   **Department Drill-Down:** An interactive section containing a powerful **Load vs. Processing Time** combination chart. This dual-axis chart allows admins to select a specific department and time period to visually correlate the number of documents received (load) with that department's average internal processing time, making it easy to see how workload impacts efficiency. The chart's title updates dynamically to reflect the selected department.
+    *   **Purpose-Based Analysis:** A full-width chart showing **Processing Hotspots by Purpose** helps identify if specific *types* of documents are causing systemic delays.
+4.  **System Utilities:** From the main navigation, the admin can access specialized pages:
     *   **System Health Monitor (`/system-health`):** The "Trust Builder" tool for running on-demand integrity checks of the hash chain and managing data recovery.
     *   **Client Ratings Dashboard (`/system/ratings`):** A view of all client feedback and satisfaction scores.
     *   **Backup Manager (`/system/backups`):** The "Safety Net" for creating, downloading, and managing database backups.

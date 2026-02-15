@@ -1,44 +1,47 @@
-# Admin Dashboard: Suggested Analytics & Monitoring
+# Admin Dashboard: Future Analytics & Monitoring Suggestions
 
 This document contains suggestions for additional data visualizations and monitoring categories for the administrator dashboard to provide a more comprehensive overview of the system's performance and health.
 
-## New "Process Analytics" Visualizations
+---
 
-These suggestions expand on the current theme of tracking efficiency and identifying bottlenecks.
+## Client & Service Analytics
 
-1.  **Average Processing Time per Department**
-    *   **What it shows:** A bar chart comparing the average time it takes each department to complete its step in the process.
-    *   **Why it's valuable:** This directly pinpoints which specific departments are the slowest or fastest, helping administrators focus their efforts on process improvement where it's needed most.
+This category focuses on the public-facing side of the service and understanding client behavior.
 
-2.  **Document Status Distribution**
-    *   **What it shows:** A real-time pie or donut chart breaking down the current status of all active documents (e.g., 40% `In Transit`, 35% `Processing`, 25% `Pending Intake`).
-    *   **Why it's valuable:** It provides a high-level, "at-a-glance" overview of the system's current state. A large `Pending Intake` slice, for example, indicates a backlog at the very start of the process.
+1.  **Most Frequent Purposes**
+    *   **What it shows:** A simple bar chart of the most submitted document purposes.
+    *   **Why it's valuable:** This shows which services are in highest demand, helping to justify resource allocation for those specific workflows.
 
-3.  **Return & Decline Rate Trends**
-    *   **What it shows:** A line chart with two lines, tracking the number of documents `Declined` and the number of `Return Requests` made per week or month.
-    *   **Why it's valuable:** A rising decline rate might signal that guest submission requirements are unclear. A high return rate from a specific department could indicate a need for better training or clearer instructions for that step.
+2.  **Submission Trends by District**
+    *   **What it shows:** A bar chart or table showing the volume of submissions originating from different school districts.
+    *   **Why it's valuable:** This could help identify areas with high demand for services and could inform outreach or support initiatives.
 
-4.  **Processing "Hotspots" by Document Purpose**
-    *   **What it shows:** A bar chart displaying the average end-to-end processing time for the top 5-10 most common document purposes.
-    *   **Why it's valuable:** This helps admins understand if certain *types* of documents inherently take longer to process, which could inform service level agreements (SLAs) or lead to process re-engineering for those specific workflows.
+3.  **Client Satisfaction Deep-Dive**
+    *   **What it shows:** While there is a separate ratings page, the admin dashboard could feature a "Recent Ratings" feed or a chart showing the trend of the average rating over time.
+    *   **Why it's valuable:** Provides a quick pulse check on client satisfaction without having to navigate to a separate page.
 
-## New Monitoring Categories
+4.  **Peak Submission Hours/Days**
+    *   **What it shows:** A bar chart or heatmap indicating which days of the week or hours of the day have the highest submission volumes.
+    *   **Why it's valuable:** This helps in resource planning and staffing at the Records Unit to better handle peak intake periods.
 
-These are broader categories of analytics that would give administrators a more holistic view of the system's usage and health.
+---
 
-### 1. Client & Service Analytics
-
-This category focuses on the public-facing side of the service.
-
-*   **Most Frequent Purposes:** A simple bar chart of the most submitted document purposes. This shows which services are in highest demand.
-*   **Submission Trends by District:** A bar chart or table showing the volume of submissions originating from different districts. This could help identify areas with high demand for services.
-*   **Client Satisfaction Deep-Dive:** While there is a separate ratings page, the admin dashboard could feature a "Recent Ratings" feed or a chart showing the trend of the average rating over time.
-
-### 2. AI & System Performance
+## AI & System Performance
 
 This category focuses on the technical and "smart" aspects of the system.
 
-*   **AI Route Prediction Accuracy:**
-    *   **What it shows:** A line chart tracking the accuracy of the AI's route predictions over time. This is calculated by comparing how many suggested routes were accepted versus how many were manually changed by the Records Officer.
-    *   **Why it's valuable:** This is a direct measure of the "learning" system's effectiveness and provides powerful, quantifiable proof of the AI's value.
-*   **Database Growth Rate:** A simple line chart showing the growth in the number of `documents` and `document_logs` over time. This helps with capacity planning and understanding data storage trends.
+1.  **AI Route Prediction Accuracy**
+    *   **What it shows:** A line chart tracking the accuracy of the AI's route predictions over time. This would be calculated by comparing how many suggested routes were accepted versus how many were manually changed by the Records Officer.
+    *   **Why it's valuable:** This is a direct measure of the "learning" system's effectiveness and provides powerful, quantifiable proof of the AI's value. A declining accuracy could signal a need to retrain or adjust the learning algorithm.
+
+2.  **Orphaned Documents Monitor**
+    *   **What it shows:** A simple counter or list of documents that have been in a `processing` or `in_transit` state for an unusually long time (e.g., > 10 business days) without any log updates.
+    *   **Why it's valuable:** This acts as a proactive alert system to find documents that might be "stuck" or forgotten, allowing an admin to investigate and get them moving again. This directly improves service delivery and prevents client frustration.
+
+3.  **User Adoption & Activity Rate**
+    *   **What it shows:** A chart displaying the number of active internal users (staff, officers) per day or week and the volume of tasks they complete.
+    *   **Why it's valuable:** Measures how well the system is being adopted by internal personnel. A low adoption rate or a high number of logins with few actions completed might indicate a need for more training or improvements to the user interface.
+
+4.  **Database Growth Rate**
+    *   **What it shows:** A simple line chart showing the growth in the number of `documents` and `document_logs` over time.
+    *   **Why it's valuable:** This helps with capacity planning, forecasting storage needs, and understanding the rate of data accumulation.
