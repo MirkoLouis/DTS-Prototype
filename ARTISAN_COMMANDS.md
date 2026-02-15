@@ -107,8 +107,8 @@ This project includes several custom Artisan commands to manage specific feature
 *   `php artisan dts:verify-integrity`: Verifies the integrity of the entire document log hash-chain. This is the "Trust Builder" tool.
 *   `php artisan dts:corrupt-log {logId}`: **(For Testing)** Intentionally corrupts a `DocumentLog` entry to test the integrity verification.
 *   `php artisan dts:rebuild-chain {logId}`: An administrative tool to rebuild the hash-chain for a document starting from a specific log ID.
-*   `php artisan backup:run`: Triggers an on-demand database backup.
-*   `php artisan dts:restore-database {filename}`: Restores the database from a specific backup file.
+*   `php artisan backup:run`: Triggers an on-demand database backup via a background job.
+*   `php artisan dts:restore-database {filename}`: A custom command that dispatches a background job to restore the database from a specific backup file. This is typically initiated via the Backup Manager UI, not run manually.
 
 ### Running Integrity Tests
 To verify the hash-chaining security mechanism, you can run the dedicated PHPUnit test suite:
