@@ -85,6 +85,11 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/admin-dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
     Route::get('/api/admin-dashboard/current-load', [AdminDashboardController::class, 'getCurrentLoadData'])->name('api.admin-dashboard.current-load');
     Route::get('/api/admin-dashboard/throughput', [AdminDashboardController::class, 'getThroughputData'])->name('api.admin-dashboard.throughput');
+    Route::get('/api/admin-dashboard/return-decline-trends', [AdminDashboardController::class, 'getReturnDeclineTrendData'])->name('api.admin-dashboard.return-decline-trends');
+    Route::get('/api/admin-dashboard/status-distribution', [AdminDashboardController::class, 'getDocumentStatusDistributionData'])->name('api.admin-dashboard.status-distribution');
+    Route::get('/api/admin-dashboard/return-request-sources', [AdminDashboardController::class, 'getReturnRequestSourcesData'])->name('api.admin-dashboard.return-request-sources');
+    Route::get('/api/admin-dashboard/processing-hotspots', [AdminDashboardController::class, 'getProcessingHotspotsData'])->name('api.admin-dashboard.processing-hotspots');
+    Route::get('/api/admin-dashboard/avg-step-time', [AdminDashboardController::class, 'getAvgStepTimeByDepartmentData'])->name('api.admin-dashboard.avg-step-time');
 
     // System pages
     Route::get('/system-health', [SystemHealthController::class, 'index'])->name('system.health');
