@@ -79,6 +79,17 @@ class DocumentSeeder extends Seeder
             $routeNames = $routeDepartments->pluck('name')->toArray();
             $finalizedRoute = array_map(fn($name) => ['name' => $name, 'type' => 'initial'], $routeNames);
 
+            $willHaveReturn = count($routeNames) > 2 && (mt_rand() / mt_getrandmax()) < 0.10; // 10% chance
+            $returnTriggerStep = -1;
+            $requestingDeptIndex = -1;
+            if ($willHaveReturn) {
+                // A return must be triggered after a step has completed, and requested by a previous step.
+                $returnTriggerStep = rand(1, count($routeNames) - 1);
+                $requestingDeptIndex = rand(0, $returnTriggerStep - 1);
+                // Rerouted documents are less likely to be completed on this simulated timeline.
+                $aimForReleased = false; 
+            }
+
             $document->created_at = $intakeTimestamp;
             $document->updated_at = $intakeTimestamp;
             $document->finalized_route = $finalizedRoute;
@@ -95,6 +106,43 @@ class DocumentSeeder extends Seeder
             DocumentLog::create(['document_id' => $document->id, 'user_id' => null, 'action' => $action, 'remarks' => 'Document submitted by guest via the public portal.', 'previous_hash' => $previousHash, 'hash' => $newHash, 'created_at' => $intakeTimestamp, 'updated_at' => $intakeTimestamp]);
             $previousHash = $newHash;
             $currentTimestamp->addMinutes(rand(1, 5));
+
+            // --- START: Decline Simulation (1% chance) ---
+            if ((mt_rand() / mt_getrandmax()) < 0.01) { // 1% chance of being declined
+                $declineReasons = [
+                    "Incomplete or missing required documents.",
+                    "Submitted to the wrong office/department.",
+                    "Form is an outdated or incorrect version.",
+                    "Information provided is unreadable or illegible.",
+                    "Purpose of request is unclear or not specified."
+                ];
+                $reason = $declineReasons[array_rand($declineReasons)];
+
+                $currentTimestamp->addMinutes(rand(5, 30)); // Time for officer to review and decline
+                $action = 'Declined';
+                
+                $dataToHash = $document->id . $recordsOfficer->id . $action . $currentTimestamp->toIso8601String() . $previousHash;
+                $newHash = hash('sha256', $dataToHash);
+                DocumentLog::create([
+                    'document_id' => $document->id, 
+                    'user_id' => $recordsOfficer->id, 
+                    'action' => $action, 
+                    'remarks' => $reason, 
+                    'previous_hash' => $previousHash, 
+                    'hash' => $newHash, 
+                    'created_at' => $currentTimestamp, 
+                    'updated_at' => $currentTimestamp
+                ]);
+
+                $document->status = 'declined';
+                $document->decline_reason = $reason;
+                $document->declined_at = $currentTimestamp;
+                $document->updated_at = $currentTimestamp;
+                $document->save();
+                $progressBar->advance();
+                return; // Skip to the next document in the loop
+            }
+            // --- END: Decline Simulation ---
 
             // 2. Accepted Log (by Records Officer)
             $action = 'Accepted and Document Routing finalized';
@@ -127,11 +175,49 @@ class DocumentSeeder extends Seeder
                 $isFinalStep = ($i === count($routeNames) - 1);
                 $remarks = $isFinalStep 
                     ? 'Final step processed by ' . $stepDepartment->name . '. In transit to Records Unit for releasing.'
-                    : 'Step processed by ' . $stepDepartment->name . '. In transit to ' . $routeNames[$i+1] . '.';
+                    : 'Step processed by ' . $stepDepartment->name . '. In transit to ' . ($routeNames[$i+1] ?? 'Records Unit') . '.';
                 $dataToHash = $document->id . $stepUser->id . $action . $currentTimestamp->toIso8601String() . $previousHash;
                 $newHash = hash('sha256', $dataToHash);
                 DocumentLog::create(['document_id' => $document->id, 'user_id' => $stepUser->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
                 $previousHash = $newHash;
+
+                // ---- START: Return Request Simulation ----
+                if ($i === $returnTriggerStep) {
+                    $requestingDepartment = $routeDepartments->get($requestingDeptIndex);
+                    $requestingUser = $processingUsers->where('department_id', $requestingDepartment->id)->random();
+
+                    // a. Create "Return Requested" log
+                    $currentTimestamp->addMinutes(rand(10, 60)); // Add some delay for the request
+                    $action = 'Return Requested';
+                    $remarks = 'Staff member requested document be returned for corrections.';
+                    $dataToHash = $document->id . $requestingUser->id . $action . $currentTimestamp->toIso8601String() . $previousHash;
+                    $newHash = hash('sha256', $dataToHash);
+                    DocumentLog::create(['document_id' => $document->id, 'user_id' => $requestingUser->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
+                    $previousHash = $newHash;
+                    
+                    // b. Create "Return Approved" log by Records Officer
+                    $currentTimestamp->addMinutes(rand(10, 120)); // Add delay for approval
+                    $action = 'Return Approved & Rerouted';
+                    $remarks = 'Return request approved by Records Unit. Document rerouted back to ' . $requestingDepartment->name . '.';
+                    $dataToHash = $document->id . $recordsOfficer->id . $action . $currentTimestamp->toIso8601String() . $previousHash;
+                    $newHash = hash('sha256', $dataToHash);
+                    DocumentLog::create(['document_id' => $document->id, 'user_id' => $recordsOfficer->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
+                    $previousHash = $newHash;
+
+                    // c. Modify the route for subsequent loop iterations
+                    $reroutedStep = ['name' => $requestingDepartment->name, 'type' => 'rerouted'];
+                    array_splice($finalizedRoute, $i + 1, 0, [$reroutedStep]);
+                    $routeDepartments->splice($i + 1, 0, [$requestingDepartment]);
+
+                    // Update dependent variables
+                    $routeNames = $routeDepartments->pluck('name')->toArray();
+                    $stepsToSimulate = count($routeNames);
+                    $document->finalized_route = $finalizedRoute;
+
+                    // Prevent this from running again
+                    $returnTriggerStep = -1;
+                }
+                // ---- END: Return Request Simulation ----
                 
                 $actualStepsProcessed++;
                 $document->current_step = $i + 2;
