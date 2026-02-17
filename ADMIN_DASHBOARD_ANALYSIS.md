@@ -75,3 +75,41 @@ The system is designed to be efficient by only reloading the data for charts aff
 - **Layout Stability:** All charts are now placed within containers with a fixed height, preventing the "infinite height" bug where charts would uncontrollably expand.
 - **Data Integrity:** The code that calculates time durations now explicitly checks for non-negative results, making the averages robust against inconsistent or erroneous log timestamps.
 - **Dynamic Titles:** The titles in the "Department Drill-Down" section update dynamically based on the selected department, providing better context to the user.
+
+---
+
+## System Health & Analytics Charts (`system-health.blade.php`)
+
+This dashboard provides real-time and historical views into the server and application's core health metrics. While the main admin dashboard focuses on document and user-centric analytics, this page focuses on the technical performance and stability of the system itself.
+
+### 1. Failed Jobs Over Time
+- **Type:** Line Chart
+- **Purpose:** To monitor the number of failed background jobs over a period. Spikes can indicate problems with queues, external APIs, or faulty job logic.
+- **Data Source:** `getFailedJobsTrend()` - Would query the `failed_jobs` table, counting entries grouped by day or week.
+- **Filters:** Time Period.
+
+### 2. Average Job Wait Time
+- **Type:** Line Chart
+- **Purpose:** To track the efficiency of the queue workers. A rising average wait time could indicate that the queue workers are overloaded and more resources may be needed.
+- **Data Source:** `getAverageJobWaitTime()` - Would calculate the average difference between `created_at` and `processed_at` (or a similar metric) for jobs.
+- **Filters:** Time Period, Queue Name.
+
+### 3. Cache Hit/Miss Ratio
+- **Type:** Stacked Bar Chart or Line Chart (2 datasets)
+- **Purpose:** To visualize the effectiveness of the application cache. A high hit ratio is desirable. A low or decreasing hit ratio might suggest issues with cache invalidation or that the cache isn't being used effectively.
+- **Data Source:** `getCacheHitMissRatio()` - Would require custom logic to track cache events (e.g., using Laravel's event system) and store/aggregate the data.
+- **Filters:** Time Period.
+
+### 4. Database Performance Metrics
+- **Type:** A series of small line charts or a single multi-line chart.
+- **Purpose:** To monitor key database performance indicators.
+- **Data Source:** This is more complex and might require a dedicated package or platform-specific monitoring tools (e.g., MySQL Performance Schema). Metrics could include:
+    - Average Query Time
+    - Number of Slow Queries
+    - Connections
+- **Filters:** Time Period.
+
+### 5. Integrity Check History
+- **Type:** Table / Log
+- **Purpose:** While not a chart, this view would show a history of when the integrity check was run, who ran it, and what the result was. This provides a clear audit trail.
+- **Data Source:** A new table, e.g., `integrity_check_logs`, would be needed to store this history.
