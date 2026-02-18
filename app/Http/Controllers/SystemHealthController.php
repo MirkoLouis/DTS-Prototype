@@ -3,11 +3,13 @@
 namespace App\Http\Controllers;
 
 use App\Models\DocumentLog;
+use App\Services\DatabasePerformanceService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class SystemHealthController extends Controller
 {
@@ -127,5 +129,59 @@ class SystemHealthController extends Controller
         } catch (\Exception $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Get database performance data for charts.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @param  \App\Services\DatabasePerformanceService  $dbPerformanceService
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getDbPerformanceData(Request $request, DatabasePerformanceService $dbPerformanceService)
+    {
+        $period = $request->input('period', 'daily');
+        $data = $dbPerformanceService->getChartData($period);
+        return response()->json($data);
+    }
+
+    /**
+     * Export database performance metrics as a CSV file.
+     *
+     * @return \Symfony\Component\HttpFoundation\StreamedResponse
+     */
+    public function exportDbPerformanceMetrics()
+    {
+        $headers = [
+            'Content-Type' => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="database-performance-metrics-' . now()->format('Y-m-d-His') . '.csv"',
+        ];
+
+        return new StreamedResponse(function () {
+            $handle = fopen('php://output', 'w');
+            
+            // Add CSV headers
+            fputcsv($handle, [
+                'id',
+                'connections',
+                'avg_query_time_ms',
+                'slow_queries',
+                'created_at',
+            ]);
+
+            DB::table('database_metrics')->orderBy('id')->chunk(1000, function ($metrics) use ($handle) {
+                foreach ($metrics as $metric) {
+                    fputcsv($handle, [
+                        $metric->id,
+                        $metric->connections,
+                        $metric->avg_query_time_ms,
+                        $metric->slow_queries,
+                        $metric->created_at,
+                    ]);
+                }
+            });
+
+            fclose($handle);
+        }, 200, $headers);
     }
 }

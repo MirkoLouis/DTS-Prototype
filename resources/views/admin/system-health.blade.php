@@ -54,6 +54,28 @@
                         </div>
 
 
+                        <!-- Section: Database Performance -->
+                        <div id="db-performance-chart-container" 
+                             class="bg-gray-50 dark:bg-gray-700/50 pt-3 px-5 pb-5 rounded-lg shadow"
+                             data-url="{{ route('api.system-health.db-performance') }}">
+                            <div class="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">
+                                <h3 class="text-xl font-bold">Database Performance</h3>
+                                <div class="flex items-center space-x-2">
+                                    <select id="db-performance-period" class="form-select rounded-md shadow-sm border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 text-sm max-w-40">
+                                        <option value="daily">Daily (Last 30 Days)</option>
+                                        <option value="weekly">Weekly (Last 12 Weeks)</option>
+                                        <option value="monthly">Monthly (Last 12 Months)</option>
+                                    </select>
+                                    <a href="{{ route('admin.system-health.export-db-metrics') }}" class="inline-flex items-center px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-500 rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-25 transition ease-in-out duration-150">
+                                        Export CSV
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="relative h-96">
+                                <canvas id="dbPerformanceChart"></canvas>
+                            </div>
+                        </div>
+
                         <!-- Section: Database Integrity -->
                         <div class="bg-gray-50 dark:bg-gray-700/50 pt-3 px-5 pb-5 rounded-lg shadow">
                             <h3 class="text-xl font-bold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Database Integrity</h3>
@@ -68,7 +90,9 @@
                                         </div>
                                     </div>
                                     <div class="mt-6 text-center">
-                                        <button id="run-integrity-check" class="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                                        <button id="run-integrity-check" 
+                                                data-url="{{ route('system.health.run-check') }}"
+                                                class="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                                             <svg id="button-spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -175,97 +199,6 @@
     </div>
 
     @push('scripts')
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            // Run Integrity Check
-            const runCheckButton = document.getElementById('run-integrity-check');
-            if (runCheckButton) {
-                const buttonSpinner = document.getElementById('button-spinner');
-                const buttonText = document.getElementById('button-text');
-
-                runCheckButton.addEventListener('click', function() {
-                    buttonSpinner.classList.remove('hidden');
-                    buttonText.textContent = 'Verifying...';
-                    runCheckButton.disabled = true;
-
-                    fetch('{{ route('system.health.run-check') }}', {
-                        method: 'POST',
-                        headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'X-Requested-With': 'XMLHttpRequest' }
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.status === 'success') {
-                            window.location.reload();
-                        } else {
-                            alert('An error occurred while starting the integrity check.');
-                            resetButton();
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error running integrity check:', error);
-                        resetButton();
-                    });
-                });
-
-                function resetButton() {
-                    buttonSpinner.classList.add('hidden');
-                    buttonText.textContent = 'Run Verification';
-                    runCheckButton.disabled = false;
-                }
-            }
-
-            // Handle form submissions for actions
-            document.querySelectorAll('.rebuild-form, .freeze-form, .unfreeze-form').forEach(form => {
-                form.addEventListener('submit', function(event) {
-                    event.preventDefault();
-                    
-                    let confirmationMessage = 'Are you sure you want to proceed with this action?';
-                    if (form.classList.contains('rebuild-form')) {
-                        confirmationMessage = 'Are you sure you want to rebuild the hash chain from this point? This action cannot be undone and will create a log entry.';
-                    } else if (form.classList.contains('freeze-form')) {
-                        confirmationMessage = 'Are you sure you want to freeze this document? This will prevent any further actions on it.';
-                    } else if (form.classList.contains('unfreeze-form')) {
-                        confirmationMessage = 'Are you sure you want to unfreeze this document?';
-                    }
-
-                    if (confirm(confirmationMessage)) {
-                        submitForm(this);
-                    }
-                });
-            });
-
-            function submitForm(form) {
-                const button = form.querySelector('button[type="submit"]');
-                button.disabled = true;
-                button.textContent = 'Processing...';
-
-                fetch(form.action, {
-                    method: 'POST',
-                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'X-Requested-With': 'XMLHttpRequest' },
-                })
-                .then(response => response.json().then(data => ({ status: response.status, body: data })))
-                .then(response => {
-                    alert(response.body.message || (response.status === 200 ? 'Action completed successfully.' : 'An error occurred.'));
-                    if (response.status === 200) {
-                        window.location.reload();
-                    } else {
-                        button.disabled = false;
-                        // Reset text based on original form class
-                        if (form.classList.contains('rebuild-form')) button.textContent = 'Rebuild Chain';
-                        else if (form.classList.contains('freeze-form')) button.textContent = 'Freeze';
-                        else if (form.classList.contains('unfreeze-form')) button.textContent = 'Unfreeze';
-                    }
-                })
-                .catch(error => {
-                    console.error('Form submission error:', error);
-                    alert('A network error occurred. Please try again.');
-                    button.disabled = false;
-                    if (form.classList.contains('rebuild-form')) button.textContent = 'Rebuild Chain';
-                    else if (form.classList.contains('freeze-form')) button.textContent = 'Freeze';
-                    else if (form.classList.contains('unfreeze-form')) button.textContent = 'Unfreeze';
-                });
-            }
-        });
-    </script>
+        @vite(['resources/js/system-health.js'])
     @endpush
 </x-app-layout>

@@ -8,6 +8,7 @@ use App\Models\DocumentLog;
 use App\Models\User;
 use App\Models\Department;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class DocumentSeeder extends Seeder
 {
@@ -18,7 +19,8 @@ class DocumentSeeder extends Seeder
     {
         // Ensure we have a clean slate on re-seed
         Document::query()->delete();
-        DocumentLog::query()->delete(); // Also clear logs to ensure clean chains
+        DocumentLog::query()->delete();
+        DB::table('database_metrics')->delete();
 
         $recordsOfficer = User::where('email', 'records@dts.com')->first();
         $processingUsers = User::whereIn('role', ['staff', 'officer'])->get();
@@ -41,20 +43,21 @@ class DocumentSeeder extends Seeder
 
         // Stage 1: Create base document records
         $this->command->info('');
-        $this->command->info('Stage 1 of 2: Creating ' . $documentsToCreate . ' base document records (this may take a moment)...');
+        $this->command->info('Stage 1 of 3: Creating ' . $documentsToCreate . ' base document records...');
         $documents = Document::factory()->count($documentsToCreate)->create();
         $this->command->info('Stage 1 complete.');
         $this->command->info('');
 
         // Stage 2: Generate detailed document history
-        $this->command->info('Stage 2 of 2: Generating detailed document history...');
+        $this->command->info('Stage 2 of 3: Generating detailed document history and performance metrics...');
         $progressBar = $this->command->getOutput()->createProgressBar($documentsToCreate);
         $progressBar->start();
         
+        $metricsToInsert = [];
         $maxTotalDays = 14;
         $maxStepDays = 3;
 
-        $documents->each(function (Document $document) use ($recordsOfficer, $processingUsers, $departments, $maxTotalDays, $maxStepDays, $progressBar) {
+        $documents->each(function (Document $document) use ($recordsOfficer, $processingUsers, $departments, $maxTotalDays, $maxStepDays, $progressBar, &$metricsToInsert) {
             
             $currentTimestamp = Carbon::now()->subYears(rand(0, 5))->subDays(rand(0, 365))->setHour(rand(8, 16))->setMinutes(rand(0, 59))->setSeconds(rand(0, 59));
             if ($currentTimestamp->isWeekend()) {
@@ -83,10 +86,8 @@ class DocumentSeeder extends Seeder
             $returnTriggerStep = -1;
             $requestingDeptIndex = -1;
             if ($willHaveReturn) {
-                // A return must be triggered after a step has completed, and requested by a previous step.
                 $returnTriggerStep = rand(1, count($routeNames) - 1);
                 $requestingDeptIndex = rand(0, $returnTriggerStep - 1);
-                // Rerouted documents are less likely to be completed on this simulated timeline.
                 $aimForReleased = false; 
             }
 
@@ -95,6 +96,27 @@ class DocumentSeeder extends Seeder
             $document->finalized_route = $finalizedRoute;
             $document->status = 'processing';
             $document->current_step = 1;
+
+            // ===== METRICS HELPER =====
+            $generateMetrics = function($timestamp, $isPeak = false) use (&$metricsToInsert) {
+                $isBusinessHours = $timestamp->hour >= 8 && $timestamp->hour < 17 && !$timestamp->isWeekend();
+                // Realistic connection numbers
+                $baseConnections = $isBusinessHours ? rand(10, 50) : rand(2, 10);
+                $connections = $isPeak ? $baseConnections + rand(20, 50) : $baseConnections;
+                
+                // Realistic query times in milliseconds
+                $avg_query_time_ms = $isPeak ? rand(50, 200) / 10 : rand(5, 50) / 10; // Peak: 5-20ms, Base: 0.5-5ms
+                
+                // Slow queries are rare, but more likely on peak.
+                $slow_queries = $isPeak ? rand(0, 3) : (rand(0, 100) < 2 ? 1 : 0);
+
+                $metricsToInsert[] = [
+                    'connections' => $connections,
+                    'avg_query_time_ms' => $avg_query_time_ms,
+                    'slow_queries' => $slow_queries,
+                    'created_at' => $timestamp,
+                ];
+            };
 
             // ===== START DETAILED LOGGING =====
             $previousHash = 'genesis_hash';
@@ -105,6 +127,7 @@ class DocumentSeeder extends Seeder
             $newHash = hash('sha256', $dataToHash);
             DocumentLog::create(['document_id' => $document->id, 'user_id' => null, 'action' => $action, 'remarks' => 'Document submitted by guest via the public portal.', 'previous_hash' => $previousHash, 'hash' => $newHash, 'created_at' => $intakeTimestamp, 'updated_at' => $intakeTimestamp]);
             $previousHash = $newHash;
+            $generateMetrics($currentTimestamp);
             $currentTimestamp->addMinutes(rand(1, 5));
 
             // --- START: Decline Simulation (1% chance) ---
@@ -138,6 +161,7 @@ class DocumentSeeder extends Seeder
                 $document->decline_reason = $reason;
                 $document->declined_at = $currentTimestamp;
                 $document->updated_at = $currentTimestamp;
+                $generateMetrics($currentTimestamp, true); // Spike metrics for decline
                 $document->save();
                 $progressBar->advance();
                 return; // Skip to the next document in the loop
@@ -151,6 +175,7 @@ class DocumentSeeder extends Seeder
             $newHash = hash('sha256', $dataToHash);
             DocumentLog::create(['document_id' => $document->id, 'user_id' => $recordsOfficer->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
             $previousHash = $newHash;
+            $generateMetrics($currentTimestamp);
 
             // 3. Simulate processing steps (Receive -> Processing Complete for each step)
             $stepsToSimulate = $aimForReleased ? count($routeNames) : rand(0, count($routeNames));
@@ -168,6 +193,7 @@ class DocumentSeeder extends Seeder
                 $newHash = hash('sha256', $dataToHash);
                 DocumentLog::create(['document_id' => $document->id, 'user_id' => $stepUser->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
                 $previousHash = $newHash;
+                $generateMetrics($currentTimestamp);
 
                 // b. Processing Complete Log
                 $currentTimestamp->addMinutes(rand(5, $maxStepDays * 120)); // Time for processing
@@ -180,6 +206,7 @@ class DocumentSeeder extends Seeder
                 $newHash = hash('sha256', $dataToHash);
                 DocumentLog::create(['document_id' => $document->id, 'user_id' => $stepUser->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
                 $previousHash = $newHash;
+                $generateMetrics($currentTimestamp);
 
                 // ---- START: Return Request Simulation ----
                 if ($i === $returnTriggerStep) {
@@ -194,6 +221,7 @@ class DocumentSeeder extends Seeder
                     $newHash = hash('sha256', $dataToHash);
                     DocumentLog::create(['document_id' => $document->id, 'user_id' => $requestingUser->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
                     $previousHash = $newHash;
+                    $generateMetrics($currentTimestamp, true); // Spike for return request
                     
                     // b. Create "Return Approved" log by Records Officer
                     $currentTimestamp->addMinutes(rand(10, 120)); // Add delay for approval
@@ -203,6 +231,7 @@ class DocumentSeeder extends Seeder
                     $newHash = hash('sha256', $dataToHash);
                     DocumentLog::create(['document_id' => $document->id, 'user_id' => $recordsOfficer->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
                     $previousHash = $newHash;
+                    $generateMetrics($currentTimestamp, true); // Spike for return approval
 
                     // c. Modify the route for subsequent loop iterations
                     $reroutedStep = ['name' => $requestingDepartment->name, 'type' => 'rerouted'];
@@ -239,6 +268,7 @@ class DocumentSeeder extends Seeder
                 DocumentLog::create(['document_id' => $document->id, 'user_id' => $recordsOfficer->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
                 $previousHash = $newHash;
                 $document->status = 'ready_for_release';
+                $generateMetrics($currentTimestamp);
 
                 if ($aimForReleased) {
                     $currentTimestamp->addMinutes(rand(5, 120));
@@ -250,6 +280,7 @@ class DocumentSeeder extends Seeder
                     $newHash = hash('sha256', $dataToHash);
                     DocumentLog::create(['document_id' => $document->id, 'user_id' => $recordsOfficer->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
                     $document->status = 'completed';
+                    $generateMetrics($currentTimestamp);
                 }
             }
 
@@ -259,7 +290,23 @@ class DocumentSeeder extends Seeder
         });
 
         $progressBar->finish();
-        $this->command->info(''); // Add a new line after the progress bar
-        $this->command->info('Complex document seeding complete.');
+        $this->command->info('');
+        $this->command->info('Stage 2 complete.');
+
+        // Stage 3: Insert all collected database metrics
+        $this->command->info('');
+        $this->command->info('Stage 3 of 3: Inserting generated performance metrics...');
+        
+        $metricChunks = array_chunk($metricsToInsert, 500);
+        $metricProgressBar = $this->command->getOutput()->createProgressBar(count($metricChunks));
+        
+        foreach ($metricChunks as $chunk) {
+            DB::table('database_metrics')->insert($chunk);
+            $metricProgressBar->advance();
+        }
+        
+        $metricProgressBar->finish();
+        $this->command->info('');
+        $this->command->info('Seeding complete.');
     }
 }
