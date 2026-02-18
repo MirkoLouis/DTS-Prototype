@@ -9,3 +9,4 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('documents:prune-pending')->daily();
+Schedule::command('dts:snapshot-db-metrics')->everyFiveMinutes();
