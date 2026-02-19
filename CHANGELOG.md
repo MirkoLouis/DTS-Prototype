@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-02-19 (Thursday, 13:45 PM)
+
+### ADDED
+- **Windows Setup Guide:** Created `WINDOWS_SETUP.md` with comprehensive instructions for setting up the project on Windows, including prerequisites (XAMPP/Laragon), Git configuration (autocrlf), and `mkcert` installation.
+    - Added a **Verification** section with commands (`php -v`, `node -v`, etc.) to confirm prerequisite versions.
+- **Database Performance Monitoring System:** Implemented a new performance tracking system for administrators to monitor database health.
+    - Added `DATABASE_PERFORMANCE_METRICS.md` to document the chart logic and metrics.
+    - Created `SYSTEM_MONITORING_LOGIC.md` explaining the background data generation.
+    - Introduced `dts:snapshot-db-metrics` Artisan command (scheduled every 5 minutes) to capture connections, average query time, and slow queries.
+    - Enhanced System Health page with an interactive time-series chart for these metrics.
+- **Database Metrics Export:** Admins can now download historical performance data as CSV from the System Health page.
+
+### FIXED
+- **Performance Data Retention:** Implemented automatic cleanup of old metrics to prevent database bloat.
+- **Admin Dashboard UI:** Refined chart labels and standardized layout across analytics pages.
+
 ## [1.4.0] - 2026-01-30
 
 ### Added

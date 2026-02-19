@@ -45,6 +45,8 @@ This project is a functional prototype for a modern, web-based Document Tracking
 5.  Run database migrations and seeders: `php artisan migrate:fresh --seed`. This will create the necessary tables and populate them with comprehensive, realistic data.
 6.  Set up your local development environment by following the instructions in the section below.
 
+**For Windows users:** See the detailed [Windows Setup Guide](WINDOWS_SETUP.md) for OS-specific instructions.
+
 ## Local Development Environment
 
 This project uses Vite for frontend asset handling and requires a local SSL certificate to run properly.

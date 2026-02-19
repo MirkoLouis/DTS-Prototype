@@ -14,7 +14,22 @@ Ensure you have the following installed on your Windows machine:
 - **Node.js (v20 or higher) & NPM:** [Download Node.js](https://nodejs.org/)
 - **MySQL:** Included with Laragon/XAMPP.
 
-## 2. Git Configuration (CRITICAL)
+## 2. Verifying Prerequisites
+
+Before proceeding, verify that each tool is correctly installed and added to your System PATH by running these commands in a terminal (PowerShell or Command Prompt):
+
+| Tool | Command | Expected Output |
+| :--- | :--- | :--- |
+| **PHP** | `php -v` | `PHP 8.2.x` or higher |
+| **Composer** | `composer --version` | `Composer version 2.x.x` |
+| **Node.js** | `node -v` | `v20.x.x` or higher |
+| **NPM** | `npm -v` | `10.x.x` or higher |
+| **Git** | `git --version` | `git version 2.x.x.windows.x` |
+| **MySQL** | `mysql --version` | `mysql  Ver 8.x.x` (or MariaDB equivalent) |
+
+*Note: If a command is not recognized, you may need to restart your terminal or manually add the tool's installation folder to your Windows System Environment Variables (PATH).*
+
+## 3. Git Configuration (CRITICAL)
 
 To avoid issues with line endings (Windows uses CRLF, Linux uses LF), run this command in your terminal (PowerShell or Git Bash) before or after cloning:
 
