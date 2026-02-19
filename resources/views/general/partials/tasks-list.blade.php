@@ -93,3 +93,9 @@
         </div>
     @endforelse
 </div>
+
+@if(method_exists($documents, 'links'))
+    <div class="mt-4">
+        {{ $documents->links() }}
+    </div>
+@endif
