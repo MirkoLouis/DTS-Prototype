@@ -31,7 +31,7 @@ class IntakeController extends Controller
             ->whereHas('document', function ($query) use ($searchTerm, $filterStatus, $filterPurpose, $filterSubmitter) {
                 if ($searchTerm) {
                     $query->where('tracking_code', 'like', '%' . $searchTerm . '%')
-                          ->orWhere('guest_info->name', 'like', '%' . $searchTerm . '%')
+                          ->orWhereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(guest_info, "$.name"))) LIKE ?', ['%' . strtolower($searchTerm) . '%'])
                           ->orWhereHas('purpose', function ($subQuery) use ($searchTerm) {
                               $subQuery->where('name', 'like', '%' . $searchTerm . '%');
                           });
@@ -47,8 +47,8 @@ class IntakeController extends Controller
                     });
                 }
                 
-                if ($filterSubmitter && $filterSubmitter !== 'all') {
-                    $query->where('guest_info->name', $filterSubmitter);
+                if ($filterSubmitter) {
+                    $query->whereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(guest_info, "$.name"))) LIKE ?', ['%' . strtolower($filterSubmitter) . '%']);
                 }
             })
             ->with(['document.purpose'])
@@ -57,16 +57,11 @@ class IntakeController extends Controller
             })
             ->latest();
 
-        $handledLogs = $logsQuery->paginate(10)->withQueryString();
+        $handledLogs = $logsQuery->paginate(15)->withQueryString();
         
         // Data for filters
         $purposes = Purpose::orderBy('name')->get();
         $statuses = ['pending', 'processing', 'completed', 'frozen', 'declined']; // All possible statuses
-        $submitters = Document::select(DB::raw('JSON_UNQUOTE(guest_info->"$.name") as name'))
-                              ->distinct()
-                              ->orderBy('name')
-                              ->get()
-                              ->pluck('name');
 
         if ($request->ajax()) {
             return view('general.partials.intake-table', ['handledLogs' => $handledLogs])->render();
@@ -76,7 +71,6 @@ class IntakeController extends Controller
             'handledLogs' => $handledLogs, 
             'purposes' => $purposes,
             'statuses' => $statuses,
-            'submitters' => $submitters,
         ]);
     }
 

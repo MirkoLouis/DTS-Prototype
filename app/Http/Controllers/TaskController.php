@@ -17,31 +17,51 @@ class TaskController extends Controller
         $user = Auth::user()->load('department');
         $userDepartment = $user->department;
 
+        $searchTerm = $request->input('search');
+        $filterStatus = $request->input('status');
+        $filterPurpose = $request->input('purpose');
+        $filterSubmitter = $request->input('submitter');
+        $filterDate = $request->input('date');
+
         if (!$userDepartment) {
             $documentsForUser = collect();
         } else {
-            $processingDocuments = Document::with('purpose')
-                                        ->where('status', 'processing')
-                                        ->latest()
-                                        ->get();
+            $query = Document::with('purpose')
+                ->where('status', 'processing')
+                ->where(function ($q) use ($userDepartment) {
+                    $q->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(finalized_route, CONCAT('$[', current_step - 1, '].name'))) = ?", [$userDepartment->name]);
+                });
 
-            // Filter documents to find those where the current step matches the user's department
-            $documentsForUser = $processingDocuments->filter(function ($document) use ($userDepartment) {
-                if (empty($document->finalized_route) || is_null($document->current_step)) {
-                    return false;
-                }
-                
-                // The current step is 1-based, the array is 0-based
-                $currentStepIndex = $document->current_step - 1;
-                
-                // Check if the current step is valid for the route
-                if (isset($document->finalized_route[$currentStepIndex])) {
-                    // Check if the department name at the current step matches the user's department name
-                    return $document->finalized_route[$currentStepIndex]['name'] === $userDepartment->name;
-                }
+            // Apply Filters
+            if ($searchTerm) {
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('tracking_code', 'like', '%' . $searchTerm . '%')
+                      ->orWhere('title', 'like', '%' . $searchTerm . '%')
+                      ->orWhereHas('purpose', function ($subQuery) use ($searchTerm) {
+                          $subQuery->where('name', 'like', '%' . $searchTerm . '%');
+                      });
+                });
+            }
 
-                return false;
-            });
+            if ($filterStatus && $filterStatus !== 'all') {
+                $query->where('status', $filterStatus);
+            }
+
+            if ($filterPurpose && $filterPurpose !== 'all') {
+                $query->whereHas('purpose', function ($subQuery) use ($filterPurpose) {
+                    $subQuery->where('name', $filterPurpose);
+                });
+            }
+
+            if ($filterSubmitter) {
+                $query->whereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(guest_info, "$.name"))) LIKE ?', ['%' . strtolower($filterSubmitter) . '%']);
+            }
+
+            if ($filterDate) {
+                $query->whereDate('created_at', $filterDate);
+            }
+
+            $documentsForUser = $query->latest()->paginate(15)->withQueryString();
         }
 
         if ($request->ajax()) {
@@ -53,9 +73,14 @@ class TaskController extends Controller
             $viewName = 'officer.officer-tasks'; // New view for officers
         }
 
+        $purposes = \App\Models\Purpose::orderBy('name')->get();
+        $statuses = ['processing']; // Only processing for this view
+
         return view($viewName, [
             'documents' => $documentsForUser,
-            'departmentName' => $userDepartment ? $userDepartment->name : 'Your' // Provide a fallback
+            'departmentName' => $userDepartment ? $userDepartment->name : 'Your', // Provide a fallback
+            'purposes' => $purposes,
+            'statuses' => $statuses,
         ]);
     }
 
@@ -134,20 +159,62 @@ class TaskController extends Controller
     /**
      * Display a list of documents previously completed by the user.
      */
-    public function completed()
+    public function completed(Request $request)
     {
         $userId = Auth::id();
+        $searchTerm = $request->input('search');
+        $filterStatus = $request->input('status');
+        $filterPurpose = $request->input('purpose');
+        $filterSubmitter = $request->input('submitter');
+        $filterDate = $request->input('date');
 
-        // Find all logs where the user completed a processing step
-        $completedLogs = DocumentLog::where('user_id', $userId)
-            ->where('action', 'Processing Complete')
-            ->with('document.purpose') // Eager load for efficiency
-            ->latest()
-            ->get();
+        $query = Document::whereHas('logs', function ($q) use ($userId) {
+            $q->where('user_id', $userId)
+              ->where('action', 'Processing Complete');
+        })->with('purpose');
 
-        // Get the unique documents from the logs
-        $documents = $completedLogs->unique('document_id')->pluck('document');
+        // Apply Filters
+        if ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('tracking_code', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('title', 'like', '%' . $searchTerm . '%')
+                  ->orWhereHas('purpose', function ($subQuery) use ($searchTerm) {
+                      $subQuery->where('name', 'like', '%' . $searchTerm . '%');
+                  });
+            });
+        }
 
-        return view('staff.tasks-completed', ['documents' => $documents]);
+        if ($filterStatus && $filterStatus !== 'all') {
+            $query->where('status', $filterStatus);
+        }
+
+        if ($filterPurpose && $filterPurpose !== 'all') {
+            $query->whereHas('purpose', function ($subQuery) use ($filterPurpose) {
+                $subQuery->where('name', $filterPurpose);
+            });
+        }
+
+        if ($filterSubmitter) {
+            $query->whereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(guest_info, "$.name"))) LIKE ?', ['%' . strtolower($filterSubmitter) . '%']);
+        }
+
+        if ($filterDate) {
+            $query->whereDate('created_at', $filterDate);
+        }
+
+        $documents = $query->latest()->paginate(15)->withQueryString();
+
+        if ($request->ajax()) {
+            return view('general.partials.completed-tasks-list', ['documents' => $documents]);
+        }
+
+        $purposes = \App\Models\Purpose::orderBy('name')->get();
+        $statuses = ['processing', 'in_transit', 'ready_for_release', 'completed', 'declined'];
+
+        return view('staff.tasks-completed', [
+            'documents' => $documents,
+            'purposes' => $purposes,
+            'statuses' => $statuses,
+        ]);
     }
 }
