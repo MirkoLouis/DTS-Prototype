@@ -50,7 +50,14 @@ The application is built on a robust Role-Based Access Control (RBAC) system, en
     *   **Returns & Declines Analysis:** A dedicated section that groups together charts for **Return & Decline Rate Trends** and **Return Request Sources**, allowing for focused analysis on why documents are being rejected or sent back.
     *   **Department Drill-Down:** An interactive section containing a powerful **Load vs. Processing Time** combination chart. This dual-axis chart allows admins to select a specific department and time period to visually correlate the number of documents received (load) with that department's average internal processing time, making it easy to see how workload impacts efficiency. The chart's title updates dynamically to reflect the selected department.
     *   **Purpose-Based Analysis:** A full-width chart showing **Processing Hotspots by Purpose** helps identify if specific *types* of documents are causing systemic delays.
-4.  **System Utilities:** From the main navigation, the admin can access specialized pages:
+5.  **System Monitoring & Database Performance (`/system-health`):**
+    -   **Real-Time Metrics:** A dedicated section on the System Health page provides a live, time-series overview of database health.
+    -   **Key Indicators:** The system tracks active **Connections**, **Average Query Time (ms)**, and **Slow Queries** (queries > 1s).
+    -   **Data Collection:** A scheduled Artisan command (`dts:snapshot-db-metrics`) captures these metrics from the MySQL `performance_schema` every five minutes.
+    -   **Historical Context:** The system includes a sophisticated seeder that generates years of correlated historical performance data, allowing for immediate trend analysis.
+    -   **Data Export:** Administrators can export the captured performance metrics as a CSV file for external analysis.
+
+6.  **System Utilities:** From the main navigation, the admin can access specialized pages:
     *   **System Health Monitor (`/system-health`):** The "Trust Builder" tool for running on-demand integrity checks of the hash chain and managing data recovery.
     *   **Client Ratings Dashboard (`/system/ratings`):** A view of all client feedback and satisfaction scores.
     *   **Backup Manager (`/system/backups`):** The "Safety Net" for creating, downloading, and managing database backups.
