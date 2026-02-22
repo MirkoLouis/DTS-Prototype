@@ -23,6 +23,18 @@
                         <h3 class="text-2xl font-semibold">All User Accounts</h3>
                         <a href="{{ route('users.create') }}" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Create User</a>
                     </div>
+                    <form action="{{ route('users.index') }}" method="GET" class="mb-4">
+                        <div class="flex items-center space-x-4">
+                            <input type="text" name="search" placeholder="Search by name or email" class="border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" value="{{ request('search') }}">
+                            <select name="role" class="border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                <option value="">All Roles</option>
+                                <option value="admin" @if(request('role') == 'admin') selected @endif>Admin</option>
+                                <option value="officer" @if(request('role') == 'officer') selected @endif>Officer</option>
+                                <option value="staff" @if(request('role') == 'staff') selected @endif>Staff</option>
+                            </select>
+                            <a href="{{ route('users.index') }}" class="text-gray-500 hover:text-gray-700">Clear</a>
+                        </div>
+                    </form>
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50 dark:bg-gray-700">
                             <tr>
@@ -93,4 +105,27 @@
             </div>
         </div>
     </div>
+    @push('scripts')
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const filterForm = document.querySelector('form[action="{{ route('users.index') }}"]');
+                if (filterForm) {
+                    const searchInput = filterForm.querySelector('input[name="search"]');
+                    const roleSelect = filterForm.querySelector('select[name="role"]');
+                    let debounceTimer;
+
+                    searchInput.addEventListener('keyup', () => {
+                        clearTimeout(debounceTimer);
+                        debounceTimer = setTimeout(() => {
+                            filterForm.submit();
+                        }, 300);
+                    });
+
+                    roleSelect.addEventListener('change', () => {
+                        filterForm.submit();
+                    });
+                }
+            });
+        </script>
+    @endpush
 </x-app-layout>

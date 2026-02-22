@@ -35,6 +35,14 @@ class BackupManagerController extends Controller
                     'last_modified' => Carbon::createFromTimestamp($disk->lastModified($file)),
                 ];
             })
+            ->when($request->filled('search'), function ($collection) use ($request) {
+                $search = strtolower($request->input('search'));
+                return $collection->filter(function ($backup) use ($search) {
+                    $fileName = strtolower($backup['file_name']);
+                    $date = strtolower($backup['last_modified']->format('M d, Y, h:i A'));
+                    return str_contains($fileName, $search) || str_contains($date, $search);
+                });
+            })
             ->sortByDesc('last_modified') // Sort by last modified date, most recent first
             ->values(); // Reset keys after sorting
 

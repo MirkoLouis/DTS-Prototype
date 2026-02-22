@@ -119,6 +119,19 @@
                         @if ($mismatchedLogs->isNotEmpty())
                             <div class="bg-red-50 dark:bg-red-900/20 pt-3 px-5 pb-5 rounded-lg shadow">
                                 <h3 class="text-xl font-bold mb-4 text-red-600 dark:text-red-400 border-b border-red-200 dark:border-red-700 pb-2">Mismatched Integrity Logs</h3>
+                                <form action="{{ route('system.health') }}" method="GET" class="mb-4">
+                                    <div class="flex items-center space-x-4">
+                                        <input type="text" name="search" placeholder="Search by tracking code" class="border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" value="{{ request('search') }}">
+                                        <input type="text" name="user" placeholder="Search by user" class="border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" value="{{ request('user') }}">
+                                        <input type="date" name="date" class="border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" value="{{ request('date') }}">
+                                        <select name="per_page" class="border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                            <option value="10" @if(request('per_page', 10) == 10) selected @endif>10 per page</option>
+                                            <option value="25" @if(request('per_page') == 25) selected @endif>25 per page</option>
+                                            <option value="50" @if(request('per_page') == 50) selected @endif>50 per page</option>
+                                        </select>
+                                        <a href="{{ route('system.health') }}" class="text-gray-500 hover:text-gray-700">Clear</a>
+                                    </div>
+                                </form>
                                 <div class="mt-4 overflow-x-auto">
                                     <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                                         <thead class="bg-gray-50 dark:bg-gray-700">
@@ -200,5 +213,18 @@
 
     @push('scripts')
         @vite(['resources/js/system-health.js'])
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const filterForm = document.querySelector('form[action="{{ route("system.health") }}"]');
+                if (filterForm) {
+                    const inputs = filterForm.querySelectorAll('input, select');
+                    inputs.forEach(input => {
+                        input.addEventListener('change', () => {
+                            filterForm.submit();
+                        });
+                    });
+                }
+            });
+        </script>
     @endpush
 </x-app-layout>
