@@ -134,6 +134,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const html = await response.text();
                 documentsContainer.innerHTML = html;
                 history.pushState(null, '', url);
+                document.getElementById("released-documents-section").scrollIntoView({ behavior: "smooth" });
             } catch (error) {
                 console.error('Fetch error:', error);
                 documentsContainer.innerHTML = '<p class="text-center text-red-500">Failed to load documents. Please try again.</p>';

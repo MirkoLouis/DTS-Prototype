@@ -191,6 +191,80 @@
                                 }
                             });
                         }
+
+                        const documentsContainer = document.getElementById('released-documents-container');
+                        const documentsSection = document.getElementById('released-documents-section');
+
+                        if (documentsContainer && documentsSection) {
+                            const fetchDocuments = async (url) => {
+                                try {
+                                    const response = await fetch(url, { headers: { 'X-Requested-With': 'XMLHttpRequest' } });
+                                    if (!response.ok) throw new Error('Network response was not ok.');
+                                    const html = await response.text();
+                                    documentsContainer.innerHTML = html;
+                                    history.pushState(null, '', url);
+                                    documentsSection.scrollIntoView({ behavior: "smooth" });
+                                } catch (error) {
+                                    console.error('Fetch error:', error);
+                                    documentsContainer.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-red-500">Failed to load documents. Please try again.</td></tr>';
+                                }
+                            };
+
+                            const searchInput = document.getElementById('table-search');
+                            const purposeFilter = document.getElementById('purpose-filter');
+                            const submitterFilter = document.getElementById('submitter-filter');
+                            const yearFilter = document.getElementById('year-filter');
+                            const monthFilter = document.getElementById('month-filter');
+                            const dayFilter = document.getElementById('day-filter');
+                            const clearFiltersBtn = document.getElementById('clear-filters-btn');
+
+                            let debounceTimer;
+
+                            function handleFilterChange() {
+                                clearTimeout(debounceTimer);
+                                debounceTimer = setTimeout(() => {
+                                    const url = new URL(documentsSection.dataset.fetchUrl);
+                                    if (searchInput.value) url.searchParams.set('search', searchInput.value);
+                                    if (purposeFilter.value !== 'all') url.searchParams.set('purpose_id', purposeFilter.value);
+                                    if (submitterFilter.value !== 'all') url.searchParams.set('submitter', submitterFilter.value);
+                                    if (yearFilter.value !== 'all') url.searchParams.set('year', yearFilter.value);
+                                    if (monthFilter.value !== 'all') url.searchParams.set('month', monthFilter.value);
+                                    if (dayFilter.value !== 'all') url.searchParams.set('day', dayFilter.value);
+                                    url.searchParams.set('page', '1');
+
+                                    fetchDocuments(url.toString());
+                                }, 300);
+                            }
+
+                            function clearFilters() {
+                                searchInput.value = '';
+                                purposeFilter.value = 'all';
+                                submitterFilter.value = 'all';
+                                yearFilter.value = 'all';
+                                monthFilter.value = 'all';
+                                dayFilter.value = 'all';
+                                handleFilterChange();
+                            }
+
+                            searchInput.addEventListener('keyup', handleFilterChange);
+                            purposeFilter.addEventListener('change', handleFilterChange);
+                            submitterFilter.addEventListener('change', handleFilterChange);
+                            yearFilter.addEventListener('change', handleFilterChange);
+                            monthFilter.addEventListener('change', handleFilterChange);
+                            dayFilter.addEventListener('change', handleFilterChange);
+                            clearFiltersBtn.addEventListener('click', clearFilters);
+
+                            documentsContainer.addEventListener('click', (e) => {
+                                const paginationLink = e.target.closest('#pagination-links a');
+                                if (paginationLink) {
+                                    e.preventDefault();
+                                    const url = paginationLink.getAttribute('href');
+                                    if (url && url !== '#') {
+                                        fetchDocuments(url);
+                                    }
+                                }
+                            });
+                        }
                     });
                     </script>
                     @endpush
