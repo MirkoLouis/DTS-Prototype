@@ -158,10 +158,11 @@
 
             // AJAX pagination
             tasksContainer.addEventListener('click', (e) => {
-                if (e.target.tagName === 'A' && e.target.closest('.pagination')) {
+                const paginationLink = e.target.closest('#pagination-links a');
+                if (paginationLink) {
                     e.preventDefault();
-                    const url = e.target.getAttribute('href');
-                    if (url) {
+                    const url = paginationLink.getAttribute('href');
+                    if (url && url !== '#') {
                         fetchTasks(url);
                     }
                 }

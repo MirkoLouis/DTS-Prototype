@@ -102,7 +102,8 @@
                     const html = await response.text();
                     documentsContainer.innerHTML = html;
                     history.pushState(null, '', url);
-                    document.getElementById("documents-section").scrollIntoView({ behavior: "smooth" });
+                    // Center the section in view if it's not already well-positioned
+                    document.getElementById("documents-section").scrollIntoView({ behavior: "smooth"});
                 } catch (error) {
                     console.error('Fetch error:', error);
                     documentsContainer.innerHTML = '<tr><td colspan="6" class="text-center py-4">Failed to load documents. Please try again.</td></tr>';
@@ -160,12 +161,14 @@
             // AJAX pagination and route-toggle logic using event delegation
             documentsContainer.addEventListener('click', (e) => {
                 // Handle clicks on pagination links
-                if (e.target.tagName === 'A' && e.target.closest('.pagination')) {
+                const paginationLink = e.target.closest('#pagination-links a');
+                if (paginationLink) {
                     e.preventDefault();
-                    const url = e.target.getAttribute('href');
-                    if (url) {
+                    const url = paginationLink.getAttribute('href');
+                    if (url && url !== '#') {
                         fetchDocuments(url);
                     }
+                    return;
                 }
 
                 // Handle clicks on route toggle buttons
