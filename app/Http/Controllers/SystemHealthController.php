@@ -16,7 +16,7 @@ class SystemHealthController extends Controller
     /**
      * Display the system health page.
      */
-    public function index()
+    public function index(Request $request)
     {
         $integrityCheckResult = Cache::get('integrity-check-result', [
             'verified_percentage' => 'N/A',
@@ -24,12 +24,34 @@ class SystemHealthController extends Controller
             'mismatched_ids' => [],
         ]);
 
-        $mismatchedLogs = collect();
+        $mismatchedLogsQuery = DocumentLog::query();
         if (!empty($integrityCheckResult['mismatched_ids'])) {
-            $mismatchedLogs = DocumentLog::whereIn('id', $integrityCheckResult['mismatched_ids'])
-                                        ->with(['document', 'user'])
-                                        ->paginate(10);
+            $mismatchedLogsQuery->whereIn('id', $integrityCheckResult['mismatched_ids'])->with(['document', 'user']);
+
+            if ($request->filled('search')) {
+                $search = strtolower($request->input('search'));
+                $mismatchedLogsQuery->whereHas('document', function ($q) use ($search) {
+                    $q->whereRaw('LOWER(tracking_code) LIKE ?', ["%{$search}%"]);
+                });
+            }
+
+            if ($request->filled('user')) {
+                $user = strtolower($request->input('user'));
+                $mismatchedLogsQuery->whereHas('user', function ($q) use ($user) {
+                    $q->whereRaw('LOWER(name) LIKE ?', ["%{$user}%"]);
+                });
+            }
+
+            if ($request->filled('date')) {
+                $mismatchedLogsQuery->whereDate('created_at', $request->input('date'));
+            }
+        } else {
+            // If there are no mismatched IDs, we can return an empty paginator.
+            $mismatchedLogsQuery->whereRaw('1 = 0'); // This ensures no records are returned
         }
+        
+        $perPage = $request->input('per_page', 10);
+        $mismatchedLogs = $mismatchedLogsQuery->paginate($perPage)->withQueryString();
 
         $appHealthMetrics = $this->getApplicationHealthMetrics();
 

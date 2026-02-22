@@ -2,7 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-02-22 (Saturday, 3:30 PM)
+
+### CHANGED
+- **Enhanced Filtering and User Experience:** Implemented immediate filter application, debounced search, and case-insensitive text searching across several administrative tables for improved usability.
+    - **ReleasingController:**
+        - Added filtering by search term (tracking code, title), purpose, submitter name, and date to the `index` method.
+        - Updated `resources/views/officer/releasing/index.blade.php` to include filter UI elements and JavaScript for AJAX-based filtering and pagination.
+    - **UserManagementController:**
+        - Added filtering by name, email, and role to the `index` method.
+        - Updated `resources/views/admin/users/index.blade.php` to include filter UI elements, implement debounced search for text inputs, and immediate submission for select inputs. The "Filter" button was removed.
+    - **SystemHealthController:**
+        - Made the search for tracking code and user name in the `index` method case-insensitive for the mismatched logs table.
+        - Updated `resources/views/admin/system-health.blade.php` to include a "per page" selector, auto-submit filters on change, and removed the filter button.
+    - **SystemRatingsController:**
+        - Added filtering by rating, purpose, and date to the `index` method.
+        - Updated `resources/views/admin/system/ratings.blade.php` to include filter UI elements, auto-submit filters on change, and removed the filter button.
+    - **BackupManagerController:**
+        - Expanded the search functionality in the `index` method to include the `last_modified` date, in addition to the file name, with case-insensitive matching.
+        - Updated `resources/views/admin/backups.blade.php` to implement a debounced search for the file name/date input and removed the filter button.
+
 ## 2026-02-19 (Thursday, 13:45 PM)
+
 
 ### ADDED
 - **Windows Setup Guide:** Created `WINDOWS_SETUP.md` with comprehensive instructions for setting up the project on Windows, including prerequisites (XAMPP/Laragon), Git configuration (autocrlf), and `mkcert` installation.

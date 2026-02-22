@@ -35,7 +35,36 @@
             {{-- Documents Awaiting Release Section --}}
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg" id="releasing-section">
                 <div class="p-6 text-gray-900 dark:text-gray-100">
-                    <h2 class="text-2xl font-bold mb-4">Documents Awaiting Release</h2>
+                    <div class="mb-6 space-y-4">
+                        <h2 class="text-2xl font-bold">Documents Awaiting Release</h2>
+                        {{-- Filters and Search --}}
+                        <div class="flex flex-row items-end gap-2 pb-4 border-b border-gray-100 dark:border-gray-700 w-full">
+                            <div class="flex-grow flex-shrink-0" style="flex-basis: 15%;">
+                                <label for="date-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Date Submitted</label>
+                                <input type="date" id="date-filter" class="filter-input block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm sm:text-sm">
+                            </div>
+                            <div class="flex-grow flex-shrink-0" style="flex-basis: 25%;">
+                                <label for="purpose-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Purpose</label>
+                                <select id="purpose-filter" class="filter-input block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm sm:text-sm">
+                                    <option value="all">All Purposes</option>
+                                    @foreach($purposes as $purpose)
+                                        <option value="{{ $purpose->name }}">{{ $purpose->name }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div class="flex-grow flex-shrink-0" style="flex-basis: 20%;">
+                                <label for="submitter-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Submitter Name</label>
+                                <input type="text" id="submitter-filter" class="filter-input block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm sm:text-sm" placeholder="Search submitter...">
+                            </div>
+                            <div class="flex-grow flex-shrink-0" style="flex-basis: 25%;">
+                                <label for="table-search" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Search by Tracking No. or Title</label>
+                                <input type="text" id="table-search" class="block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm sm:text-sm" placeholder="Search...">
+                            </div>
+                            <button id="clear-filters-btn" class="flex-shrink-0 inline-flex items-center px-4 py-2 bg-gray-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-500 active:bg-gray-700 focus:outline-none focus:border-gray-700 focus:ring focus:ring-gray-200 disabled:opacity-25 transition">
+                                Clear
+                            </button>
+                        </div>
+                    </div>
                     
                     {{-- This container will hold the table of documents --}}
                     <div id="releasing-container">
@@ -103,8 +132,14 @@
                 }
             });
 
-            // AJAX Fetching and Pagination Logic
+            // --- AJAX and Filtering Logic ---
             const releasingContainer = document.getElementById('releasing-container');
+            const searchInput = document.getElementById('table-search');
+            const purposeFilter = document.getElementById('purpose-filter');
+            const submitterFilter = document.getElementById('submitter-filter');
+            const dateFilter = document.getElementById('date-filter');
+            const clearFiltersBtn = document.getElementById('clear-filters-btn');
+            let debounceTimer;
 
             const fetchReleasingDocuments = async (url) => {
                 try {
@@ -115,18 +150,46 @@
                     
                     const html = await response.text();
                     releasingContainer.innerHTML = html;
-                    
-                    // Only push state if the URL is different from current to avoid redundant entries
-                    if (window.location.href !== url) {
-                        history.pushState(null, '', url);
-                    }
-                    
-                    // Smooth scroll to the table section
+                    history.pushState(null, '', url);
                     document.getElementById("releasing-section").scrollIntoView({ behavior: "smooth"});
                 } catch (error) {
                     console.error('Fetch error:', error);
+                    releasingContainer.innerHTML = '<p class="text-center text-red-500">Failed to load documents. Please try refreshing.</p>';
                 }
             };
+
+            function handleFilterChange() {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    const searchTerm = searchInput.value;
+                    const purpose = purposeFilter.value;
+                    const submitter = submitterFilter.value;
+                    const date = dateFilter.value;
+                    
+                    const url = new URL('{{ route("releasing") }}');
+                    if (searchTerm) url.searchParams.set('search', searchTerm);
+                    if (purpose && purpose !== 'all') url.searchParams.set('purpose', purpose);
+                    if (submitter) url.searchParams.set('submitter', submitter);
+                    if (date) url.searchParams.set('date', date);
+                    url.searchParams.set('page', '1'); // Reset to page 1 on filter change
+
+                    fetchReleasingDocuments(url.toString());
+                }, 300); // 300ms debounce
+            }
+
+            function clearFilters() {
+                searchInput.value = '';
+                purposeFilter.value = 'all';
+                submitterFilter.value = '';
+                dateFilter.value = '';
+                handleFilterChange();
+            }
+
+            searchInput.addEventListener('keyup', handleFilterChange);
+            purposeFilter.addEventListener('change', handleFilterChange);
+            submitterFilter.addEventListener('keyup', handleFilterChange);
+            dateFilter.addEventListener('change', handleFilterChange);
+            clearFiltersBtn.addEventListener('click', clearFilters);
 
             // Intercept pagination link clicks
             releasingContainer.addEventListener('click', (e) => {
@@ -143,8 +206,21 @@
             // AJAX Polling for the releasing list
             const POLLING_INTERVAL = 60000; // 60 seconds
             setInterval(() => {
-                // We refresh the current page, maintaining any page parameter in the URL
-                fetchReleasingDocuments(window.location.href);
+                if (document.activeElement !== searchInput && document.activeElement !== dateFilter && document.activeElement !== submitterFilter) {
+                    const currentUrl = new URL(window.location.href);
+                    // We re-apply the filters from the inputs to the current URL for the poll
+                    const searchTerm = searchInput.value;
+                    const purpose = purposeFilter.value;
+                    const submitter = submitterFilter.value;
+                    const date = dateFilter.value;
+
+                    if (searchTerm) currentUrl.searchParams.set('search', searchTerm); else currentUrl.searchParams.delete('search');
+                    if (purpose && purpose !== 'all') currentUrl.searchParams.set('purpose', purpose); else currentUrl.searchParams.delete('purpose');
+                    if (submitter) currentUrl.searchParams.set('submitter', submitter); else currentUrl.searchParams.delete('submitter');
+                    if (date) currentUrl.searchParams.set('date', date); else currentUrl.searchParams.delete('date');
+
+                    fetchReleasingDocuments(currentUrl.toString());
+                }
             }, POLLING_INTERVAL);
         });
     </script>

@@ -14,17 +14,45 @@ class ReleasingController extends Controller
      */
     public function index(Request $request)
     {
-        // The new status 'ready_for_release' simplifies this query significantly.
-        $documents = Document::where('status', 'ready_for_release')
-                                ->latest()
-                                ->paginate(10);
+        $searchTerm = $request->input('search');
+        $filterPurpose = $request->input('purpose');
+        $filterSubmitter = $request->input('submitter');
+        $filterDate = $request->input('date');
+
+        $query = Document::where('status', 'ready_for_release');
+
+        if ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('tracking_code', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('title', 'like', '%' . $searchTerm . '%');
+            });
+        }
+
+        if ($filterPurpose && $filterPurpose !== 'all') {
+            $query->whereHas('purpose', function ($subQuery) use ($filterPurpose) {
+                $subQuery->where('name', $filterPurpose);
+            });
+        }
+
+        if ($filterSubmitter) {
+            $query->whereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(guest_info, "$.name"))) LIKE ?', ['%' . strtolower($filterSubmitter) . '%']);
+        }
+
+        if ($filterDate) {
+            $query->whereDate('created_at', $filterDate);
+        }
+
+        $documents = $query->with('purpose')->latest()->paginate(10)->withQueryString();
 
         if ($request->ajax()) {
             return view('general.partials.releasing-table', ['documents' => $documents]);
         }
 
+        $purposes = \App\Models\Purpose::orderBy('name')->get();
+
         return view('officer.releasing.index', [
             'documents' => $documents,
+            'purposes' => $purposes,
         ]);
     }
 

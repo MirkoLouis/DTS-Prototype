@@ -13,11 +13,26 @@ class UserManagementController extends Controller
     /**
      * Display a listing of the resource.
      */
-         public function index()
-        {
-            $users = User::orderBy('name')->paginate(10);
-            return view('admin.users.index', compact('users'));
+    public function index(Request $request)
+    {
+        $query = User::query();
+
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
         }
+
+        if ($request->filled('role')) {
+            $query->where('role', $request->input('role'));
+        }
+
+        $users = $query->orderBy('name')->paginate(10)->withQueryString();
+
+        return view('admin.users.index', compact('users'));
+    }
     /**
      * Show the form for creating a new resource.
      */
