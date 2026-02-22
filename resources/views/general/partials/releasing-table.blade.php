@@ -97,6 +97,6 @@
         </div>
     @endforelse
 </div>
-<div class="mt-4">
+<div id="pagination-links" class="mt-4">
     {{ $documents->links() }}
 </div>

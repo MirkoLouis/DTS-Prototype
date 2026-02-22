@@ -33,7 +33,7 @@
             </div>
             
             {{-- Documents Awaiting Release Section --}}
-            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg" id="releasing-section">
                 <div class="p-6 text-gray-900 dark:text-gray-100">
                     <h2 class="text-2xl font-bold mb-4">Documents Awaiting Release</h2>
                     
@@ -103,27 +103,49 @@
                 }
             });
 
-            // AJAX Polling for the releasing list
-            const POLLING_INTERVAL = 60000; // 60 seconds
-            const refreshReleasingList = async () => {
+            // AJAX Fetching and Pagination Logic
+            const releasingContainer = document.getElementById('releasing-container');
+
+            const fetchReleasingDocuments = async (url) => {
                 try {
-                    const response = await fetch('{{ route("releasing") }}', {
+                    const response = await fetch(url, {
                         headers: { 'X-Requested-With': 'XMLHttpRequest' }
                     });
-                    if (!response.ok) {
-                        console.error('Failed to refresh releasing list.');
-                        return;
-                    }
+                    if (!response.ok) throw new Error('Network response was not ok.');
+                    
                     const html = await response.text();
-                    const container = document.getElementById('releasing-container');
-                    if (container) {
-                        container.innerHTML = html;
+                    releasingContainer.innerHTML = html;
+                    
+                    // Only push state if the URL is different from current to avoid redundant entries
+                    if (window.location.href !== url) {
+                        history.pushState(null, '', url);
                     }
+                    
+                    // Smooth scroll to the table section
+                    document.getElementById("releasing-section").scrollIntoView({ behavior: "smooth"});
                 } catch (error) {
-                    console.error('Error refreshing releasing list:', error);
+                    console.error('Fetch error:', error);
                 }
             };
-            setInterval(refreshReleasingList, POLLING_INTERVAL);
+
+            // Intercept pagination link clicks
+            releasingContainer.addEventListener('click', (e) => {
+                const paginationLink = e.target.closest('#pagination-links a');
+                if (paginationLink) {
+                    e.preventDefault();
+                    const url = paginationLink.getAttribute('href');
+                    if (url && url !== '#') {
+                        fetchReleasingDocuments(url);
+                    }
+                }
+            });
+
+            // AJAX Polling for the releasing list
+            const POLLING_INTERVAL = 60000; // 60 seconds
+            setInterval(() => {
+                // We refresh the current page, maintaining any page parameter in the URL
+                fetchReleasingDocuments(window.location.href);
+            }, POLLING_INTERVAL);
         });
     </script>
     @endpush
