@@ -31,6 +31,10 @@ class UserManagementController extends Controller
 
         $users = $query->orderBy('name')->paginate(10)->withQueryString();
 
+        if ($request->ajax()) {
+            return view('admin.users.partials.users-list', compact('users'));
+        }
+
         return view('admin.users.index', compact('users'));
     }
     /**

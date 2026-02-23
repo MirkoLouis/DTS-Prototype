@@ -17,6 +17,7 @@
                                 <p><strong>Tracking Code:</strong> {{ $document->tracking_code }}</p>
                                 <p><strong>Submitter Name:</strong> {{ $document->guest_info['name'] }}</p>
                                 <p><strong>Submitter Email:</strong> {{ $document->guest_info['email'] }}</p>
+                                <p><strong>District:</strong> {{ $document->district }}</p>
                                 <p><strong>Purpose:</strong> {{ $document->purpose->name }}</p>
                                 <p><strong>Status:</strong> <x-status-badge :status="$document->status" /></p>
                                 <p><strong>Submitted At:</strong> {{ $document->created_at->format('M d, Y h:i A') }}</p>

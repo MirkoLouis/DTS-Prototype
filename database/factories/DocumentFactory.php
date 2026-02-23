@@ -32,6 +32,8 @@ class DocumentFactory extends Factory
                 'name' => $guestName,
                 'email' => $guestEmail,
             ],
+            'district' => fake()->randomElement(['East I District', 'East II District', 'South I District', 'South II District', 'West I District', 'West II District', 'North I District', 'North II District', 'North III District', 'City Central District']),
+            'department' => 'Records Unit', // Or another appropriate default
             // Select a random official purpose for the document
             'purpose_id' => Purpose::where('is_official', true)->inRandomOrder()->first()->id,
             'status' => 'pending', // Default status

@@ -2,15 +2,17 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\GenerateReportJob;
 use App\Models\Document;
 use App\Models\DocumentLog;
 use App\Models\Purpose;
+use App\Models\ReportJob;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
-use App\Models\Department;
-use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class StatisticsController extends Controller
 {
@@ -69,8 +71,8 @@ class StatisticsController extends Controller
                 $query->where('purpose_id', $filterPurposeId);
             }
 
-            if ($filterSubmitter && $filterSubmitter !== 'all') {
-                $query->where('guest_info->name', $filterSubmitter);
+            if ($filterSubmitter) {
+                $query->whereRaw('LOWER(json_unquote(json_extract(guest_info, "$.name"))) LIKE ?', ['%' . strtolower($filterSubmitter) . '%']);
             }
 
             // After all filters are applied, get the full list of unique submitters for the dropdown
@@ -99,9 +101,12 @@ class StatisticsController extends Controller
         return view('general.statistics', $viewData);
     }
 
-    public function generateReport(Request $request)
+    public function getReportCount(Request $request)
     {
-        // Re-use the same filtering logic from the index method
+        if (Auth::user()->role !== 'officer') {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
         $departmentId = Auth::user()->department_id;
         $filterPurposeId = $request->input('purpose_id');
         $filterSubmitter = $request->input('submitter');
@@ -139,31 +144,75 @@ class StatisticsController extends Controller
             $query->where('purpose_id', $filterPurposeId);
         }
 
-        if ($filterSubmitter && $filterSubmitter !== 'all') {
-            $query->where('guest_info->name', $filterSubmitter);
+        if ($filterSubmitter) {
+            $query->whereRaw('LOWER(json_unquote(json_extract(guest_info, "$.name"))) LIKE ?', ['%' . strtolower($filterSubmitter) . '%']);
         }
 
-        // Get all matching documents without pagination for the report
-        $releasedDocuments = $query->with('purpose')->latest('updated_at')->get();
+        $count = $query->count();
 
-        $charts = [];
-        if ($request->input('include_charts')) {
-            $charts = [
-                'load' => $request->input('chart_load_img'),
-                'avg_time' => $request->input('chart_avg_time_img'),
-                'throughput' => $request->input('chart_throughput_img'),
-            ];
-        }
+        return response()->json(['count' => $count]);
+    }
 
-        $pdf = Pdf::loadView('officer.report-pdf', [
-            'releasedDocuments' => $releasedDocuments,
-            'charts' => $charts,
-            'filters' => $request->only(['purpose_id', 'submitter', 'search', 'year', 'month', 'day']),
-            'departmentName' => Auth::user()->department->name,
+    public function generateReport(Request $request)
+    {
+        $user = Auth::user();
+        $filters = $request->all();
+
+        $reportJob = ReportJob::create([
+            'id' => Str::uuid(),
+            'user_id' => $user->id,
+            'status' => 'queued',
         ]);
 
-        $pdf->setPaper('a4', 'landscape');
-        return $pdf->stream('released-documents-report-' . now()->format('Y-m-d') . '.pdf');
+        GenerateReportJob::dispatch($reportJob, $user, $filters);
+
+        return response()->json(['job_id' => $reportJob->id]);
+    }
+
+    public function getReportStatus($jobId)
+    {
+        $reportJob = ReportJob::findOrFail($jobId);
+
+        // Optional: Add authorization check to ensure user can view this job status
+        if ($reportJob->user_id !== Auth::id()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        return response()->json($reportJob);
+    }
+
+    public function cancelReport($jobId)
+    {
+        $reportJob = ReportJob::findOrFail($jobId);
+
+        if ($reportJob->user_id !== Auth::id()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        if (in_array($reportJob->status, ['queued', 'processing'])) {
+            $reportJob->update(['status' => 'cancelled']);
+        }
+
+        return response()->json(['status' => 'success']);
+    }
+
+    public function downloadReport($jobId)
+    {
+        $reportJob = ReportJob::findOrFail($jobId);
+
+        if ($reportJob->user_id !== Auth::id()) {
+            abort(403, 'Unauthorized');
+        }
+
+        if ($reportJob->status !== 'completed') {
+            abort(404, 'Report not ready or failed.');
+        }
+
+        if (!Storage::disk('public')->exists($reportJob->file_path)) {
+            abort(404, 'File not found.');
+        }
+
+        return Storage::disk('public')->download($reportJob->file_path);
     }
 
     /**

@@ -1,24 +1,24 @@
 {{-- Desktop Table View --}}
 <div class="overflow-x-auto hidden md:block">
-    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 table-fixed">
         <thead class="bg-gray-50 dark:bg-gray-700">
             <tr>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[20%]">
                     Tracking Code
                 </th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[20%]">
                     Submitter
                 </th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[20%]">
                     Purpose
                 </th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[15%]">
                     Status
                 </th>
-                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[15%]">
                     Completed Processing
                 </th>
-                <th scope="col" class="relative px-6 py-3">
+                <th scope="col" class="relative px-6 py-3 w-[10%]">
                     <span class="sr-only">Actions</span>
                 </th>
             </tr>
@@ -26,7 +26,7 @@
         <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
             @forelse ($documents as $document)
                 <tr>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100 break-all">
                         {{ $document->tracking_code }}
                     </td>
                     <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-300 break-words">

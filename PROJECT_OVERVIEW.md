@@ -107,15 +107,28 @@ The route prediction system has been upgraded from a hardcoded, code-based logic
 ### 3.3. HCI: Interactive User Interfaces
 
 - **Implementation:** `resources/views/welcome.blade.php`, `resources/views/documents/manage.blade.php`, `resources/views/track.blade.php`, `resources/views/tasks.blade.php`, `resources/views/intake.blade.php`, `resources/views/integrity-monitor.blade.php`, `resources/views/return-requests/index.blade.php`. All frontend libraries (`html5-qrcode`, `SortableJS`, `Chart.js`) are locally managed via NPM and compiled with Vite. UI components for session messages and QR scanner modals are now reusable Blade components.
-- **Features:** The system prioritizes a smooth user experience through:
-    - **Consistent User Feedback:** Centralized `success`, `error`, and `info` messages displayed consistently across all dashboards with auto-hide functionality.
-    - **Dynamic Requirements:** The guest form provides immediate feedback by showing requirements as soon as a purpose is selected.
-    - **Drag-and-Drop Route Editor:** Officers can intuitively re-order complex document routes.
-    - **Visual Tracking (Subway Map):** The `x-tracker-subway-map` Blade component provides a clear, at-a-glance visualization of a document's progress.
-    - **Modular & Dynamic Tracking Portal:** Guests can track multiple documents dynamically.
-    - **Responsive Dashboard Layouts:** All main tables (`/intake`, `/tasks`, `/integrity-monitor`) automatically switch to a user-friendly card view on mobile devices.
-    - **Copy Hash Functionality:** Hashes on the Integrity Monitor can be easily copied to the clipboard.
-    - **Enhanced QR Code Integration:** To streamline interactions, QR code scanning (via a reusable component) is integrated into dedicated "Receive Document" sections on the `/intake`, `/tasks`, and `/releasing` dashboards for quick, camera-based document processing and status updates.
+- **Features:** The system prioritizes a smooth user experience through: 
+- **Consistent User Feedback:** Centralized `success`, `error`, and `info` messages displayed consistently across all dashboards with auto-hide functionality.
+- **Dynamic Requirements:** The guest form provides immediate feedback by showing requirements as soon as a purpose is selected.
+- **Drag-and-Drop Route Editor:** Officers can intuitively re-order complex document routes.
+- **Visual Tracking (Subway Map):** The `x-tracker-subway-map` Blade component provides a clear, at-a-glance visualization of a document's progress.
+- **Modular & Dynamic Tracking Portal:** Guests can track multiple documents dynamically.
+- **Responsive Dashboard Layouts:** All main tables (`/intake`, `/tasks`, `/integrity-monitor`) automatically switch to a user-friendly card view on mobile devices.
+- **Copy Hash Functionality:** Hashes on the Integrity Monitor can be easily copied to the clipboard.
+
+- **Enhanced QR Code Integration:** To streamline interactions, QR code scanning (via a reusable component) is integrated into dedicated "Receive Document" sections on the `/intake`, `/tasks`, and `/releasing` dashboards for quick, camera-based document processing and status updates.
+
+### 3.4. Performance: Asynchronous Large-Scale Exports
+
+- **Implementation:** `app/Jobs/GenerateReportJob.php`, `iio/libmergepdf`, and AJAX polling logic in `statistics.blade.php`.
+- **The Challenge:** Generating a PDF report for 10,000+ documents with charts is a memory-intensive task that causes standard PHP servers to time out or crash (Out of Memory).
+- **The Solution:** 
+    1.  **Background Processing:** Report generation is dispatched to a background queue, preventing the web server from becoming unresponsive.
+    2.  **The Merge Strategy:** To keep RAM usage low, the system processes documents in batches of 500. Each batch is saved as a temporary PDF file on disk. Once all batches are complete, they are "stitched" together into one final file.
+    3.  **Database Chunking:** The system uses database chunking to ensure it never holds more than 500-1000 models in memory at once.
+    4.  **CSV Fallback:** For datasets that are too large even for optimized PDF generation (e.g., 20,000+), the system provides a high-speed CSV export option.
+    5.  **Progress Tracking:** A real-time modal polls the database to show the user exactly which "milestone" the server is currently working on, along with a calculated time estimate.
+- **Benefit:** This architecture transforms a potentially system-crashing task into a stable, background-ready feature that can handle "Enterprise-level" data volumes.
 
 ## 4. Automated System Maintenance
 
