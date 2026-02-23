@@ -2,7 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
-## 2026-02-22 (Saturday, 3:30 PM)
+## 2026-02-23 (Monday, 6:45 PM)
+
+### ADDED
+- **Asynchronous Report Generation System:** Implemented a robust, non-blocking background job system for generating large-scale PDF and CSV reports.
+- **Merge Strategy for Large PDFs:** Optimized memory usage for massive reports by processing documents in small batches (500-1000 docs), generating temporary PDF chunks, and merging them using the `iio/libmergepdf` library.
+- **CSV Export Option:** Added a high-speed, memory-efficient CSV export option using database chunking, providing a reliable alternative for extremely large datasets.
+- **Real-Time Progress Modal:** Integrated a dynamic UI modal that tracks background job progress with specific status updates ("Filtering documents", "Generating PDF pages", etc.) and a real-time "Estimated time remaining" calculation.
+- **Report Cancellation:** Added functionality to safely cancel a running background report generation from the UI, preventing wasted server resources.
+
+### CHANGED
+- **Smart Export Constraints:** Implemented an intelligent validation layer that enforces a 3,000-document limit for PDF generation to ensure server stability, automatically suggesting the CSV option for larger datasets.
+- **Optimized Database Querying:** Refined data fetching logic to only select necessary columns and use relationship constraints, drastically reducing the RAM footprint during data preparation.
+- **Enhanced PDF Layout:** Reorganized report layout to accommodate large horizontal charts, utilizing strategic page breaks and fixed table dimensions for a polished, professional presentation.
+
+## 2026-02-22 (Sunday, 3:30 PM)
 
 ### CHANGED
 - **Enhanced Filtering and User Experience:** Implemented immediate filter application, debounced search, and case-insensitive text searching across several administrative tables for improved usability.

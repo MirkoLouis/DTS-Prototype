@@ -96,8 +96,11 @@ php artisan migrate:fresh --seed
 
 ### Queue Management
 
-*   `php artisan queue:restart`: Signals queue workers to gracefully exit and restart, allowing them to pick up code changes.
-*   `php artisan queue:work`: Starts a queue worker to process background jobs.
+Background jobs (like report generation, database backups, and restoration) require a queue worker to be running to process tasks in the background.
+
+*   `php artisan queue:work`: Starts a high-performance queue worker. It loads the application into memory once. **Crucial:** You must run `php artisan queue:restart` after making any code changes, or the worker will continue running old code from its memory.
+*   `php artisan queue:listen`: Starts a worker that reloads the entire application for every single job. While slightly slower than `work`, it is **highly recommended for development** because it automatically picks up your code changes and is more stable for memory-intensive tasks like large PDF generation.
+*   `php artisan queue:restart`: Signals all active `queue:work` processes to gracefully exit after they finish their current job, allowing them to be restarted with fresh code.
 
 ### Project-Specific Commands
 
@@ -109,6 +112,7 @@ This project includes several custom Artisan commands to manage specific feature
 *   `php artisan dts:rebuild-chain {logId}`: An administrative tool to rebuild the hash-chain for a document starting from a specific log ID.
 *   `php artisan backup:run`: Triggers an on-demand database backup via a background job.
 *   `php artisan dts:restore-database {filename}`: A custom command that dispatches a background job to restore the database from a specific backup file. This is typically initiated via the Backup Manager UI, not run manually.
+*   **Report Generation**: The system uses a background job (`GenerateReportJob`) to process PDF and CSV exports. This ensures that large reports (e.g., 10,000+ documents) do not block the web server or time out.
 
 ### Running Integrity Tests
 To verify the hash-chaining security mechanism, you can run the dedicated PHPUnit test suite:

@@ -74,7 +74,11 @@ Route::middleware(['auth', 'role:officer,staff'])->group(function () {
     Route::get('/api/statistics/throughput', [\App\Http\Controllers\StatisticsController::class, 'getThroughputData'])->name('api.statistics.throughput');
     Route::get('/api/statistics/current-load', [\App\Http\Controllers\StatisticsController::class, 'getCurrentLoadData'])->name('api.statistics.current-load');
     Route::get('/api/statistics/avg-processing-time', [\App\Http\Controllers\StatisticsController::class, 'getAverageProcessingTimeData'])->name('api.statistics.avg-processing-time');
-    Route::post('/statistics/report', [\App\Http\Controllers\StatisticsController::class, 'generateReport'])->name('statistics.report');
+    Route::post('/statistics/generate-report', [\App\Http\Controllers\StatisticsController::class, 'generateReport'])->name('statistics.generate-report');
+    Route::get('/api/statistics/report-status/{jobId}', [\App\Http\Controllers\StatisticsController::class, 'getReportStatus'])->name('api.statistics.report-status');
+    Route::post('/api/statistics/report-cancel/{jobId}', [\App\Http\Controllers\StatisticsController::class, 'cancelReport'])->name('api.statistics.report-cancel');
+    Route::get('/statistics/report/download/{jobId}', [\App\Http\Controllers\StatisticsController::class, 'downloadReport'])->name('statistics.report.download');
+    Route::post('/api/statistics/report-count', [\App\Http\Controllers\StatisticsController::class, 'getReportCount'])->name('api.statistics.report-count');
 });
 
 
