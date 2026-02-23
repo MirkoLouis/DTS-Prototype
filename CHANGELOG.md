@@ -16,6 +16,11 @@ All notable changes to this project will be documented in this file.
 - **Optimized Database Querying:** Refined data fetching logic to only select necessary columns and use relationship constraints, drastically reducing the RAM footprint during data preparation.
 - **Enhanced PDF Layout:** Reorganized report layout to accommodate large horizontal charts, utilizing strategic page breaks and fixed table dimensions for a polished, professional presentation.
 
+### FIXED
+- **Documentation Alignment:** Standardized system ports (3001) and framework version (Laravel 12) across all documentation files (`README.md`, `PROJECT_OVERVIEW.md`, `WINDOWS_SETUP.md`).
+- **Command Accuracy:** Corrected the signature for the database restore command (`db:restore --file=`) and added missing documentation for `dts:snapshot-db-metrics` in `ARTISAN_COMMANDS.md`.
+- **RBAC Clarity:** Updated `RBAC_DOCUMENTATION.md` to reflect the correct dashboard route for staff members (`/staff-tasks`).
+
 ## 2026-02-22 (Sunday, 3:30 PM)
 
 ### CHANGED

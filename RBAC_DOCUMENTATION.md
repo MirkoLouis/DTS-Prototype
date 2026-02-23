@@ -31,7 +31,7 @@ Route::get('/dashboard', /* ... */)->middleware(['auth', 'verified', 'role']);
 When the `RoleMiddleware` is triggered without parameters, it inspects the user's role and redirects them to the appropriate starting page:
 *   `admin` -> `/admin-dashboard`
 *   `officer` -> `/intake`
-*   `staff` -> `/tasks`
+*   `staff` -> `/staff-tasks`
 
 ### B. Route Protection
 
@@ -58,7 +58,7 @@ Route::middleware(['auth', 'role:officer'])->group(function () {
 
 // Routes for both Officers and Staff
 Route::middleware(['auth', 'role:officer,staff'])->group(function () {
-    Route::get('/tasks', [TaskController::class, 'index'])->name('tasks');
+    Route::get('/staff-tasks', [TaskController::class, 'index'])->name('staff.tasks');
     // ... more task-related routes
 });
 
