@@ -34,7 +34,7 @@ This project is a functional prototype for a modern, web-based Document Tracking
 
 ## Tech Stack
 
-- **Framework:** Laravel 11, simple-qrcode (for backend QR generation), spatie/laravel-backup
+- **Framework:** Laravel 12, simple-qrcode (for backend QR generation), spatie/laravel-backup
 - **Database:** MySQL
 - **Frontend:** Laravel Blade templates, Bootstrap 5, Tailwind CSS. All frontend libraries are locally managed via NPM/Vite.
 - **JavaScript:** Vanilla JavaScript, Chart.js, SortableJS, html5-qrcode.
@@ -75,7 +75,7 @@ For the best experience and system stability (especially when generating large r
 
 1.  **Terminal 1: The PHP Web Server:**
     ```bash
-    php artisan serve --host=0.0.0.0 --port=3000
+    php artisan serve --host=0.0.0.0 --port=3001
     ```
 2.  **Terminal 2: The Vite Frontend Compiler:**
     ```bash
@@ -87,7 +87,7 @@ For the best experience and system stability (especially when generating large r
     php artisan queue:listen
     
     # Or for high performance
-    php artisan queue:work
+    php artisan queue:work; read
     ```
 
 ### 3. Production Deployment Considerations
@@ -98,7 +98,9 @@ When deploying this application to a live server:
 - **Storage Link:** Run `php artisan storage:link` to ensure generated reports are accessible for download.
 
 ### 4. Accessing the Application
-... (rest of the file) ...
+
+- **On your laptop:** Open your browser and navigate to **`http://localhost:3001`**. The UI should be fully functional.
+- **Note on Camera Access and LAN Access:** Features that require a secure context, like the QR code scanner, will not work when accessing via `http://` but everything except that will work just fine, localhost is an exception to this and will always work. This is a browser security feature.
 
 ## Default Login Accounts
 

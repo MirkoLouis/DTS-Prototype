@@ -110,8 +110,9 @@ This project includes several custom Artisan commands to manage specific feature
 *   `php artisan dts:verify-integrity`: Verifies the integrity of the entire document log hash-chain. This is the "Trust Builder" tool.
 *   `php artisan dts:corrupt-log {logId}`: **(For Testing)** Intentionally corrupts a `DocumentLog` entry to test the integrity verification.
 *   `php artisan dts:rebuild-chain {logId}`: An administrative tool to rebuild the hash-chain for a document starting from a specific log ID.
+*   `php artisan dts:snapshot-db-metrics`: Captures current database performance metrics (connections, query time, etc.). Scheduled to run every 5 minutes.
 *   `php artisan backup:run`: Triggers an on-demand database backup via a background job.
-*   `php artisan dts:restore-database {filename}`: A custom command that dispatches a background job to restore the database from a specific backup file. This is typically initiated via the Backup Manager UI, not run manually.
+*   `php artisan db:restore --file={filename}`: A custom command that dispatches a background job to restore the database from a specific backup file. This is typically initiated via the Backup Manager UI, not run manually.
 *   **Report Generation**: The system uses a background job (`GenerateReportJob`) to process PDF and CSV exports. This ensures that large reports (e.g., 10,000+ documents) do not block the web server or time out.
 
 ### Running Integrity Tests

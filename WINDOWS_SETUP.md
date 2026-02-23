@@ -37,7 +37,7 @@ To avoid issues with line endings (Windows uses CRLF, Linux uses LF), run this c
 git config --global core.autocrlf true
 ```
 
-## 3. Initial Setup
+## 4. Initial Setup
 
 1.  **Clone the Repository:**
     ```bash
@@ -71,7 +71,7 @@ git config --global core.autocrlf true
     php artisan migrate --seed
     ```
 
-## 4. Local SSL Certificate (Required for Vite/QR Scanner)
+## 5. Local SSL Certificate (Required for Vite/QR Scanner)
 
 The project requires HTTPS for features like the QR code scanner.
 
@@ -93,26 +93,31 @@ The project requires HTTPS for features like the QR code scanner.
     ```
     This will create `localhost.crt` and `localhost.key` in your project folder.
 
-## 5. Running the Application
+## 6. Running the Application
 
-You can use the built-in development command:
+For the best experience, run the processes in separate terminals:
 
+- **Terminal 1 (PHP Server):** 
+  ```bash
+  php artisan serve --port=3001
+  ```
+- **Terminal 2 (Vite):** 
+  ```bash
+  npm run dev
+  ```
+- **Terminal 3 (Queue):** 
+  ```bash
+  php artisan queue:listen
+  ```
+
+Alternatively, use the built-in development command:
 ```bash
 composer run dev
 ```
 
-This will concurrently run:
-- **PHP Server:** `php artisan serve` (Defaults to `http://127.0.0.1:8000`)
-- **Queue Worker:** `php artisan queue:listen`
-- **Vite Server:** `npm run dev` (For frontend assets)
+Access the application at: **`http://localhost:3001`**.
 
-Alternatively, run them in separate terminals:
-- Terminal 1: `php artisan serve`
-- Terminal 2: `npm run dev`
-
-Access the application at: **`https://localhost:5173`** (Vite usually serves at 5173, check your terminal output) or the URL provided by `php artisan serve`.
-
-## 6. Troubleshooting
+## 7. Troubleshooting
 
 - **"Vite manifest not found":** Run `npm run dev` and keep it running while you browse the site.
 - **"Your connection is not private":** Ensure you ran `mkcert -install` as Administrator and generated the `localhost.crt`/`.key` files in the project root.
