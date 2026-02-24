@@ -77,9 +77,11 @@ yarn-error.log
 .idea
 phpstan-baseline.neon
 
+commit.md
 GEMINI.md                                                                             │
 ARTISAN_COMMANDS.md                                                                   │
 DEPARTMENT_ROLES.md                                                                   │
 PRESENTATION_SCRIPT.md                                                                │
 GEMINI.md
 ADMIN_DASHBOARD_SUGGESTIONS.md
+BLOCKCHAIN_ANALYSIS.md

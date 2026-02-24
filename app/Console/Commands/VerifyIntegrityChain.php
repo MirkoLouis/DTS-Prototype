@@ -29,8 +29,7 @@ class VerifyIntegrityChain extends Command
     {
         $this->info('Starting integrity verification of the document log hash chain...');
 
-        $allLogs = \App\Models\DocumentLog::orderBy('id', 'asc')->get();
-        $totalLogs = $allLogs->count();
+        $totalLogs = \App\Models\DocumentLog::count();
         $invalidLogsCount = 0;
         $mismatchedIds = [];
 
@@ -40,32 +39,35 @@ class VerifyIntegrityChain extends Command
             return 0;
         }
 
-        // Group logs by document to verify each chain independently
-        $logsByDocument = $allLogs->groupBy('document_id');
-
         $progressBar = $this->output->createProgressBar($totalLogs);
         $progressBar->start();
 
-        foreach ($logsByDocument as $documentId => $logs) {
-            $previousHash = 'genesis_hash'; // Reset for each new document chain
+        // We track the last hash for each document across chunks
+        $lastHashesByDocument = [];
 
-            foreach ($logs as $log) {
-                // The hash is calculated from the log's own data PLUS the previous hash.
-                // The timestamp format MUST be identical to the one used during creation.
-                $timestampForHashing = Carbon::parse($log->created_at)->toIso8601String();
-                $dataToHash = $log->document_id . $log->user_id . $log->action . $timestampForHashing . $previousHash;
-                $recalculatedHash = hash('sha256', $dataToHash);
+        // Process logs in chunks of 1000 to keep memory usage low and constant
+        \App\Models\DocumentLog::orderBy('document_id', 'asc')
+            ->orderBy('id', 'asc')
+            ->chunkById(1000, function ($logs) use (&$invalidLogsCount, &$mismatchedIds, &$lastHashesByDocument, $progressBar) {
+                foreach ($logs as $log) {
+                    // Determine the expected previous hash for this log
+                    $expectedPreviousHash = $lastHashesByDocument[$log->document_id] ?? 'genesis_hash';
 
-                if ($recalculatedHash !== $log->hash) {
-                    $invalidLogsCount++;
-                    $mismatchedIds[] = $log->id;
+                    // The timestamp format MUST be identical to the one used during creation.
+                    $timestampForHashing = Carbon::parse($log->created_at)->toIso8601String();
+                    $dataToHash = $log->document_id . $log->user_id . $log->action . $timestampForHashing . $expectedPreviousHash;
+                    $recalculatedHash = hash('sha256', $dataToHash);
+
+                    if ($recalculatedHash !== $log->hash) {
+                        $invalidLogsCount++;
+                        $mismatchedIds[] = $log->id;
+                    }
+
+                    // Store the current hash as the previous hash for the next log in this document's chain
+                    $lastHashesByDocument[$log->document_id] = $log->hash;
+                    $progressBar->advance();
                 }
-
-                // The current hash becomes the next log's previous_hash for the calculation
-                $previousHash = $log->hash;
-                $progressBar->advance();
-            }
-        }
+            });
 
         $progressBar->finish();
         $this->newLine();

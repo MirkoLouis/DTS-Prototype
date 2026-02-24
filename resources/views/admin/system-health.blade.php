@@ -40,7 +40,14 @@
                             <!-- Failed Jobs -->
                             <div class="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg shadow">
                                 <h4 class="text-lg font-bold mb-2">Failed Jobs</h4>
-                                <p class="text-3xl font-semibold @if($appHealthMetrics['failed_jobs_count'] > 0) text-red-500 @endif">{{ $appHealthMetrics['failed_jobs_count'] }}</p>
+                                <div class="flex items-center justify-between">
+                                    <p class="text-3xl font-semibold @if($appHealthMetrics['failed_jobs_count'] > 0) text-red-500 @endif">{{ $appHealthMetrics['failed_jobs_count'] }}</p>
+                                    @if($appHealthMetrics['failed_jobs_count'] > 0)
+                                        <button id="view-failed-jobs" class="text-sm text-indigo-600 dark:text-indigo-400 hover:underline focus:outline-none">
+                                            View Details
+                                        </button>
+                                    @endif
+                                </div>
                             </div>
                             <!-- Cache Status -->
                             <div class="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg shadow">
@@ -53,6 +60,49 @@
                             </div>
                         </div>
 
+                        <!-- Section: Failed Jobs Details (Conditional) -->
+                        @if($appHealthMetrics['failed_jobs_count'] > 0)
+                            <div id="failed-jobs-details" class="bg-red-50 dark:bg-red-900/10 pt-3 px-5 pb-5 rounded-lg shadow hidden">
+                                <div class="flex justify-between items-center mb-4 border-b border-red-200 dark:border-red-800 pb-2">
+                                    <h3 class="text-xl font-bold text-red-700 dark:text-red-400">Failed Jobs Details</h3>
+                                    <form action="{{ route('system.health.failed-jobs.delete-all') }}" method="POST" class="confirm-action" data-message="Are you sure you want to clear ALL failed jobs?">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-xs text-red-600 dark:text-red-400 hover:underline">Clear All Jobs</button>
+                                    </form>
+                                </div>
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                        <thead class="bg-gray-100 dark:bg-gray-800">
+                                            <tr>
+                                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Job</th>
+                                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Failed At</th>
+                                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Error</th>
+                                                <th class="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
+                                            @foreach($appHealthMetrics['failed_jobs'] as $job)
+                                                <tr>
+                                                    <td class="px-4 py-2 text-sm font-medium dark:text-gray-200">{{ $job->display_name }}</td>
+                                                    <td class="px-4 py-2 text-xs text-gray-500 dark:text-gray-400">{{ \Carbon\Carbon::parse($job->failed_at)->diffForHumans() }}</td>
+                                                    <td class="px-4 py-2 text-xs text-red-600 dark:text-red-400 truncate max-w-xs" title="{{ $job->exception }}">
+                                                        {{ Str::limit($job->exception, 100) }}
+                                                    </td>
+                                                    <td class="px-4 py-2 text-right">
+                                                        <form action="{{ route('system.health.failed-jobs.delete', $job->id) }}" method="POST" class="confirm-action" data-message="Are you sure you want to resolve this failed job? This will remove it from the list.">
+                                                            @csrf
+                                                            @method('DELETE')
+                                                            <button type="submit" class="text-xs bg-red-100 text-red-700 px-2 py-1 rounded hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300">Resolve</button>
+                                                        </form>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        @endif
 
                         <!-- Section: Database Performance -->
                         <div id="db-performance-chart-container" 
@@ -215,6 +265,54 @@
         @vite(['resources/js/system-health.js'])
         <script>
             document.addEventListener('DOMContentLoaded', function () {
+                // Toggle failed jobs details
+                const viewBtn = document.getElementById('view-failed-jobs');
+                const detailsSection = document.getElementById('failed-jobs-details');
+                if (viewBtn && detailsSection) {
+                    viewBtn.addEventListener('click', () => {
+                        detailsSection.classList.toggle('hidden');
+                        viewBtn.textContent = detailsSection.classList.contains('hidden') ? 'View Details' : 'Hide Details';
+                    });
+                }
+
+                // Confirmation Modal Logic
+                const confirmForms = document.querySelectorAll('.confirm-action');
+                const modal = document.getElementById('confirmation-modal');
+                const modalMessage = document.getElementById('confirmation-message');
+                const confirmBtn = document.getElementById('confirm-btn');
+                const cancelBtn = document.getElementById('cancel-btn');
+                let currentForm = null;
+
+                confirmForms.forEach(form => {
+                    form.addEventListener('submit', (e) => {
+                        e.preventDefault();
+                        currentForm = form;
+                        modalMessage.textContent = form.dataset.message || 'Are you sure you want to perform this action?';
+                        modal.style.display = 'flex';
+                    });
+                });
+
+                if (confirmBtn) {
+                    confirmBtn.addEventListener('click', () => {
+                        if (currentForm) currentForm.submit();
+                    });
+                }
+
+                if (cancelBtn) {
+                    cancelBtn.addEventListener('click', () => {
+                        modal.style.display = 'none';
+                        currentForm = null;
+                    });
+                }
+
+                // Close modal on click outside
+                window.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.style.display = 'none';
+                        currentForm = null;
+                    }
+                });
+
                 const filterForm = document.querySelector('form[action="{{ route("system.health") }}"]');
                 if (filterForm) {
                     const inputs = filterForm.querySelectorAll('input, select');
@@ -227,4 +325,29 @@
             });
         </script>
     @endpush
+
+    <!-- Confirmation Modal (Similar to QR Scanner Modal) -->
+    <div id="confirmation-modal" class="fixed inset-0 z-50 overflow-y-auto hidden items-center justify-center bg-gray-900 bg-opacity-75">
+        <div class="relative w-full max-w-md p-4 bg-white dark:bg-gray-800 rounded-lg shadow-xl">
+            <div class="flex items-center justify-between mb-4 border-b dark:border-gray-700 pb-2">
+                <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">Confirm Action</h3>
+                <button id="cancel-btn-top" class="text-gray-400 hover:text-gray-500">
+                    <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                </button>
+            </div>
+            <div class="mb-6">
+                <p id="confirmation-message" class="text-sm text-gray-600 dark:text-gray-400"></p>
+            </div>
+            <div class="flex justify-end space-x-3">
+                <button id="cancel-btn" class="inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 border border-transparent rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest hover:bg-gray-300 dark:hover:bg-gray-600 focus:outline-none transition">
+                    Cancel
+                </button>
+                <button id="confirm-btn" class="inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-500 active:bg-red-700 focus:outline-none focus:border-red-700 focus:ring focus:ring-red-200 transition">
+                    Yes, Proceed
+                </button>
+            </div>
+        </div>
+    </div>
 </x-app-layout>

@@ -87,8 +87,12 @@ class SystemHealthController extends Controller
 
         $averageProcessingTime = ($processingTimes->count() > 0) ? $totalSeconds / $processingTimes->count() : 0;
 
-        // 2. Failed Jobs Count
-        $failedJobsCount = DB::table('failed_jobs')->count();
+        // 2. Failed Jobs
+        $failedJobs = DB::table('failed_jobs')->orderBy('failed_at', 'desc')->get()->map(function($job) {
+            $payload = json_decode($job->payload, true);
+            $job->display_name = $payload['displayName'] ?? 'Unknown Job';
+            return $job;
+        });
 
         // 3. Cache Status
         try {
@@ -100,9 +104,28 @@ class SystemHealthController extends Controller
 
         return [
             'average_processing_time' => $averageProcessingTime, // in seconds
-            'failed_jobs_count' => $failedJobsCount,
+            'failed_jobs_count' => $failedJobs->count(),
+            'failed_jobs' => $failedJobs,
             'cache_status' => $cacheStatus,
         ];
+    }
+
+    /**
+     * Delete a specific failed job.
+     */
+    public function deleteFailedJob($id)
+    {
+        DB::table('failed_jobs')->where('id', $id)->delete();
+        return back()->with('success', 'Failed job resolved and removed from the list.');
+    }
+
+    /**
+     * Delete all failed jobs.
+     */
+    public function deleteAllFailedJobs()
+    {
+        DB::table('failed_jobs')->truncate();
+        return back()->with('success', 'All failed jobs have been cleared.');
     }
 
 
