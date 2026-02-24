@@ -130,6 +130,9 @@ Route::middleware('auth')->group(function() {
 
     Route::post('/documents/{document}/decline', [DocumentController::class, 'decline'])->name('documents.decline');
 
+    // New route for displaying the hash chain of a document
+    Route::get('/documents/{document}/hash-chain', [DocumentController::class, 'showHashChain'])->name('documents.show-hash-chain');
+
     // Route for handling QR code scans
     Route::post('/scan', [DocumentController::class, 'scan'])->name('documents.scan');
 });

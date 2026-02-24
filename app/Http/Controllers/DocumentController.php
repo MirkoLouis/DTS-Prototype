@@ -206,14 +206,36 @@ class DocumentController extends Controller
      * @param  \App\Models\Document  $document
      * @return \Illuminate\View\View
      */
-    public function show(Document $document)
+    public function show(Document $document, Request $request)
     {
         $document->load(['purpose', 'logs.user']);
+
         $backUrl = url()->previous();
+        // If coming from the integrity monitor, always go back to it
+        if ($request->get('back_to') === 'integrity-monitor') {
+            $backUrl = route('integrity-monitor');
+        }
 
         return view('general.show-document', [
             'document' => $document,
             'backUrl' => $backUrl,
+        ]);
+    }
+
+    /**
+     * Display the hash chain for a specific document.
+     *
+     * @param  \App\Models\Document  $document
+     * @return \Illuminate\View\View
+     */
+    public function showHashChain(Document $document, Request $request)
+    {
+        $document->load(['logs.user']); // Load logs and the user associated with each log
+
+        return view('general.document-hash-chain', [
+            'document' => $document,
+            'logs' => $document->logs()->orderBy('created_at')->get(), // Ensure logs are chronological
+            'back_to' => $request->query('back_to'), // Pass the back_to parameter to the view
         ]);
     }
 
