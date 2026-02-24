@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!chartContainer) return;
 
     // URLs from the main data attribute container
-    const { returnDeclineUrl, statusDistributionUrl, returnRequestSourcesUrl, processingHotspotsUrl, avgStepTimeUrl, throughputUrl, loadVsTimeUrl } = chartContainer.dataset;
+    const { returnDeclineUrl, statusDistributionUrl, returnRequestSourcesUrl, processingHotspotsUrl, avgStepTimeUrl, throughputUrl, loadVsTimeUrl, submissionDistrictsUrl } = chartContainer.dataset;
 
     // --- Element Selectors ---
     const departmentFilterEl = document.getElementById('department-filter');
@@ -26,10 +26,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const throughputCtx = document.getElementById('throughputChart')?.getContext('2d');
     const returnRequestSourcesCtx = document.getElementById('returnRequestSourcesChart')?.getContext('2d');
     const processingHotspotsCtx = document.getElementById('processingHotspotsChart')?.getContext('2d');
+    const submissionDistrictsCtx = document.getElementById('submissionDistrictsChart')?.getContext('2d');
     const loadVsTimeCtx = document.getElementById('loadVsTimeChart')?.getContext('2d'); // New Combo Chart
 
     // --- Chart Instances ---
-    let statusDistributionChart, returnDeclineChart, avgStepTimeChart, throughputChart, returnRequestSourcesChart, processingHotspotsChart, loadVsTimeChart;
+    let statusDistributionChart, returnDeclineChart, avgStepTimeChart, throughputChart, returnRequestSourcesChart, processingHotspotsChart, loadVsTimeChart, submissionDistrictsChart;
     let modalChart = null;
 
     // --- Helper & Modal Functions ---
@@ -74,7 +75,63 @@ document.addEventListener('DOMContentLoaded', function() {
         returnDeclineChart = new Chart(returnDeclineCtx, { type: 'line', data: { labels: [], datasets: [] }, options: { ...lineChartOptions, scales: { y: { ...lineChartOptions.scales.y, title: { display: true, text: 'Number of Documents' } } } } });
         throughputChart = new Chart(throughputCtx, { type: 'line', data: { labels: [], datasets: [] }, options: { ...lineChartOptions, maintainAspectRatio: false } });
         returnRequestSourcesChart = new Chart(returnRequestSourcesCtx, { type: 'bar', data: { labels: [], datasets: [] }, options: barChartOptions });
-        processingHotspotsChart = new Chart(processingHotspotsCtx, { type: 'bar', data: { labels: [], datasets: [] }, options: { ...horizontalBarOptions, scales: { x: { ...horizontalBarOptions.scales.x, title: { display: true, text: 'Average Processing Time' } } } } });
+        processingHotspotsChart = new Chart(processingHotspotsCtx, {
+            type: 'polarArea',
+            data: { labels: [], datasets: [] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        beginAtZero: true,
+                        title: { display: true, text: 'Document Count' },
+                        ticks: {
+                            showLabelBackdrop: true,
+                            backdropColor: 'rgba(255, 255, 255, 0.75)',
+                            color: '#1f2937', // Dark gray for text
+                            z: 1 // Ensure ticks are above the chart segments
+                        },
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)' // Light grid lines
+                        }
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const dataset = context.dataset;
+                                const index = context.dataIndex;
+                                const volume = context.raw;
+                                const time = dataset.avgHours[index];
+                                return `${context.label}: Vol: ${volume}, Avg Time: ${time} hrs`;
+                            }
+                        }
+                    },
+                    legend: {
+                        display: true,
+                        position: 'right',
+                        labels: {
+                            boxWidth: 10,
+                            font: { size: 10 }
+                        }
+                    }
+                }
+            }
+        });
+        
+        submissionDistrictsChart = new Chart(submissionDistrictsCtx, {
+            type: 'bar',
+            data: { labels: [], datasets: [] },
+            options: {
+                ...barChartOptions,
+                indexAxis: 'y',
+                scales: {
+                    x: { beginAtZero: true, title: { display: true, text: 'Total Documents' } }
+                }
+            }
+        });
+
         avgStepTimeChart = new Chart(avgStepTimeCtx, { type: 'bar', data: { labels: [], datasets: [] }, options: {
             responsive: true,
             maintainAspectRatio: false,
@@ -125,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch(url)
             .then(response => response.json())
             .then(data => {
-                chart.data.labels = data.labels;
+                chart.data.labels = data.labels || [];
                 chart.data.datasets = data.datasets || [{ data: data.data }];
                 chart.update();
             })
@@ -163,7 +220,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(fullData => {
                     const tempInstance = { config: avgStepTimeChart.config, data: fullData };
                     const modalOptions = { scales: { y: { ticks: { callback: (v) => tempInstance.data.labels[v] } } } };
-                    openChartModal(tempInstance, 'Average Step Time by Department', modalOptions);
+                    openChartModal(tempInstance, 'Average TAT by Department (hrs) Overview', modalOptions);
                 })
                 .catch(err => console.error('Error fetching full chart data:', err));
         });
@@ -176,6 +233,7 @@ document.addEventListener('DOMContentLoaded', function() {
     fetchData(statusDistributionUrl, statusDistributionChart);
     fetchData(returnRequestSourcesUrl, returnRequestSourcesChart);
     fetchData(processingHotspotsUrl, processingHotspotsChart);
+    fetchData(submissionDistrictsUrl, submissionDistrictsChart);
     fetchData(avgStepTimeUrl, avgStepTimeChart);
     fetchData(`${returnDeclineUrl}?period=${returnDeclinePeriodEl.value}`, returnDeclineChart);
     fetchData(`${throughputUrl}?period=${globalThroughputPeriodEl.value}`, throughputChart);
