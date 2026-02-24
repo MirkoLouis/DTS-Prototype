@@ -8,6 +8,7 @@ use App\Models\Purpose;
 use App\Models\Department;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 
 class AdminDashboardController extends Controller
@@ -77,6 +78,20 @@ class AdminDashboardController extends Controller
     }
 
     /**
+     * Clear all dashboard-related cache.
+     *
+     * @return \Illuminate\Http\RedirectResponse
+     */
+    public function clearCache()
+    {
+        // This is a bit broad, but ensures all combinations of period/dept are cleared.
+        // In a production app, we'd use cache tags, but for this prototype, 
+        // flushing or specific key management is fine.
+        Cache::flush(); 
+        return back()->with('success', 'Dashboard cache cleared successfully. All charts will now fetch fresh data.');
+    }
+
+    /**
      * Get data for the 'Throughput' chart (documents processed over time).
      *
      * @param  \Illuminate\Http\Request  $request
@@ -85,85 +100,96 @@ class AdminDashboardController extends Controller
     public function getThroughputData(Request $request)
     {
         $period = $request->get('period', 'daily'); // daily, weekly, monthly, yearly
-        $departmentId = $request->get('department_id');
-        $endDate = Carbon::now();
-        $startDate = match ($period) {
-            'weekly' => Carbon::now()->subWeeks(12),
-            'monthly' => Carbon::now()->subMonths(12),
-            'yearly' => Carbon::now()->subYears(5),
-            default => Carbon::now()->subDays(30),
-        };
-        $dateFormat = match ($period) {
-            'weekly' => '%x-%v',
-            'monthly' => '%Y-%m',
-            'yearly' => '%Y',
-            default => '%Y-%m-%d',
-        };
+        $departmentId = $request->get('department_id', 'all');
 
-        // Subquery to get start times
-        $startLogs = DocumentLog::where('action', 'Accepted and Document Routing finalized')
-            ->select('document_id', DB::raw('MIN(created_at) as start_time'))
-            ->groupBy('document_id');
+        $cacheKey = "throughput_data_{$period}_{$departmentId}";
 
-        // Subquery to get end times
-        $endLogs = DocumentLog::where('action', 'Document Released')
-            ->select('document_id', DB::raw('MAX(created_at) as end_time'))
-            ->groupBy('document_id');
-        
-        $query = Document::query()
-            ->joinSub($startLogs, 'start_logs', 'documents.id', '=', 'start_logs.document_id')
-            ->joinSub($endLogs, 'end_logs', 'documents.id', '=', 'end_logs.document_id')
-            ->whereBetween('end_logs.end_time', [$startDate, $endDate]);
-
-        // If a department ID is provided, filter documents that have this department in their route.
-        if ($departmentId && $departmentId !== 'all') {
-            $query->whereJsonContains('documents.finalized_route', [['id' => (int)$departmentId]]);
-        }
-
-        $avgTimes = $query->select(
-                DB::raw("DATE_FORMAT(end_logs.end_time, '{$dateFormat}') as period_label"),
-                DB::raw('AVG(TIMESTAMPDIFF(HOUR, start_logs.start_time, end_logs.end_time)) as avg_duration_hours')
-            )
-            ->groupBy('period_label')
-            ->orderBy('period_label')
-            ->get();
-
-        // Create a map of all periods in the range to ensure no gaps in the chart.
-        $periodMap = [];
-        $current = $startDate->clone();
-        while ($current <= $endDate) {
-            $label = match($period) {
-                'weekly' => $current->format('o-W'),
-                'monthly' => $current->format('Y-m'),
-                'yearly' => $current->format('Y'),
-                default => $current->format('Y-m-d')
+        return Cache::remember($cacheKey, now()->addMinutes(5), function () use ($period, $departmentId) {
+            $endDate = Carbon::now();
+            $startDate = match ($period) {
+                'weekly' => Carbon::now()->subWeeks(12),
+                'monthly' => Carbon::now()->subMonths(12),
+                'yearly' => Carbon::now()->subYears(5),
+                default => Carbon::now()->subDays(30),
             };
-            $periodMap[$label] = 0; // Default to 0 if no data
-            $current = match($period) {
-                'weekly' => $current->addWeek(),
-                'monthly' => $current->addMonth(),
-                'yearly' => $current->addYear(),
-                default => $current->addDay()
+            $dateFormat = match ($period) {
+                'weekly' => '%x-%v', // ISO Year and ISO Week
+                'monthly' => '%Y-%m',
+                'yearly' => '%Y',
+                default => '%Y-%m-%d',
             };
-        }
 
-        foreach ($avgTimes as $result) {
-            $periodMap[$result->period_label] = (float) $result->avg_duration_hours;
-        }
+            // Subquery to get start times
+            $startLogs = DocumentLog::where('action', 'Accepted and Document Routing finalized')
+                ->select('document_id', DB::raw('MIN(created_at) as start_time'))
+                ->groupBy('document_id');
 
-        return response()->json([
-            'labels' => array_keys($periodMap),
-            'datasets' => [
-                [
-                    'label' => 'Average Processing Time (hrs)',
-                    'data' => array_values($periodMap),
-                    'borderColor' => 'rgba(75, 192, 192, 1)',
-                    'backgroundColor' => 'rgba(75, 192, 192, 0.2)',
-                    'fill' => true,
-                    'tension' => 0.1,
+            // Subquery to get end times
+            $endLogs = DocumentLog::where('action', 'Document Released')
+                ->select('document_id', DB::raw('MAX(created_at) as end_time'))
+                ->groupBy('document_id');
+            
+            $query = Document::query()
+                ->joinSub($startLogs, 'start_logs', 'documents.id', '=', 'start_logs.document_id')
+                ->joinSub($endLogs, 'end_logs', 'documents.id', '=', 'end_logs.document_id')
+                ->whereBetween('end_logs.end_time', [$startDate, $endDate]);
+
+            // If a department ID is provided, filter documents that have this department in their route.
+            if ($departmentId && $departmentId !== 'all') {
+                $department = Department::find($departmentId);
+                if ($department) {
+                    $query->whereJsonContains('documents.finalized_route', [['name' => $department->name]]);
+                }
+            }
+
+            $avgTimes = $query->select(
+                    DB::raw("DATE_FORMAT(end_logs.end_time, '{$dateFormat}') as period_label"),
+                    DB::raw('AVG(TIMESTAMPDIFF(HOUR, start_logs.start_time, end_logs.end_time)) as avg_duration_hours')
+                )
+                ->groupBy('period_label')
+                ->orderBy('period_label')
+                ->get();
+
+            // Create a map of all periods in the range to ensure no gaps in the chart.
+            $periodMap = [];
+            $current = $startDate->clone();
+            while ($current <= $endDate) {
+                $label = match($period) {
+                    'weekly' => $current->format('o-W'), // ISO Year and ISO Week
+                    'monthly' => $current->format('Y-m'),
+                    'yearly' => $current->format('Y'),
+                    default => $current->format('Y-m-d')
+                };
+                $periodMap[$label] = 0; // Default to 0 if no data
+                $current = match($period) {
+                    'weekly' => $current->addWeek(),
+                    'monthly' => $current->addMonth(),
+                    'yearly' => $current->addYear(),
+                    default => $current->addDay()
+                };
+            }
+
+            foreach ($avgTimes as $result) {
+                $label = (string)$result->period_label;
+                if (isset($periodMap[$label])) {
+                    $periodMap[$label] = (float) $result->avg_duration_hours;
+                }
+            }
+
+            return [
+                'labels' => array_keys($periodMap),
+                'datasets' => [
+                    [
+                        'label' => 'Average Processing Time (hrs)',
+                        'data' => array_values($periodMap),
+                        'borderColor' => 'rgba(75, 192, 192, 1)',
+                        'backgroundColor' => 'rgba(75, 192, 192, 0.2)',
+                        'fill' => true,
+                        'tension' => 0.1,
+                    ]
                 ]
-            ]
-        ]);
+            ];
+        });
     }
 
     /**
@@ -492,130 +518,136 @@ class AdminDashboardController extends Controller
     public function getDepartmentalLoadVsTimeData(Request $request)
     {
         $period = $request->get('period', 'daily');
-        $departmentId = $request->get('department_id');
-        
-        $endDate = Carbon::now();
-        $startDate = match ($period) {
-            'weekly' => Carbon::now()->subWeeks(12),
-            'monthly' => Carbon::now()->subMonths(12),
-            'yearly' => Carbon::now()->subYears(5),
-            default => Carbon::now()->subDays(30),
-        };
-        $dateFormat = match ($period) {
-            'weekly' => '%x-%v',
-            'monthly' => '%Y-%m',
-            'yearly' => '%Y',
-            default => '%Y-%m-%d',
-        };
+        $departmentId = $request->get('department_id', 'all');
 
-        // Initialize a map for all periods to ensure no gaps
-        $periodMap = [];
-        $current = $startDate->clone();
-        while ($current <= $endDate) {
-            $label = $current->format(match($period) {
-                'weekly' => 'o-W',
-                'monthly' => 'Y-m',
-                'yearly' => 'Y',
-                default => 'Y-m-d'
-            });
-            $periodMap[$label] = ['load' => 0, 'time' => 0];
-            $current = match($period) {
-                'weekly' => $current->addWeek(),
-                'monthly' => $current->addMonth(),
-                'yearly' => $current->addYear(),
-                default => $current->addDay()
+        $cacheKey = "dept_load_time_{$period}_{$departmentId}";
+
+        return Cache::remember($cacheKey, now()->addMinutes(5), function () use ($period, $departmentId) {
+            $endDate = Carbon::now();
+            $startDate = match ($period) {
+                'weekly' => Carbon::now()->subWeeks(12),
+                'monthly' => Carbon::now()->subMonths(12),
+                'yearly' => Carbon::now()->subYears(5),
+                default => Carbon::now()->subDays(30),
             };
-        }
+            $dateFormat = match ($period) {
+                'weekly' => '%x-%v', // ISO Year and ISO Week
+                'monthly' => '%Y-%m',
+                'yearly' => '%Y',
+                default => '%Y-%m-%d',
+            };
 
-        // --- Calculate Average Department Step Time ---
-        $stepTimeQuery = DocumentLog::join('users', 'document_logs.user_id', '=', 'users.id')
-            ->whereIn('action', ['Received', 'Processing Complete'])
-            ->whereBetween('document_logs.created_at', [$startDate, $endDate]);
+            // Initialize a map for all periods to ensure no gaps
+            $periodMap = [];
+            $current = $startDate->clone();
+            while ($current <= $endDate) {
+                $label = $current->format(match($period) {
+                    'weekly' => 'o-W',
+                    'monthly' => 'Y-m',
+                    'yearly' => 'Y',
+                    default => 'Y-m-d'
+                });
+                $periodMap[$label] = ['load' => 0, 'time' => 0];
+                $current = match($period) {
+                    'weekly' => $current->addWeek(),
+                    'monthly' => $current->addMonth(),
+                    'yearly' => $current->addYear(),
+                    default => $current->addDay()
+                };
+            }
 
-        if ($departmentId && $departmentId !== 'all') {
-            $stepTimeQuery->where('users.department_id', $departmentId);
-        }
+            // --- Calculate Average Department Step Time ---
+            $stepTimeQuery = DocumentLog::join('users', 'document_logs.user_id', '=', 'users.id')
+                ->whereIn('action', ['Received', 'Processing Complete'])
+                ->whereBetween('document_logs.created_at', [$startDate, $endDate]);
 
-        $logs = $stepTimeQuery->select('document_logs.*')->orderBy('document_id')->orderBy('created_at')->get();
+            if ($departmentId && $departmentId !== 'all') {
+                $stepTimeQuery->where('users.department_id', $departmentId);
+            }
 
-        $durationsByPeriod = [];
-        $openReceives = []; // [ 'doc_id' => received_timestamp ]
+            $logs = $stepTimeQuery->select('document_logs.*')->orderBy('document_id')->orderBy('created_at')->get();
 
-        foreach ($logs as $log) {
-            if ($log->action === 'Received') {
-                $openReceives[$log->document_id] = $log->created_at;
-            } elseif ($log->action === 'Processing Complete' && isset($openReceives[$log->document_id])) {
-                $startTime = $openReceives[$log->document_id];
-                $endTime = $log->created_at;
+            $durationsByPeriod = [];
+            $openReceives = []; // [ 'doc_id' => received_timestamp ]
 
-                $durationInSeconds = $endTime->getTimestamp() - $startTime->getTimestamp();
+            foreach ($logs as $log) {
+                if ($log->action === 'Received') {
+                    $openReceives[$log->document_id] = $log->created_at;
+                } elseif ($log->action === 'Processing Complete' && isset($openReceives[$log->document_id])) {
+                    $startTime = $openReceives[$log->document_id];
+                    $endTime = $log->created_at;
 
-                // Safety check to ensure duration is not negative
-                if ($durationInSeconds >= 0) {
-                    $periodLabel = $endTime->format(match($period) {
-                        'weekly' => 'Y-W',
-                        'monthly' => 'Y-m',
-                        'yearly' => 'Y',
-                        default => 'Y-m-d'
-                    });
+                    $durationInSeconds = $endTime->getTimestamp() - $startTime->getTimestamp();
 
-                    if (!isset($durationsByPeriod[$periodLabel])) {
-                        $durationsByPeriod[$periodLabel] = [];
+                    // Safety check to ensure duration is not negative
+                    if ($durationInSeconds >= 0) {
+                        $periodLabel = $endTime->format(match($period) {
+                            'weekly' => 'o-W',
+                            'monthly' => 'Y-m',
+                            'yearly' => 'Y',
+                            default => 'Y-m-d'
+                        });
+
+                        if (!isset($durationsByPeriod[$periodLabel])) {
+                            $durationsByPeriod[$periodLabel] = [];
+                        }
+                        
+                        $durationsByPeriod[$periodLabel][] = $durationInSeconds / 3600;
                     }
                     
-                    $durationsByPeriod[$periodLabel][] = $durationInSeconds / 3600;
+                    unset($openReceives[$log->document_id]);
                 }
-                
-                unset($openReceives[$log->document_id]);
             }
-        }
 
-        // Calculate the average for each period and update the periodMap
-        foreach ($durationsByPeriod as $periodLabel => $durations) {
-            if (isset($periodMap[$periodLabel]) && count($durations) > 0) {
-                $periodMap[$periodLabel]['time'] = array_sum($durations) / count($durations);
+            // Calculate the average for each period and update the periodMap
+            foreach ($durationsByPeriod as $periodLabel => $durations) {
+                $label = (string)$periodLabel;
+                if (isset($periodMap[$label]) && count($durations) > 0) {
+                    $periodMap[$label]['time'] = array_sum($durations) / count($durations);
+                }
             }
-        }
 
-        // --- Calculate Daily Load (as Documents Received) ---
-        $loadQuery = DocumentLog::join('users', 'document_logs.user_id', '=', 'users.id')
-            ->where('action', 'Received')
-            ->whereBetween('document_logs.created_at', [$startDate, $endDate]);
-        if ($departmentId && $departmentId !== 'all') {
-            $loadQuery->where('users.department_id', $departmentId);
-        }
-        $loadCounts = $loadQuery->select(
-                DB::raw("DATE_FORMAT(document_logs.created_at, '{$dateFormat}') as period_label"),
-                DB::raw('COUNT(document_logs.id) as received_count')
-            )
-            ->groupBy('period_label')->get();
-
-        foreach ($loadCounts as $result) {
-            if (isset($periodMap[$result->period_label])) {
-                $periodMap[$result->period_label]['load'] = (int) $result->received_count;
+            // --- Calculate Daily Load (as Documents Received) ---
+            $loadQuery = DocumentLog::join('users', 'document_logs.user_id', '=', 'users.id')
+                ->where('action', 'Received')
+                ->whereBetween('document_logs.created_at', [$startDate, $endDate]);
+            if ($departmentId && $departmentId !== 'all') {
+                $loadQuery->where('users.department_id', $departmentId);
             }
-        }
+            $loadCounts = $loadQuery->select(
+                    DB::raw("DATE_FORMAT(document_logs.created_at, '{$dateFormat}') as period_label"),
+                    DB::raw('COUNT(document_logs.id) as received_count')
+                )
+                ->groupBy('period_label')->get();
 
-        return response()->json([
-            'labels' => array_keys($periodMap),
-            'datasets' => [
-                [
-                    'label' => 'Documents Received',
-                    'data' => array_column($periodMap, 'load'),
-                    'borderColor' => 'rgba(54, 162, 235, 1)',
-                    'backgroundColor' => 'rgba(54, 162, 235, 0.2)',
-                    'yAxisID' => 'y',
-                    'tension' => 0.1,
-                ],
-                [
-                    'label' => 'Avg. Processing Time (hrs)',
-                    'data' => array_column($periodMap, 'time'),
-                    'borderColor' => 'rgba(255, 99, 132, 1)',
-                    'backgroundColor' => 'rgba(255, 99, 132, 0.2)',
-                    'yAxisID' => 'y1',
-                    'tension' => 0.1,
+            foreach ($loadCounts as $result) {
+                $label = (string)$result->period_label;
+                if (isset($periodMap[$label])) {
+                    $periodMap[$label]['load'] = (int) $result->received_count;
+                }
+            }
+
+            return [
+                'labels' => array_keys($periodMap),
+                'datasets' => [
+                    [
+                        'label' => 'Documents Received',
+                        'data' => array_column($periodMap, 'load'),
+                        'borderColor' => 'rgba(54, 162, 235, 1)',
+                        'backgroundColor' => 'rgba(54, 162, 235, 0.2)',
+                        'yAxisID' => 'y',
+                        'tension' => 0.1,
+                    ],
+                    [
+                        'label' => 'Avg. Processing Time (hrs)',
+                        'data' => array_column($periodMap, 'time'),
+                        'borderColor' => 'rgba(255, 99, 132, 1)',
+                        'backgroundColor' => 'rgba(255, 99, 132, 0.2)',
+                        'yAxisID' => 'y1',
+                        'tension' => 0.1,
+                    ]
                 ]
-            ]
-        ]);
+            ];
+        });
     }
 }

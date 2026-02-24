@@ -87,6 +87,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     // Admin specific routes
     Route::get('/integrity-monitor', [IntegrityMonitorController::class, 'index'])->name('integrity-monitor');
     Route::get('/admin-dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
+    Route::post('/admin-dashboard/clear-cache', [AdminDashboardController::class, 'clearCache'])->name('admin.dashboard.clear-cache');
     Route::get('/api/admin-dashboard/current-load', [AdminDashboardController::class, 'getCurrentLoadData'])->name('api.admin-dashboard.current-load');
     Route::get('/api/admin-dashboard/throughput', [AdminDashboardController::class, 'getThroughputData'])->name('api.admin-dashboard.throughput');
     Route::get('/api/admin-dashboard/return-decline-trends', [AdminDashboardController::class, 'getReturnDeclineTrendData'])->name('api.admin-dashboard.return-decline-trends');
@@ -104,6 +105,8 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::post('/system-health/rebuild-chain/{log}', [SystemHealthController::class, 'rebuildChain'])->name('system.health.rebuild-chain');
     Route::get('/api/system-health/db-performance', [SystemHealthController::class, 'getDbPerformanceData'])->name('api.system-health.db-performance');
     Route::get('/admin/system-health/export-db-metrics', [SystemHealthController::class, 'exportDbPerformanceMetrics'])->name('admin.system-health.export-db-metrics');
+    Route::delete('/system-health/failed-jobs/{id}', [SystemHealthController::class, 'deleteFailedJob'])->name('system.health.failed-jobs.delete');
+    Route::delete('/system-health/failed-jobs', [SystemHealthController::class, 'deleteAllFailedJobs'])->name('system.health.failed-jobs.delete-all');
     Route::get('/system/ratings', [SystemRatingsController::class, 'index'])->name('system.ratings');
 
     // Backup Manager routes
