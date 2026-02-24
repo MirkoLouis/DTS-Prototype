@@ -21,7 +21,8 @@
                              data-return-request-sources-url="{{ route('api.admin-dashboard.return-request-sources') }}"
                              data-processing-hotspots-url="{{ route('api.admin-dashboard.processing-hotspots') }}"
                              data-avg-step-time-url="{{ route('api.admin-dashboard.avg-step-time') }}"
-                             data-load-vs-time-url="{{ route('api.admin-dashboard.department-load-vs-time') }}">
+                             data-load-vs-time-url="{{ route('api.admin-dashboard.department-load-vs-time') }}"
+                             data-submission-districts-url="{{ route('api.admin-dashboard.submission-districts') }}">
 
                             <!-- Document Status Distribution Chart -->
                             <div class="bg-gray-50 dark:bg-gray-700/50 pt-3 px-5 pb-5 rounded-lg shadow">
@@ -34,7 +35,7 @@
                             <!-- Global Throughput Chart -->
                             <div class="bg-gray-50 dark:bg-gray-700/50 pt-3 px-5 pb-5 rounded-lg shadow">
                                 <div class="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">
-                                    <h4 class="text-lg font-bold">Global Average Processing Time (hrs)</h4>
+                                    <h4 class="text-lg font-bold">Departmental Average TAT over time (hrs)</h4>
                                     <select id="globalThroughputPeriod" class="form-select rounded-md shadow-sm border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 text-sm max-w-32">
                                         <option value="daily">Daily (Last 30 Days)</option>
                                         <option value="weekly">Weekly (Last 12 Weeks)</option>
@@ -49,7 +50,7 @@
 
                             <!-- Average Processing Time by Dept Chart -->
                             <div class="bg-gray-50 dark:bg-gray-700/50 pt-3 px-5 pb-5 rounded-lg shadow">
-                                <h4 class="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Top 5 Fastest Depts. (Avg)</h4>
+                                <h4 class="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Average TAT by Department (hrs)</h4>
                                 <div class="relative h-56">
                                     <canvas id="avgStepTimeChart"></canvas>
                                 </div>
@@ -123,11 +124,25 @@
                             </div>
                         </div>
 
-                        <!-- Section: Processing Hotspots -->
+                        <!-- Section: Purpose & Origin Analysis -->
                         <div class="bg-gray-50 dark:bg-gray-700/50 pt-3 px-5 pb-5 rounded-lg shadow mt-6">
-                            <h4 class="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Processing Hotspots by Purpose</h4>
-                            <div class="relative h-96">
-                                <canvas id="processingHotspotsChart"></canvas>
+                            <h3 class="text-xl font-bold mb-4">Purpose & Origin Analysis</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <!-- Processing Hotspots Chart -->
+                                <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-inner">
+                                    <h4 class="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Processing Hotspots (Purpose Popularity)</h4>
+                                    <div class="relative h-96">
+                                        <canvas id="processingHotspotsChart"></canvas>
+                                    </div>
+                                </div>
+
+                                <!-- Submission Volume by District Chart -->
+                                <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-inner">
+                                    <h4 class="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Submission Volume by District</h4>
+                                    <div class="relative h-96">
+                                        <canvas id="submissionDistrictsChart"></canvas>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

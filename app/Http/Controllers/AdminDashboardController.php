@@ -102,11 +102,13 @@ class AdminDashboardController extends Controller
 
         // Subquery to get start times
         $startLogs = DocumentLog::where('action', 'Accepted and Document Routing finalized')
-            ->select('document_id', 'created_at as start_time');
+            ->select('document_id', DB::raw('MIN(created_at) as start_time'))
+            ->groupBy('document_id');
 
         // Subquery to get end times
         $endLogs = DocumentLog::where('action', 'Document Released')
-            ->select('document_id', 'created_at as end_time');
+            ->select('document_id', DB::raw('MAX(created_at) as end_time'))
+            ->groupBy('document_id');
         
         $query = Document::query()
             ->joinSub($startLogs, 'start_logs', 'documents.id', '=', 'start_logs.document_id')
@@ -322,47 +324,82 @@ class AdminDashboardController extends Controller
     }
 
     /**
-     * Get data for the 'Processing Hotspots' chart by document purpose.
+     * Get data for the 'Processing Hotspots' chart by document purpose (Popularity).
      *
      * @return \Illuminate\Http\JsonResponse
      */
     public function getProcessingHotspotsData()
     {
-        // Step 1: Find the top 10 most common document purposes
-        $topPurposes = Document::select('purpose_id', DB::raw('count(*) as purpose_count'))
-            ->groupBy('purpose_id')
-            ->orderBy('purpose_count', 'desc')
-            ->limit(10)
-            ->pluck('purpose_id');
-        // Step 2: Calculate average processing time for documents with these purposes
-        $startLogs = DocumentLog::where('action', 'Accepted and Document Routing finalized')->select('document_id', 'created_at as start_time');
-        $endLogs = DocumentLog::where('action', 'Document Released')->select('document_id', 'created_at as end_time');
-        $processingTimes = Document::joinSub($startLogs, 'start_logs', function ($join) {
-                $join->on('documents.id', '=', 'start_logs.document_id');
-            })
-            ->joinSub($endLogs, 'end_logs', function ($join) {
-                $join->on('documents.id', '=', 'end_logs.document_id');
-            })
+        // 1. Get volume and average processing time per Purpose
+        // We still calculate average time to show in the tooltip for context
+        $startLogs = DocumentLog::where('action', 'Accepted and Document Routing finalized')
+            ->select('document_id', DB::raw('MIN(created_at) as start_time'))
+            ->groupBy('document_id');
+        $endLogs = DocumentLog::where('action', 'Document Released')
+            ->select('document_id', DB::raw('MAX(created_at) as end_time'))
+            ->groupBy('document_id');
+
+        $purposeMetrics = Document::leftJoinSub($startLogs, 'start_logs', 'documents.id', '=', 'start_logs.document_id')
+            ->leftJoinSub($endLogs, 'end_logs', 'documents.id', '=', 'end_logs.document_id')
             ->join('purposes', 'documents.purpose_id', '=', 'purposes.id')
-            ->whereIn('documents.purpose_id', $topPurposes)
             ->select(
                 'purposes.name as purpose_name',
-                DB::raw('AVG(TIMESTAMPDIFF(SECOND, start_logs.start_time, end_logs.end_time)) as avg_duration_seconds')
+                DB::raw('COUNT(documents.id) as doc_count'),
+                DB::raw('AVG(TIMESTAMPDIFF(SECOND, start_logs.start_time, end_logs.end_time)) / 3600 as avg_duration_hours')
             )
             ->groupBy('purposes.name')
-            ->orderBy('avg_duration_seconds', 'desc')
+            ->orderBy('doc_count', 'desc')
+            ->limit(15) // Top 15 most popular purposes
             ->get();
+
+        $colors = [
+            'rgba(239, 68, 68, 0.6)', 'rgba(59, 130, 246, 0.6)', 'rgba(16, 185, 129, 0.6)',
+            'rgba(245, 158, 11, 0.6)', 'rgba(139, 92, 246, 0.6)', 'rgba(236, 72, 153, 0.6)',
+            'rgba(20, 184, 166, 0.6)', 'rgba(249, 115, 22, 0.6)', 'rgba(107, 114, 128, 0.6)',
+            'rgba(79, 70, 229, 0.6)', 'rgba(217, 70, 239, 0.6)', 'rgba(101, 163, 13, 0.6)',
+            'rgba(2, 132, 199, 0.6)', 'rgba(185, 28, 28, 0.6)', 'rgba(30, 58, 138, 0.6)'
+        ];
+
         return response()->json([
-            'labels' => $processingTimes->pluck('purpose_name'),
-            'datasets' => [  
+            'labels' => $purposeMetrics->pluck('purpose_name'),
+            'datasets' => [
                 [
-                    'label' => 'Average Processing Time (seconds)',
-                    'data' => $processingTimes->pluck('avg_duration_seconds'),
-                    'backgroundColor' => 'rgba(239, 68, 68, 0.5)', // Red
-                    'borderColor' => 'rgba(239, 68, 68, 1)',
+                    'label' => 'Document Volume',
+                    'data' => $purposeMetrics->pluck('doc_count'),
+                    'backgroundColor' => array_slice($colors, 0, $purposeMetrics->count()),
+                    'borderColor' => array_map(fn($c) => str_replace('0.6', '1', $c), array_slice($colors, 0, $purposeMetrics->count())),
                     'borderWidth' => 1,
-                ],
-            ],
+                    // Keep avg time for the tooltip
+                    'avgHours' => $purposeMetrics->pluck('avg_duration_hours')->map(fn($h) => $h ? round($h, 2) : 'N/A'),
+                ]
+            ]
+        ]);
+    }
+
+    /**
+     * Get data for the 'Submission Volume by District' chart.
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function getSubmissionDistrictsData()
+    {
+        $districtData = Document::select('district', DB::raw('COUNT(*) as count'))
+            ->whereNotNull('district')
+            ->groupBy('district')
+            ->orderBy('count', 'desc')
+            ->get();
+
+        return response()->json([
+            'labels' => $districtData->pluck('district'),
+            'datasets' => [
+                [
+                    'label' => 'Documents Submitted',
+                    'data' => $districtData->pluck('count'),
+                    'backgroundColor' => 'rgba(99, 102, 241, 0.5)', // Indigo
+                    'borderColor' => 'rgba(99, 102, 241, 1)',
+                    'borderWidth' => 1,
+                ]
+            ]
         ]);
     }
 

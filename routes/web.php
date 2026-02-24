@@ -93,6 +93,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/api/admin-dashboard/status-distribution', [AdminDashboardController::class, 'getDocumentStatusDistributionData'])->name('api.admin-dashboard.status-distribution');
     Route::get('/api/admin-dashboard/return-request-sources', [AdminDashboardController::class, 'getReturnRequestSourcesData'])->name('api.admin-dashboard.return-request-sources');
     Route::get('/api/admin-dashboard/processing-hotspots', [AdminDashboardController::class, 'getProcessingHotspotsData'])->name('api.admin-dashboard.processing-hotspots');
+    Route::get('/api/admin-dashboard/submission-districts', [AdminDashboardController::class, 'getSubmissionDistrictsData'])->name('api.admin-dashboard.submission-districts');
     Route::get('/api/admin-dashboard/avg-step-time', [AdminDashboardController::class, 'getAvgStepTimeByDepartmentData'])->name('api.admin-dashboard.avg-step-time');
     Route::get('/api/admin-dashboard/department-load-vs-time', [AdminDashboardController::class, 'getDepartmentalLoadVsTimeData'])->name('api.admin-dashboard.department-load-vs-time');
 
