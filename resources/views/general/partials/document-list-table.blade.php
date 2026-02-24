@@ -15,7 +15,7 @@
                 <tr>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                         <div>{{ $document->tracking_code }}</div>
-                        <a href="{{ route('documents.show', $document) }}" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 text-xs">View</a>
+                        <a href="{{ route('documents.show', ['document' => $document, 'back_to' => 'integrity-monitor']) }}" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 text-xs">View</a>
                     </td>
                     <td class="px-6 py-4 whitespace-normal text-sm text-gray-500 dark:text-gray-300 max-w-xs">{{ $document->title }}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{{ $document->guest_info['name'] ?? 'N/A' }}</td>
