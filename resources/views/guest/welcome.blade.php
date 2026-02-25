@@ -100,7 +100,7 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="guest_phone" class="form-label"><strong>Your Phone Number</strong></label>
-                            <input type="text" class="form-control" id="guest_phone" name="guest_phone">
+                            <input type="text" class="form-control" id="guest_phone" name="guest_phone" inputmode="numeric">
                             @error('guest_phone')
                                 <div class="text-danger mt-1">{{ $message }}</div>
                             @enderror
@@ -263,6 +263,14 @@
             if (purposeSelect) {
                 updatePurposeFields();
                 purposeSelect.addEventListener('change', updatePurposeFields);
+            }
+
+            // Numeric-only restriction for Phone Number
+            const phoneInput = document.getElementById('guest_phone');
+            if (phoneInput) {
+                phoneInput.addEventListener('input', function (e) {
+                    this.value = this.value.replace(/[^0-9]/g, '');
+                });
             }
 
             const trackForm = document.getElementById('track-document-form');
