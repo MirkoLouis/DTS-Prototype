@@ -25,13 +25,13 @@
                 </header>
             @endisset
 
-            <!-- Page Content -->
             <main>
                 <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 pt-4">
                     <x-flash-messages />
                 </div>
                 {{ $slot }}
             </main>
+            <x-security-key-modal />
         </div>
         @stack('scripts')
     </body>

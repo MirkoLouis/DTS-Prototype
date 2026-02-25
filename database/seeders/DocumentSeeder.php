@@ -123,9 +123,10 @@ class DocumentSeeder extends Seeder
 
             // 1. Submitted Log (by System/Guest)
             $action = 'Submitted';
-            $dataToHash = $document->id . ($document->user_id ?? '') . $action . $intakeTimestamp->toIso8601String() . $previousHash;
+            $stateHash = DocumentLog::calculateStateHash($document);
+            $dataToHash = $document->id . ($document->user_id ?? '') . $action . $intakeTimestamp->toIso8601String() . $previousHash . $stateHash;
             $newHash = hash('sha256', $dataToHash);
-            DocumentLog::create(['document_id' => $document->id, 'user_id' => null, 'action' => $action, 'remarks' => 'Document submitted by guest via the public portal.', 'previous_hash' => $previousHash, 'hash' => $newHash, 'created_at' => $intakeTimestamp, 'updated_at' => $intakeTimestamp]);
+            DocumentLog::create(['document_id' => $document->id, 'user_id' => null, 'action' => $action, 'remarks' => 'Document submitted by guest via the public portal.', 'previous_hash' => $previousHash, 'hash' => $newHash, 'document_state_hash' => $stateHash, 'signature' => 'signed_by_guest', 'created_at' => $intakeTimestamp, 'updated_at' => $intakeTimestamp]);
             $previousHash = $newHash;
             $generateMetrics($currentTimestamp);
             $currentTimestamp->addMinutes(rand(1, 5));
@@ -144,7 +145,8 @@ class DocumentSeeder extends Seeder
                 $currentTimestamp->addMinutes(rand(5, 30)); // Time for officer to review and decline
                 $action = 'Declined';
                 
-                $dataToHash = $document->id . $recordsOfficer->id . $action . $currentTimestamp->toIso8601String() . $previousHash;
+                $stateHash = DocumentLog::calculateStateHash($document);
+                $dataToHash = $document->id . $recordsOfficer->id . $action . $currentTimestamp->toIso8601String() . $previousHash . $stateHash;
                 $newHash = hash('sha256', $dataToHash);
                 DocumentLog::create([
                     'document_id' => $document->id, 
@@ -153,6 +155,8 @@ class DocumentSeeder extends Seeder
                     'remarks' => $reason, 
                     'previous_hash' => $previousHash, 
                     'hash' => $newHash, 
+                    'document_state_hash' => $stateHash,
+                    'signature' => 'signed_by_records',
                     'created_at' => $currentTimestamp, 
                     'updated_at' => $currentTimestamp
                 ]);
@@ -171,9 +175,10 @@ class DocumentSeeder extends Seeder
             // 2. Accepted Log (by Records Officer)
             $action = 'Accepted and Document Routing finalized';
             $remarks = 'Route finalized. In transit to ' . $routeNames[0] . '.';
-            $dataToHash = $document->id . $recordsOfficer->id . $action . $currentTimestamp->toIso8601String() . $previousHash;
+            $stateHash = DocumentLog::calculateStateHash($document);
+            $dataToHash = $document->id . $recordsOfficer->id . $action . $currentTimestamp->toIso8601String() . $previousHash . $stateHash;
             $newHash = hash('sha256', $dataToHash);
-            DocumentLog::create(['document_id' => $document->id, 'user_id' => $recordsOfficer->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
+            DocumentLog::create(['document_id' => $document->id, 'user_id' => $recordsOfficer->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'document_state_hash' => $stateHash, 'signature' => 'signed_by_records', 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
             $previousHash = $newHash;
             $generateMetrics($currentTimestamp);
 
@@ -189,9 +194,10 @@ class DocumentSeeder extends Seeder
                 $currentTimestamp->addMinutes(rand(5, $maxStepDays * 60)); // Time for transit and receiving
                 $action = 'Received';
                 $remarks = 'Document received by ' . $stepDepartment->name . '.';
-                $dataToHash = $document->id . $stepUser->id . $action . $currentTimestamp->toIso8601String() . $previousHash;
+                $stateHash = DocumentLog::calculateStateHash($document);
+                $dataToHash = $document->id . $stepUser->id . $action . $currentTimestamp->toIso8601String() . $previousHash . $stateHash;
                 $newHash = hash('sha256', $dataToHash);
-                DocumentLog::create(['document_id' => $document->id, 'user_id' => $stepUser->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
+                DocumentLog::create(['document_id' => $document->id, 'user_id' => $stepUser->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'document_state_hash' => $stateHash, 'signature' => 'signed_by_department', 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
                 $previousHash = $newHash;
                 $generateMetrics($currentTimestamp);
 
@@ -202,9 +208,10 @@ class DocumentSeeder extends Seeder
                 $remarks = $isFinalStep 
                     ? 'Final step processed by ' . $stepDepartment->name . '. In transit to Records Unit for releasing.'
                     : 'Step processed by ' . $stepDepartment->name . '. In transit to ' . ($routeNames[$i+1] ?? 'Records Unit') . '.';
-                $dataToHash = $document->id . $stepUser->id . $action . $currentTimestamp->toIso8601String() . $previousHash;
+                $stateHash = DocumentLog::calculateStateHash($document);
+                $dataToHash = $document->id . $stepUser->id . $action . $currentTimestamp->toIso8601String() . $previousHash . $stateHash;
                 $newHash = hash('sha256', $dataToHash);
-                DocumentLog::create(['document_id' => $document->id, 'user_id' => $stepUser->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
+                DocumentLog::create(['document_id' => $document->id, 'user_id' => $stepUser->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'document_state_hash' => $stateHash, 'signature' => 'signed_by_department', 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
                 $previousHash = $newHash;
                 $generateMetrics($currentTimestamp);
 
@@ -217,9 +224,10 @@ class DocumentSeeder extends Seeder
                     $currentTimestamp->addMinutes(rand(10, 60)); // Add some delay for the request
                     $action = 'Return Requested';
                     $remarks = 'Staff member requested document be returned for corrections.';
-                    $dataToHash = $document->id . $requestingUser->id . $action . $currentTimestamp->toIso8601String() . $previousHash;
+                    $stateHash = DocumentLog::calculateStateHash($document);
+                    $dataToHash = $document->id . $requestingUser->id . $action . $currentTimestamp->toIso8601String() . $previousHash . $stateHash;
                     $newHash = hash('sha256', $dataToHash);
-                    DocumentLog::create(['document_id' => $document->id, 'user_id' => $requestingUser->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
+                    DocumentLog::create(['document_id' => $document->id, 'user_id' => $requestingUser->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'document_state_hash' => $stateHash, 'signature' => 'signed_by_department', 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
                     $previousHash = $newHash;
                     $generateMetrics($currentTimestamp, true); // Spike for return request
                     
@@ -227,9 +235,10 @@ class DocumentSeeder extends Seeder
                     $currentTimestamp->addMinutes(rand(10, 120)); // Add delay for approval
                     $action = 'Return Approved & Rerouted';
                     $remarks = 'Return request approved by Records Unit. Document rerouted back to ' . $requestingDepartment->name . '.';
-                    $dataToHash = $document->id . $recordsOfficer->id . $action . $currentTimestamp->toIso8601String() . $previousHash;
+                    $stateHash = DocumentLog::calculateStateHash($document);
+                    $dataToHash = $document->id . $recordsOfficer->id . $action . $currentTimestamp->toIso8601String() . $previousHash . $stateHash;
                     $newHash = hash('sha256', $dataToHash);
-                    DocumentLog::create(['document_id' => $document->id, 'user_id' => $recordsOfficer->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
+                    DocumentLog::create(['document_id' => $document->id, 'user_id' => $recordsOfficer->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'document_state_hash' => $stateHash, 'signature' => 'signed_by_records', 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
                     $previousHash = $newHash;
                     $generateMetrics($currentTimestamp, true); // Spike for return approval
 
@@ -263,9 +272,10 @@ class DocumentSeeder extends Seeder
                 // a. Ready for Releasing Log
                 $action = 'Ready for Releasing';
                 $remarks = 'All processing steps completed. Document received by Records Unit for final releasing.';
-                $dataToHash = $document->id . $recordsOfficer->id . $action . $currentTimestamp->toIso8601String() . $previousHash;
+                $stateHash = DocumentLog::calculateStateHash($document);
+                $dataToHash = $document->id . $recordsOfficer->id . $action . $currentTimestamp->toIso8601String() . $previousHash . $stateHash;
                 $newHash = hash('sha256', $dataToHash);
-                DocumentLog::create(['document_id' => $document->id, 'user_id' => $recordsOfficer->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
+                DocumentLog::create(['document_id' => $document->id, 'user_id' => $recordsOfficer->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'document_state_hash' => $stateHash, 'signature' => 'signed_by_records', 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
                 $previousHash = $newHash;
                 $document->status = 'ready_for_release';
                 $generateMetrics($currentTimestamp);
@@ -276,9 +286,10 @@ class DocumentSeeder extends Seeder
                     // b. Document Released Log
                     $action = 'Document Released';
                     $remarks = 'The document has been released to the client.';
-                    $dataToHash = $document->id . $recordsOfficer->id . $action . $currentTimestamp->toIso8601String() . $previousHash;
+                    $stateHash = DocumentLog::calculateStateHash($document);
+                    $dataToHash = $document->id . $recordsOfficer->id . $action . $currentTimestamp->toIso8601String() . $previousHash . $stateHash;
                     $newHash = hash('sha256', $dataToHash);
-                    DocumentLog::create(['document_id' => $document->id, 'user_id' => $recordsOfficer->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
+                    DocumentLog::create(['document_id' => $document->id, 'user_id' => $recordsOfficer->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'document_state_hash' => $stateHash, 'signature' => 'signed_by_records', 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
                     $document->status = 'completed';
                     $generateMetrics($currentTimestamp);
                 }

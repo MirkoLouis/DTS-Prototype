@@ -23,7 +23,34 @@ class DocumentLog extends Model
         'remarks',
         'previous_hash',
         'hash',
+        'signature',
+        'document_state_hash',
     ];
+
+    /**
+     * Calculate a hash representing the current state of a document.
+     * This protects against tampering with document details (title, submitter, etc.).
+     *
+     * @param  \App\Models\Document  $document
+     * @return string
+     */
+    public static function calculateStateHash(Document $document)
+    {
+        $stateData = [
+            $document->tracking_code,
+            $document->title,
+            $document->submitter_name,
+            $document->submitter_email,
+            $document->submitter_contact,
+            $document->district,
+            $document->department,
+            $document->purpose_id,
+            // finalized_route is also critical to protect
+            is_array($document->finalized_route) ? json_encode($document->finalized_route) : $document->finalized_route,
+        ];
+
+        return hash('sha256', implode('|', $stateData));
+    }
 
     /**
      * The "booted" method of the model.
@@ -50,6 +77,12 @@ class DocumentLog extends Model
             $previousHash = $lastLog ? $lastLog->hash : 'genesis_hash';
             $documentLog->previous_hash = $previousHash;
 
+            // Protect the document's state at this point in time
+            $document = $documentLog->document;
+            if ($document) {
+                $documentLog->document_state_hash = self::calculateStateHash($document);
+            }
+
             // Ensure created_at is a Carbon instance if it's not already
             $createdAt = $documentLog->created_at ? Carbon::parse($documentLog->created_at) : Carbon::now();
 
@@ -57,7 +90,13 @@ class DocumentLog extends Model
             // ISO-8601 with microseconds provides the necessary precision.
             $timestampForHashing = $createdAt->toIso8601String();
             
-            $dataToHash = $documentLog->document_id . $documentLog->user_id . $documentLog->action . $timestampForHashing . $previousHash;
+            // We now include document_state_hash in the chain hash
+            $dataToHash = $documentLog->document_id . 
+                         $documentLog->user_id . 
+                         $documentLog->action . 
+                         $timestampForHashing . 
+                         $previousHash . 
+                         $documentLog->document_state_hash;
 
             // Use a simple SHA256 hash, not bcrypt, to ensure it can be re-calculated for verification.
             $documentLog->hash = hash('sha256', $dataToHash);
