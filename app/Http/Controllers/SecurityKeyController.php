@@ -13,7 +13,7 @@ class SecurityKeyController extends Controller
     public function store(Request $request)
     {
         $request->validate([
-            'public_key' => 'required|string|min:32',
+            'public_key' => 'required|string|min:3',
         ]);
 
         $user = Auth::user();
