@@ -4,7 +4,7 @@ This document provides a detailed overview of the DepEd Iligan Document Tracking
 
 ## 1. Project Goal
 
-The primary goal of this project is to create a modern, efficient, and secure web application to replace manual processes for tracking official documents. It is built using the Laravel framework, leveraging its powerful features like the Eloquent ORM, Blade templating engine, and robust security practices.
+The primary goal of this project is to create a modern, efficient, and secure web application to replace manual processes for tracking official documents. It is built using the latest Laravel 12 framework, leveraging its powerful features like the Eloquent ORM, Blade templating engine, and robust security practices.
 
 ## 2. System Architecture & Workflow
 
