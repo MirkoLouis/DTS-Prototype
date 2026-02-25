@@ -135,6 +135,9 @@ Route::middleware('auth')->group(function() {
 
     // Route for handling QR code scans
     Route::post('/scan', [DocumentController::class, 'scan'])->name('documents.scan');
+
+    // Security Key Initialization
+    Route::post('/security/key', [\App\Http\Controllers\SecurityKeyController::class, 'store'])->name('security.key.store');
 });
 
 

@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-02-25 (Wednesday, 9:30 PM)
+
+### ADDED
+- **Document State Hashing:** Enhanced the security chain by including a `document_state_hash` in every `DocumentLog`. This SHA-256 hash protects document metadata (title, submitter, etc.), ensuring any "silent" modifications to the document itself are detected.
+- **Digital Signatures (Non-Repudiation):** Each department now initializes a unique security key upon their first login. Every document movement is cryptographically "signed," providing non-repudiation and proof of authorization.
+- **Security Key Initialization Modal:** Created a new `x-security-key-modal` component that automatically guides department staff through the security key setup process on their first official login.
+
+### CHANGED
+- **Enhanced Security Verification:** Updated the `dts:verify-integrity` Artisan command to include the new `document_state_hash` in its chain verification logic.
+- **Seeder Security Upgrade:** Refactored `DocumentSeeder` to generate cryptographically valid chains that include the new state hashes and dummy signatures, ensuring seeded data is 100% integral.
+
 ## 2026-02-23 (Monday, 6:45 PM)
 
 ### ADDED

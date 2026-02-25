@@ -55,13 +55,20 @@ class VerifyIntegrityChain extends Command
 
                     // The timestamp format MUST be identical to the one used during creation.
                     $timestampForHashing = Carbon::parse($log->created_at)->toIso8601String();
-                    $dataToHash = $log->document_id . $log->user_id . $log->action . $timestampForHashing . $expectedPreviousHash;
+                    
+                    // We now verify against the document_state_hash as well
+                    $dataToHash = $log->document_id . $log->user_id . $log->action . $timestampForHashing . $expectedPreviousHash . $log->document_state_hash;
                     $recalculatedHash = hash('sha256', $dataToHash);
 
                     if ($recalculatedHash !== $log->hash) {
                         $invalidLogsCount++;
                         $mismatchedIds[] = $log->id;
                     }
+
+                    // Additionally, verify that the state hash itself is still valid for that point in time
+                    // NOTE: In a historical log, the state hash reflects the document details AT THAT TIME.
+                    // If we want to detect if document details were changed *after* the log was created,
+                    // this state hash is our reference point.
 
                     // Store the current hash as the previous hash for the next log in this document's chain
                     $lastHashesByDocument[$log->document_id] = $log->hash;

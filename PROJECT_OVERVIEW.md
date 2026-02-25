@@ -26,26 +26,28 @@ The application is built on a robust Role-Based Access Control (RBAC) system, en
 ### 2.3. The Records Officer Journey (`officer` role)
 
 1.  **Login & Redirection:** Upon login, the `RoleMiddleware` redirects the officer to their primary dashboard at `/intake`.
-2.  **Permissions:** Officers have access to all routes within the `role:officer` and `role:officer,staff` groups. This includes intake, releasing, return requests, and task management.
-3.  **Intake (`/intake`):** The officer finds pending documents by tracking code, using search/filter tools or the integrated QR scanner.
-4.  **Route Management:** On the "Manage Route" page, the officer can edit the document's route (using a drag-and-drop interface), decline the submission, or finalize the route.
-5.  **Finalization:** Clicking "Accept & Finalize Route" changes the document status to `in_transit`, saves the route, and creates the first secure entry in the document's hash-chain log. The system also "learns" from any manual route corrections to improve future AI predictions.
-6.  **Task Management (`/tasks`):** Officers can also view and process document tasks assigned to their own department (the Records Unit).
-7.  **Releasing (`/releasing`):** When a document has completed its journey, it returns to the Records Officer, who scans it to mark it `ready_for_release` and then `completed` upon handoff to the client.
+2.  **Security Initialization:** On first login, the officer must initialize their department's **Security Key**. This key is used to "sign" their actions, providing cryptographic proof of authorization (Non-Repudiation).
+3.  **Permissions:** Officers have access to all routes within the `role:officer` and `role:officer,staff` groups. This includes intake, releasing, return requests, and task management.
+4.  **Intake (`/intake`):** The officer finds pending documents by tracking code, using search/filter tools or the integrated QR scanner.
+5.  **Route Management:** On the "Manage Route" page, the officer can edit the document's route (using a drag-and-drop interface), decline the submission, or finalize the route.
+6.  **Finalization:** Clicking "Accept & Finalize Route" changes the document status to `in_transit`, saves the route, and creates the first secure entry in the document's hash-chain log. This entry includes a **State Hash** of the document metadata to protect against tampering. The system also "learns" from any manual route corrections to improve future AI predictions.
+7.  **Task Management (`/tasks`):** Officers can also view and process document tasks assigned to their own department (the Records Unit).
+8.  **Releasing (`/releasing`):** When a document has completed its journey, it returns to the Records Officer, who scans it to mark it `ready_for_release` and then `completed` upon handoff to the client.
 
 ### 2.4. The Staff Journey (`staff` role)
 
 1.  **Login & Redirection:** Upon login, the `RoleMiddleware` redirects the staff member to their dashboard at `/tasks`.
-2.  **Permissions:** Staff members have access to routes within the `role:staff` and `role:officer,staff` groups.
-3.  **Receive Document:** When a physical document arrives, the staff member scans its QR code to change its status from `in_transit` to `processing`, which adds it to their department's queue.
-4.  **View Queue (`/tasks`):** The dashboard shows a list of documents currently assigned to the staff member's department.
-5.  **Task Completion:** After finishing their work, the staff member clicks "Complete Step." This advances the document's `current_step`, sets its status back to `in_transit` for transfer, and creates a new, secure log in the hash chain.
+2.  **Security Initialization:** Like officers, staff members must initialize a unique department security key upon their first login to enable cryptographic signing of actions.
+3.  **Permissions:** Staff members have access to routes within the `role:staff` and `role:officer,staff` groups.
+4.  **Receive Document:** When a physical document arrives, the staff member scans its QR code to change its status from `in_transit` to `processing`, which adds it to their department's queue. This action is cryptographically signed by the department.
+5.  **View Queue (`/tasks`):** The dashboard shows a list of documents currently assigned to the staff member's department.
+6.  **Task Completion:** After finishing their work, the staff member clicks "Complete Step." This advances the document's `current_step`, sets its status back to `in_transit` for transfer, and creates a new, secure log in the hash chain.
 
 ### 2.5. The Admin Journey (`admin` role)
 
 1.  **Login & Redirection:** Upon login, the `RoleMiddleware` redirects the administrator to the main analytics dashboard at `/admin-dashboard`.
 2.  **Permissions:** Administrators have access to all routes within the `role:admin` group, including user management and all system utilities.
-3.  **Process Analytics (`/admin-dashboard`):** The dashboard is a comprehensive, multi-section interface providing a deep-dive into system performance and potential bottlenecks.
+3.  **Process Analytics (`/admin-dashboard`):** The dashboard is a comprehensive, multi-section interface providing a deep-dive into system performance and potential bottlenecks. 
     *   **Main Overview:** A top-level, three-column view showing the most critical at-a-glance metrics: the current **Document Status Distribution** across the entire system, the **Global Average Processing Time (hrs)** for all documents, and a "Top 5 Fastest Depts. (Avg)" chart to immediately highlight efficient departments.
     *   **Returns & Declines Analysis:** A dedicated section that groups together charts for **Return & Decline Rate Trends** and **Return Request Sources**, allowing for focused analysis on why documents are being rejected or sent back.
     *   **Department Drill-Down:** An interactive section containing a powerful **Load vs. Processing Time** combination chart. This dual-axis chart allows admins to select a specific department and time period to visually correlate the number of documents received (load) with that department's average internal processing time, making it easy to see how workload impacts efficiency. The chart's title updates dynamically to reflect the selected department.
@@ -74,14 +76,15 @@ The application is built on a robust Role-Based Access Control (RBAC) system, en
 
 ## 3. Core Innovations in Detail
 
-### 3.1. Security: Hash-Chaining
+### 3.1. Security: Enhanced Hash-Chaining & Non-Repudiation
 
 - **Implementation:** Handled robustly by the `DocumentLog` model's `boot()` method using a `sha256` algorithm and a standardized `ISO-8601` timestamp format.
-- **Mechanism:** Before a new `DocumentLog` is saved, the `boot()` method:
-    1.  Finds the most recent log for the same document to retrieve its hash, which becomes the `previous_hash` for the new log. ("genesis_hash" is used for the first entry).
-    2.  Creates a unique data string by combining the new log's data (document ID, user ID, action, timestamp) with the `previous_hash`.
-    3.  Hashes this unique string to create the new log's `hash`.
-- **Benefit:** This creates an unbreakable and verifiable chain. Any alteration to a log entry would break the chain, immediately revealing tampering. The integrity of this chain can be verified at any time using the System Health Monitor tool.
+- **Enhanced Mechanism:** The system protects not just the log history, but the document metadata and the identity of the actor:
+    1.  **Chaining:** Finds the most recent log's hash to use as the `previous_hash`.
+    2.  **State Protection:** Calculates a **Document State Hash** — a SHA-256 hash of the document's current metadata (title, submitter, etc.). This is included in the log entry.
+    3.  **Identity Verification:** Each action is associated with a **Digital Signature** based on the department's initialized security key.
+    4.  **Final Hash:** Creates a unique data string combining the log data, `previous_hash`, and the `document_state_hash`, then hashes it to create the new log's `hash`.
+- **Benefit:** This creates an unbreakable and verifiable chain. Any alteration to a log entry *or* a silent modification of the document's title/submitter details will break the chain, immediately revealing tampering. The use of digital signatures ensures non-repudiation, providing cryptographic proof of who authorized each movement. The integrity of this chain can be verified at any time using the System Health Monitor tool.
 
 ### 3.1.1. On-Demand Integrity Verification (The "Trust Builder")
 

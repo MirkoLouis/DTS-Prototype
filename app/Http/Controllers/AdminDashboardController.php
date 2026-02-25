@@ -84,11 +84,9 @@ class AdminDashboardController extends Controller
      */
     public function clearCache()
     {
-        // This is a bit broad, but ensures all combinations of period/dept are cleared.
-        // In a production app, we'd use cache tags, but for this prototype, 
-        // flushing or specific key management is fine.
+        // Database driver doesn't support tags, so we'll use a broader flush for now.
         Cache::flush(); 
-        return back()->with('success', 'Dashboard cache cleared successfully. All charts will now fetch fresh data.');
+        return back()->with('success', 'Dashboard cache cleared successfully. All cached charts will now fetch fresh data.');
     }
 
     /**

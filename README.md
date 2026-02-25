@@ -26,11 +26,15 @@ This project is a functional prototype for a modern, web-based Document Tracking
 
 ### Thesis Innovations Implemented
 
-1.  **Security (Hash-Chaining & The "Trust Builder"):** An immutable, `sha256`-based chained log of all actions performed on a document is automatically created. Each log entry's hash is dependent on the previous entry's hash, ensuring the integrity of the document's history. This is complemented by the **System Health Monitor**, an on-demand tool that allows an administrator to verify the integrity of the entire database hash-chain at any time.
+1.  **Security (Enhanced Hash-Chaining & Non-Repudiation):** An immutable, `sha256`-based chained log of all actions. This "Trust Builder" system has been upgraded to include:
+    *   **Document State Hashing:** Protects document metadata (title, submitter, etc.) by including its hash in the ledger, detecting "silent" edits.
+    *   **Digital Signatures:** Cryptographic proof of authorization for every movement, ensuring non-repudiation.
+    *   **On-Demand Verification:** An administrator tool that recalculates the entire chain to prove 100% data integrity.
+
 2.  **AI (Database-Driven Route Prediction & Learning):** The `RoutePredictionService` has been upgraded from hardcoded logic to a dynamic, database-driven system. It now tokenizes purpose text and queries a `prediction_keywords` table, using weighted scores to suggest routes. The system "learns" from Records Officers' modifications; a background job (`UpdateKeywordWeights`) increases the weight of keywords for chosen departments, making future predictions more accurate.
 
 3.  **HCI (Interactive UI & Feedback Loop):** The system prioritizes user experience with features like the dynamic requirements list, the drag-and-drop route editor, enhanced QR code integration via dedicated "Receive Document" sections on dashboards, the `x-tracker-subway-map` Blade component for visual tracking, a modular, AJAX-driven multi-document tracking portal, and consistent, auto-hiding user feedback messages. It closes the feedback loop by allowing clients to provide a star rating after their document is completed, giving administrators direct insight into service quality.
-4.  **Performance (Enterprise-Scale Exporting):** To demonstrate engineering for scale, the system implements a "chunk-and-merge" strategy for PDF generation. This allows the application to generate reports for 10,000+ documents on standard hardware by intelligently managing PHP's memory lifecycle and offloading heavy tasks to asynchronous background workers.
+4.  **Performance (Enterprise-Scale Exporting):** To demonstrate engineering for scale, the system implements a "chunk-and-merge" strategy for PDF generation. This allows the application to generate reports for 10,000+ documents on standard hardware by intelligently managing PHP's memory lifecycle and offloading heavy tasks to asynchronous background workers. Through database chunking, the system maintains a constant RAM footprint regardless of database size.
 
 ## Tech Stack
 
