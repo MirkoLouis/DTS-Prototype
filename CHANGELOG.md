@@ -13,6 +13,11 @@ All notable changes to this project will be documented in this file.
 - **Enhanced Security Verification:** Updated the `dts:verify-integrity` Artisan command to include the new `document_state_hash` in its chain verification logic.
 - **Seeder Security Upgrade:** Refactored `DocumentSeeder` to generate cryptographically valid chains that include the new state hashes and dummy signatures, ensuring seeded data is 100% integral.
 
+### FIXED
+- **Security Key Initialization:** Resolved a `JSON.parse` error by adding the `Accept: application/json` header to the initialization request.
+- **Key Validation:** Adjusted the minimum public key length in `SecurityKeyController` to 30 characters to match the system's generated key format.
+- **Modal Interactivity:** Removed the `readonly` restriction on the security key field and added a "Regenerate" button, allowing departments to more actively "decide" their cryptographic identity or provide their own.
+
 ## 2026-02-23 (Monday, 6:45 PM)
 
 ### ADDED
