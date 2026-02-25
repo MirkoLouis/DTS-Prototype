@@ -75,7 +75,7 @@ For the best experience and system stability (especially when generating large r
 
 1.  **Terminal 1: The PHP Web Server:**
     ```bash
-    php artisan serve --host=0.0.0.0 --port=3001
+    php artisan serve --host=0.0.0.0 --port=3000
     ```
 2.  **Terminal 2: The Vite Frontend Compiler:**
     ```bash
@@ -90,17 +90,15 @@ For the best experience and system stability (especially when generating large r
     php artisan queue:work; read
     ```
 
-### 3. Production Deployment Considerations
+### 3. Accessing the Application
 
-When deploying this application to a live server:
-- **Queue Driver:** Ensure `QUEUE_CONNECTION` in `.env` is set to `database` or `redis` (not `sync`).
-- **Process Monitoring:** Use a tool like **Supervisor** to keep the `php artisan queue:work` process running continuously.
-- **Storage Link:** Run `php artisan storage:link` to ensure generated reports are accessible for download.
+1.  **Accept SSL Certificate (Crucial):** For the QR scanner and other secure features to work, you **must** first visit the Vite development URL in your browser:
+    *   `https://localhost:5173/` (or the address shown in your Vite terminal).
+    *   Accept any security warnings. This "primes" the browser to accept the secure assets used by the main application.
+2.  **Open the Application:** Once the Vite certificate is accepted, access the main application at:
+    *   `http://localhost:3000`
 
-### 4. Accessing the Application
-
-- **On your laptop:** Open your browser and navigate to **`http://localhost:3001`**. The UI should be fully functional.
-- **Note on Camera Access and LAN Access:** Features that require a secure context, like the QR code scanner, will not work when accessing via `http://` but everything except that will work just fine, localhost is an exception to this and will always work. This is a browser security feature.
+> **Note on Camera Access:** Features that require a secure context, like the QR code scanner, require the certificate step above to function correctly even on `localhost`.
 
 ## Default Login Accounts
 
