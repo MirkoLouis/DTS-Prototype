@@ -30,8 +30,8 @@ These shortcuts are defined in `composer.json` to streamline complex operations.
 
 ### `composer queue:work-prod`
 **Command:** `composer queue:work-prod`
-**Internal:** `php artisan queue:work --timeout=1200; read`
-**Description:** Starts a high-performance, long-lived queue worker with an extended 20-minute timeout specifically optimized for large report generation (10,000+ documents). The `read` suffix ensures the terminal stays open to show completion or errors.
+**Internal:** `while true; do php artisan queue:work --timeout=1200; echo 'Queue worker stopped. Restarting in 10s...'; sleep 10; done`
+**Description:** Starts a high-performance, long-lived queue worker with an extended 20-minute timeout specifically optimized for large report generation (10,000+ documents). The loop ensures the worker automatically restarts after 10 seconds if it crashes or completes.
 **When to use:** Processing large reports or performing intensive background tasks.
 
 ### `composer test`
