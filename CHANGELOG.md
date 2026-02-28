@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.1-Alpha+202602281645] - 2026-02-28
+
+### FIXED
+- **PDF Tracking Form Template:** Corrected a `ParseError` (syntax error, unexpected identifier "images") in `resources/views/general/tracking-form-pdf.blade.php`. Resolved by replacing Blade `{{ }}` syntax with proper PHP string concatenation within the `@php` block.
+
+### ADDED
+- **Comprehensive Visual Documentation:** Updated `README.md` with 10+ new high-resolution screenshots in a categorized, multi-column layout, showcasing the Administrative Suite, Records Officer operations, and Staff dashboards.
+- **Sample Output Documentation:** Added direct links in the `README.md` to generated sample PDF outputs (`Tracking Form` and `Historical Report`) to demonstrate the system's document generation capabilities.
+- **Expanded Default Accounts:** Updated the "Default Accounts" section of the `README.md` to include the complete list of 15+ predefined accounts for all department units (Cash, Budget, Accounting, etc.) to assist in system testing and evaluation.
+
 ## [1.5.0-Alpha+202602281530] - 2026-02-28
 
 ### ADDED
