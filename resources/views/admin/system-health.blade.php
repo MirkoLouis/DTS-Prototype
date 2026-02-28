@@ -112,6 +112,7 @@
                                 <h3 class="text-xl font-bold">Database Performance</h3>
                                 <div class="flex items-center space-x-2">
                                     <select id="db-performance-period" class="form-select rounded-md shadow-sm border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 text-sm max-w-40">
+                                        <option value="hourly">Hourly (Last 24 Hours)</option>
                                         <option value="daily">Daily (Last 30 Days)</option>
                                         <option value="weekly">Weekly (Last 12 Weeks)</option>
                                         <option value="monthly">Monthly (Last 12 Months)</option>

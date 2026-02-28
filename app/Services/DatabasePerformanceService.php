@@ -80,6 +80,9 @@ class DatabasePerformanceService
         $query = DB::table('database_metrics');
 
         switch ($period) {
+            case 'hourly':
+                $query->where('created_at', '>=', now()->subHours(24));
+                break;
             case 'weekly':
                 $query->where('created_at', '>=', now()->subWeeks(12));
                 break;
@@ -93,6 +96,7 @@ class DatabasePerformanceService
 
         // To avoid having too many data points on the chart, you can group the data
         $results = $query->orderBy('created_at')->get()->groupBy(function($date) use ($period) {
+            if ($period === 'hourly') return \Carbon\Carbon::parse($date->created_at)->format('H:00');
             if ($period === 'daily') return \Carbon\Carbon::parse($date->created_at)->format('M d');
             if ($period === 'weekly') return \Carbon\Carbon::parse($date->created_at)->startOfWeek()->format('M d');
             if ($period === 'monthly') return \Carbon\Carbon::parse($date->created_at)->format('M Y');

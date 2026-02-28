@@ -67,7 +67,6 @@ package-lock.json
 /database/database.sqlite-journal
 /sources/
 /old/
-/documentation/
 
 Homestead.yaml
 Homestead.json
