@@ -19,6 +19,13 @@ class GenerateReportJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
+    /**
+     * The number of seconds the job can run before timing out.
+     *
+     * @var int
+     */
+    public $timeout = 1200;
+
     public $reportJob;
     public $user;
     public $filters;
@@ -73,7 +80,7 @@ class GenerateReportJob implements ShouldQueue
     private function generateMergedPdf($query, $filename, $totalCount)
     {
         $merger = new Merger();
-        $chunkSize = 500; // Smaller batches are safer
+        $chunkSize = 250; // Balanced batch size for performance and stability
         $processed = 0;
         $chunkIndex = 0;
         $tempFiles = [];
