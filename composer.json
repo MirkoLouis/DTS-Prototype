@@ -47,9 +47,10 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74,#818cf8\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"php artisan pail --timeout=0\" \"npm run dev\" \"php artisan schedule:work\" --names=server,queue,logs,vite,schedule --kill-others"
+            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74,#818cf8\" \"php artisan serve --host 0.0.0.0 --port 3000\" \"php artisan queue:listen --tries=1\" \"php artisan pail --timeout=0\" \"npm run dev\" \"php artisan schedule:work\" --names=server,queue,logs,vite,schedule --kill-others"
         ],
         "queue:work-prod": "while true; do php artisan queue:work --timeout=1200; echo 'Queue worker stopped. Restarting in 10s...'; sleep 10; done",
+        "schedule:work-prod": "while true; do php artisan schedule:work; echo 'Scheduler stopped. Restarting in 10s...'; sleep 10; done",
         "db:dev": [
             "Composer\\Config::disableProcessTimeout",
             "php artisan dts:migrate --devseed"
