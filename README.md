@@ -6,13 +6,29 @@ This project is a comprehensive, production-ready prototype for a modern, web-ba
 
 ## 📸 Screenshots
 
-| Public Submission Portal | Multi-Document Tracking |
+| Public Submission Portal | Tracking Dashboard |
 |:---:|:---:|
-| ![Submission](screenshots/submission.png) | ![Tracking](screenshots/tracking.png) |
+| ![Submission](documentation/screenshots/Guest%20Welcome%20Page.png) | ![Tracking Dashboard](documentation/screenshots/Guest%20Track%20Page.png) |
 
 | Admin Analytics Dashboard | System Health & Integrity |
 |:---:|:---:|
-| ![Analytics](screenshots/analytics.png) | ![Integrity](screenshots/integrity.png) |
+| ![Analytics](documentation/screenshots/Admin%20Dashboard%20Page.png) | ![Integrity Monitor](documentation/screenshots/Admin%20Document%20Integrity%20Page.png) |
+
+| Records Officer Intake | Records Officer Statistics |
+|:---:|:---:|
+| ![Intake Page](documentation/screenshots/Records%20Officer%20Intake%20Page.png) | ![RO Stats](documentation/screenshots/Records%20Officer%20Statistics%20Page.png) |
+
+| Staff Tasks Dashboard | Cryptographic Audit Trail |
+|:---:|:---:|
+| ![Staff Tasks](documentation/screenshots/Staff%20Tasks%20Page.png) | ![Hash Chain Audit](documentation/screenshots/View%20Hash%20Chain%20Page.png) |
+
+---
+
+## 📄 Example Output
+
+Explore generated document tracking forms and administrative reports:
+-   **[Sample Tracking Form (PDF)](documentation/examples/document-tracking-form-DEPED-A84BC8C861.pdf):** A printable form given to guests with a unique tracking code and QR code.
+-   **[Sample Historical Report (PDF)](documentation/examples/released-documents-24a8d2af-8610-4db2-b38b-938249269b3e.pdf):** A comprehensive summary of documents processed over a specific period.
 
 ---
 
