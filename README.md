@@ -6,21 +6,24 @@ This project is a comprehensive, production-ready prototype for a modern, web-ba
 
 ## 📸 Screenshots
 
+### 🌐 Public & Guest Portal
 | Public Submission Portal | Tracking Dashboard |
 |:---:|:---:|
 | ![Submission](documentation/screenshots/Guest%20Welcome%20Page.png) | ![Tracking Dashboard](documentation/screenshots/Guest%20Track%20Page.png) |
 
-| Admin Analytics Dashboard | System Health & Integrity |
-|:---:|:---:|
-| ![Analytics](documentation/screenshots/Admin%20Dashboard%20Page.png) | ![Integrity Monitor](documentation/screenshots/Admin%20Document%20Integrity%20Page.png) |
+### 🛠 Administrative Suite
+| Admin Dashboard | Integrity Monitor | System Health |
+|:---:|:---:|:---:|
+| ![Analytics](documentation/screenshots/Admin%20Dashboard%20Page.png) | ![Integrity Monitor](documentation/screenshots/Admin%20Document%20Integrity%20Page.png) | ![System Health](documentation/screenshots/Admin%20System%20Page.png) |
 
-| Records Officer Intake | Records Officer Statistics |
-|:---:|:---:|
-| ![Intake Page](documentation/screenshots/Records%20Officer%20Intake%20Page.png) | ![RO Stats](documentation/screenshots/Records%20Officer%20Statistics%20Page.png) |
+### 📋 Operations & Staff Dashboards
+| Records Officer Intake | Records Officer Statistics | Cryptographic Audit Trail |
+|:---:|:---:|:---:|
+| ![Intake Page](documentation/screenshots/Records%20Officer%20Intake%20Page.png) | ![RO Stats](documentation/screenshots/Records%20Officer%20Statistics%20Page.png) | ![Hash Chain Audit](documentation/screenshots/View%20Hash%20Chain%20Page.png) |
 
-| Staff Tasks Dashboard | Cryptographic Audit Trail |
+| Staff Tasks Dashboard | Staff Statistics |
 |:---:|:---:|
-| ![Staff Tasks](documentation/screenshots/Staff%20Tasks%20Page.png) | ![Hash Chain Audit](documentation/screenshots/View%20Hash%20Chain%20Page.png) |
+| ![Staff Tasks](documentation/screenshots/Staff%20Tasks%20Page.png) | ![Staff Stats](documentation/screenshots/Staff%20Statistics%20Page.png) |
 
 ---
 
