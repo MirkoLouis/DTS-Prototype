@@ -37,6 +37,10 @@ These shortcuts are defined in `composer.json` to automate complex, multi-step d
 -   **Description:** Starts a high-performance, long-lived queue worker with a **20-minute (1200s) timeout**. It includes a wrapper script that automatically restarts the worker after 10 seconds if it crashes.
 -   **Usage:** Critical for generating large-scale reports (10,000+ items) without worker timeouts.
 
+### `composer schedule:work-prod`
+-   **Description:** Starts a persistent local scheduler that runs every minute. Includes a wrapper script that automatically restarts the scheduler if it stops.
+-   **Usage:** Ensures background tasks (like integrity checks and metric snapshots) run continuously in production-like environments.
+
 ---
 
 ## Custom Artisan Commands (DTS Specific)
@@ -71,6 +75,7 @@ These shortcuts are defined in `composer.json` to automate complex, multi-step d
 -   **`npm run dev`**: Starts the Vite Hot Module Replacement (HMR) server for instant frontend updates.
 -   **`npm run build`**: Compiles and minifies assets (JS/CSS) for production.
 -   **`php artisan serve`**: Starts the local PHP development server (default: port 3000).
+-   **`php artisan schedule:work`**: Runs the task scheduler locally every minute (useful for development without Cron).
 
 ---
 
