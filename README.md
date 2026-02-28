@@ -49,7 +49,9 @@ This project is a functional prototype for a modern, web-based Document Tracking
 2.  Install dependencies: `composer install` and `npm install`.
 3.  Create your `.env` file from `.env.example` and configure your database credentials.
 4.  Generate an application key: `php artisan key:generate`.
-5.  Run database migrations and seeders: `php artisan migrate:fresh --seed`. This will create the necessary tables and populate them with comprehensive, realistic data.
+5.  Run database migrations and seeders:
+    - **For Development:** `php artisan dts:migrate --devseed`. This will create the necessary tables and populate them with comprehensive, realistic data (10,000+ documents).
+    - **For Production:** `php artisan dts:migrate --prodseed`. This initializes a clean system with only essential departments, purposes, and users.
 6.  Set up your local development environment by following the instructions in the section below.
 
 **For Windows users:** See the detailed [Windows Setup Guide](WINDOWS_SETUP.md) for OS-specific instructions.

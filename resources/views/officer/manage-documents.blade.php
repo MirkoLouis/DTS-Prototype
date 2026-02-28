@@ -143,7 +143,6 @@
             cursor: grabbing;
         }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             const routeList = document.getElementById('route-list');

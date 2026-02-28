@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0-Alpha+202602281530] - 2026-02-28
+
+### ADDED
+- **Environment-Specific Migration Tool:** Created a custom `php artisan dts:migrate` command to streamline project initialization.
+    - `--devseed`: Runs a fresh migration with the full `DevelopmentSeeder`, including 10,000+ dummy documents and metrics for testing.
+    - `--prodseed`: Runs a fresh migration using the new `ProductionSeeder`, creating only essential system data (Departments, Users, AI Keywords) for a clean production state.
+- **Production Seeder:** Implemented `ProductionSeeder.php` to provide a "Day 1" clean database configuration for DepEd Iligan.
+- **Comprehensive AI Knowledge Base:** Expanded `PredictionKeywordSeeder` to include keywords for all 14 departments and units, ensuring the AI Route Prediction works division-wide from the first document.
+
+### CHANGED
+- **Environment-Aware Purposes:** Updated `PurposeSeeder` to automatically exclude "System Test" purposes when the application is running in a production environment.
+- **Deployment Strategy:** Updated `DEPLOYMENT.md` with platform-specific instructions for Linux (Supervisor/Cron) and Windows Server (NSSM/Task Scheduler).
+
+### FIXED
+- **Department Naming Consistency:** Synchronized department names between the `DepartmentSeeder` and `PredictionKeywordSeeder` to prevent missing keyword associations.
+
 ## 2026-02-25 (Wednesday, 9:30 PM)
 
 ### ADDED

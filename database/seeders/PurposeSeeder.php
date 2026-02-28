@@ -114,10 +114,10 @@ class PurposeSeeder extends Seeder
             Purpose::updateOrCreate(['name' => $purpose['name']], $purpose);
         }
 
-        // --- Add the new System Test Purpose ---
+        // --- Add the new System Test Purpose (Dev/Testing Only) ---
         $allDepartmentNames = Department::orderBy('id')->pluck('name')->toArray();
 
-        if (!empty($allDepartmentNames)) {
+        if (!empty($allDepartmentNames) && app()->environment() !== 'production') {
             Purpose::updateOrCreate(
                 ['name' => 'System Test: Full Route'],
                 [

@@ -71,7 +71,7 @@
 <body class="antialiased">
     <div class="container mt-5">
         <div class="text-center mb-4">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/DepEd_logo.svg/1200px-DepEd_logo.svg.png" alt="DepEd Logo" style="height: 80px;">
+            <img src="{{ asset('images/logoipsum-411.png') }}" alt="DepEd Logo" style="height: 80px;">
             <h1 class="mt-3">Document Tracking System</h1>
             <p class="lead">DepEd Division of Iligan City</p>
         </div>
