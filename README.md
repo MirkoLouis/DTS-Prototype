@@ -116,7 +116,19 @@ For deep technical dives into specific system components, please refer to the fi
 |:---|:---|:---|
 | **Administrator** | `admin@dts.com` | `password` |
 | **Records Officer** | `records@dts.com` | `password` |
-| **Staff User** | `accounting@dts.com` | `password` |
+| **Staff: Cash Unit** | `cash.unit@dts.com` | `password` |
+| **Staff: Admin Unit** | `administrative.unit@dts.com` | `password` |
+| **Staff: Personnel** | `personnel.unit@dts.com` | `password` |
+| **Staff: Supply Unit** | `supply.unit@dts.com` | `password` |
+| **Staff: Budget Unit** | `budget.unit@dts.com` | `password` |
+| **Staff: Accounting** | `accounting.unit@dts.com` | `password` |
+| **Staff: Legal Unit** | `legal.unit@dts.com` | `password` |
+| **Staff: Health & Nutrition** | `health.and.nutrition@dts.com` | `password` |
+| **Staff: BAC Unit** | `bids.and.awards.committee.unit@dts.com` | `password` |
+| **Staff: SDS Office** | `schools.division.superintendent.office@dts.com` | `password` |
+| **Staff: ASDS Office** | `assistant.schools.division.superintendent.office@dts.com` | `password` |
+| **Staff: CID** | `curriculum.implementation.division@dts.com` | `password` |
+| **Staff: SGOD** | `school.governance.and.operations.division@dts.com` | `password` |
 
 ---
 
