@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0-Alpha+202603011830] - 2026-03-01
+
+### ADDED
+- **Universal Non-Repudiation System:** Implemented a cryptographic enforcement layer that prevents any authorized user (Staff, Officer, or Admin) from denying their actions within the system.
+- **Department & Administrative Digital Signatures:** Integrated unique, user-initialized public keys into the `DocumentLog` hash-chain. Every movement in the ledger is now "signed" and cryptographically immutable.
+- **Dynamic Security Key Initialization:** Enhanced the `security-key-modal` component to provide a personalized experience, displaying the specific account name (e.g., "Admin User Digital Signature") during setup.
+- **Admin Signature Enforcement:** Closed the administrative security gap by requiring Admins to initialize their own digital signatures for high-level operations like hash-chain rebuilding.
+
+### FIXED
+- **Integrity Verification Logic:** Updated the `dts:verify-integrity` and `dts:rebuild-chain` Artisan commands to correctly handle and verify the new `signature` and `document_state_hash` fields.
+- **Seeder Cryptographic Alignment:** Synchronized `UserSeeder` and `DocumentSeeder` to generate 100% valid hash chains using the new signature-based formula, ensuring simulated data is production-grade.
+
+### CHANGED
+- **Hashing Formula Update:** Expanded the SHA-256 hashing sequence to include the `signature` field as a mandatory component for chain validity.
+- **Model-Level Automation:** Refactored the `DocumentLog` model to automatically fetch and attach the performing user's digital signature during the `creating` event.
+
 ## [1.5.1-Alpha+202602281645] - 2026-02-28
 
 ### FIXED

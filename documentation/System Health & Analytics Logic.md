@@ -45,9 +45,9 @@ With a 5-minute cycle, the system generates **12 records per hour** (288 per day
 
 The "Trust Builder" uses SHA-256 hash-chaining to ensure the document log's immutability.
 
--   **Hashing Process:** Every document action (Intake, Transfer, Receive, Release) generates a unique SHA-256 hash. This hash is created by combining the log's data with the hash of the *previous* log entry, forming a cryptographic chain.
--   **Verification:** The `dts:verify-integrity` command performs a system-wide audit by recalculating and comparing every hash in the chain. It uses `chunkById(1000)` to keep memory usage low and constant.
--   **Security:** If any hash is mismatched, the system identifies the exact point of tampering, reports a verification percentage, and provides tools for an Administrator to rebuild the chain or freeze the affected document.
+-   **Hashing Process:** Every document action (Intake, Transfer, Receive, Release) generates a unique SHA-256 hash. This hash is created by combining the log's data (including the user's **Digital Signature**) with the hash of the *previous* log entry, forming a cryptographic chain.
+-   **Verification:** The `dts:verify-integrity` command performs a system-wide audit by recalculating and comparing every hash in the chain, including the validation of digital signatures for each action. It uses `chunkById(1000)` to keep memory usage low and constant.
+-   **Security:** If any hash or signature is mismatched, the system identifies the exact point of tampering, reports a verification percentage, and provides tools for an Administrator to rebuild the chain or freeze the affected document.
 
 ---
 
