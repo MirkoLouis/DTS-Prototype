@@ -69,6 +69,16 @@ class DocumentLog extends Model
                 return;
             }
 
+            // Populate the digital signature from the performing user, if available
+            if (!$documentLog->signature) {
+                if ($documentLog->user_id) {
+                    $user = User::find($documentLog->user_id);
+                    $documentLog->signature = ($user && $user->public_key) ? $user->public_key : 'unsigned';
+                } else {
+                    $documentLog->signature = 'signed_by_guest';
+                }
+            }
+
             // Find the most recent log for this document to chain the hash
             $lastLog = self::where('document_id', $documentLog->document_id)
                                 ->orderBy('id', 'desc')
@@ -90,13 +100,16 @@ class DocumentLog extends Model
             // ISO-8601 with microseconds provides the necessary precision.
             $timestampForHashing = $createdAt->toIso8601String();
             
-            // We now include document_state_hash in the chain hash
+            // We now include document_state_hash and the department's digital signature in the chain hash
+            // This ensures Non-Repudiation: a department cannot claim they didn't authorize the action
+            // because their unique signature is cryptographically baked into the log's hash.
             $dataToHash = $documentLog->document_id . 
                          $documentLog->user_id . 
                          $documentLog->action . 
                          $timestampForHashing . 
                          $previousHash . 
-                         $documentLog->document_state_hash;
+                         $documentLog->document_state_hash .
+                         $documentLog->signature;
 
             // Use a simple SHA256 hash, not bcrypt, to ensure it can be re-calculated for verification.
             $documentLog->hash = hash('sha256', $dataToHash);

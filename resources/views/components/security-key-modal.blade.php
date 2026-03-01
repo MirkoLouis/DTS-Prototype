@@ -16,19 +16,25 @@
                 </div>
                 
                 <p class="mb-4 text-gray-600 dark:text-gray-400">
-                    To ensure <strong>Non-Repudiation</strong>, your department must initialize a unique digital signature. This can be an official phrase, a code, or any identifier of your choosing that will be used to "sign" every action performed by this account.
+                    To ensure <strong>Non-Repudiation</strong>, your account must initialize a unique digital signature. This can be an official phrase, a code, or any identifier of your choosing that will be used to "sign" every action performed by this account.
                 </p>
 
                 <div class="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-md mb-6 border-l-4 border-blue-500">
                     <p class="text-sm text-blue-700 dark:text-blue-300">
-                        <strong>Thesis Note:</strong> Every movement in the ledger is cryptographically tied to this signature, proving which department authorized the action.
+                        <strong>Thesis Note:</strong> Every movement in the ledger is cryptographically tied to this signature, proving which authority authorized the action.
                     </p>
                 </div>
 
                 <div class="mb-6">
-                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Department Digital Signature</label>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        @auth
+                            {{ auth()->user()->name }} Digital Signature
+                        @else
+                            Account Digital Signature
+                        @endauth
+                    </label>
                     <div class="flex gap-2">
-                        <input type="text" id="generated-key" class="block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm font-mono" placeholder="Type your department's custom signature...">
+                        <input type="text" id="generated-key" class="block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm font-mono" placeholder="Type your custom signature...">
                         <button type="button" id="copy-signature-btn" class="inline-flex items-center px-3 py-2 border border-gray-300 dark:border-gray-600 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" title="Copy to Clipboard">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path>
@@ -63,7 +69,7 @@
 
         // Only show if the user is logged in and has no public key
         @auth
-            @if(!auth()->user()->public_key && auth()->user()->role !== 'admin')
+            @if(!auth()->user()->public_key)
                 showSecurityModal();
             @endif
         @endauth

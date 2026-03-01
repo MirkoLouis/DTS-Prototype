@@ -56,8 +56,8 @@ class VerifyIntegrityChain extends Command
                     // The timestamp format MUST be identical to the one used during creation.
                     $timestampForHashing = Carbon::parse($log->created_at)->toIso8601String();
                     
-                    // We now verify against the document_state_hash as well
-                    $dataToHash = $log->document_id . $log->user_id . $log->action . $timestampForHashing . $expectedPreviousHash . $log->document_state_hash;
+                    // We now verify against the document_state_hash and digital signature
+                    $dataToHash = $log->document_id . $log->user_id . $log->action . $timestampForHashing . $expectedPreviousHash . $log->document_state_hash . $log->signature;
                     $recalculatedHash = hash('sha256', $dataToHash);
 
                     if ($recalculatedHash !== $log->hash) {

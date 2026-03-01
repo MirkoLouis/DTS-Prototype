@@ -35,16 +35,33 @@ While both technologies use cryptographic hashes to link data, they serve differ
 Every action performed on a document (Submit, Receive, Forward, Release) creates a `DocumentLog` entry. Each entry is cryptographically linked to the one before it using the **SHA-256** algorithm.
 
 ### The Anatomy of a Link
-Each log entry contains two critical fields:
+Each log entry contains three critical security fields:
 1.  **`previous_hash`**: The digital fingerprint of the log entry that came immediately before it for that specific document.
 2.  **`hash`**: The unique fingerprint of the *current* entry.
+3.  **`signature`**: The department's unique digital signature (Public Key) used to "sign" the action.
 
 ### What data is hashed?
-To ensure total security, the current `hash` is calculated from:
+To ensure total security and **Non-Repudiation**, the current `hash` is calculated from:
 -   `document_id` + `user_id` + `action`
--   **Timestamp:** Precision down to microseconds (ISO-8601).
+-   **Timestamp:** Precision down to seconds (ISO-8601).
 -   **`previous_hash`:** The link to the past.
 -   **`document_state_hash`:** A snapshot of the document's metadata (Title, Submitter, Purpose) at that exact moment.
+-   **`signature`:** The performing user/department's digital key.
+
+---
+
+## Non-Repudiation: Digital Signatures
+
+A key innovation of this DTS is the enforcement of **Non-Repudiation**. This means that no authorized user (Staff, Officer, or Admin) can later deny having performed an action (like receiving a document or rebuilding a hash chain).
+
+### 1. Initialization
+Upon the first official login of any authorized user, the system presents a **Security Key Initialization** modal (`security-key-modal.blade.php`). The user must choose or generate a unique digital signature (e.g., `DTS-PUB-RECORDS-A84BC...` or `DTS-PUB-ADMIN-X72D...`).
+
+### 2. Cryptographic Binding
+Once initialized, this signature is stored in the `users` table. Every subsequent action performed by that user automatically attaches this signature to the `DocumentLog`. Because this signature is part of the data used to generate the log's `hash`, any attempt to change the user or authority associated with a historical log will break the entire chain.
+
+### 3. Proof of Authority
+In an audit, the `signature` field serves as a verifiable "stamp" of which specific account (and by extension, department or administrative level) was responsible for an action, cryptographically tied to the immutable ledger. This is especially critical for administrative actions like **Hash Chain Rebuilds**, which are now permanently signed by the Admin who performed them.
 
 ---
 
