@@ -37,10 +37,11 @@ Explore generated document tracking forms and administrative reports:
 
 ## 🚀 Key Innovations
 
-1.  **Trust Builder (Hash-Chaining):** An immutable, `sha256`-based chained ledger of all document actions. Every action is cryptographically linked to the previous one, ensuring a verifiable and tamper-proof audit trail.
-2.  **AI Route Prediction:** A dynamic, keyword-driven system that suggests document routes based on the purpose of the request. The system "learns" from manual corrections made by Records Officers via a background weighted-keyword update job.
-3.  **Enterprise-Scale Reporting:** A high-performance export system for PDF and CSV reports that utilizes a "chunk-and-merge" strategy, allowing it to handle 10,000+ records without memory exhaustion.
-4.  **Physical Workflow Integration:** Integrated QR code system for physical document tracking. Documents require physical scans at each handoff (Intake, Departmental Receipt, and Releasing) to ensure accountability.
+1.  **Physical Workflow Integration:** Integrated QR code system for physical document tracking. Documents require physical scans at each handoff (Intake, Departmental Receipt, and Releasing) to ensure accountability.
+2.  **Trust Builder (Hash-Chaining):** An immutable, `sha256`-based chained ledger of all document actions. Every action is cryptographically linked to the previous one, ensuring a verifiable and tamper-proof audit trail.
+3.  **Universal Non-Repudiation:** A cryptographic enforcement layer where every authorized action (Intake, Receive, Rebuild, Release) is "signed" using a user's unique digital signature. Once an action is recorded in the chain, it is cryptographically impossible for the user or department to deny their authorization.
+4.  **AI Route Prediction:** A dynamic, keyword-driven system that suggests document routes based on the purpose of the request. The system "learns" from manual corrections made by Records Officers via a background weighted-keyword update job.
+5.  **Enterprise-Scale Reporting:** A high-performance export system for PDF and CSV reports that utilizes a "chunk-and-merge" strategy, allowing it to handle 10,000+ records without memory exhaustion.
 
 ---
 

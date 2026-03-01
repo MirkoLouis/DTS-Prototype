@@ -83,4 +83,4 @@ graph TD
 While the workflow is generally linear, a department can "Return" a document to a previous step. This resets the `current_step` but keeps the status as `in_transit` until the target department scans it again.
 
 ### Manual Override (Unfreeze)
-When an admin unfreezes a document, it currently defaults back to `processing`. This allows the handler to continue their work once the investigation is resolved.
+When an admin unfreezes a document, it currently defaults back to `processing`. This allows the handler to continue their work once the investigation is resolved. **Crucially**, the unfreeze action is cryptographically signed using the Admin's digital signature, providing a permanent, non-repudiable record of the administrative intervention in the document's history.
