@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.1-Alpha+202603011900] - 2026-03-01
+
+### FIXED
+- **Initialization Modal Bug:** Resolved a critical issue where the security modal failed to spawn because users were being pre-seeded with public keys. Removed pre-seeded keys to ensure all real users undergo the initialization flow.
+
+### ADDED
+- **Granular Departmental Fallbacks:** Introduced dynamic, role-based fallback signatures (e.g., `signed_by_cash_unit`, `signed_by_records`) for the ledger, ensuring detailed accountability even for historical or un-onboarded data.
+
+### CHANGED
+- **Synchronized Fallback Logic:** Updated both the `DocumentLog` model and `DocumentSeeder` to use consistent, department-specific signature strings when a unique public key is not yet available.
+
 ## [1.6.0-Alpha+202603011830] - 2026-03-01
 
 ### ADDED
