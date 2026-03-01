@@ -3,11 +3,52 @@
 A comprehensive reference for the custom aliases, maintenance commands, and development shortcuts used in the Document Tracking System (DTS) for streamlined operations.
 
 ## Table of Contents
-1. [Composer Quick Aliases](#composer-quick-aliases)
-2. [Custom Artisan Commands (DTS Specific)](#custom-artisan-commands-dts-specific)
-3. [Standard Laravel & Maintenance Commands](#standard-laravel--maintenance-commands)
-4. [Frontend & Development Server](#frontend--development-server)
-5. [Testing & Verification](#testing--verification)
+1. [Running the Development Environment](#running-the-development-environment)
+2. [Composer Quick Aliases](#composer-quick-aliases)
+3. [Custom Artisan Commands (DTS Specific)](#custom-artisan-commands-dts-specific)
+4. [Standard Laravel & Maintenance Commands](#standard-laravel--maintenance-commands)
+5. [Frontend & Development Server](#frontend--development-server)
+6. [Testing & Verification](#testing--verification)
+
+---
+
+## Running the Development Environment
+
+The DTS project requires several background processes to function correctly (server, queue, assets, scheduler). You can run these using either a single-command "All-in-One" method or by opening separate terminals for better isolation and debugging.
+
+### Option 1: All-in-One (Recommended)
+The most efficient way to start development is using the pre-configured Composer script which launches all necessary services concurrently in a single terminal window.
+
+```bash
+composer dev
+```
+*This command uses `npx concurrently` to manage: PHP Server, Queue Listener, Pail (Logs), Vite (Assets), and the Task Scheduler.*
+
+### Option 2: Manual (4+ Terminals)
+For more granular control or debugging specific layers, you can run each service in its own terminal session. Using the Composer aliases is recommended as they include auto-restart logic:
+
+1.  **Backend Server:**
+    ```bash
+    composer serve:prod
+    ```
+    *(Runs `php artisan serve` with an auto-restart loop).*
+
+2.  **Queue Worker:** (Required for Route Prediction & Reports)
+    ```bash
+    composer queue:work-prod
+    ```
+    *(Runs a high-performance worker with a 20-minute timeout).*
+
+3.  **Frontend (Vite):** (Hot-reloading for CSS/JS)
+    ```bash
+    npm run dev
+    ```
+
+4.  **Task Scheduler:** (Required for Integrity Checks & Metrics)
+    ```bash
+    composer schedule:work-prod
+    ```
+    *(Ensures background tasks like integrity checks run continuously).*
 
 ---
 
@@ -17,29 +58,45 @@ These shortcuts are defined in `composer.json` to automate complex, multi-step d
 
 ### `composer setup`
 -   **Description:** Automates initial project setup: installs dependencies, generates the application key, runs migrations, and builds frontend assets.
+-   **Actual Command:** `composer install && php artisan key:generate && php artisan migrate --force && npm install && npm run build`
 -   **Usage:** First-time setup after cloning the repository.
 
 ### `composer dev`
 -   **Description:** Starts the entire development environment concurrently using `npx concurrently`. This launches the PHP server, the queue listener, the `pail` log viewer, and the Vite dev server in a single terminal session.
+-   **Actual Command:** `npx concurrently "php artisan serve --host 0.0.0.0 --port 3000" "php artisan pail --timeout=0" "php artisan queue:listen --tries=1" "npm run dev" "php artisan schedule:work"`
 -   **Usage:** Daily command for active development.
+
+### `composer serve:prod`
+-   **Description:** Starts the local PHP development server with a persistent wrapper that automatically restarts the server if it stops.
+-   **Actual Command:** `while true; do php artisan serve --host 0.0.0.0 --port 3000; sleep 10; done`
+-   **Usage:** Used in the manual terminal setup for the backend.
 
 ### `composer db:dev`
 -   **Warning:** **[DESTRUCTIVE]** Drops all tables and recreates the database.
 -   **Description:** Resets the database and seeds it with **development/dummy data** for testing and feature development.
+-   **Actual Command:** `php artisan dts:migrate --devseed`
 -   **Usage:** To quickly refresh the environment with a rich dataset.
 
 ### `composer db:prod`
 -   **Warning:** **[DESTRUCTIVE]** Drops all tables and recreates the database.
 -   **Description:** Resets the database and seeds only **production-essential data** (Admin accounts, Departments, Purposes).
+-   **Actual Command:** `php artisan dts:migrate --prodseed`
 -   **Usage:** Preparing for a clean deployment or production reset.
 
 ### `composer queue:work-prod`
 -   **Description:** Starts a high-performance, long-lived queue worker with a **20-minute (1200s) timeout**. It includes a wrapper script that automatically restarts the worker after 10 seconds if it crashes.
+-   **Actual Command:** `while true; do php artisan queue:work --timeout=1200; sleep 10; done`
 -   **Usage:** Critical for generating large-scale reports (10,000+ items) without worker timeouts.
 
 ### `composer schedule:work-prod`
 -   **Description:** Starts a persistent local scheduler that runs every minute. Includes a wrapper script that automatically restarts the scheduler if it stops.
+-   **Actual Command:** `while true; do php artisan schedule:work; sleep 10; done`
 -   **Usage:** Ensures background tasks (like integrity checks and metric snapshots) run continuously in production-like environments.
+
+### `composer test`
+-   **Description:** Clears configuration cache and executes the system's test suite.
+-   **Actual Command:** `php artisan config:clear && php artisan test`
+-   **Usage:** For verifying the "Trust Builder" security mechanism.
 
 ---
 
