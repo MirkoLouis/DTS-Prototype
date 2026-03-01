@@ -73,7 +73,20 @@ class DocumentLog extends Model
             if (!$documentLog->signature) {
                 if ($documentLog->user_id) {
                     $user = User::find($documentLog->user_id);
-                    $documentLog->signature = ($user && $user->public_key) ? $user->public_key : 'unsigned';
+                    if ($user && $user->public_key) {
+                        $documentLog->signature = $user->public_key;
+                    } else {
+                        // Descriptive fallback based on role and department
+                        $role = $user ? $user->role : 'unknown';
+                        $documentLog->signature = match($role) {
+                            'admin' => 'signed_by_admin',
+                            'officer' => 'signed_by_records',
+                            'staff' => $user->department 
+                                ? 'signed_by_' . strtolower(str_replace(' ', '_', $user->department->name)) 
+                                : 'signed_by_department',
+                            default => 'unsigned'
+                        };
+                    }
                 } else {
                     $documentLog->signature = 'signed_by_guest';
                 }

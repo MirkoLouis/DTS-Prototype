@@ -31,8 +31,6 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('password'),
                 'role' => 'officer',
                 'department_id' => $recordsDepartment->id,
-                'public_key' => 'DTS-PUB-RECORDS-' . strtoupper(Str::random(12)),
-                'security_key_set_at' => now(),
             ]
         );
         $this->command->line('  - Created Records Officer: records@dts.com');
@@ -45,8 +43,6 @@ class UserSeeder extends Seeder
                 'password' => Hash::make('password'),
                 'role' => 'admin',
                 'department_id' => null,
-                'public_key' => 'DTS-PUB-ADMIN-' . strtoupper(Str::random(12)),
-                'security_key_set_at' => now(),
             ]
         );
         $this->command->line('  - Created Admin: admin@dts.com');
@@ -64,8 +60,6 @@ class UserSeeder extends Seeder
                     'password' => Hash::make('password'),
                     'role' => 'staff',
                     'department_id' => $department->id,
-                    'public_key' => 'DTS-PUB-' . strtoupper(Str::slug($department->name)) . '-' . strtoupper(Str::random(8)),
-                    'security_key_set_at' => now(),
                 ]
             );
             $this->command->line('  - Created Staff: ' . $email);
