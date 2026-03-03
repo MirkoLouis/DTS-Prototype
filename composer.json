@@ -39,6 +39,7 @@
     "scripts": {
         "setup": [
             "composer install",
+            "@db:tune",
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
             "@php artisan key:generate",
             "@php artisan migrate --force",
@@ -47,8 +48,10 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
-            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74,#818cf8\" \"@serve:dev\" \"@queue:dev\" \"@logs:dev\" \"@vite:dev\" \"@schedule:dev\" --names=server,queue,logs,vite,schedule --kill-others"
+            "@db:tune",
+            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74,#818cf8\" \"composer run serve:dev\" \"composer run queue:dev\" \"composer run logs:dev\" \"composer run vite:dev\" \"composer run schedule:dev\" --names=server,queue,logs,vite,schedule --kill-others"
         ],
+        "db:tune": "php artisan dts:tune-db",
         "serve:dev": "while true; do taskset -c 0-3 php artisan serve --host 0.0.0.0 --port 3000; echo 'Server stopped. Restarting in 10s...'; sleep 10; done",
         "queue:dev": "while true; do taskset -c 4 php artisan queue:listen --tries=1; echo 'Queue worker stopped. Restarting in 10s...'; sleep 10; done",
         "logs:dev": "while true; do taskset -c 5 php artisan pail --timeout=0; echo 'Logs worker stopped. Restarting in 10s...'; sleep 10; done",

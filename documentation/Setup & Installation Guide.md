@@ -79,6 +79,8 @@ Running Laravel inside **WSL2 (Ubuntu)** provides a much faster and more Linux-c
     ```bash
     composer run setup
     ```
+    *This command now automatically tunes your local database for high-performance (4GB RAM allocation).*
+
 3.  **Database Seeding:**
     - `php artisan dts:migrate --devseed`
 
