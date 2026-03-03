@@ -107,10 +107,17 @@ document.addEventListener('DOMContentLoaded', function() {
     function initialize() {
         initializeCharts();
 
+        const updateAllStatisticsCharts = () => {
+            if (currentLoadPeriodEl) fetchChartData(currentLoadChart, currentLoadUrl, currentLoadPeriodEl.value, 'documents received');
+            if (avgProcessingTimePeriodEl) fetchChartData(avgProcessingTimeChart, avgProcessingTimeUrl, avgProcessingTimePeriodEl.value, 'avg processing time');
+            if (throughputPeriodEl) fetchChartData(throughputChart, throughputUrl, throughputPeriodEl.value, 'throughput');
+        };
+
         // Initial data fetch
-        if (currentLoadPeriodEl) fetchChartData(currentLoadChart, currentLoadUrl, currentLoadPeriodEl.value, 'documents received');
-        if (avgProcessingTimePeriodEl) fetchChartData(avgProcessingTimeChart, avgProcessingTimeUrl, avgProcessingTimePeriodEl.value, 'avg processing time');
-        if (throughputPeriodEl) fetchChartData(throughputChart, throughputUrl, throughputPeriodEl.value, 'throughput');
+        updateAllStatisticsCharts();
+
+        // Polling: Update all statistics charts every 60 seconds
+        setInterval(updateAllStatisticsCharts, 60000);
 
         // Add event listeners
         currentLoadPeriodEl?.addEventListener('change', (e) => fetchChartData(currentLoadChart, currentLoadUrl, e.target.value, 'documents received'));
