@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.4-Alpha+202603032120] - 2026-03-03
+
+### FIXED
+- **SQL Ambiguity in Analytics:** Resolved a critical `500 Internal Server Error` in the `AdminDashboardController` caused by an ambiguous `created_at` column in join-heavy analytics queries. Explicitly referenced subquery aliases in `getAvgStepTimeByDepartmentData` and `getDepartmentalLoadVsTimeData` to restore dashboard functionality.
+
+### ADDED
+- **In-Depth Technical Documentation Suite:** Consolidated 15+ individual documentation files into three authoritative guides (`ARCHITECTURE.md`, `ADMINISTRATION.md`, `OPERATIONS.md`). Each guide was enriched with technical deep-dives and relevant code snippets (RBAC Middleware, Hash-Chaining logic, AI Routing, etc.).
+- **Hardware & Scaling Guide:** Created `HARDWARE_SPECS.md` providing a comprehensive breakdown of server requirements (Minimal vs. Recommended) and storage forecasts for scaling the system to 1 million documents.
+
+### CHANGED
+- **Migration Squashing (Schema Consolidation):** Refactored the database architecture by squashing 21 separate migration files into a single, clean `2025_01_01_000000_create_dts_initial_schema.php`. This significantly reduces project overhead and simplifies the initialization process for new environments while maintaining all performance indexes and security fields.
+
 ## [1.7.3-Alpha+202603032041] - 2026-03-03
 
 ### FIXED
