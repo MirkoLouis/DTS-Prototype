@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.1-Alpha+202603031030] - 2026-03-03
+
+### ADDED
+- **HTTP Header Optimization (Cache-Control):** Implemented a `CacheResponse` middleware to enable 55-second HTTP browser caching for guest-facing routes and AJAX status endpoints, drastically reducing redundant server hits during peak traffic.
+- **Automated Database Tuning Command:** Created the `dts:tune-db` Artisan command to programmatically optimize MySQL's InnoDB Buffer Pool (4GB) and Redo Log (1GB) using project credentials.
+- **Cross-Platform Troubleshooting Guides:** Added specific recovery steps for "Address already in use" port conflicts on both Linux and Windows (PowerShell/CMD) to the project documentation.
+- **Enhanced Guest Layout:** Integrated cache-control meta tags and DNS prefetching into the `guest.blade.php` layout for faster initial page rendering.
+
+### FIXED
+- **Infinite Process Execution:** Set `process-timeout: 0` in `composer.json` to prevent Composer from terminating long-running nested server pillars after 300 seconds.
+- **Concurrent Script Resolution:** Refactored the `concurrently` orchestration to use `composer run <command>` syntax, ensuring sub-scripts are correctly located across different environments.
+
 ## [1.7.0-Alpha+202603030930] - 2026-03-03
 
 ### ADDED

@@ -128,6 +128,10 @@ If you prefer separate terminal windows, use the following commands:
 
 ## Troubleshooting
 
+- **"Address already in use" (Port 3000):** This happens when a previous server process didn't close properly.
+    - **Linux/WSL2 Fix:** `kill -9 $(lsof -t -i:3000)` or `sudo fuser -k 3000/tcp`
+    - **Windows Fix (PowerShell):** `Stop-Process -Id (Get-NetTCPConnection -LocalPort 3000).OwningProcess -Force`
+    - **Windows Fix (CMD):** `netstat -ano | findstr :3000` (Find the PID) then `taskkill /PID <PID> /F`
 - **"Vite manifest not found":** Run `npm run dev` and ensure it's running.
 - **"403 Forbidden":** Ensure you are accessing the correct dashboard (Admin vs Staff vs Officer).
 - **"Camera error":** Ensure you accepted the SSL certificate at `https://localhost:5173`.
