@@ -14,45 +14,63 @@ A comprehensive reference for the custom aliases, maintenance commands, and deve
 
 ## Running the Development Environment
 
-The DTS project requires several background processes to function correctly (server, queue, assets, scheduler). You can run these using either a single-command "All-in-One" method or by opening separate terminals for better isolation and debugging.
+The DTS project requires several background processes to function correctly (server, queue, assets, scheduler). For a 12-thread CPU architecture, the system is optimized to use **CPU Core Pinning (taskset)** to prevent process starvation and ensure high UI responsiveness.
 
 ### Option 1: All-in-One (Recommended)
-The most efficient way to start development is using the pre-configured Composer script which launches all necessary services concurrently in a single terminal window.
+The most efficient way to start development is using the pre-configured Composer script which launches all necessary services concurrently in a single terminal window, each pinned to their respective CPU cores.
 
 ```bash
 composer dev
 ```
-*This command uses `npx concurrently` to manage: PHP Server, Queue Listener, Pail (Logs), Vite (Assets), and the Task Scheduler.*
+*This command uses `npx concurrently` to manage: PHP Server (Cores 0-3), Queue Listener (Core 4), Pail Logs (Core 5), Vite (Cores 6-7), and the Task Scheduler (Core 8).*
 
-### Option 2: Manual (4+ Terminals)
-For more granular control or debugging specific layers, you can run each service in its own terminal session. Using the Composer aliases is recommended as they include auto-restart logic:
+### Option 2: Manual Isolation (5 Terminals)
+For granular debugging, you can run each service in its own terminal session. Each script includes a **10-second automatic restart loop**:
 
-1.  **Backend Server:**
+1.  **Backend Server (Cores 0-3):**
     ```bash
-    composer serve:prod
-    ```
-    *(Runs `php artisan serve` with an auto-restart loop).*
-
-2.  **Queue Worker:** (Required for Route Prediction & Reports)
-    ```bash
-    composer queue:work-prod
-    ```
-    *(Runs a high-performance worker with a 20-minute timeout).*
-
-3.  **Frontend (Vite):** (Hot-reloading for CSS/JS)
-    ```bash
-    npm run dev
+    composer serve:dev
     ```
 
-4.  **Task Scheduler:** (Required for Integrity Checks & Metrics)
+2.  **Queue Listener (Core 4):**
     ```bash
-    composer schedule:work-prod
+    composer queue:dev
     ```
-    *(Ensures background tasks like integrity checks run continuously).*
+
+3.  **Vite Asset Server (Cores 6-7):**
+    ```bash
+    composer vite:dev
+    ```
+
+4.  **Task Scheduler (Core 8):**
+    ```bash
+    composer schedule:dev
+    ```
+
+5.  **Pail Log Viewer (Core 5):**
+    ```bash
+    composer logs:dev
+    ```
 
 ---
 
 ## Composer Quick Aliases
+
+### `composer prod:optimize`
+-   **Description:** Compiles and caches configurations, routes, and Blade views into single files for maximum performance.
+-   **Usage:** Mandatory for production-speed testing with large (1M+) datasets.
+
+### `composer prod:clear`
+-   **Description:** Clears all production-level caches to reflect fresh code or configuration changes.
+
+### `composer serve:prod`
+-   **Description:** Starts the production-mode PHP server (Cores 0-3).
+
+### `composer queue:work-prod`
+-   **Description:** Starts a high-performance, long-lived queue worker (Core 4) with a 512MB RAM limit. Much faster than the dev `queue:dev` listener.
+
+### `composer schedule:work-prod`
+-   **Description:** Starts a persistent production-mode scheduler (Core 8).
 
 These shortcuts are defined in `composer.json` to automate complex, multi-step development and deployment processes.
 

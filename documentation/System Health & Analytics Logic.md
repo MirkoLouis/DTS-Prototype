@@ -11,16 +11,28 @@ This document details the Document Tracking System's (DTS) logic for performance
 
 ---
 
-## The "Four Pillars" of the Development Environment
+## The "Five Pillars" of the Development Environment
 
-To maintain a fully functional DTS development environment, four separate processes must run concurrently.
+To maintain a fully functional DTS development environment, five separate processes must run concurrently. These are optimized for a **12-thread CPU architecture** using `taskset` for core pinning.
 
-| Process | Command | Responsibility | Dependency |
+| Process | Core Pin | Responsibility | Dependency |
 |:---|:---|:---|:---|
-| **Backend Server** | `php artisan serve` | Handles HTTP requests, Blade rendering, and controller logic. | PHP / Laravel |
-| **Frontend (Vite)** | `npm run dev` | Real-time CSS/JS compilation, HMR (Hot Module Replacement), and asset serving. | Node.js / Vite |
-| **Queue Listener** | `php artisan queue:listen` | Processes asynchronous tasks like PDF reports and AI keyword learning. | Redis/DB Queue |
-| **Task Scheduler** | `php artisan schedule:work` | Triggers periodic tasks like DB metrics snapshots and document pruning. | PHP Scheduler |
+| **Backend Server** | 0-3 | Handles HTTP requests, Blade rendering, and controller logic. | PHP / Laravel |
+| **Queue Listener** | 4 | Processes asynchronous tasks like PDF reports and AI learning. | Redis/DB Queue |
+| **Pail (Logs)** | 5 | Provides a high-resolution, real-time feed of application logs and errors. | Laravel Pail |
+| **Frontend (Vite)** | 6-7 | Real-time CSS/JS compilation and secure asset serving. | Node.js / Vite |
+| **Task Scheduler** | 8 | Triggers periodic tasks like DB metrics snapshots and document pruning. | PHP Scheduler |
+
+---
+
+## CPU Core Pinning Strategy
+
+To prevent "process starvation" where one intensive task (like generating a massive report or compiling large CSS files) slows down the entire system, the DTS uses **Process Affinity** (`taskset`).
+
+- **Web Server (4 Threads):** Prioritizes user request handling to ensure a "snappy" UI.
+- **Queue & Scheduler:** Isolated to dedicated single threads to handle background processing without impacting the web server's responsiveness.
+- **Vite:** Allocated 2 threads for efficient asset bundling during development.
+- **Reserved Cores (9-11):** Left unassigned to allow the Operating System and Browser to run smoothly.
 
 ---
 
