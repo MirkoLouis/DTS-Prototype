@@ -18,6 +18,7 @@ class StatisticsController extends Controller
 {
     /**
      * Display the statistics dashboard.
+     * Refactored for 1M record scaling by optimizing the submitter list extraction.
      */
     public function index(Request $request)
     {
@@ -75,23 +76,25 @@ class StatisticsController extends Controller
                 $query->whereRaw('LOWER(json_unquote(json_extract(guest_info, "$.name"))) LIKE ?', ['%' . strtolower($filterSubmitter) . '%']);
             }
 
-            // After all filters are applied, get the full list of unique submitters for the dropdown
+            // OPTIMIZATION: Instead of $query->get() which is a RAM trap, 
+            // use a dedicated query for unique submitters using JSON_EXTRACT in SQL.
             $submitterQuery = clone $query;
-            $viewData['submitters'] = $submitterQuery->get()
-                                        ->pluck('guest_info.name')
-                                        ->filter()
-                                        ->unique()
-                                        ->sort()
-                                        ->values();
+            $viewData['submitters'] = $submitterQuery
+                ->select(DB::raw('DISTINCT json_unquote(json_extract(guest_info, "$.name")) as submitter_name'))
+                ->orderBy('submitter_name')
+                ->pluck('submitter_name')
+                ->filter();
 
             $viewData['releasedDocuments'] = $query->with('purpose')->latest('updated_at')->paginate(10)->withQueryString();
             
             $viewData['purposes'] = Purpose::orderBy('name')->get();
-            $viewData['years'] = DocumentLog::select(DB::raw('YEAR(created_at) as year'))
-                                            ->where('action', 'Document Released')
-                                            ->distinct()
-                                            ->orderBy('year', 'desc')
-                                            ->pluck('year');
+            
+            // OPTIMIZATION: Avoid heavy DocumentLog query if possible, or limit it.
+            $viewData['years'] = DB::table('document_logs')
+                ->select(DB::raw('DISTINCT YEAR(created_at) as year'))
+                ->where('action', 'Document Released')
+                ->orderBy('year', 'desc')
+                ->pluck('year');
         }
         
         if ($request->ajax() && Auth::user()->role === 'officer') {
@@ -173,7 +176,6 @@ class StatisticsController extends Controller
     {
         $reportJob = ReportJob::findOrFail($jobId);
 
-        // Optional: Add authorization check to ensure user can view this job status
         if ($reportJob->user_id !== Auth::id()) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }
@@ -225,25 +227,24 @@ class StatisticsController extends Controller
 
         list($startDate, $endDate, $dateFormat) = $this->getDateParameters($period);
 
-        $query = DocumentLog::select(
-                DB::raw("DATE_FORMAT(document_logs.created_at, '{$dateFormat}') as period_label"),
-                DB::raw('COUNT(DISTINCT document_logs.document_id) as received_count')
-            )
+        $results = DB::table('document_logs')
             ->join('users', 'document_logs.user_id', '=', 'users.id')
             ->whereBetween('document_logs.created_at', [$startDate, $endDate])
             ->where('document_logs.action', 'Received')
-            ->where('users.department_id', $departmentId);
-
-        $receivedDocuments = $query->groupBy('period_label')
-            ->orderBy('period_label')
+            ->where('users.department_id', $departmentId)
+            ->select(
+                DB::raw("DATE_FORMAT(document_logs.created_at, '{$dateFormat}') as period_label"),
+                DB::raw('COUNT(DISTINCT document_logs.document_id) as received_count')
+            )
+            ->groupBy('period_label')
             ->get()
-            ->keyBy('period_label');
+            ->pluck('received_count', 'period_label');
 
         $periodMap = $this->generatePeriodMap($startDate, $endDate, $period);
 
-        foreach ($receivedDocuments as $label => $result) {
+        foreach ($results as $label => $count) {
             if (isset($periodMap[$label])) {
-                $periodMap[$label] = $result->received_count;
+                $periodMap[$label] = $count;
             }
         }
 
@@ -254,7 +255,7 @@ class StatisticsController extends Controller
     }
 
     /**
-     * Get data for the 'Throughput' chart (documents processed over time for the user's department).
+     * Get data for the 'Throughput' chart.
      */
     public function getThroughputData(Request $request)
     {
@@ -263,25 +264,24 @@ class StatisticsController extends Controller
 
         list($startDate, $endDate, $dateFormat) = $this->getDateParameters($period);
 
-        $query = DocumentLog::select(
-                DB::raw("DATE_FORMAT(document_logs.created_at, '{$dateFormat}') as period_label"),
-                DB::raw('COUNT(DISTINCT document_logs.document_id) as processed_count')
-            )
+        $results = DB::table('document_logs')
             ->join('users', 'document_logs.user_id', '=', 'users.id')
             ->whereBetween('document_logs.created_at', [$startDate, $endDate])
             ->where('document_logs.action', 'Processing Complete')
-            ->where('users.department_id', $departmentId);
-
-        $processedDocuments = $query->groupBy('period_label')
-            ->orderBy('period_label')
+            ->where('users.department_id', $departmentId)
+            ->select(
+                DB::raw("DATE_FORMAT(document_logs.created_at, '{$dateFormat}') as period_label"),
+                DB::raw('COUNT(DISTINCT document_logs.document_id) as processed_count')
+            )
+            ->groupBy('period_label')
             ->get()
-            ->keyBy('period_label');
+            ->pluck('processed_count', 'period_label');
 
         $periodMap = $this->generatePeriodMap($startDate, $endDate, $period);
 
-        foreach ($processedDocuments as $label => $result) {
+        foreach ($results as $label => $count) {
             if (isset($periodMap[$label])) {
-                $periodMap[$label] = $result->processed_count;
+                $periodMap[$label] = $count;
             }
         }
 
@@ -293,6 +293,7 @@ class StatisticsController extends Controller
 
     /**
      * Get data for the 'Average Processing Time' chart.
+     * Refactored to use Window Functions to avoid N+1 and RAM traps.
      */
     public function getAverageProcessingTimeData(Request $request)
     {
@@ -301,39 +302,36 @@ class StatisticsController extends Controller
 
         list($startDate, $endDate, $dateFormat) = $this->getDateParameters($period);
         
-        $endLogs = DocumentLog::where('action', 'Processing Complete')
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->whereHas('user', function ($query) use ($departmentId) {
-                $query->where('department_id', $departmentId);
-            })
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        $processingTimesByPeriod = [];
-
-        foreach ($endLogs as $endLog) {
-            $startLog = DocumentLog::where('document_id', $endLog->document_id)
-                ->where('user_id', $endLog->user_id)
-                ->where('action', 'Received')
-                ->where('created_at', '<', $endLog->created_at)
-                ->orderBy('created_at', 'desc')
-                ->first();
-
-            if ($startLog) {
-                $periodLabel = (new Carbon($endLog->created_at))->format($this->getCarbonFormat($period));
-                
-                if (!isset($processingTimesByPeriod[$periodLabel])) {
-                    $processingTimesByPeriod[$periodLabel] = [];
-                }
-                $processingTimesByPeriod[$periodLabel][] = abs((new Carbon($endLog->created_at))->diffInHours(new Carbon($startLog->created_at)));
-            }
-        }
+        // Use Window Function to find the gap between Received and Complete in one SQL query.
+        $durationsResults = DB::table(function ($query) {
+            $query->select(
+                'document_id',
+                'user_id',
+                'action',
+                'created_at',
+                DB::raw("LAG(created_at) OVER (PARTITION BY document_id, user_id ORDER BY created_at) as prev_created_at"),
+                DB::raw("LAG(action) OVER (PARTITION BY document_id, user_id ORDER BY created_at) as prev_action")
+            )
+            ->from('document_logs');
+        }, 'log_durations')
+        ->join('users', 'log_durations.user_id', '=', 'users.id')
+        ->where('users.department_id', $departmentId)
+        ->where('action', 'Processing Complete')
+        ->where('prev_action', 'Received')
+        ->whereBetween('created_at', [$startDate, $endDate])
+        ->select(
+            DB::raw("DATE_FORMAT(created_at, '{$dateFormat}') as period_label"),
+            DB::raw('AVG(TIMESTAMPDIFF(SECOND, prev_created_at, created_at)) / 3600 as avg_hours')
+        )
+        ->groupBy('period_label')
+        ->get()
+        ->pluck('avg_hours', 'period_label');
 
         $periodMap = $this->generatePeriodMap($startDate, $endDate, $period);
 
-        foreach ($processingTimesByPeriod as $label => $times) {
-            if (isset($periodMap[$label]) && count($times) > 0) {
-                $periodMap[$label] = round(array_sum($times) / count($times), 2);
+        foreach ($durationsResults as $label => $avg) {
+            if (isset($periodMap[$label])) {
+                $periodMap[$label] = round($avg, 2);
             }
         }
         

@@ -230,12 +230,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- Initial Load ---
     initializeCharts();
-    fetchData(statusDistributionUrl, statusDistributionChart);
-    fetchData(returnRequestSourcesUrl, returnRequestSourcesChart);
-    fetchData(processingHotspotsUrl, processingHotspotsChart);
-    fetchData(submissionDistrictsUrl, submissionDistrictsChart);
-    fetchData(avgStepTimeUrl, avgStepTimeChart);
-    fetchData(`${returnDeclineUrl}?period=${returnDeclinePeriodEl.value}`, returnDeclineChart);
-    fetchData(`${throughputUrl}?period=${globalThroughputPeriodEl.value}`, throughputChart);
-    updateLoadVsTimeChart();
+    const updateAllCharts = () => {
+        fetchData(statusDistributionUrl, statusDistributionChart);
+        fetchData(returnRequestSourcesUrl, returnRequestSourcesChart);
+        fetchData(processingHotspotsUrl, processingHotspotsChart);
+        fetchData(submissionDistrictsUrl, submissionDistrictsChart);
+        fetchData(avgStepTimeUrl, avgStepTimeChart);
+        fetchData(`${returnDeclineUrl}?period=${returnDeclinePeriodEl.value}`, returnDeclineChart);
+        fetchData(`${throughputUrl}?period=${globalThroughputPeriodEl.value}`, throughputChart);
+        updateLoadVsTimeChart();
+    };
+
+    updateAllCharts();
+
+    // Polling: Update all charts every 60 seconds
+    setInterval(updateAllCharts, 60000);
 });

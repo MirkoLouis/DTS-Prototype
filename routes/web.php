@@ -46,25 +46,27 @@ Route::get('/dashboard', function () {
 
 // Specific routes for each role's dashboard
 Route::middleware(['auth', 'role:officer'])->group(function () {
-    Route::get('/intake', [IntakeController::class, 'index'])->name('intake');
+    Route::middleware('cache.response:55')->group(function () {
+        Route::get('/intake', [IntakeController::class, 'index'])->name('intake');
+        Route::get('/officer-tasks', [TaskController::class, 'index'])->name('officer.tasks');
+        Route::get('/officer-completed-tasks', [TaskController::class, 'completed'])->name('officer.tasks.completed');
+        Route::get('/releasing', [ReleasingController::class, 'index'])->name('releasing');
+    });
+
     Route::post('/intake/find', [IntakeController::class, 'find'])->name('intake.find');
-    
-    // Officer-specific Task routes
-    Route::get('/officer-tasks', [TaskController::class, 'index'])->name('officer.tasks');
     Route::post('/officer-tasks/{document}/complete', [TaskController::class, 'complete'])->name('officer.tasks.complete');
-    Route::get('/officer-completed-tasks', [TaskController::class, 'completed'])->name('officer.tasks.completed');
-    
-    // Releasing routes
-    Route::get('/releasing', [ReleasingController::class, 'index'])->name('releasing');
     Route::post('/releasing/receive', [ReleasingController::class, 'receive'])->name('releasing.receive');
     Route::post('/releasing/{document}/complete', [ReleasingController::class, 'complete'])->name('releasing.complete');
 });
 
 // Specific routes for Staff
 Route::middleware(['auth', 'role:staff'])->group(function () {
-    Route::get('/staff-tasks', [TaskController::class, 'index'])->name('staff.tasks');
+    Route::middleware('cache.response:55')->group(function () {
+        Route::get('/staff-tasks', [TaskController::class, 'index'])->name('staff.tasks');
+        Route::get('/staff-completed-tasks', [TaskController::class, 'completed'])->name('staff.tasks.completed');
+    });
+
     Route::post('/staff-tasks/{document}/complete', [TaskController::class, 'complete'])->name('staff.tasks.complete');
-    Route::get('/staff-completed-tasks', [TaskController::class, 'completed'])->name('staff.tasks.completed');
 });
 
 Route::middleware(['auth', 'role:officer,staff'])->group(function () {
@@ -73,10 +75,15 @@ Route::middleware(['auth', 'role:officer,staff'])->group(function () {
     Route::post('/return-requests', [\App\Http\Controllers\ReturnRequestController::class, 'store'])->name('return-requests.store');
 
     // Statistics routes
-    Route::get('/statistics', [\App\Http\Controllers\StatisticsController::class, 'index'])->name('statistics.index');
-    Route::get('/api/statistics/throughput', [\App\Http\Controllers\StatisticsController::class, 'getThroughputData'])->name('api.statistics.throughput');
-    Route::get('/api/statistics/current-load', [\App\Http\Controllers\StatisticsController::class, 'getCurrentLoadData'])->name('api.statistics.current-load');
-    Route::get('/api/statistics/avg-processing-time', [\App\Http\Controllers\StatisticsController::class, 'getAverageProcessingTimeData'])->name('api.statistics.avg-processing-time');
+    Route::get('/statistics', [\App\Http\Controllers\StatisticsController::class, 'index'])->middleware('cache.response:55')->name('statistics.index');
+    
+    // Cached API routes for statistics
+    Route::middleware('cache.response:55')->prefix('api/statistics')->name('api.statistics.')->group(function () {
+        Route::get('/throughput', [\App\Http\Controllers\StatisticsController::class, 'getThroughputData'])->name('throughput');
+        Route::get('/current-load', [\App\Http\Controllers\StatisticsController::class, 'getCurrentLoadData'])->name('current-load');
+        Route::get('/avg-processing-time', [\App\Http\Controllers\StatisticsController::class, 'getAverageProcessingTimeData'])->name('avg-processing-time');
+    });
+
     Route::post('/statistics/generate-report', [\App\Http\Controllers\StatisticsController::class, 'generateReport'])->name('statistics.generate-report');
     Route::get('/api/statistics/report-status/{jobId}', [\App\Http\Controllers\StatisticsController::class, 'getReportStatus'])->name('api.statistics.report-status');
     Route::post('/api/statistics/report-cancel/{jobId}', [\App\Http\Controllers\StatisticsController::class, 'cancelReport'])->name('api.statistics.report-cancel');
@@ -86,20 +93,30 @@ Route::middleware(['auth', 'role:officer,staff'])->group(function () {
 
 
 Route::middleware(['auth', 'role:admin'])->group(function () {
-    Route::resource('users', \App\Http\Controllers\UserManagementController::class);
     // Admin specific routes
-    Route::get('/integrity-monitor', [IntegrityMonitorController::class, 'index'])->name('integrity-monitor');
-    Route::get('/admin-dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
+    Route::middleware('cache.response:55')->group(function () {
+        Route::resource('users', \App\Http\Controllers\UserManagementController::class)->only(['index']);
+        Route::get('/integrity-monitor', [IntegrityMonitorController::class, 'index'])->name('integrity-monitor');
+        Route::get('/admin-dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
+        Route::get('/system/ratings', [SystemRatingsController::class, 'index'])->name('system.ratings');
+    });
+
+    Route::resource('users', \App\Http\Controllers\UserManagementController::class)->except(['index']);
+    
     Route::post('/admin-dashboard/clear-cache', [AdminDashboardController::class, 'clearCache'])->name('admin.dashboard.clear-cache');
-    Route::get('/api/admin-dashboard/current-load', [AdminDashboardController::class, 'getCurrentLoadData'])->name('api.admin-dashboard.current-load');
-    Route::get('/api/admin-dashboard/throughput', [AdminDashboardController::class, 'getThroughputData'])->name('api.admin-dashboard.throughput');
-    Route::get('/api/admin-dashboard/return-decline-trends', [AdminDashboardController::class, 'getReturnDeclineTrendData'])->name('api.admin-dashboard.return-decline-trends');
-    Route::get('/api/admin-dashboard/status-distribution', [AdminDashboardController::class, 'getDocumentStatusDistributionData'])->name('api.admin-dashboard.status-distribution');
-    Route::get('/api/admin-dashboard/return-request-sources', [AdminDashboardController::class, 'getReturnRequestSourcesData'])->name('api.admin-dashboard.return-request-sources');
-    Route::get('/api/admin-dashboard/processing-hotspots', [AdminDashboardController::class, 'getProcessingHotspotsData'])->name('api.admin-dashboard.processing-hotspots');
-    Route::get('/api/admin-dashboard/submission-districts', [AdminDashboardController::class, 'getSubmissionDistrictsData'])->name('api.admin-dashboard.submission-districts');
-    Route::get('/api/admin-dashboard/avg-step-time', [AdminDashboardController::class, 'getAvgStepTimeByDepartmentData'])->name('api.admin-dashboard.avg-step-time');
-    Route::get('/api/admin-dashboard/department-load-vs-time', [AdminDashboardController::class, 'getDepartmentalLoadVsTimeData'])->name('api.admin-dashboard.department-load-vs-time');
+    
+    // Cached Admin API routes
+    Route::middleware('cache.response:55')->prefix('api/admin-dashboard')->name('api.admin-dashboard.')->group(function () {
+        Route::get('/current-load', [AdminDashboardController::class, 'getCurrentLoadData'])->name('current-load');
+        Route::get('/throughput', [AdminDashboardController::class, 'getThroughputData'])->name('throughput');
+        Route::get('/return-decline-trends', [AdminDashboardController::class, 'getReturnDeclineTrendData'])->name('return-decline-trends');
+        Route::get('/status-distribution', [AdminDashboardController::class, 'getDocumentStatusDistributionData'])->name('status-distribution');
+        Route::get('/return-request-sources', [AdminDashboardController::class, 'getReturnRequestSourcesData'])->name('return-request-sources');
+        Route::get('/processing-hotspots', [AdminDashboardController::class, 'getProcessingHotspotsData'])->name('processing-hotspots');
+        Route::get('/submission-districts', [AdminDashboardController::class, 'getSubmissionDistrictsData'])->name('submission-districts');
+        Route::get('/avg-step-time', [AdminDashboardController::class, 'getAvgStepTimeByDepartmentData'])->name('avg-step-time');
+        Route::get('/department-load-vs-time', [AdminDashboardController::class, 'getDepartmentalLoadVsTimeData'])->name('department-load-vs-time');
+    });
 
     // System pages
     Route::get('/system-health', [SystemHealthController::class, 'index'])->name('system.health');
@@ -110,7 +127,6 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/admin/system-health/export-db-metrics', [SystemHealthController::class, 'exportDbPerformanceMetrics'])->name('admin.system-health.export-db-metrics');
     Route::delete('/system-health/failed-jobs/{id}', [SystemHealthController::class, 'deleteFailedJob'])->name('system.health.failed-jobs.delete');
     Route::delete('/system-health/failed-jobs', [SystemHealthController::class, 'deleteAllFailedJobs'])->name('system.health.failed-jobs.delete-all');
-    Route::get('/system/ratings', [SystemRatingsController::class, 'index'])->name('system.ratings');
 
     // Backup Manager routes
     Route::get('/system/backups', [BackupManagerController::class, 'index'])->name('system.backups.index');
@@ -128,13 +144,13 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 Route::middleware('auth')->group(function() {
     // Document management routes
     Route::get('/documents/{document}/manage', [DocumentController::class, 'manage'])->name('documents.manage');
-    Route::get('/documents/{document}', [DocumentController::class, 'show'])->name('documents.show');
+    Route::get('/documents/{document}', [DocumentController::class, 'show'])->middleware('cache.response:55')->name('documents.show');
     Route::post('/documents/{document}/finalize', [DocumentController::class, 'finalize'])->name('documents.finalize');
 
     Route::post('/documents/{document}/decline', [DocumentController::class, 'decline'])->name('documents.decline');
 
     // New route for displaying the hash chain of a document
-    Route::get('/documents/{document}/hash-chain', [DocumentController::class, 'showHashChain'])->name('documents.show-hash-chain');
+    Route::get('/documents/{document}/hash-chain', [DocumentController::class, 'showHashChain'])->middleware('cache.response:55')->name('documents.show-hash-chain');
 
     // Route for handling QR code scans
     Route::post('/scan', [DocumentController::class, 'scan'])->name('documents.scan');
