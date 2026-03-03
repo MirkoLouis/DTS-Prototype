@@ -5,8 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [1.7.3-Alpha+202603032041] - 2026-03-03
 
 ### FIXED
-- **Neutralized the "RAM Trap":** Completely refactored `AdminDashboardController` and `StatisticsController` to use SQL-level aggregation (`COUNT`, `GROUP BY`, `JSON_EXTRACT`) and MySQL 8.0 Window Functions (`LAG`). This prevents the 3-minute lag by ensuring 1M+ records are pre-aggregated by the database instead of being hydrated as Eloquent models in PHP RAM.
-- **Multithreaded Dev Server:** Enabled `PHP_CLI_SERVER_WORKERS=4` in `composer.json` to allow the built-in server to handle concurrent requests, fully utilizing the isolated CPU cores assigned via `taskset`.
+- **Neutralized the "RAM Trap":** Completely refactored `AdminDashboardController` and `StatisticsController` to use SQL-level aggregation (`COUNT`, `GROUP BY`, `JSON_EXTRACT`) and MySQL 8.0 Window Functions (`LAG`). This prevents the 3-minute lag by ensuring 1M+ records are pre-aggregated by the database instead of being hydrated as Eloquent models.
 
 ### ADDED
 - **Universal Browser Caching:** Applied `cache.response:55` middleware to all key administrative and staff routes (Intake, Tasks, Releasing, Statistics, Integrity Monitor, etc.). This enables sub-second navigation by serving pages and data from the browser cache.
