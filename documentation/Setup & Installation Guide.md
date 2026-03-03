@@ -98,29 +98,29 @@ Before the main app works, you **must** visit `https://localhost:5173` in your b
 
 ---
 
-## Running the System: The "Four Pillars"
+## Running the System: The "Five Pillars"
 
-For the system to be fully functional, you need four concurrent processes.
+For the system to be fully functional, you need five concurrent processes. The DTS is optimized for **12-thread CPU architectures** using `taskset` to ensure high performance.
 
-### The Standard Way (4 Terminals)
-| Pillar | Command | Why? |
-|:---|:---|:---|
-| **Web Server** | `php artisan serve` | Handles all HTTP requests. |
-| **Vite** | `npm run dev` | Compiles CSS/JS and provides HTTPS assets. |
-| **Queue** | `php artisan queue:listen` | Generates PDF reports and runs AI learning. |
-| **Scheduler** | `php artisan schedule:work` | Takes DB snapshots every 5 mins. |
+### The "All-in-One" Way: `composer run dev` (Recommended)
+The project includes a `composer run dev` script that uses **Concurrently** and **CPU Core Pinning** to run all pillars on dedicated cores.
 
-### The "All-in-One" Way: `composer run dev`
-The project includes a `composer run dev` script that uses **Concurrently** to run all functional pillars in one terminal.
+**The allocation:**
+1.  **Server (Cores 0-3):** `php artisan serve` (Handles HTTP requests).
+2.  **Queue (Core 4):** `php artisan queue:listen` (Route Prediction & Reports).
+3.  **Logs (Core 5):** `php artisan pail` (Real-time error tracking).
+4.  **Vite (Cores 6-7):** `npm run dev` (Assets & Secure HTTPS).
+5.  **Schedule (Core 8):** `php artisan schedule:work` (5-minute DB Snapshots).
 
-**It runs:**
-1.  `server` (`php artisan serve`)
-2.  `queue` (`php artisan queue:listen`)
-3.  `logs` (`php artisan pail`)
-4.  `vite` (`npm run dev`)
-5.  `schedule` (`php artisan schedule:work`)
+Each service includes a **10-second automatic restart loop**, ensuring the environment remains stable without manual intervention.
 
-This command ensures that the web server, frontend compiler, background jobs, real-time logs, and the database metrics scheduler are all active and synchronized.
+### Manual Terminal Isolation
+If you prefer separate terminal windows, use the following commands:
+- `composer serve:dev`
+- `composer queue:dev`
+- `composer logs:dev`
+- `composer vite:dev`
+- `composer schedule:dev`
 
 ---
 
