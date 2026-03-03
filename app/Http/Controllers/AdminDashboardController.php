@@ -442,7 +442,7 @@ class AdminDashboardController extends Controller
         ->where('prev_action', 'Received')
         ->select(
             'departments.name',
-            DB::raw('AVG(TIMESTAMPDIFF(SECOND, prev_created_at, created_at)) / 3600 as avg_hours')
+            DB::raw('AVG(TIMESTAMPDIFF(SECOND, prev_created_at, log_durations.created_at)) / 3600 as avg_hours')
         )
         ->groupBy('departments.name')
         ->orderBy('avg_hours', 'asc');
@@ -515,8 +515,8 @@ class AdminDashboardController extends Controller
             }
 
             $timeResults = $durationsSubquery->select(
-                DB::raw("DATE_FORMAT(created_at, '{$dateFormat}') as period_label"),
-                DB::raw('AVG(TIMESTAMPDIFF(SECOND, prev_created_at, created_at)) / 3600 as avg_hours')
+                DB::raw("DATE_FORMAT(log_durations.created_at, '{$dateFormat}') as period_label"),
+                DB::raw('AVG(TIMESTAMPDIFF(SECOND, prev_created_at, log_durations.created_at)) / 3600 as avg_hours')
             )
             ->groupBy('period_label')
             ->get()
