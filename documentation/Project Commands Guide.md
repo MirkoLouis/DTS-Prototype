@@ -123,6 +123,7 @@ These shortcuts are defined in `composer.json` to automate complex, multi-step d
 | Command | Category | Description |
 |:---|:---|:---|
 | `php artisan dts:verify-integrity` | Security | **Trust Builder:** Runs a system-wide cryptographic verification of all document logs and chains. |
+| `php artisan dts:tune-db` | Performance | **RAM Optimization:** Programmatically injects 4GB Buffer Pool and 1GB Log File settings into MySQL. |
 | `php artisan dts:rebuild-chain {logId}` | Security | Repairs a broken hash-chain starting from a specific log ID forward. |
 | `php artisan dts:snapshot-db-metrics` | Monitoring | Captures real-time DB health (connections, slow queries) for the admin dashboard. |
 | `php artisan documents:prune-pending` | Maintenance | Deletes unfinalized guest submissions older than 14 days to keep the database clean. |

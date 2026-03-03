@@ -74,7 +74,8 @@ What happens when the system grows to **1,000,000 documents** (approx. 5,000,000
 
 ### 2. Storage & Memory
 -   **Storage:** 5 million logs require **~2.5 GB of database storage** for the audit trail alone.
--   **Memory:** The `chunkById` strategy ensures memory usage remains **constant** regardless of the total number of logs.
+-   **Memory (RAM Tuning):** The system automatically tunes MySQL's **InnoDB Buffer Pool to 4GB** and the **Redo Log File to 1GB** upon startup (`composer dev`). This ensures the entire index tree for 1,000,000 documents resides in RAM, achieving sub-millisecond lookups.
+-   **Memory Usage:** The `chunkById` strategy ensures application-level memory usage remains **constant** regardless of the total number of logs.
 
 ---
 

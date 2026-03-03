@@ -16,16 +16,19 @@ use Illuminate\Support\Facades\Route;
 
 
 // Guest-facing routes
-Route::get('/', [GuestController::class, 'welcome'])->name('welcome');
+Route::middleware('cache.response:55')->group(function () {
+    Route::get('/', [GuestController::class, 'welcome'])->name('welcome');
+    Route::get('/success/{tracking_code}/{document_id}', [GuestController::class, 'success'])->name('success');
+    Route::get('/track', [GuestController::class, 'track'])->name('track'); // Modified to accept query parameter
+
+    // API route for fetching single document module via AJAX
+    Route::get('/api/track-document/{tracking_code}', [GuestController::class, 'getTrackedDocumentModule']);
+
+    // API route for AJAX polling to get status updates
+    Route::get('/api/document-status', [GuestController::class, 'getStatusUpdates'])->name('api.document.status');
+});
+
 Route::post('/submit-document', [GuestController::class, 'store'])->name('document.store');
-Route::get('/success/{tracking_code}/{document_id}', [GuestController::class, 'success'])->name('success');
-Route::get('/track', [GuestController::class, 'track'])->name('track'); // Modified to accept query parameter
-
-// API route for fetching single document module via AJAX
-Route::get('/api/track-document/{tracking_code}', [GuestController::class, 'getTrackedDocumentModule']);
-
-// API route for AJAX polling to get status updates
-Route::get('/api/document-status', [GuestController::class, 'getStatusUpdates'])->name('api.document.status');
 
 // Public route for submitting a rating
 Route::post('/documents/{document:tracking_code}/rate', [DocumentController::class, 'rate'])->name('documents.rate');

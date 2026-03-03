@@ -7,6 +7,11 @@
 
         <title>{{ config('app.name', 'Laravel') }}</title>
 
+        <!-- Browser Cache Optimizations -->
+        <meta http-equiv="Cache-Control" content="max-age=60, public">
+        <link rel="dns-prefetch" href="{{ config('app.url') }}">
+        <meta name="render-optimize" content="true">
+
         <!-- Fonts -->
 
         <!-- Scripts -->
