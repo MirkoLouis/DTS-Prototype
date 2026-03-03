@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.2-Alpha+202603031030] - 2026-03-03
+
+### FIXED
+- **Multithreaded:** Apparently taskset was justa way to separate cores for specific tasks, with PHP_CLI_SERVER_WORKERS=4 the server (php artisan serve) is now truly multithreaded.
+
 ## [1.7.1-Alpha+202603031030] - 2026-03-03
 
 ### ADDED
