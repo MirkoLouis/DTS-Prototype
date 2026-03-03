@@ -162,3 +162,18 @@ To verify the security and integrity of the "Trust Builder" mechanism:
 composer test
 ```
 This command clears the configuration cache and executes the `IntegrityCheckTest.php`, which simulates tampering and confirms the system's ability to detect and block malicious log modifications.
+
+---
+
+## Troubleshooting
+
+### Error: "Address already in use" (Port 3000)
+If you see this error when running `composer dev`, it means a previous PHP process didn't close properly.
+- **Linux/WSL2 Fix:** `kill -9 $(lsof -t -i:3000)` or `sudo fuser -k 3000/tcp`.
+- **Windows Fix (PowerShell):** `Stop-Process -Id (Get-NetTCPConnection -LocalPort 3000).OwningProcess -Force`
+- **Windows Fix (CMD):** `netstat -ano | findstr :3000` to find the PID, then `taskkill /PID <PID> /F`.
+
+### Database Tuning Warnings
+If `composer db:tune` reports that Log File tuning was skipped:
+- **Reason:** This is normal for some MySQL versions that require a full restart to change log sizes.
+- **Fix:** Your 4GB Buffer Pool is likely already active (the most important part). You can verify with: `mysql -u root -p -e "SHOW VARIABLES LIKE 'innodb_buffer_pool_size';"`.
