@@ -74,21 +74,14 @@ Explore generated document tracking forms and administrative reports:
 
 For deep technical dives into specific system components, please refer to the files in the `documentation/` directory:
 
--   **Setup & Deployment:**
-    -   [Setup & Installation Guide](documentation/Setup%20&%20Installation%20Guide.md)
-    -   [System Deployment Guide](documentation/System%20Deployment%20Guide.md)
-    -   [HTTPS & Local SSL Logic](documentation/HTTPS%20&%20Local%20SSL%20Logic.md)
--   **Core Logic:**
-    -   [Document Lifecycle & Statuses](documentation/Document%20Lifecycle%20&%20Statuses.md)
-    -   [Role-Based Access Control (RBAC) Logic](documentation/Role-Based%20Access%20Control%20(RBAC)%20Logic.md)
-    -   [AI Route Prediction Logic](documentation/AI%20Route%20Prediction%20Logic.md)
--   **Security & Performance:**
-    -   [Document Hashing & Chain Logic](documentation/Document%20Hashing%20&%20Chain%20Logic.md)
-    -   [System Health & Analytics Logic](documentation/System%20Health%20&%20Analytics%20Logic.md)
-    -   [Project Resilience & Fallback Strategies](documentation/Project%20Resilience%20&%20Fallback%20Strategies.md)
--   **Development Tools:**
-    -   [Project Commands Guide](documentation/Project%20Commands%20Guide.md)
-    -   [Data Generation & Simulation Logic](documentation/Data%20Generation%20&%20Simulation%20Logic.md)
+-   **Architecture:**
+    -   [Architecture](documentation/ARCHITECTURE.md)
+-   **Hardware Specs:**
+    -   [Hardware Specs](documentation/HARDWARE_SPECS.md)
+-   **Standard Operations:**
+    -   [Standard Operations](documentation/OPERATIONS.md)
+-   **Administration:**
+    -   [Administration](documentation/ADMINISTRATION.md)
 
 ---
 
@@ -99,14 +92,14 @@ For deep technical dives into specific system components, please refer to the fi
     git clone <repository-url>
     composer install && npm install
     ```
-2.  **Environment Setup:** Follow the [Setup Guide](documentation/Setup%20&%20Installation%20Guide.md) to configure your `.env` and generate your local SSL certificates (`mkcert localhost`).
+2.  **Environment Setup:** Follow the [Setup Guide](documentation/OPERATIONS.md) to configure your `.env` and generate your local SSL certificates (`mkcert localhost`).
 3.  **Database:**
     ```bash
-    php artisan dts:migrate --devseed  # Simulates 10,000 documents over 5 years
+    composer db:dev  # Simulates 10,000 documents over 5 years
     ```
 4.  **Run Development Server:**
     ```bash
-    composer run dev  # Starts Server, Vite, Queue, Logs, and Scheduler
+    composer dev  # Starts Server, Vite, Queue, Logs, and Scheduler
     ```
 
 ---
