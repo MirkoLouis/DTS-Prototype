@@ -89,40 +89,10 @@ class TaskController extends Controller
      */
     public function complete(Request $request, Document $document)
     {
+        \Illuminate\Support\Facades\Gate::authorize('process', $document);
+
         $user = Auth::user()->load('department');
         $userDepartment = $user->department;
-
-        // Authorization: Check if the document is actually assigned to this user's department
-        $currentStepIndex = $document->current_step - 1;
-        $currentDepartmentOnRoute = $document->finalized_route[$currentStepIndex]['name'] ?? null;
-
-        // Authorization: Check if the user is authorized to perform this action on this document.
-        // Get the department name for the current step in the document's route
-        $currentStepInRouteName = $document->finalized_route[$currentStepIndex]['name'] ?? null;
-
-        if ($user->role === 'officer') {
-            if (!$userDepartment) {
-                return back()->with('error', 'Your user account (Records Officer) is not assigned to a department, thus cannot complete this step.');
-            }
-            if ($document->status !== 'processing') {
-                return back()->with('error', 'The document is not in a processing state.');
-            }
-            if ($currentStepInRouteName !== $userDepartment->name) {
-                return back()->with('error', "As a Records Officer, you cannot complete this step. The document is currently at '{$currentStepInRouteName}' but your department is '{$userDepartment->name}'.");
-            }
-        }
-        // Staff-specific authorization (or general authorization if not officer)
-        else {
-            if (!$userDepartment) {
-                return back()->with('error', 'Your user account is not assigned to a department, thus cannot complete this step.');
-            }
-            if ($document->status !== 'processing') {
-                return back()->with('error', 'The document is not in a processing state.');
-            }
-            if ($currentStepInRouteName !== $userDepartment->name) {
-                return back()->with('error', "You are not authorized to complete this step. The document is currently at '{$currentStepInRouteName}' but your department is '{$userDepartment->name}'.");
-            }
-        }
 
         // Advance the step and set status to 'in_transit'
         $document->current_step += 1;

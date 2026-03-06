@@ -21,6 +21,8 @@ class DocumentController extends Controller
      */
     public function manage(Document $document)
     {
+        \Illuminate\Support\Facades\Gate::authorize('manage', $document);
+
         // Eager load the purpose to get the suggested_route
         $document->load('purpose');
         $departments = Department::all();
@@ -40,6 +42,8 @@ class DocumentController extends Controller
      */
     public function finalize(Request $request, Document $document)
     {
+        \Illuminate\Support\Facades\Gate::authorize('manage', $document);
+
         $request->validate([
             'final_route' => 'required|json',
         ]);
@@ -94,6 +98,8 @@ class DocumentController extends Controller
      */
     public function decline(Request $request, Document $document)
     {
+        \Illuminate\Support\Facades\Gate::authorize('manage', $document);
+
         // Ensure only pending documents can be declined
         if ($document->status !== 'pending') {
             return back()->with('error', 'This document cannot be declined as it is already being processed.');
@@ -208,17 +214,58 @@ class DocumentController extends Controller
      */
     public function show(Document $document, Request $request)
     {
+        \Illuminate\Support\Facades\Gate::authorize('view', $document);
+
         $document->load(['purpose', 'logs.user']);
 
+        // Default back URL based on role
+        $role = Auth::user()->role;
+        $defaultBackUrl = match($role) {
+            'admin' => route('admin.dashboard'),
+            'officer' => route('officer.tasks'),
+            'staff' => route('staff.tasks'),
+            default => route('dashboard'),
+        };
+
         $backUrl = url()->previous();
-        // If coming from the integrity monitor, always go back to it
-        if ($request->get('back_to') === 'integrity-monitor') {
-            $backUrl = route('integrity-monitor');
+        
+        // Handle specific back_to redirection if provided via query param
+        $backTo = $request->query('back_to');
+        if ($backTo) {
+            if ($backTo === 'integrity-monitor') {
+                $backUrl = route('integrity-monitor');
+            } elseif ($backTo === 'intake') {
+                $backUrl = route('intake');
+            } elseif ($backTo === 'releasing') {
+                $backUrl = route('releasing');
+            } elseif ($backTo === 'tasks') {
+                $backUrl = match($role) {
+                    'officer' => route('officer.tasks'),
+                    'staff' => route('staff.tasks'),
+                    default => $defaultBackUrl,
+                };
+            } elseif ($backTo === 'completed') {
+                $backUrl = match($role) {
+                    'officer' => route('officer.tasks.completed'),
+                    'staff' => route('staff.tasks.completed'),
+                    default => $defaultBackUrl,
+                };
+            } elseif (str_contains($backTo, config('app.url'))) {
+                // If it's a raw URL, ensure it's from our own app
+                $backUrl = $backTo;
+            }
+        }
+
+        // If the previous URL is the same as the current one (e.g., after a refresh),
+        // or if it's external, or if it's the login/logout page, use the default dashboard route.
+        if (!$backUrl || $backUrl === url()->current() || !str_contains($backUrl, config('app.url'))) {
+            $backUrl = $defaultBackUrl;
         }
 
         return view('general.show-document', [
             'document' => $document,
             'backUrl' => $backUrl,
+            'backToKey' => $backTo, // Pass the key itself to preserve it in the "View Hash Chain" link
         ]);
     }
 
@@ -230,6 +277,8 @@ class DocumentController extends Controller
      */
     public function showHashChain(Document $document, Request $request)
     {
+        \Illuminate\Support\Facades\Gate::authorize('view', $document);
+
         $document->load(['logs.user']); // Load logs and the user associated with each log
 
         return view('general.document-hash-chain', [
@@ -247,6 +296,8 @@ class DocumentController extends Controller
      */
     public function freeze(Document $document)
     {
+        \Illuminate\Support\Facades\Gate::authorize('freeze', $document);
+
         $document->status = 'frozen';
         $document->save();
 
@@ -268,6 +319,8 @@ class DocumentController extends Controller
      */
     public function unfreeze(Document $document)
     {
+        \Illuminate\Support\Facades\Gate::authorize('unfreeze', $document);
+
         // Add logic to determine what the previous status was, or just revert to 'processing'.
         // For simplicity, we'll revert to 'processing'.
         $document->status = 'processing';

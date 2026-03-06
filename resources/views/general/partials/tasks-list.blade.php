@@ -27,7 +27,9 @@
             @forelse ($documents as $document)
                 <tr>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100 break-all">
-                        {{ $document->tracking_code }}
+                        <a href="{{ route('documents.show', ['document' => $document->tracking_code, 'back_to' => 'tasks']) }}" class="hover:underline hover:text-indigo-600 dark:hover:text-indigo-400">
+                            {{ $document->tracking_code }}
+                        </a>
                     </td>
                     <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-300 break-words">
                         {{ $document->guest_info['name'] }}
@@ -42,7 +44,7 @@
                         {{ $document->created_at->format('M d, Y h:i A') }}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <form method="POST" action="{{ Auth::user()->role === 'officer' ? route('officer.tasks.complete', $document) : route('staff.tasks.complete', $document) }}">
+                        <form method="POST" action="{{ Auth::user()->role === 'officer' ? route('officer.tasks.complete', $document->tracking_code) : route('staff.tasks.complete', $document->tracking_code) }}">
                             @csrf
                             <button type="submit" onclick="return confirm('Are you sure you want to complete this step? This action cannot be undone.');" class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-500 active:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150">
                                 Complete Step
@@ -67,7 +69,11 @@
         <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg shadow mb-4">
             <div class="flex justify-between items-start">
                 <div>
-                    <div class="font-bold text-lg text-gray-900 dark:text-gray-100">{{ $document->tracking_code }}</div>
+                    <div class="font-bold text-lg text-gray-900 dark:text-gray-100">
+                        <a href="{{ route('documents.show', ['document' => $document->tracking_code, 'back_to' => 'tasks']) }}" class="hover:underline hover:text-indigo-600 dark:hover:text-indigo-400">
+                            {{ $document->tracking_code }}
+                        </a>
+                    </div>
                     <div class="text-sm text-gray-500 dark:text-gray-400">{{ $document->purpose->name }}</div>
                 </div>
                 <x-status-badge :status="$document->status" />
@@ -79,7 +85,7 @@
             </div>
 
             <div>
-                <form method="POST" action="{{ Auth::user()->role === 'officer' ? route('officer.tasks.complete', $document) : route('staff.tasks.complete', $document) }}">
+                <form method="POST" action="{{ Auth::user()->role === 'officer' ? route('officer.tasks.complete', $document->tracking_code) : route('staff.tasks.complete', $document->tracking_code) }}">
                     @csrf
                     <button type="submit" onclick="return confirm('Are you sure you want to complete this step? This action cannot be undone.');" class="w-full inline-flex items-center justify-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-500 active:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150">
                         Complete Step

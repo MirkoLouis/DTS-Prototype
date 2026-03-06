@@ -25,7 +25,7 @@
                 <tr>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100 break-all">
                         <div>{{ $document->tracking_code }}</div>
-                        <a href="{{ route('documents.show', $document) }}" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 text-xs">View Details</a>
+                        <a href="{{ route('documents.show', ['document' => $document->tracking_code, 'back_to' => 'completed']) }}" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 text-xs">View Details</a>
                     </td>
                     <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-300 break-words">
                         {{ $document->guest_info['name'] }}
@@ -69,7 +69,7 @@
                     <p><strong>Submitted:</strong> {{ $document->created_at->format('M d, Y h:i A') }}</p>
                 </div>
                 <div class="mt-4">
-                    <a href="{{ route('documents.show', $document) }}" class="w-full text-center block items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 active:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150">
+                    <a href="{{ route('documents.show', ['document' => $document->tracking_code, 'back_to' => 'completed']) }}" class="w-full text-center block items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 active:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150">
                         View Details
                     </a>
                 </div>
