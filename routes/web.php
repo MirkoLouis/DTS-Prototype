@@ -144,13 +144,13 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 Route::middleware('auth')->group(function() {
     // Document management routes
     Route::get('/documents/{document}/manage', [DocumentController::class, 'manage'])->name('documents.manage');
-    Route::get('/documents/{document}', [DocumentController::class, 'show'])->middleware('cache.response:55')->name('documents.show');
+    Route::get('/documents/{document}', [DocumentController::class, 'show'])->name('documents.show');
     Route::post('/documents/{document}/finalize', [DocumentController::class, 'finalize'])->name('documents.finalize');
 
     Route::post('/documents/{document}/decline', [DocumentController::class, 'decline'])->name('documents.decline');
 
     // New route for displaying the hash chain of a document
-    Route::get('/documents/{document}/hash-chain', [DocumentController::class, 'showHashChain'])->middleware('cache.response:55')->name('documents.show-hash-chain');
+    Route::get('/documents/{document}/hash-chain', [DocumentController::class, 'showHashChain'])->name('documents.show-hash-chain');
 
     // Route for handling QR code scans
     Route::post('/scan', [DocumentController::class, 'scan'])->name('documents.scan');

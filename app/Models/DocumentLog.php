@@ -41,7 +41,7 @@ class DocumentLog extends Model
             $document->title,
             $document->submitter_name,
             $document->submitter_email,
-            $document->submitter_contact,
+            $document->submitter_phone,
             $document->district,
             $document->department,
             $document->purpose_id,

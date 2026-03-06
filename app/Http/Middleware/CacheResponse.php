@@ -18,9 +18,11 @@ class CacheResponse
     {
         $response = $next($request);
 
-        // Only cache GET requests and successful responses
+        // Only cache GET requests and successful responses.
+        // We use 'private' to ensure the cache is unique to the user's browser
+        // and 'no-cache, no-store' to prevent issues when switching users on the same machine.
         if ($request->isMethod('get') && $response->getStatusCode() == 200) {
-            $response->headers->set('Cache-Control', "public, max-age={$ttl}, must-revalidate");
+            $response->headers->set('Cache-Control', "private, no-cache, no-store, max-age={$ttl}, must-revalidate");
             $response->headers->set('Expires', gmdate('D, d M Y H:i:s', time() + $ttl) . ' GMT');
         }
 

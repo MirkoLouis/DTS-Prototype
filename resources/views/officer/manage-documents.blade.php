@@ -27,7 +27,7 @@
                             <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
                                 Drag and drop the boxes to re-order them, or add a new step from the dropdown below.
                             </p>
-                            <form id="route-form" action="{{ route('documents.finalize', $document) }}" method="POST">
+                            <form id="route-form" action="{{ route('documents.finalize', $document->tracking_code) }}" method="POST">
                                 @csrf
                                 <input type="hidden" name="final_route" id="final_route">
 
@@ -85,7 +85,7 @@
             <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" aria-hidden="true"></div>
             <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
             <div class="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-                <form id="decline-form" action="{{ route('documents.decline', $document) }}" method="POST">
+                <form id="decline-form" action="{{ route('documents.decline', $document->tracking_code) }}" method="POST">
                     @csrf
                     <div class="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                         <div class="sm:flex sm:items-start">
@@ -151,7 +151,7 @@
             const addStepBtn = document.getElementById('add-step-btn');
             const departmentSelect = document.getElementById('department-select');
 
-            const sortable = new Sortable(routeList, {
+            const sortable = new window.Sortable(routeList, {
                 animation: 150,
                 ghostClass: 'sortable-ghost',
                 chosenClass: 'sortable-chosen',

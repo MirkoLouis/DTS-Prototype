@@ -40,6 +40,41 @@ class Document extends Model
     ];
 
     /**
+     * Accessor for submitter name.
+     */
+    public function getSubmitterNameAttribute()
+    {
+        return $this->guest_info['name'] ?? null;
+    }
+
+    /**
+     * Accessor for submitter email.
+     */
+    public function getSubmitterEmailAttribute()
+    {
+        return $this->guest_info['email'] ?? null;
+    }
+
+    /**
+     * Accessor for submitter phone.
+     */
+    public function getSubmitterPhoneAttribute()
+    {
+        return $this->guest_info['phone'] ?? null;
+    }
+
+    /**
+     * Get the route key for the model.
+     * Use tracking_code instead of the incremental ID to prevent ID enumeration.
+     *
+     * @return string
+     */
+    public function getRouteKeyName()
+    {
+        return 'tracking_code';
+    }
+
+    /**
      * Get the purpose associated with the document.
      */
     public function purpose()

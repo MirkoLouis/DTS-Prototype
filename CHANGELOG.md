@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.0-Alpha+202603061900] - 2026-03-06
+
+### FIXED
+- **Integrity Protection Logic:** Corrected a critical flaw in `DocumentLog::calculateStateHash` where submitter information was being hashed as `null` due to missing properties on the `Document` model. Updated the logic to use new model accessors that correctly extract data from the `guest_info` JSON field.
+- **Admin Path Traversal:** Patched a security vulnerability in `BackupManagerController` where unsanitized `fileName` parameters allowed potential directory traversal. Implemented `basename()` sanitization for all download and delete operations.
+- **Broken Object Level Authorization (BOLA):** Secured document detail routes by transitioning from incremental database IDs to unique `tracking_code` strings for route model binding and implementing a robust `DocumentPolicy`.
+- **SortableJS Integration:** Resolved an `Uncaught ReferenceError: Sortable is not defined` by explicitly importing `sortablejs` in the main application bundle and utilizing the global `window.Sortable` object in the UI.
+- **RBAC Caching Conflict:** Fixed a bug where role-specific navigation menus were being incorrectly cached across different user sessions. Updated `CacheResponse` middleware to use `private` visibility and `no-store` directives.
+- **Circular Navigation Loop:** Resolved a "Back" button trap in the document details view by implementing a persistent `back_to` parameter that intelligently redirects users to their appropriate dashboard (Intake, Tasks, Releasing, or Completed) even after viewing the hash chain.
+- **Robust Redirection:** Enhanced `DocumentController@show` with role-aware fallback logic to ensure the "Back" button always leads to a valid, authorized page, preventing 403 errors during navigation.
+
+### ADDED
+- **Document Access Policy:** Created `App\Policies\DocumentPolicy` to centralize and enforce granular access rules for viewing, managing, and processing documents based on user roles and departmental assignments.
+- **Document State Accessors:** Added `submitter_name`, `submitter_email`, and `submitter_phone` accessors to the `Document` model for cleaner data handling and improved integrity verification.
+- **Context-Aware Navigation Links:** Integrated `back_to` query parameters across all administrative tables to provide a seamless "View Details -> Back to List" user experience.
+
+### CHANGED
+- **Non-Enumerable Routing:** Reconfigured the `Document` model to use `tracking_code` as the primary route key, preventing unauthorized users from discovering documents through ID guessing.
+- **Global Asset Availability:** Updated `app.js` to expose `Sortable` and `Html5Qrcode` to the global scope, ensuring high-interactivity components work reliably across all Blade templates.
+
 ## [1.7.5-Alpha+202603061830] - 2026-03-06
 
 ### FIXED
