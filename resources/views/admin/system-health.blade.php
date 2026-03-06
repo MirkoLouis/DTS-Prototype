@@ -134,9 +134,23 @@
                                 <div class="md:col-span-1 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-inner">
                                     <h3 class="text-lg font-bold mb-4 text-center">Verification Status</h3>
                                     <div id="integrity-status-container" class="text-center">
-                                        <div class="text-5xl font-bold text-green-500" id="verified-percentage">{{ $integrityCheckResult['verified_percentage'] }}%</div>
-                                        <div class="text-sm text-gray-500 dark:text-gray-400 mt-2">Verified</div>
-                                        <div class="text-xs text-gray-400 dark:text-gray-500 mt-1" id="last-checked-at">
+                                        <div class="text-5xl font-bold {{ $integrityCheckResult['verified_percentage'] == 100 && ($integrityCheckResult['live_state_errors_count'] ?? 0) == 0 ? 'text-green-500' : 'text-red-500' }}" id="verified-percentage">
+                                            {{ $integrityCheckResult['verified_percentage'] }}%
+                                        </div>
+                                        <div class="text-sm text-gray-500 dark:text-gray-400 mt-2">Chain Integrity</div>
+                                        
+                                        @if(($integrityCheckResult['live_state_errors_count'] ?? 0) > 0)
+                                            <div class="mt-4 p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                                                <div class="text-xl font-bold text-red-600 dark:text-red-400">{{ $integrityCheckResult['live_state_errors_count'] }}</div>
+                                                <div class="text-xs text-red-500 dark:text-red-300 uppercase font-bold">Live State Errors</div>
+                                            </div>
+                                        @else
+                                            <div class="mt-4 p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
+                                                <div class="text-xs text-green-600 dark:text-green-400 uppercase font-bold">Live State OK</div>
+                                            </div>
+                                        @endif
+
+                                        <div class="text-xs text-gray-400 dark:text-gray-500 mt-3" id="last-checked-at">
                                             Last checked: {{ $integrityCheckResult['last_checked'] instanceof \Carbon\Carbon ? $integrityCheckResult['last_checked']->diffForHumans() : $integrityCheckResult['last_checked'] }}
                                         </div>
                                     </div>
@@ -155,21 +169,79 @@
                                 <div class="md:col-span-2 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-inner">
                                     <h3 class="text-lg font-bold mb-4">How it Works</h3>
                                     <p class="text-sm text-gray-600 dark:text-gray-300">
-                                        This tool provides a powerful way to verify the integrity of the document tracking system's data. It leverages a "hash chain" mechanism, similar to blockchain technology, to ensure that document logs are immutable and tamper-proof.
+                                        This tool provides a powerful way to verify the integrity of the document tracking system's data. It leverages a "hash chain" mechanism and an "Active State Comparison" to ensure that records are immutable and tamper-proof.
                                     </p>
                                     <br>
                                     <ol class="list-decimal list-inside text-sm text-gray-600 dark:text-gray-300 space-y-2">
                                         <li><strong>Hash-Chaining:</strong> When a document log is created, a unique digital signature (a "hash") is generated from its data and the hash of the previous log. This creates a linked chain of records.</li>
-                                        <li><strong>Verification Process:</strong> Clicking "Run Verification" triggers a system-wide check. The application iterates through every log for every document, recalculates the hash for each one, and compares it to the hash stored in the database.</li>
-                                        <li><strong>Status Indication:</strong> If the recalculated hash matches the stored hash for every single log, the system is 100% verified. If even one hash is mismatched, it indicates that data may have been altered, and the system will report an error.</li>
+                                        <li><strong>Active State Comparison:</strong> The system compares the current live database state of every document against the state recorded in its last cryptographic log. Any unauthorized modification to document details (title, submitter, route) is immediately detected.</li>
+                                        <li><strong>Verification Process:</strong> Clicking "Run Verification" triggers a system-wide check of both the historical log chain and the current live states.</li>
+                                        <li><strong>Status Indication:</strong> If all historical logs and live states match their cryptographic hashes, the system is 100% verified.</li>
                                     </ol>
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Section: Live State Mismatches -->
+                        @if ($mismatchedDocuments->isNotEmpty())
+                            <div class="bg-orange-50 dark:bg-orange-900/20 pt-3 px-5 pb-5 rounded-lg shadow">
+                                <h3 class="text-xl font-bold mb-4 text-orange-600 dark:text-orange-400 border-b border-orange-200 dark:border-orange-700 pb-2">
+                                    Live State Mismatches (Tampering Detected)
+                                </h3>
+                                <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                                    The following documents have current database states that do not match their last recorded cryptographic log. This indicates the document details were modified without authorization or outside the normal application flow.
+                                </p>
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                                        <thead class="bg-gray-50 dark:bg-gray-700">
+                                            <tr>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tracking Code</th>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Title</th>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
+                                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Last Modified</th>
+                                                <th scope="col" class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                                            @foreach ($mismatchedDocuments as $doc)
+                                                <tr>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">{{ $doc->tracking_code }}</td>
+                                                    <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-300">{{ $doc->title }}</td>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">
+                                                        <x-status-badge :status="$doc->status" />
+                                                    </td>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{{ $doc->updated_at->diffForHumans() }}</td>
+                                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                        <div class="flex items-center justify-end space-x-3">
+                                                            <a href="{{ route('documents.show', $doc->tracking_code) }}" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400">Investigate</a>
+                                                            @if($doc->status !== 'frozen')
+                                                                <form action="{{ route('documents.freeze', $doc->tracking_code) }}" method="POST">
+                                                                    @csrf
+                                                                    <button type="submit" class="text-red-600 hover:text-red-900 dark:text-red-400">Freeze</button>
+                                                                </form>
+                                                            @else
+                                                                <form action="{{ route('documents.unfreeze', $doc->tracking_code) }}" method="POST">
+                                                                    @csrf
+                                                                    <button type="submit" class="text-green-600 hover:text-green-900 dark:text-green-400">Unfreeze</button>
+                                                                </form>
+                                                            @endif
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="mt-4">
+                                    {{ $mismatchedDocuments->links() }}
+                                </div>
+                            </div>
+                        @endif
+
                         <!-- Section: Mismatched Logs -->
                         @if ($mismatchedLogs->isNotEmpty())
                             <div class="bg-red-50 dark:bg-red-900/20 pt-3 px-5 pb-5 rounded-lg shadow">
-                                <h3 class="text-xl font-bold mb-4 text-red-600 dark:text-red-400 border-b border-red-200 dark:border-red-700 pb-2">Mismatched Integrity Logs</h3>
+                                <h3 class="text-xl font-bold mb-4 text-red-600 dark:text-red-400 border-b border-red-200 dark:border-red-700 pb-2">Mismatched Integrity Logs (Chain Corruption)</h3>
                                 <form action="{{ route('system.health') }}" method="GET" class="mb-4">
                                     <div class="flex items-center space-x-4">
                                         <input type="text" name="search" placeholder="Search by tracking code" class="border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" value="{{ request('search') }}">
@@ -203,15 +275,15 @@
                                                     <td class="px-6 py-4 text-sm text-red-500 dark:text-red-400 font-mono break-all max-w-xs">{{ $log->hash }}</td>
                                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                                         <div class="flex items-center space-x-2">
-                                                            <a href="{{ route('documents.show', $log->document_id) }}" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200">View</a>
+                                                            <a href="{{ route('documents.show', $log->document->tracking_code) }}" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200">View</a>
                                                             
                                                             @if($log->document->status === 'frozen')
-                                                                <form action="{{ route('documents.unfreeze', $log->document_id) }}" method="POST" class="unfreeze-form">
+                                                                <form action="{{ route('documents.unfreeze', $log->document->tracking_code) }}" method="POST" class="unfreeze-form">
                                                                     @csrf
                                                                     <button type="submit" class="text-green-600 hover:text-green-900 dark:text-green-400 dark:hover:text-green-200">Unfreeze</button>
                                                                 </form>
                                                             @else
-                                                                <form action="{{ route('documents.freeze', $log->document_id) }}" method="POST" class="freeze-form">
+                                                                <form action="{{ route('documents.freeze', $log->document->tracking_code) }}" method="POST" class="freeze-form">
                                                                     @csrf
                                                                     <button type="submit" class="text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 dark:hover:text-yellow-200">Freeze</button>
                                                                 </form>

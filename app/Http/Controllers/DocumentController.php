@@ -337,19 +337,39 @@ class DocumentController extends Controller
     {
         \Illuminate\Support\Facades\Gate::authorize('unfreeze', $document);
 
-        // Add logic to determine what the previous status was, or just revert to 'processing'.
-        // For simplicity, we'll revert to 'processing'.
-        $document->status = 'processing';
+        // Find the last status before it was frozen by looking at the second to last log entry
+        // (The last log entry would be the 'frozen' action itself)
+        $lastValidLog = $document->logs()
+            ->where('action', '!=', 'ADMIN: Document frozen.')
+            ->where('action', '!=', 'System Auto-Freeze')
+            ->orderBy('id', 'desc')
+            ->first();
+
+        $previousStatus = 'processing'; // Default fallback
+
+        if ($lastValidLog) {
+            // Map the last action to its likely status
+            $previousStatus = match($lastValidLog->action) {
+                'Accepted and Document Routing finalized' => 'in_transit',
+                'Received' => 'processing',
+                'Processing Complete' => 'in_transit',
+                'Ready for Releasing' => 'ready_for_release',
+                'Document Released' => 'completed',
+                default => 'processing'
+            };
+        }
+
+        $document->status = $previousStatus;
         $document->save();
 
         DocumentLog::create([
             'document_id' => $document->id,
             'user_id' => Auth::id(),
             'action' => 'ADMIN: Document unfrozen.',
-            'remarks' => 'An administrator has unfrozen this document, allowing it to continue processing.',
+            'remarks' => "An administrator has unfrozen this document, restoring its status to " . ucfirst($previousStatus) . ".",
         ]);
 
-        return response()->json(['status' => 'success', 'message' => 'Document has been unfrozen successfully.']);
+        return response()->json(['status' => 'success', 'message' => "Document has been unfrozen and restored to " . ucfirst($previousStatus) . "."]);
     }
 
     /**

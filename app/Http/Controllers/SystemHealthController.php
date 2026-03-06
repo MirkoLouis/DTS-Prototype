@@ -24,6 +24,7 @@ class SystemHealthController extends Controller
             'mismatched_ids' => [],
         ]);
 
+        // Handle Historical Log Mismatches
         $mismatchedLogsQuery = DocumentLog::query();
         if (!empty($integrityCheckResult['mismatched_ids'])) {
             $mismatchedLogsQuery->whereIn('id', $integrityCheckResult['mismatched_ids'])->with(['document', 'user']);
@@ -51,13 +52,32 @@ class SystemHealthController extends Controller
         }
         
         $perPage = $request->input('per_page', 10);
-        $mismatchedLogs = $mismatchedLogsQuery->paginate($perPage)->withQueryString();
+        $mismatchedLogs = $mismatchedLogsQuery->paginate($perPage, ['*'], 'logs_page')->withQueryString();
+
+        // Handle Live State Mismatches (Active State Comparison)
+        $mismatchedDocsQuery = \App\Models\Document::query();
+        if (!empty($integrityCheckResult['mismatched_document_tracking_codes'])) {
+            $mismatchedDocsQuery->whereIn('tracking_code', $integrityCheckResult['mismatched_document_tracking_codes']);
+
+            if ($request->filled('search')) {
+                $search = strtolower($request->input('search'));
+                $mismatchedDocsQuery->where(function($q) use ($search) {
+                    $q->whereRaw('LOWER(tracking_code) LIKE ?', ["%{$search}%"])
+                      ->orWhereRaw('LOWER(title) LIKE ?', ["%{$search}%"]);
+                });
+            }
+        } else {
+            $mismatchedDocsQuery->whereRaw('1 = 0');
+        }
+
+        $mismatchedDocuments = $mismatchedDocsQuery->paginate($perPage, ['*'], 'docs_page')->withQueryString();
 
         $appHealthMetrics = $this->getApplicationHealthMetrics();
 
         return view('admin.system-health', [
             'integrityCheckResult' => $integrityCheckResult,
             'mismatchedLogs' => $mismatchedLogs,
+            'mismatchedDocuments' => $mismatchedDocuments,
             'appHealthMetrics' => $appHealthMetrics,
         ]);
     }

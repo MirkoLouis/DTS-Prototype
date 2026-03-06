@@ -52,7 +52,24 @@
                     <div class="mt-8">
                         <div class="flex justify-between items-center mb-4">
                             <h3 class="text-2xl font-bold">Document History</h3>
-                            <div class="flex space-x-2">
+                            <div class="flex items-center space-x-2">
+                                @if(Auth::user()->role === 'admin')
+                                    @if($document->status === 'frozen')
+                                        <form action="{{ route('documents.unfreeze', $document->tracking_code) }}" method="POST" class="unfreeze-form">
+                                            @csrf
+                                            <button type="submit" class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-500 active:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150">
+                                                Unfreeze Document
+                                            </button>
+                                        </form>
+                                    @else
+                                        <form action="{{ route('documents.freeze', $document->tracking_code) }}" method="POST" class="freeze-form">
+                                            @csrf
+                                            <button type="submit" class="inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-500 active:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150">
+                                                Freeze Document
+                                            </button>
+                                        </form>
+                                    @endif
+                                @endif
                                 <a href="{{ route('documents.show-hash-chain', ['document' => $document->tracking_code, 'back_to' => $backToKey ?? '']) }}" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 active:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150">
                                     View Hash Chain
                                 </a>
@@ -88,16 +105,6 @@
                             </table>
                         </div>
                     </div>
-                    <div class="mt-8 flex justify-end space-x-4">
-                        @if($document->status === 'frozen')
-                            <form action="{{ route('documents.unfreeze', $document) }}" method="POST" id="unfreeze-form">
-                                @csrf
-                                <x-danger-button type="submit">
-                                    Unfreeze Document
-                                </x-danger-button>
-                            </form>
-                        @endif
-                    </div>
                 </div>
             </div>
         </div>
@@ -106,38 +113,58 @@
     @push('scripts')
         <script>
             document.addEventListener('DOMContentLoaded', function() {
-                const unfreezeForm = document.getElementById('unfreeze-form');
-                if (unfreezeForm) {
-                    unfreezeForm.addEventListener('submit', function(event) {
-                        event.preventDefault();
-                        if (confirm('Are you sure you want to unfreeze this document?')) {
-                            const button = unfreezeForm.querySelector('button[type="submit"]');
-                            button.disabled = true;
-                            button.textContent = 'Unfreezing...';
+                // Handle Freeze/Unfreeze forms with AJAX for better UX
+                const handleSecurityAction = function(form, confirmMsg, loadingMsg, successMsg, defaultBtnText) {
+                    if (form) {
+                        form.addEventListener('submit', function(event) {
+                            event.preventDefault();
+                            if (confirm(confirmMsg)) {
+                                const button = form.querySelector('button[type="submit"]');
+                                const originalText = button.textContent;
+                                button.disabled = true;
+                                button.textContent = loadingMsg;
 
-                            fetch(unfreezeForm.action, {
-                                method: 'POST',
-                                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'X-Requested-With': 'XMLHttpRequest' },
-                            })
-                            .then(response => response.json().then(data => ({ status: response.status, body: data })))
-                            .then(response => {
-                                alert(response.body.message || (response.status === 200 ? 'Action completed.' : 'An error occurred.'));
-                                if (response.status === 200) {
-                                    window.location.reload();
-                                } else {
+                                fetch(form.action, {
+                                    method: 'POST',
+                                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'X-Requested-With': 'XMLHttpRequest' },
+                                })
+                                .then(response => response.json().then(data => ({ status: response.status, body: data })))
+                                .then(response => {
+                                    if (response.status === 200) {
+                                        alert(response.body.message || successMsg);
+                                        window.location.reload();
+                                    } else {
+                                        alert(response.body.message || 'An error occurred.');
+                                        button.disabled = false;
+                                        button.textContent = originalText;
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Action error:', error);
+                                    alert('A network error occurred. Please try again.');
                                     button.disabled = false;
-                                    button.textContent = 'Unfreeze Document';
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Unfreeze error:', error);
-                                alert('A network error occurred. Please try again.');
-                                button.disabled = false;
-                                button.textContent = 'Unfreeze Document';
-                            });
-                        }
-                    });
-                }
+                                    button.textContent = originalText;
+                                });
+                            }
+                        });
+                    }
+                };
+
+                handleSecurityAction(
+                    document.querySelector('.freeze-form'),
+                    'Are you sure you want to FREEZE this document? This will prevent any further processing.',
+                    'Freezing...',
+                    'Document frozen successfully.',
+                    'Freeze Document'
+                );
+
+                handleSecurityAction(
+                    document.querySelector('.unfreeze-form'),
+                    'Are you sure you want to UNFREEZE this document?',
+                    'Unfreezing...',
+                    'Document unfrozen successfully.',
+                    'Unfreeze Document'
+                );
             });
         </script>
     @endpush
