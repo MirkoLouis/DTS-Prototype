@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.4-Alpha+202603062137] - 2026-03-06
+
+### ADDED
+- **Pre-Action Integrity Guard (Active Lock):** Implemented a real-time integrity verification layer that checks a document's live state against its last signed log entry *before* allowing any processing actions.
+- **On-Access Auto-Freeze:** Integrated the `IntegrityCheckFailed` security event into the document policy layer. Attempting to access action forms for a tampered document now triggers an immediate system freeze.
+- **Unauthorized UI Lockout:** Enhanced the Tasks, Releasing, and Route Management dashboards to dynamically hide action buttons and display a locked "Unauthorized" status for documents that are either frozen or have failed integrity checks.
+- **Pre-Intake Validation:** Extended the "Trust Builder" to validate the submission log before route finalization, ensuring no document details were altered between submission and intake.
+
+### CHANGED
+- **Improved Lifecycle Restoration:** Refactored the administrative `unfreeze` logic to correctly handle the 'Pending' state. Documents frozen immediately after submission can now be safely restored to their initial intake queue.
+- **Policy-Driven Action Guards:** Centralized all security and integrity checks within the `DocumentPolicy`, providing a single source of truth for action authorization.
+
+### FIXED
+- **Unfreeze State Bug:** Resolved an issue where documents frozen at the 'Submitted' stage would incorrectly default to 'Processing' upon being unfrozen, preventing them from appearing in the Intake queue.
+
 ## [1.8.3-Alpha+202603062120] - 2026-03-06
 
 ### ADDED

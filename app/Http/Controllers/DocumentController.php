@@ -345,11 +345,12 @@ class DocumentController extends Controller
             ->orderBy('id', 'desc')
             ->first();
 
-        $previousStatus = 'processing'; // Default fallback
+        $previousStatus = $document->status; // Default to current if everything fails
 
         if ($lastValidLog) {
             // Map the last action to its likely status
             $previousStatus = match($lastValidLog->action) {
+                'Submitted' => 'pending',
                 'Accepted and Document Routing finalized' => 'in_transit',
                 'Received' => 'processing',
                 'Processing Complete' => 'in_transit',

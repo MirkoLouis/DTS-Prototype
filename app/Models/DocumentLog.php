@@ -53,6 +53,26 @@ class DocumentLog extends Model
     }
 
     /**
+     * Verify the current live state of a document against its latest log entry.
+     * This provides a "pre-action" integrity check.
+     *
+     * @param  \App\Models\Document  $document
+     * @return bool
+     */
+    public static function verifyCurrentState(Document $document)
+    {
+        $latestLog = $document->logs()->orderBy('id', 'desc')->first();
+        
+        if (!$latestLog) {
+            return true; // No logs yet (pending intake)
+        }
+
+        $currentStateHash = self::calculateStateHash($document);
+        
+        return $currentStateHash === $latestLog->document_state_hash;
+    }
+
+    /**
      * Generate an Ed25519 signature for the given data using the user's PIN.
      * This ensures non-repudiation: only the person with the PIN can authorize the action.
      *

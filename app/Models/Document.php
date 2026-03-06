@@ -64,6 +64,37 @@ class Document extends Model
     }
 
     /**
+     * Determine if the current authenticated user can process this document.
+     * This takes integrity checks and freezing into account.
+     *
+     * @return bool
+     */
+    public function getCanProcessAttribute()
+    {
+        $user = auth()->user();
+        if (!$user) return false;
+
+        if ($this->status === 'frozen') return false;
+
+        return $user->can('process', $this);
+    }
+
+    /**
+     * Determine if the current authenticated user can manage (finalize) this document.
+     *
+     * @return bool
+     */
+    public function getCanManageAttribute()
+    {
+        $user = auth()->user();
+        if (!$user) return false;
+
+        if ($this->status === 'frozen') return false;
+
+        return $user->can('manage', $this);
+    }
+
+    /**
      * Get the route key for the model.
      * Use tracking_code instead of the incremental ID to prevent ID enumeration.
      *

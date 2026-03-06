@@ -46,13 +46,22 @@
                         {{ $document->updated_at->format('M d, Y h:i A') }}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <form method="POST" action="{{ route('releasing.complete', $document->tracking_code) }}" onsubmit="return handleReleaseSigning(event, this, '{{ $document->tracking_code }}')">
-                            @csrf
-                            <input type="hidden" name="pin" value="">
-                            <button type="submit" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 active:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150">
-                                Release Document
-                            </button>
-                        </form>
+                        @if ($document->can_process)
+                            <form method="POST" action="{{ route('releasing.complete', $document->tracking_code) }}" onsubmit="return handleReleaseSigning(event, this, '{{ $document->tracking_code }}')">
+                                @csrf
+                                <input type="hidden" name="pin" value="">
+                                <button type="submit" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 active:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150">
+                                    Release Document
+                                </button>
+                            </form>
+                        @else
+                            <span class="inline-flex items-center text-red-600 dark:text-red-400" title="Integrity Check Failed or Document Frozen">
+                                <svg class="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                                </svg>
+                                Unauthorized
+                            </span>
+                        @endif
                     </td>
                 </tr>
             @empty
