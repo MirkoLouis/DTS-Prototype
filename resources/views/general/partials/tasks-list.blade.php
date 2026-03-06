@@ -44,9 +44,10 @@
                         {{ $document->created_at->format('M d, Y h:i A') }}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <form method="POST" action="{{ Auth::user()->role === 'officer' ? route('officer.tasks.complete', $document->tracking_code) : route('staff.tasks.complete', $document->tracking_code) }}">
+                        <form method="POST" action="{{ Auth::user()->role === 'officer' ? route('officer.tasks.complete', $document->tracking_code) : route('staff.tasks.complete', $document->tracking_code) }}" onsubmit="return handleTaskSigning(event, this, '{{ $document->tracking_code }}')">
                             @csrf
-                            <button type="submit" onclick="return confirm('Are you sure you want to complete this step? This action cannot be undone.');" class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-500 active:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150">
+                            <input type="hidden" name="pin" value="">
+                            <button type="submit" class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-500 active:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150">
                                 Complete Step
                             </button>
                         </form>
@@ -84,10 +85,11 @@
                 <p><strong>Submitted:</strong> {{ $document->created_at->format('M d, Y h:i A') }}</p>
             </div>
 
-            <div>
-                <form method="POST" action="{{ Auth::user()->role === 'officer' ? route('officer.tasks.complete', $document->tracking_code) : route('staff.tasks.complete', $document->tracking_code) }}">
+            <div class="mt-4">
+                <form method="POST" action="{{ Auth::user()->role === 'officer' ? route('officer.tasks.complete', $document->tracking_code) : route('staff.tasks.complete', $document->tracking_code) }}" onsubmit="return handleTaskSigning(event, this, '{{ $document->tracking_code }}')">
                     @csrf
-                    <button type="submit" onclick="return confirm('Are you sure you want to complete this step? This action cannot be undone.');" class="w-full inline-flex items-center justify-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-500 active:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150">
+                    <input type="hidden" name="pin" value="">
+                    <button type="submit" class="w-full inline-flex items-center justify-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-500 active:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150">
                         Complete Step
                     </button>
                 </form>
@@ -105,3 +107,25 @@
         {{ $documents->links() }}
     </div>
 @endif
+
+<x-signing-modal />
+
+<script>
+    function handleTaskSigning(event, form, trackingCode) {
+        // If pin is already set, allow submission
+        if (form.querySelector('input[name="pin"]').value !== '') {
+            return true;
+        }
+
+        event.preventDefault();
+        
+        window.SigningModal.show(`Enter your Security PIN to sign for document: ${trackingCode}`, function(pin) {
+            if (confirm('Are you sure you want to complete this step? This will cryptographically sign the transaction.')) {
+                form.querySelector('input[name="pin"]').value = pin;
+                form.submit();
+            }
+        });
+
+        return false;
+    }
+</script>

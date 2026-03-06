@@ -23,6 +23,8 @@ class User extends Authenticatable
         'password',
         'role',
         'department_id',
+        'public_key',
+        'private_key',
     ];
 
     /**
@@ -33,6 +35,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'private_key',
     ];
 
     /**
@@ -45,7 +48,20 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'security_key_set_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Sign data using the user's private key and PIN.
+     * 
+     * @param string $pin
+     * @param string $data
+     * @return string|false Base64 encoded signature or false if PIN is wrong.
+     */
+    public function sign(string $pin, string $data)
+    {
+        return DocumentLog::signAction($this, $pin, $data);
     }
 
     /**

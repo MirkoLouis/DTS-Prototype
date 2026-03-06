@@ -15,6 +15,7 @@
 
                     <form id="scan-form" action="{{ route('releasing.receive') }}" method="POST">
                         @csrf
+                        <input type="hidden" name="pin" id="scan-pin" value="">
                         <div>
                             <label for="tracking_code" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tracking Code</label>
                             <div class="mt-1 flex rounded-md shadow-sm">
@@ -87,12 +88,15 @@
             const closeQrModal = document.getElementById('close-qr-modal');
             const trackingCodeInput = document.getElementById('tracking_code');
             const scanForm = document.getElementById('scan-form');
+            const scanPinInput = document.getElementById('scan-pin');
             let html5QrCode = null;
 
             function onScanSuccess(decodedText, decodedResult) {
                 trackingCodeInput.value = decodedText;
                 stopQrCodeScanner();
-                scanForm.submit();
+                
+                // Trigger form submission which will prompt for PIN
+                scanForm.dispatchEvent(new Event('submit', { cancelable: true }));
             }
 
             function onScanError(errorMessage) {
@@ -130,6 +134,18 @@
                 if (event.target == qrScannerModal) {
                     stopQrCodeScanner();
                 }
+            });
+
+            // Handle Manual Form Submission and Scanning Success
+            scanForm.addEventListener('submit', function(e) {
+                const trackingCode = trackingCodeInput.value;
+                if (!trackingCode) {
+                    e.preventDefault();
+                    return;
+                }
+                
+                // No PIN required for receiving anymore
+                return true;
             });
 
             // --- AJAX and Filtering Logic ---

@@ -46,12 +46,30 @@ class DocumentController extends Controller
 
         $request->validate([
             'final_route' => 'required|json',
+            'pin' => 'required|string',
         ]);
 
         $routeNames = json_decode($request->final_route);
 
         if (empty($routeNames)) {
             return back()->with('error', 'The route cannot be empty. Please add at least one step.');
+        }
+
+        $user = Auth::user();
+        $firstDepartment = $routeNames[0];
+        $action = 'Accepted and Document Routing finalized';
+        $remarks = "Route finalized. In transit to {$firstDepartment}.";
+
+        // 1. Generate Cryptographic Signature
+        $dataToSign = $document->tracking_code . '|' . $action . '|' . $remarks . '|' . now()->toIso8601String();
+        $signature = $user->sign($request->pin, $dataToSign);
+
+        if ($signature === false) {
+            return back()->with('error', 'Invalid Security PIN. Transaction aborted.');
+        }
+
+        if ($signature === null) {
+            return back()->with('error', 'Your digital signature has not been initialized.');
         }
 
         // Convert the simple array of names into the new structured format.
@@ -61,29 +79,27 @@ class DocumentController extends Controller
 
         // Update the document
         $document->update([
-            'status' => 'in_transit', // Changed from 'processing'
+            'status' => 'in_transit',
             'finalized_route' => $finalizedRoute,
-            'current_step' => 1, // Set the current step to the first step in the route
+            'current_step' => 1,
         ]);
 
         // "Learn" from the officer's changes
         $purpose = $document->purpose;
         if ($purpose->suggested_route !== $routeNames) {
-            // If the purpose is not official, dispatch a job to learn from the changes.
             if (!$purpose->is_official) {
                 UpdateKeywordWeights::dispatch($purpose->name, $routeNames);
             }
-            // Update the purpose's suggested_route for immediate use
             $purpose->update(['suggested_route' => $routeNames]);
         }
 
-        // Create the initial document log
-        $firstDepartment = $finalizedRoute[0]['name'];
+        // Create the initial document log with the real signature
         DocumentLog::create([
             'document_id' => $document->id,
-            'user_id' => Auth::id(),
-            'action' => 'Accepted and Document Routing finalized',
-            'remarks' => "Route finalized. In transit to {$firstDepartment}.",
+            'user_id' => $user->id,
+            'action' => $action,
+            'remarks' => $remarks,
+            'signature' => $signature,
         ]);
 
         return redirect()->route('intake')->with('success', 'Document accepted and is now in transit!');

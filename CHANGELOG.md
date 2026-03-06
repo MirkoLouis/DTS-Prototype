@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.1-Alpha+202603062101] - 2026-03-06
+
+### FIXED
+- **Cryptographic Salt Derivation:** Resolved a `sodium_crypto_pwhash` error by ensuring the salt is exactly 16 bytes (SODIUM_CRYPTO_PWHASH_SALTBYTES). Implemented a deterministic 16-byte binary hash of the user's email as the salt.
+- **PIN Entry Privacy:** Replaced standard browser `prompt()` calls with a custom `x-signing-modal` utilizing `type="password"`. This ensures Security PINs are masked with dots and never displayed as raw text during entry.
+- **Initialization UX:** Enabled "Enter" key submission in the digital signature initialization modal and added automatic focus to the PIN input for a smoother onboarding experience.
+- **Database Schema Completeness:** Added the missing `private_key` column to the `users` table and synchronized the `User` model's `$fillable` and `$casts` attributes to support encrypted key storage.
+
+### ADDED
+- **True Cryptographic Signatures (Ed25519):** Upgraded the "Trust Builder" system from simple string placeholders to a robust Ed25519 signing architecture. Actions are now mathematically proven using the performing user's private key.
+- **Encrypted Private Key Storage:** Implemented a secure key management flow where Ed25519 private keys are encrypted using a user-defined Secret PIN via `sodium_crypto_secretbox` (Argon2id key derivation) before being stored.
+- **Secure Signing Modal:** Created a reusable `<x-signing-modal />` component to handle secure PIN collection and callback-based transaction signing across the application.
+- **Signature Helper Methods:** Added `signAction` and `verifySignature` to the `DocumentLog` model, and a `sign()` helper to the `User` model to encapsulate complex `sodium` operations.
+
+### CHANGED
+- **Mandatory Signing Workflow:** Critical lifecycle events (Route Finalization, Task Completion, and Document Releasing) now strictly require a Security PIN to authorize and sign the transaction.
+- **Streamlined Physical Handoff:** Removed the PIN requirement when "receiving" documents for release. This reduces friction in the physical workflow while maintaining strict signing requirements for the final "Released" state.
+- **Ledger Verification Formula:** Updated the hash-chaining logic to bake the new cryptographic Ed25519 signatures into the SHA-256 block hash, ensuring absolute non-repudiation.
+
 ## [1.8.0-Alpha+202603061900] - 2026-03-06
 
 ### FIXED
