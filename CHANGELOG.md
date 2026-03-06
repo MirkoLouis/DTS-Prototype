@@ -2,6 +2,35 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.3-Alpha+202603062120] - 2026-03-06
+
+### ADDED
+- **Proactive Security Guard (Scheduled Integrity Checks):** Transitioned the "Active State Comparison" from a manual tool to a fully automated background process. The `dts:verify-integrity` command is now scheduled to run every 10 minutes via the Laravel Task Scheduler.
+- **Automated Security Response (Auto-Freeze):** Implemented a real-time response system that automatically sets a document's status to `frozen` if any integrity mismatch is detected during the background scan.
+- **Intelligent Recovery System:** Enhanced the administrative `unfreeze` logic to automatically restore a document to its last valid lifecycle state (e.g., `in_transit`, `ready_for_release`) based on its chronological history.
+- **Security Audit Logs (Auto-Freeze):** Every system-initiated freeze is now recorded in the `document_logs` with a "System Auto-Freeze" action and detailed security remarks.
+
+### CHANGED
+- **Admin UI Enhancement:** Added intuitive "Freeze/Unfreeze Document" buttons to the main document details view for manual administrative intervention.
+- **Non-Repudiation UI Integration:** Standardized all critical document actions to use the secure, masked `SigningModal` for cryptographic authorization.
+
+### FIXED
+- **Lifecycle Recovery Consistency:** Resolved a bug where unfrozen documents would default to 'processing' regardless of their actual previous state.
+
+## [1.8.2-Alpha+202603062110] - 2026-03-06
+
+### ADDED
+- **Active State Comparison (Live Tamper Detection):** Implemented a real-time verification layer in the `dts:verify-integrity` command. The system now compares the *current live database state* of every document against the `document_state_hash` recorded in its most recent cryptographic log.
+- **Tampering Detection UI:** Enhanced the System Health Monitor with a dedicated "Live State Mismatches" section that highlights documents whose details (title, submitter, route) have been modified without a corresponding signed log entry.
+- **Automated Integrity Status Card:** Updated the dashboard to show a dual-status overview: Chain Integrity (Historical Logs) vs. Live State (Current Documents), providing a complete picture of system health.
+
+### CHANGED
+- **Enhanced Verification Logic:** Refactored `VerifyIntegrityChain` into a two-step process: (1) Historical Chain Verification and (2) Active State Comparison, ensuring both past and present data are protected.
+- **Refined Integrity Reporting:** Updated the integrity check cache to store specific tracking codes of tampered documents, enabling targeted investigation by administrators.
+
+### FIXED
+- **Document Detail Inconsistencies:** Standardized the state hashing formula to include all critical metadata (tracking_code, title, submitter info, district, department, purpose, and route), closing potential gaps in document protection.
+
 ## [1.8.1-Alpha+202603062101] - 2026-03-06
 
 ### FIXED

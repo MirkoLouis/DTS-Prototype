@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('documents:prune-pending')->daily();
 Schedule::command('dts:snapshot-db-metrics')->everyFiveMinutes();
+Schedule::command('dts:verify-integrity')->everyTenMinutes();
