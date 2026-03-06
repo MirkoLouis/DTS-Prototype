@@ -63,12 +63,13 @@ public function handle()
 The system's development environment utilizes `taskset` to isolate processes and prevent starvation. This strategy ensures the UI remains responsive during heavy background tasks.
 
 ```bash
-# composer.json - Multi-threading through Core Pinning
-"serve:dev": "while true; do PHP_CLI_SERVER_WORKERS=4 taskset -c 0-3 php artisan serve ...; done",
+// composer.json - Multi-threading through Core Pinning
+"serve:dev": "while true; do APP_URL=http://localhost:3050 taskset -c 0-3 php artisan serve --host 0.0.0.0 --port 3050; done",
 "queue:dev": "while true; do taskset -c 4 php artisan queue:listen ...; done",
 "logs:dev": "while true; do taskset -c 5 php artisan pail ...; done",
-"vite:dev": "while true; do taskset -c 6-7 npm run dev ...; done",
+"vite:dev": "while true; do APP_URL=http://localhost:3050 taskset -c 6-7 npm run dev ...; done",
 "schedule:dev": "while true; do taskset -c 8 php artisan schedule:work ...; done"
+
 ```
 
 ---

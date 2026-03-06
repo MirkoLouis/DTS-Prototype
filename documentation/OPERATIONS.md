@@ -17,7 +17,7 @@ A comprehensive guide for developers and system administrators to manage the Doc
 The DTS is designed for local development on Windows (Native/WSL2) and Linux environments.
 
 ### Implementation: Concurrent Dev Environment
-The `composer dev` script launches five concurrent processes with CPU core pinning for high responsiveness.
+The `composer dev` script launches five concurrent processes with CPU core pinning for high responsiveness on port **3050**.
 
 ```bash
 # composer.json Script Excerpt
@@ -32,8 +32,10 @@ Each process is pinned to dedicated CPU cores (e.g., `taskset -c 0-3 php artisan
 
 Custom Artisan and Composer aliases for streamlined operations.
 
-- **`composer dev`**: Starts all 5 pillars of the development environment.
+- **`composer dev`**: Starts all 5 pillars of the development environment (Port 3050, Hot-Reload enabled).
+- **`composer prod`**: Starts the high-performance production-like environment (Port 3050, Multi-threaded, optimized workers).
 - **`composer db:dev`**: Drops all tables, recreates them, and seeds 10,000+ historical documents.
+- **`composer db:prod`**: Initializes a clean production database with essential system data only.
 - **`php artisan dts:verify-integrity`**: Runs a system-wide audit of all document hash chains.
 - **`php artisan dts:tune-db`**: Programmatically injects high-performance RAM settings into MySQL.
 - **`php artisan dts:snapshot-db-metrics`**: Captures DB health metrics for the admin dashboard.
