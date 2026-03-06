@@ -24,56 +24,74 @@
                         {{-- Route Management Form --}}
                         <div>
                             <h3 class="text-lg font-bold mb-2">Manage Route</h3>
-                            <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
-                                Drag and drop the boxes to re-order them, or add a new step from the dropdown below.
-                            </p>
-                            <form id="route-form" action="{{ route('documents.finalize', $document->tracking_code) }}" method="POST">
-                                @csrf
-                                <input type="hidden" name="final_route" id="final_route">
-                                <input type="hidden" name="pin" id="finalize-pin-input">
+                            @if ($document->can_manage)
+                                <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
+                                    Drag and drop the boxes to re-order them, or add a new step from the dropdown below.
+                                </p>
+                                <form id="route-form" action="{{ route('documents.finalize', $document->tracking_code) }}" method="POST">
+                                    @csrf
+                                    <input type="hidden" name="final_route" id="final_route">
+                                    <input type="hidden" name="pin" id="finalize-pin-input">
 
-                                {{-- Horizontal Draggable List --}}
-                                <div class="overflow-x-auto pb-4">
-                                    <div id="route-list" class="flex space-x-4 min-h-[8rem] bg-gray-50 dark:bg-gray-900 p-2 rounded-md">
-                                        @foreach($document->purpose->suggested_route as $index => $step)
-                                            <div class="route-step flex-shrink-0 w-40 p-4 bg-white dark:bg-gray-700 rounded-lg shadow-md cursor-move text-center">
-                                                <button type="button" class="delete-step-btn w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xl" style="position: absolute; top: -0.25rem; right: -0.25rem;">&times;</button>
-                                                <div class="font-bold text-lg text-indigo-600 dark:text-indigo-400">{{ $index + 1 }}</div>
-                                                <div class="step-name text-sm mt-1">{{ $step }}</div>
-                                            </div>
-                                        @endforeach
-                                    </div>
-                                </div>
-
-                                {{-- Add New Step UI --}}
-                                <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                                    <label for="department-select" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Add New Step</label>
-                                    <div class="mt-1 flex rounded-md shadow-sm">
-                                        <select id="department-select" class="block w-full rounded-none rounded-l-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
-                                            <option disabled selected>Choose a department...</option>
-                                            @foreach($departments as $department)
-                                                <option value="{{ $department->name }}">{{ $department->name }}</option>
+                                    {{-- Horizontal Draggable List --}}
+                                    <div class="overflow-x-auto pb-4">
+                                        <div id="route-list" class="flex space-x-4 min-h-[8rem] bg-gray-50 dark:bg-gray-900 p-2 rounded-md">
+                                            @foreach($document->purpose->suggested_route as $index => $step)
+                                                <div class="route-step flex-shrink-0 w-40 p-4 bg-white dark:bg-gray-700 rounded-lg shadow-md cursor-move text-center">
+                                                    <button type="button" class="delete-step-btn w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xl" style="position: absolute; top: -0.25rem; right: -0.25rem;">&times;</button>
+                                                    <div class="font-bold text-lg text-indigo-600 dark:text-indigo-400">{{ $index + 1 }}</div>
+                                                    <div class="step-name text-sm mt-1">{{ $step }}</div>
+                                                </div>
                                             @endforeach
-                                        </select>
-                                        <button type="button" id="add-step-btn" class="relative -ml-px inline-flex items-center space-x-2 rounded-r-md border border-gray-300 bg-gray-50 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 dark:border-gray-600">
-                                            <span>Add</span>
+                                        </div>
+                                    </div>
+
+                                    {{-- Add New Step UI --}}
+                                    <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                                        <label for="department-select" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Add New Step</label>
+                                        <div class="mt-1 flex rounded-md shadow-sm">
+                                            <select id="department-select" class="block w-full rounded-none rounded-l-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm">
+                                                <option disabled selected>Choose a department...</option>
+                                                @foreach($departments as $department)
+                                                    <option value="{{ $department->name }}">{{ $department->name }}</option>
+                                                @endforeach
+                                            </select>
+                                            <button type="button" id="add-step-btn" class="relative -ml-px inline-flex items-center space-x-2 rounded-r-md border border-gray-300 bg-gray-50 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600 dark:border-gray-600">
+                                                <span>Add</span>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-6">
+                                        <button type="submit" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 active:bg-indigo-700 focus:outline-none focus:border-indigo-700 focus:ring focus:ring-200 disabled:opacity-25 transition">
+                                            Accept & Finalize Route
                                         </button>
                                     </div>
-                                </div>
+                                </form>
 
-                                <div class="mt-6">
-                                     <button type="submit" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 active:bg-indigo-700 focus:outline-none focus:border-indigo-700 focus:ring focus:ring-200 disabled:opacity-25 transition">
-                                        Accept & Finalize Route
+                                <div class="mt-6 flex items-center space-x-4">
+                                    {{-- New Decline button that opens modal --}}
+                                    <button type="button" id="open-decline-modal-btn" class="inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-500 active:bg-red-700 focus:outline-none focus:border-red-700 focus:ring focus:ring-red-200 disabled:opacity-25 transition">
+                                        Decline
                                     </button>
                                 </div>
-                            </form>
-
-                            <div class="mt-6 flex items-center space-x-4">
-                                {{-- New Decline button that opens modal --}}
-                                <button type="button" id="open-decline-modal-btn" class="inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-500 active:bg-red-700 focus:outline-none focus:border-red-700 focus:ring focus:ring-red-200 disabled:opacity-25 transition">
-                                    Decline
-                                </button>
-                            </div>
+                            @else
+                                <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md">
+                                    <div class="flex">
+                                        <div class="flex-shrink-0">
+                                            <svg class="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                                            </svg>
+                                        </div>
+                                        <div class="ml-3">
+                                            <h3 class="text-sm font-medium text-red-800 dark:text-red-200">Management Unauthorized</h3>
+                                            <div class="mt-2 text-sm text-red-700 dark:text-red-300">
+                                                <p>Document management is disabled because this document is either frozen or has failed a cryptographic integrity check.</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            @endif
                         </div>
                     </div>
                 </div>

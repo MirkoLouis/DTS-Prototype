@@ -44,6 +44,14 @@ class DocumentPolicy
      */
     public function process(User $user, Document $document): bool
     {
+        // 0. Pre-action Integrity Check (The "Active Guard")
+        // If the live state doesn't match the last signed log, DENY all processing.
+        if (!\App\Models\DocumentLog::verifyCurrentState($document)) {
+            // Dispatch the IntegrityCheckFailed event to auto-freeze the document
+            \App\Events\IntegrityCheckFailed::dispatch($document, 'Pre-Action Verification');
+            return false;
+        }
+
         // 1. Admin can process anything (as a fallback)
         if ($user->role === 'admin') {
             return true;
@@ -74,6 +82,15 @@ class DocumentPolicy
      */
     public function manage(User $user, Document $document): bool
     {
+        // For 'manage' (intake), we don't check state yet because there's no state log yet.
+        // But if it's already has logs, we should check it.
+        if ($document->logs()->exists()) {
+            if (!\App\Models\DocumentLog::verifyCurrentState($document)) {
+                \App\Events\IntegrityCheckFailed::dispatch($document, 'Pre-Management Verification');
+                return false;
+            }
+        }
+
         return $user->role === 'officer' || $user->role === 'admin';
     }
 
