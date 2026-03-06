@@ -99,7 +99,7 @@ For deep technical dives into specific system components, please refer to the fi
     ```
 4.  **Run Development Server:**
     ```bash
-    composer dev  # Starts Server, Vite, Queue, Logs, and Scheduler
+    composer dev  # Starts Server (Port 3050), Vite, Queue, Logs, and Scheduler
     ```
 
 ---

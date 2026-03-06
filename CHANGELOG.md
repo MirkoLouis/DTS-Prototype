@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.7.5-Alpha+202603061830] - 2026-03-06
+
+### FIXED
+- **Environment Port Synchronization:** Resolved a conflict where shell-level `APP_URL` variables were overriding local `.env` settings. Explicitly declared the `APP_URL` within Composer scripts to ensure consistent environment behavior.
+
+### ADDED
+- **Production Orchestration Script:** Introduced `composer prod`, a high-performance entry point that utilizes `queue:work` (instead of `listen`) and the `--no-reload` flag. This allows for benchmarking the system's maximum throughput in a "Day 1" clean state.
+
+### CHANGED
+- **System-Wide Port Standard:** Reconfigured the default application port to **3050** (from 3000) across all configuration files, documentation, and automated scripts to prevent common local service conflicts.
+- **Multithreaded Optimization:** Enabled the `--no-reload` flag for the production-mode server to fully utilize the `PHP_CLI_SERVER_WORKERS=4` configuration, significantly increasing concurrent request handling.
+
 ## [1.7.4-Alpha+202603032120] - 2026-03-03
 
 ### FIXED
