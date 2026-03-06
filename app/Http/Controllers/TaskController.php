@@ -91,33 +91,49 @@ class TaskController extends Controller
     {
         \Illuminate\Support\Facades\Gate::authorize('process', $document);
 
+        $request->validate([
+            'pin' => 'required|string',
+        ]);
+
         $user = Auth::user()->load('department');
         $userDepartment = $user->department;
-
-        // Advance the step and set status to 'in_transit'
-        $document->current_step += 1;
-        $document->status = 'in_transit';
 
         $totalSteps = count($document->finalized_route);
         $action = 'Processing Complete';
         
         // Determine the remarks for the log
         if ($document->current_step > $totalSteps) {
-            // This was the final internal processing step.
             $remarks = "Final step processed by {$userDepartment->name}. In transit to Records Unit for releasing.";
         } else {
             $nextDepartmentName = $document->finalized_route[$document->current_step - 1]['name'];
             $remarks = "Step processed by {$userDepartment->name}. In transit to {$nextDepartmentName}.";
         }
 
+        // 1. Generate Cryptographic Signature
+        // We sign the combination of key document facts to ensure non-repudiation.
+        $dataToSign = $document->tracking_code . '|' . $action . '|' . $remarks . '|' . now()->toIso8601String();
+        $signature = $user->sign($request->pin, $dataToSign);
+
+        if ($signature === false) {
+            return back()->with('error', 'Invalid Security PIN. Transaction aborted.');
+        }
+
+        if ($signature === null) {
+            return back()->with('error', 'Your digital signature has not been initialized. Please refresh the page.');
+        }
+
+        // Advance the step and set status to 'in_transit'
+        $document->current_step += 1;
+        $document->status = 'in_transit';
         $document->save();
 
-        // Create a log entry for this action
+        // Create a log entry for this action, including the Ed25519 signature
         DocumentLog::create([
             'document_id' => $document->id,
             'user_id' => $user->id,
             'action' => $action,
             'remarks' => $remarks,
+            'signature' => $signature, // This is now a real cryptographic signature
         ]);
 
         // Determine the redirect route based on user role

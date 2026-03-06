@@ -53,9 +53,75 @@ class DocumentLog extends Model
     }
 
     /**
+     * Generate an Ed25519 signature for the given data using the user's PIN.
+     * This ensures non-repudiation: only the person with the PIN can authorize the action.
+     *
+     * @param  \App\Models\User  $user
+     * @param  string  $pin
+     * @param  string  $dataToSign
+     * @return string|null
+     */
+    public static function signAction(User $user, string $pin, string $dataToSign)
+    {
+        if (!$user->private_key) {
+            return null;
+        }
+
+        try {
+            // 1. Derive the encryption key from the PIN
+            $salt = substr(hash('sha256', $user->email, true), 0, SODIUM_CRYPTO_PWHASH_SALTBYTES);
+            $encryptionKey = sodium_crypto_pwhash(
+                SODIUM_CRYPTO_SECRETBOX_KEYBYTES,
+                $pin,
+                $salt,
+                SODIUM_CRYPTO_PWHASH_OPSLIMIT_INTERACTIVE,
+                SODIUM_CRYPTO_PWHASH_MEMLIMIT_INTERACTIVE
+            );
+
+            // 2. Decrypt the private key
+            $encryptedData = base64_decode($user->private_key);
+            $nonce = substr($encryptedData, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
+            $ciphertext = substr($encryptedData, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
+            
+            $privateKey = sodium_crypto_secretbox_open($ciphertext, $nonce, $encryptionKey);
+
+            if ($privateKey === false) {
+                return false; // Wrong PIN
+            }
+
+            // 3. Sign the data (using the decrypted Ed25519 secret key)
+            $signature = sodium_crypto_sign_detached($dataToSign, $privateKey);
+            
+            return base64_encode($signature);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Signing error: ' . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Verify an Ed25519 signature against the data and the user's public key.
+     *
+     * @param  string  $signatureBase64
+     * @param  string  $data
+     * @param  string  $publicKeyBase64
+     * @return bool
+     */
+    public static function verifySignature(string $signatureBase64, string $data, string $publicKeyBase64)
+    {
+        try {
+            $signature = base64_decode($signatureBase64);
+            $publicKey = base64_decode($publicKeyBase64);
+            
+            return sodium_crypto_sign_verify_detached($signature, $data, $publicKey);
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
      * The "booted" method of the model.
-     * This ensures the hash is calculated every time a log is created,
-     * making it more robust than an observer which can be disabled.
+     * This ensures the hash is calculated every time a log is created.
      *
      * @return void
      */
@@ -70,10 +136,16 @@ class DocumentLog extends Model
             }
 
             // Populate the digital signature from the performing user, if available
+            // Note: For real Ed25519 signatures, the 'signature' should be provided 
+            // BEFORE calling create() in the controller. If not provided, we fall back.
             if (!$documentLog->signature) {
                 if ($documentLog->user_id) {
                     $user = User::find($documentLog->user_id);
                     if ($user && $user->public_key) {
+                        // If user has a key initialized but no signature was passed,
+                        // it means the controller didn't use signAction().
+                        // For the prototype, we use the public key as a fallback string 
+                        // if a cryptographic signature wasn't provided yet.
                         $documentLog->signature = $user->public_key;
                     } else {
                         // Descriptive fallback based on role and department
@@ -108,14 +180,9 @@ class DocumentLog extends Model
 
             // Ensure created_at is a Carbon instance if it's not already
             $createdAt = $documentLog->created_at ? Carbon::parse($documentLog->created_at) : Carbon::now();
-
-            // The 'created_at' timestamp must be in a consistent format for hashing.
-            // ISO-8601 with microseconds provides the necessary precision.
             $timestampForHashing = $createdAt->toIso8601String();
             
-            // We now include document_state_hash and the department's digital signature in the chain hash
-            // This ensures Non-Repudiation: a department cannot claim they didn't authorize the action
-            // because their unique signature is cryptographically baked into the log's hash.
+            // We now include document_state_hash and the department's signature in the chain hash
             $dataToHash = $documentLog->document_id . 
                          $documentLog->user_id . 
                          $documentLog->action . 
@@ -124,7 +191,6 @@ class DocumentLog extends Model
                          $documentLog->document_state_hash .
                          $documentLog->signature;
 
-            // Use a simple SHA256 hash, not bcrypt, to ensure it can be re-calculated for verification.
             $documentLog->hash = hash('sha256', $dataToHash);
         });
     }

@@ -30,6 +30,7 @@
                             <form id="route-form" action="{{ route('documents.finalize', $document->tracking_code) }}" method="POST">
                                 @csrf
                                 <input type="hidden" name="final_route" id="final_route">
+                                <input type="hidden" name="pin" id="finalize-pin-input">
 
                                 {{-- Horizontal Draggable List --}}
                                 <div class="overflow-x-auto pb-4">
@@ -59,6 +60,7 @@
                                         </button>
                                     </div>
                                 </div>
+
                                 <div class="mt-6">
                                      <button type="submit" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 active:bg-indigo-700 focus:outline-none focus:border-indigo-700 focus:ring focus:ring-200 disabled:opacity-25 transition">
                                         Accept & Finalize Route
@@ -120,6 +122,7 @@
         </div>
     </div>
 
+    <x-signing-modal />
 
     {{-- Scripts and Styles for SortableJS --}}
     <style>
@@ -198,8 +201,21 @@
             });
 
             routeForm.addEventListener('submit', function (e) {
+                if (document.getElementById('finalize-pin-input').value !== '') {
+                    return true;
+                }
+
+                e.preventDefault();
+                
                 const finalRouteOrder = Array.from(routeList.querySelectorAll('.step-name')).map(el => el.textContent.trim());
                 hiddenInput.value = JSON.stringify(finalRouteOrder);
+
+                window.SigningModal.show(`Enter your Security PIN to finalize the route for: {{ $document->tracking_code }}`, function(pin) {
+                    if (confirm('Are you sure you want to finalize this route? This will cryptographically sign the transaction.')) {
+                        document.getElementById('finalize-pin-input').value = pin;
+                        routeForm.submit();
+                    }
+                });
             });
 
             // Decline Modal Logic
