@@ -143,6 +143,17 @@ class UserManagementController extends Controller
         return redirect()->route('users.index')->with('success', 'User updated successfully.');
     }
 
+    public function resetSignature(User $user)
+    {
+        $user->update([
+            'public_key' => null,
+            'private_key' => null,
+            'security_key_set_at' => null,
+        ]);
+
+        return back()->with('success', "Digital signature for {$user->name} has been reset. They will be prompted to set a new one upon their next login or critical action.");
+    }
+
     /**
      * Remove the specified resource from storage.
      */

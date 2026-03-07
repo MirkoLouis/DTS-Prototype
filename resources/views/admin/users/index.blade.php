@@ -42,6 +42,12 @@
             </div>
         </div>
     </div>
+
+    {{-- Global Hidden Reset Signature Form --}}
+    <form id="global-reset-signature-form" action="" method="POST" class="hidden">
+        @csrf
+    </form>
+
     @push('scripts')
         <script>
             document.addEventListener('DOMContentLoaded', function () {
