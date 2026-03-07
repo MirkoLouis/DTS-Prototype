@@ -25,6 +25,7 @@ class User extends Authenticatable
         'department_id',
         'public_key',
         'private_key',
+        'security_key_set_at',
     ];
 
     /**

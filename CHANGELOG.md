@@ -2,7 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.8.8-Alpha+202603072215] - 2026-03-07
+## [1.8.9-Alpha+202603080708] - 2026-03-08
+
+### ADDED
+- **Digital Signature Reset Feature:** Implemented an administrative tool to reset a user's digital signature (Ed25519 keys and PIN association). This allows users who have forgotten their Security PIN to re-initialize their cryptographic identity.
+    - Added `resetSignature` method to `UserManagementController`.
+    - Integrated "Reset Digital Signature" buttons in both the User Edit page and the main User Management list.
+    - Added a global signature status indicator (Active vs. Not Set) in the administrative user table.
+- **Enhanced Mass Assignment Protection:** Updated the `User` model to include `security_key_set_at` in the `$fillable` array, ensuring consistent state management during signature resets and initializations.
+
+### FIXED
+- **DocumentSeeder Performance & Stability:** Completely refactored Stage 2 of the `DocumentSeeder` to utilize database chunking and batch insertions.
+    - Resolved a critical `QueryException` where the `documents` table would become temporarily inaccessible or unresponsive during massive sequential updates.
+    - Improved seeding speed and memory efficiency by grouping `DocumentLog` and `database_metrics` insertions into chunks of 200 documents.
+
+## [1.8.8-Release+202603072130] - 2026-03-07
+
 
 ### FIXED
 - **SQL Ambiguity in Statistics:** Resolved a `SyntaxError` in the `StatisticsController` caused by an ambiguous `created_at` column in join queries. Explicitly qualified all analytical queries with subquery aliases.

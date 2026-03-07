@@ -102,6 +102,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     });
 
     Route::resource('users', \App\Http\Controllers\UserManagementController::class)->except(['index']);
+    Route::post('/users/{user}/reset-signature', [\App\Http\Controllers\UserManagementController::class, 'resetSignature'])->name('users.reset-signature');
     
     Route::post('/admin-dashboard/clear-cache', [AdminDashboardController::class, 'clearCache'])->name('admin.dashboard.clear-cache');
     
