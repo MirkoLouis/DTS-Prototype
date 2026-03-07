@@ -111,9 +111,9 @@ class ReleasingController extends Controller
         $action = 'Document Released';
         $remarks = 'The document has been released to the client.';
 
-        // Digital Signature
-        $dataToSign = $document->tracking_code . '|' . $action . '|' . $remarks . '|' . now()->toIso8601String();
-        $signature = $user->sign($request->pin, $dataToSign);
+        // Digital Signature (Bonded to current document state)
+        $stateHash = DocumentLog::calculateStateHash($document);
+        $signature = $user->sign($request->pin, $action, $stateHash);
 
         if ($signature === false) {
             return back()->with('error', 'Invalid Security PIN. Transaction aborted.');

@@ -53,15 +53,16 @@ class User extends Authenticatable
     }
 
     /**
-     * Sign data using the user's private key and PIN.
+     * Sign data using the user's private key, PIN, and document state hash.
      * 
      * @param string $pin
-     * @param string $data
+     * @param string $actionText
+     * @param string $stateHash
      * @return string|false Base64 encoded signature or false if PIN is wrong.
      */
-    public function sign(string $pin, string $data)
+    public function sign(string $pin, string $actionText, string $stateHash)
     {
-        return DocumentLog::signAction($this, $pin, $data);
+        return DocumentLog::signAction($this, $pin, $actionText, $stateHash);
     }
 
     /**

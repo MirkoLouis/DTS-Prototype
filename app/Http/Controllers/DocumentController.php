@@ -60,9 +60,9 @@ class DocumentController extends Controller
         $action = 'Accepted and Document Routing finalized';
         $remarks = "Route finalized. In transit to {$firstDepartment}.";
 
-        // 1. Generate Cryptographic Signature
-        $dataToSign = $document->tracking_code . '|' . $action . '|' . $remarks . '|' . now()->toIso8601String();
-        $signature = $user->sign($request->pin, $dataToSign);
+        // 1. Generate Cryptographic Signature (Bonded to current document state)
+        $stateHash = DocumentLog::calculateStateHash($document);
+        $signature = $user->sign($request->pin, $action, $stateHash);
 
         if ($signature === false) {
             return back()->with('error', 'Invalid Security PIN. Transaction aborted.');

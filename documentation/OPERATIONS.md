@@ -1,106 +1,90 @@
 # DTS Operations & DevOps
 
 ## Summary
-A comprehensive guide for developers and system administrators to manage the Document Tracking System (DTS). This document details setup, deployment, custom Artisan commands, SSL management, and data simulation.
+A comprehensive guide for developers and system administrators to manage the Document Tracking System (DTS). This document covers the multi-threaded dev environment, project commands, and local SSL management.
 
 ## Table of Contents
 1. [Setup & Installation](#1-setup--installation)
-2. [Project Commands Guide](#2-project-commands-guide)
-3. [HTTPS & Local SSL Management](#3-https--local-ssl-management)
-4. [System Deployment Guide](#4-system-deployment-guide)
-5. [Data Generation & Simulation Logic](#5-data-generation--simulation-logic)
+2. [Project Commands Matrix](#2-project-commands-matrix)
+3. [Local SSL Management (HTTPS)](#3-local-ssl-management-https)
+4. [Deployment Checklist](#4-deployment-checklist)
+5. [Data Simulation & Testing](#5-data-simulation--testing)
 
 ---
 
 ## 1. Setup & Installation
 
-The DTS is designed for local development on Windows (Native/WSL2) and Linux environments.
+The DTS is optimized for Linux and WSL2 environments. It utilizes a **Multi-Threaded Development Architecture** via CPU core pinning.
 
-### Implementation: Concurrent Dev Environment
-The `composer dev` script launches five concurrent processes with CPU core pinning for high responsiveness on port **3050**.
-
+### Initial Installation
 ```bash
-# composer.json Script Excerpt
-"dev": "npx concurrently \"composer run serve:dev\" \"composer run queue:dev\" \"composer run logs:dev\" \"composer run vite:dev\" \"composer run schedule:dev\""
+# Clone the repository
+git clone <repository-url>
+cd dts-prototype
+
+# Install all backend and frontend dependencies
+composer install && npm install
+
+# Run the setup script (Env, Key, Migration, Build)
+composer run setup
 ```
 
-Each process is pinned to dedicated CPU cores (e.g., `taskset -c 0-3 php artisan serve`) to prevent starvation during heavy tasks like PDF generation.
+### The 5-Pillar Dev Environment
+The `composer dev` command launches five concurrent, isolated processes:
+1. **Server**: PHP server (Port 3050).
+2. **Queue**: Listener for background jobs (AI Learning, Reports).
+3. **Logs**: Real-time log streaming via `Laravel Pail`.
+4. **Vite**: Asset bundling and Hot Module Replacement (HMR).
+5. **Schedule**: Task scheduler (Document Pruning, Metrics Snapshots).
 
 ---
 
-## 2. Project Commands Guide
+## 2. Project Commands Matrix
 
-Custom Artisan and Composer aliases for streamlined operations.
-
-- **`composer dev`**: Starts all 5 pillars of the development environment (Port 3050, Hot-Reload enabled).
-- **`composer prod`**: Starts the high-performance production-like environment (Port 3050, Multi-threaded, optimized workers).
-- **`composer db:dev`**: Drops all tables, recreates them, and seeds 10,000+ historical documents.
-- **`composer db:prod`**: Initializes a clean production database with essential system data only.
-- **`php artisan dts:verify-integrity`**: Runs a system-wide audit of all document hash chains.
-- **`php artisan dts:tune-db`**: Programmatically injects high-performance RAM settings into MySQL.
-- **`php artisan dts:snapshot-db-metrics`**: Captures DB health metrics for the admin dashboard.
-
----
-
-## 3. HTTPS & Local SSL Management
-
-Modern browsers require HTTPS to grant access to the camera (needed for the QR scanner).
-
-### Implementation: Hybrid SSL Architecture
-The backend runs on HTTP while the frontend assets (Vite) serve over HTTPS using `mkcert` generated certificates.
-
-```javascript
-// vite.config.js
-export default defineConfig({
-    server: {
-        https: {
-            key: fs.readFileSync('localhost.key'),
-            cert: fs.readFileSync('localhost.crt'),
-        },
-        cors: true,
-    }
-});
-```
-
-**"Vite Priming"**: Before using the QR scanner, visit `https://localhost:5173` and accept the self-signed certificate to allow the browser to load the secure CSS/JS assets.
+| Command | Category | Description |
+|:---|:---|:---|
+| **`composer dev`** | Development | Starts all 5 pillars with CPU core pinning. |
+| **`composer prod`** | Performance | Benchmark the system in optimized production mode. |
+| **`composer db:dev`** | Database | Resets DB and seeds ~10,000 documents (5-year simulation). |
+| **`composer db:prod`** | Database | Resets DB and seeds only production-essential data. |
+| **`php artisan dts:verify-integrity`** | Security | System-wide audit of the cryptographic ledger. |
+| **`php artisan dts:tune-db`** | Performance | Injects 4GB Buffer Pool and 1GB Redo settings into MySQL. |
+| **`php artisan dts:snapshot-db-metrics`** | Monitoring | Captures real-time DB health snapshots. |
 
 ---
 
-## 4. System Deployment Guide
+## 3. Local SSL Management (HTTPS)
 
-Optimizing for a stable and performant production environment.
+Modern browsers require HTTPS for camera access (QR Scanner). The DTS uses a hybrid SSL architecture.
 
-### Performance Checklist
-1. **Frontend**: `npm run build` to bundle, minify, and version assets.
-2. **Backend**: `php artisan optimize` to cache configurations and routes.
-3. **Queue**: Use a tool like **Supervisor** to keep `php artisan queue:work` running.
-4. **Integrity**: Run `dts:verify-integrity` after production seeding to establish the initial root of trust.
+### Implementation: Vite SSL Priming
+Frontend assets (Vite) are served over HTTPS using `mkcert` generated certificates.
+
+1. **Install Certificates**: Run `mkcert localhost` to generate `localhost.crt` and `localhost.key`.
+2. **Priming**: Before scanning, visit `https://localhost:3050` and accept the self-signed certificate. This allows the browser to load the secure QR processing scripts.
 
 ---
 
-## 5. Data Generation & Simulation Logic
+## 4. Deployment Checklist
 
-Detailed strategies for populating the system with rich historical data for analytics testing.
+To ensure a stable production deployment:
+1. **Protocols**: Use **HTTPS** at the web server level (Nginx/Apache).
+2. **Persistence**: Use **Supervisor** to keep `php artisan queue:work` running.
+3. **Caching**: Run `php artisan optimize` to cache routes and configurations.
+4. **Task Scheduler**: Ensure a cron entry exists for `php artisan schedule:run`.
+5. **Integrity**: Execute a baseline `dts:verify-integrity` scan after production seeding.
 
-### Implementation: Historical Simulation
-The `DocumentSeeder` backfills 5 years of data by simulating document intake, processing, and release with randomized business-hour timestamps.
+---
+
+## 5. Data Simulation & Testing
+
+The system includes a sophisticated **Historical Data Simulator** for load testing.
+
+### Historical Seeding Logic
+The `DocumentSeeder` backfills 5 years of data by simulating document intake, processing, and release with randomized business-hour timestamps, ensuring the analytics dashboard reflects realistic system trends.
 
 ```php
-// app/Database/Seeders/DocumentSeeder.php
-$documents->each(function (Document $document) {
-    // Generate a randomized start date within the last 5 years
-    $currentTimestamp = Carbon::now()->subYears(rand(0, 5))->subDays(rand(0, 365))->setHour(rand(8, 16));
-    
-    // Ensure timestamps only fall on business days
-    if ($currentTimestamp->isWeekend()) {
-        $currentTimestamp->next(Carbon::MONDAY)->setTime(rand(8, 16), 0);
-    }
-    
-    // Simulate each step in the route with increasing timestamps
-    $document->created_at = $currentTimestamp;
-    $currentTimestamp->addMinutes(rand(5, 120)); // Delay between intake and processing
-});
+// Backfilling historical documents in DocumentSeeder
+$currentTimestamp = Carbon::now()->subYears(rand(0, 5));
+$document->created_at = $currentTimestamp;
 ```
-
-### Correlated Metrics
-Performance snapshots are generated alongside document logs, ensuring that the analytics dashboard reflects realistic system load trends.

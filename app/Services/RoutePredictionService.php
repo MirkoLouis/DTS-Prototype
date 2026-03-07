@@ -10,18 +10,18 @@ use Illuminate\Support\Str;
 class RoutePredictionService
 {
     /**
-     * Predicts a suggested route based on the purpose text using TF-IDF-inspired logic.
+     * Predicts a suggested route based on the input text (Title + Purpose) using TF-IDF-inspired logic.
      * Rare keywords (high IDF) have more impact than common words.
      *
-     * @param string $purposeText
+     * @param string $inputContext
      * @param string|null $preferredDepartment (Guest-selected department)
      * @return array
      */
-    public function predict(string $purposeText, ?string $preferredDepartment = null): array
+    public function predict(string $inputContext, ?string $preferredDepartment = null): array
     {
-        $purposeText = strtolower($purposeText);
+        $inputContext = strtolower($inputContext);
         // Tokenize
-        $rawTokens = preg_split('/[\s,.;]+/', $purposeText, -1, PREG_SPLIT_NO_EMPTY);
+        $rawTokens = preg_split('/[\s,.;]+/', $inputContext, -1, PREG_SPLIT_NO_EMPTY);
         
         // Define stopwords and placeholders to ignore
         $stopWords = ['the', 'and', 'for', 'with', 'n/a', 'na', 'not', 'applicable', 'this', 'that'];

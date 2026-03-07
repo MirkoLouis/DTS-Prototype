@@ -73,21 +73,25 @@ class DocumentLog extends Model
     }
 
     /**
-     * Generate an Ed25519 signature for the given data using the user's PIN.
-     * This ensures non-repudiation: only the person with the PIN can authorize the action.
+     * Generate an Ed25519 signature for the given data and document state.
+     * This ensures the signature is "bonded" to the document's content.
      *
      * @param  \App\Models\User  $user
      * @param  string  $pin
-     * @param  string  $dataToSign
+     * @param  string  $actionText
+     * @param  string  $stateHash
      * @return string|null
      */
-    public static function signAction(User $user, string $pin, string $dataToSign)
+    public static function signAction(User $user, string $pin, string $actionText, string $stateHash)
     {
         if (!$user->private_key) {
             return null;
         }
 
         try {
+            // Combine action and state hash into a single data bundle for signing
+            $dataToSign = $actionText . '|' . $stateHash;
+
             // 1. Derive the encryption key from the PIN
             $salt = substr(hash('sha256', $user->email, true), 0, SODIUM_CRYPTO_PWHASH_SALTBYTES);
             $encryptionKey = sodium_crypto_pwhash(

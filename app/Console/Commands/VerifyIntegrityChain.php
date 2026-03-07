@@ -31,6 +31,7 @@ class VerifyIntegrityChain extends Command
 
         $totalLogs = \App\Models\DocumentLog::count();
         $invalidLogsCount = 0;
+        $invalidSignaturesCount = 0;
         $mismatchedIds = [];
 
         if ($totalLogs > 0) {
@@ -41,23 +42,38 @@ class VerifyIntegrityChain extends Command
             $lastHashesByDocument = [];
 
             // Process logs in chunks of 1000 to keep memory usage low and constant
-            \App\Models\DocumentLog::orderBy('document_id', 'asc')
+            \App\Models\DocumentLog::with('user')->orderBy('document_id', 'asc')
                 ->orderBy('id', 'asc')
-                ->chunkById(1000, function ($logs) use (&$invalidLogsCount, &$mismatchedIds, &$lastHashesByDocument, $progressBar) {
+                ->chunkById(1000, function ($logs) use (&$invalidLogsCount, &$invalidSignaturesCount, &$mismatchedIds, &$lastHashesByDocument, $progressBar) {
                     foreach ($logs as $log) {
-                        // Determine the expected previous hash for this log
+                        // 1. Verify Hash Chain Consistency
                         $expectedPreviousHash = $lastHashesByDocument[$log->document_id] ?? 'genesis_hash';
-
-                        // The timestamp format MUST be identical to the one used during creation.
                         $timestampForHashing = Carbon::parse($log->created_at)->toIso8601String();
                         
-                        // We now verify against the document_state_hash and digital signature
                         $dataToHash = $log->document_id . $log->user_id . $log->action . $timestampForHashing . $expectedPreviousHash . $log->document_state_hash . $log->signature;
                         $recalculatedHash = hash('sha256', $dataToHash);
 
                         if ($recalculatedHash !== $log->hash) {
                             $invalidLogsCount++;
                             $mismatchedIds[] = $log->id;
+                        }
+
+                        // 2. Verify Cryptographic Signature (Atomic Bonding)
+                        // Only verify logs that have real signatures (length > 64 chars implies Ed25519 vs fallback strings)
+                        if ($log->signature && strlen($log->signature) > 64 && $log->user && $log->user->public_key) {
+                            $signedData = $log->action . '|' . $log->document_state_hash;
+                            $isValidSignature = \App\Models\DocumentLog::verifySignature(
+                                $log->signature,
+                                $signedData,
+                                $log->user->public_key
+                            );
+
+                            if (!$isValidSignature) {
+                                $invalidSignaturesCount++;
+                                if (!in_array($log->id, $mismatchedIds)) {
+                                    $mismatchedIds[] = $log->id;
+                                }
+                            }
                         }
 
                         // Store the current hash as the previous hash for the next log in this document's chain
@@ -110,7 +126,7 @@ class VerifyIntegrityChain extends Command
             $this->newLine();
         }
 
-        $verifiedPercentage = ($totalLogs > 0) ? (($totalLogs - $invalidLogsCount) / $totalLogs) * 100 : 100;
+        $verifiedPercentage = ($totalLogs > 0) ? (($totalLogs - (count($mismatchedIds))) / $totalLogs) * 100 : 100;
 
         // Store results in cache for the admin dashboard
         Cache::put('integrity-check-result', [
@@ -118,14 +134,18 @@ class VerifyIntegrityChain extends Command
             'last_checked' => now(),
             'total_logs' => $totalLogs,
             'invalid_logs' => $invalidLogsCount,
+            'invalid_signatures' => $invalidSignaturesCount,
             'mismatched_ids' => $mismatchedIds,
             'live_state_errors_count' => $liveStateErrorsCount,
             'mismatched_document_tracking_codes' => $mismatchedDocumentTrackingCodes,
         ], now()->addHours(24));
 
-        if ($invalidLogsCount > 0 || $liveStateErrorsCount > 0) {
+        if ($invalidLogsCount > 0 || $invalidSignaturesCount > 0 || $liveStateErrorsCount > 0) {
             if ($invalidLogsCount > 0) {
                 $this->error("Historical chain check failed: Found {$invalidLogsCount} mismatched hashes.");
+            }
+            if ($invalidSignaturesCount > 0) {
+                $this->error("Cryptographic signature check failed: Found {$invalidSignaturesCount} invalid signatures.");
             }
             if ($liveStateErrorsCount > 0) {
                 $this->error("Live state check failed: Found {$liveStateErrorsCount} documents with tampered states.");

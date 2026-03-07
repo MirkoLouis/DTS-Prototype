@@ -4,9 +4,9 @@
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 table-fixed">
             <thead class="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[30%]">Tracking Code</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[20%]">Tracking Code</th>
                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[20%]">Submitter</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[25%]">Purpose</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[35%]">Purpose</th>
                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[10%]">Status</th>
                     <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[15%]">Date Handled</th>
                 </tr>
@@ -15,7 +15,7 @@
                 @forelse($handledLogs as $log)
                     @php $document = $log->document; @endphp
                     <tr>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-gray-100 break-all">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-gray-100">
                             <a href="{{ route('documents.show', ['document' => $document->tracking_code, 'back_to' => 'intake']) }}" class="hover:underline hover:text-indigo-600 dark:hover:text-indigo-400">
                                 {{ $document->tracking_code }}
                             </a>
@@ -25,8 +25,8 @@
                                 View Route
                             </button>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ $document->guest_info['name'] }}</td>
-                        <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 truncate">{{ $document->purpose->name }}</td>
+                        <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ $document->guest_info['name'] }}</td>
+                        <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 break-words">{{ $document->purpose->name }}</td>
                         <td class="px-6 py-4 text-sm">
                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                                 @switch($document->status)
