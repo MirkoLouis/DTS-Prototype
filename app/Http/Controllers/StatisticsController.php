@@ -312,16 +312,17 @@ class StatisticsController extends Controller
                 DB::raw("LAG(created_at) OVER (PARTITION BY document_id, user_id ORDER BY created_at) as prev_created_at"),
                 DB::raw("LAG(action) OVER (PARTITION BY document_id, user_id ORDER BY created_at) as prev_action")
             )
-            ->from('document_logs');
+            ->from('document_logs')
+            ->whereIn('action', ['Received', 'Processing Complete']);
         }, 'log_durations')
         ->join('users', 'log_durations.user_id', '=', 'users.id')
         ->where('users.department_id', $departmentId)
-        ->where('action', 'Processing Complete')
-        ->where('prev_action', 'Received')
-        ->whereBetween('created_at', [$startDate, $endDate])
+        ->where('log_durations.action', 'Processing Complete')
+        ->where('log_durations.prev_action', 'Received')
+        ->whereBetween('log_durations.created_at', [$startDate, $endDate])
         ->select(
-            DB::raw("DATE_FORMAT(created_at, '{$dateFormat}') as period_label"),
-            DB::raw('AVG(TIMESTAMPDIFF(SECOND, prev_created_at, created_at)) / 3600 as avg_hours')
+            DB::raw("DATE_FORMAT(log_durations.created_at, '{$dateFormat}') as period_label"),
+            DB::raw('AVG(TIMESTAMPDIFF(SECOND, log_durations.prev_created_at, log_durations.created_at)) / 3600 as avg_hours')
         )
         ->groupBy('period_label')
         ->get()

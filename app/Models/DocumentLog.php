@@ -154,25 +154,13 @@ class DocumentLog extends Model
         parent::boot();
 
         static::creating(function ($documentLog) {
-            // Do not recalculate if a hash is already being set (e.g., during seeding)
-            if ($documentLog->hash) {
-                return;
-            }
-
             // Populate the digital signature from the performing user, if available
-            // Note: For real Ed25519 signatures, the 'signature' should be provided 
-            // BEFORE calling create() in the controller. If not provided, we fall back.
             if (!$documentLog->signature) {
                 if ($documentLog->user_id) {
                     $user = User::find($documentLog->user_id);
                     if ($user && $user->public_key) {
-                        // If user has a key initialized but no signature was passed,
-                        // it means the controller didn't use signAction().
-                        // For the prototype, we use the public key as a fallback string 
-                        // if a cryptographic signature wasn't provided yet.
                         $documentLog->signature = $user->public_key;
                     } else {
-                        // Descriptive fallback based on role and department
                         $role = $user ? $user->role : 'unknown';
                         $documentLog->signature = match($role) {
                             'admin' => 'signed_by_admin',
@@ -194,24 +182,36 @@ class DocumentLog extends Model
                                 ->first();
 
             $previousHash = $lastLog ? $lastLog->hash : 'genesis_hash';
-            $documentLog->previous_hash = $previousHash;
+            
+            // Only set previous_hash if not provided (allows seeder to control the chain)
+            if (!$documentLog->previous_hash) {
+                $documentLog->previous_hash = $previousHash;
+            }
 
             // Protect the document's state at this point in time
-            $document = $documentLog->document;
-            if ($document) {
-                $documentLog->document_state_hash = self::calculateStateHash($document);
+            // If the seeder provided a state hash, we honor it.
+            if (!$documentLog->document_state_hash) {
+                $document = $documentLog->document;
+                if ($document) {
+                    $documentLog->document_state_hash = self::calculateStateHash($document);
+                }
+            }
+
+            // If the seeder provided a final hash, we skip the automatic calculation.
+            if ($documentLog->hash) {
+                return;
             }
 
             // Ensure created_at is a Carbon instance if it's not already
             $createdAt = $documentLog->created_at ? Carbon::parse($documentLog->created_at) : Carbon::now();
             $timestampForHashing = $createdAt->toIso8601String();
             
-            // We now include document_state_hash and the department's signature in the chain hash
+            // Calculate final SHA-256 block hash
             $dataToHash = $documentLog->document_id . 
                          $documentLog->user_id . 
                          $documentLog->action . 
                          $timestampForHashing . 
-                         $previousHash . 
+                         $documentLog->previous_hash . 
                          $documentLog->document_state_hash .
                          $documentLog->signature;
 

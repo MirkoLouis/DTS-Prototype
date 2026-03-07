@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.8-Alpha+202603072215] - 2026-03-07
+
+### FIXED
+- **SQL Ambiguity in Statistics:** Resolved a `SyntaxError` in the `StatisticsController` caused by an ambiguous `created_at` column in join queries. Explicitly qualified all analytical queries with subquery aliases.
+- **Seeding Integrity Mismatches:** Fixed "Live State Errors" where `db:dev` generated documents failed integrity checks. Modified `DocumentLog` boot logic to respect manually set hashes and updated `DocumentSeeder` to save document states before calculating cryptographic snapshots.
+- **Verification Chain False Positives:** Improved `VerifyIntegrityChain` command to accurately detect tampering while ignoring legitimate seeder-generated state shifts.
+
+### ADDED
+- **High-Performance Analytical Indexing:** Added composite indexes to `document_logs` (`action`, `created_at`) to ensure sub-second response times for dashboard charts at 1M+ record scale.
+- **Automated Metrics Lifecycle Management:** Implemented `dts:prune-metrics` command to automatically summarize granular 5-minute snapshots into hourly averages and prune data older than 90 days, preventing infinite storage growth.
+- **Window Function Optimization:** Refactored analytical subqueries to filter by relevant actions early, significantly reducing memory and CPU usage for processing time calculations.
+
 ## [1.8.7-Release+202603072130] - 2026-03-07
 
 ### ADDED

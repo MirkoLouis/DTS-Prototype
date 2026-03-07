@@ -438,11 +438,11 @@ class AdminDashboardController extends Controller
         }, 'log_durations')
         ->join('users', 'log_durations.user_id', '=', 'users.id')
         ->join('departments', 'users.department_id', '=', 'departments.id')
-        ->where('action', 'Processing Complete')
-        ->where('prev_action', 'Received')
+        ->where('log_durations.action', 'Processing Complete')
+        ->where('log_durations.prev_action', 'Received')
         ->select(
             'departments.name',
-            DB::raw('AVG(TIMESTAMPDIFF(SECOND, prev_created_at, log_durations.created_at)) / 3600 as avg_hours')
+            DB::raw('AVG(TIMESTAMPDIFF(SECOND, log_durations.prev_created_at, log_durations.created_at)) / 3600 as avg_hours')
         )
         ->groupBy('departments.name')
         ->orderBy('avg_hours', 'asc');
@@ -507,8 +507,8 @@ class AdminDashboardController extends Controller
                 ->whereIn('action', ['Received', 'Processing Complete']);
             }, 'log_durations')
             ->join('users', 'log_durations.user_id', '=', 'users.id')
-            ->where('action', 'Processing Complete')
-            ->where('prev_action', 'Received');
+            ->where('log_durations.action', 'Processing Complete')
+            ->where('log_durations.prev_action', 'Received');
 
             if ($departmentId && $departmentId !== 'all') {
                 $durationsSubquery->where('users.department_id', $departmentId);
@@ -516,7 +516,7 @@ class AdminDashboardController extends Controller
 
             $timeResults = $durationsSubquery->select(
                 DB::raw("DATE_FORMAT(log_durations.created_at, '{$dateFormat}') as period_label"),
-                DB::raw('AVG(TIMESTAMPDIFF(SECOND, prev_created_at, log_durations.created_at)) / 3600 as avg_hours')
+                DB::raw('AVG(TIMESTAMPDIFF(SECOND, log_durations.prev_created_at, log_durations.created_at)) / 3600 as avg_hours')
             )
             ->groupBy('period_label')
             ->get()

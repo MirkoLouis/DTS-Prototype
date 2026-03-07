@@ -96,6 +96,7 @@ class DocumentSeeder extends Seeder
             $document->finalized_route = $finalizedRoute;
             $document->status = 'processing';
             $document->current_step = 1;
+            $document->save(); // Save initial state first
 
             // ===== METRICS HELPER =====
             $generateMetrics = function($timestamp, $isPeak = false) use (&$metricsToInsert) {
@@ -266,6 +267,7 @@ class DocumentSeeder extends Seeder
                 
                 $actualStepsProcessed++;
                 $document->current_step = $i + 2;
+                $document->save(); // Save progress before log
 
                 if ($intakeTimestamp->diffInDays($currentTimestamp) > $maxTotalDays) {
                     break;
@@ -278,6 +280,9 @@ class DocumentSeeder extends Seeder
                 
                 // a. Ready for Releasing Log
                 $action = 'Ready for Releasing';
+                $document->status = 'ready_for_release';
+                $document->save(); // Save before log
+
                 $remarks = 'All processing steps completed. Document received by Records Unit for final releasing.';
                 $stateHash = DocumentLog::calculateStateHash($document);
                 $signature = $recordsOfficer->public_key ?? base64_encode("MOCK_SIG:" . $action . "|" . $stateHash);
@@ -285,7 +290,6 @@ class DocumentSeeder extends Seeder
                 $newHash = hash('sha256', $dataToHash);
                 DocumentLog::create(['document_id' => $document->id, 'user_id' => $recordsOfficer->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'document_state_hash' => $stateHash, 'signature' => $signature, 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
                 $previousHash = $newHash;
-                $document->status = 'ready_for_release';
                 $generateMetrics($currentTimestamp);
 
                 if ($aimForReleased) {
@@ -293,6 +297,9 @@ class DocumentSeeder extends Seeder
                     
                     // b. Document Released Log
                     $action = 'Document Released';
+                    $document->status = 'completed';
+                    $document->save(); // Save before log
+
                     $remarks = 'The document has been released to the client.';
                     $stateHash = DocumentLog::calculateStateHash($document);
                     $signature = $recordsOfficer->public_key ?? base64_encode("MOCK_SIG:" . $action . "|" . $stateHash);
