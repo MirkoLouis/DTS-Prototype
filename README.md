@@ -1,32 +1,29 @@
 # DepEd Iligan - Document Tracking System (DTS) Prototype
 
-This project is a comprehensive, production-ready prototype for a modern, web-based Document Tracking System (DTS) for the DepEd Division of Iligan City. Built with Laravel 12, it digitizes and streamlines the submission, tracking, and management of official documents through a sophisticated role-based workflow and a cryptographically secure audit trail.
+A comprehensive, production-ready prototype for a modern, web-based **Document Tracking System (DTS)** for the **DepEd Division of Iligan City**. Built with **Laravel 12**, it digitizes and streamlines the submission, tracking, and management of official documents through a sophisticated role-based workflow and a cryptographically secure audit trail.
 
 ---
 
-## 📸 Screenshots
+## 📸 Project Screenshots
 
 ### 🌐 Public & Guest Portal
 | Public Submission Portal | Tracking Dashboard |
 |:---:|:---:|
 | ![Submission](documentation/screenshots/Guest%20Welcome%20Page.png) | ![Tracking Dashboard](documentation/screenshots/Guest%20Track%20Page.png) |
 
-### 🛠 Administrative Suite
+### 🛠 Administrative & Security Suite
 | Admin Dashboard | Integrity Monitor | System Health |
 |:---:|:---:|:---:|
 | ![Analytics](documentation/screenshots/Admin%20Dashboard%20Page.png) | ![Integrity Monitor](documentation/screenshots/Admin%20Document%20Integrity%20Page.png) | ![System Health](documentation/screenshots/Admin%20System%20Page.png) |
 
-### 📋 Operations & Staff Dashboards
-| Records Officer Intake | Records Officer Statistics | Cryptographic Audit Trail |
+### 📋 Operations & Audit Trail
+| Records Officer Intake | Cryptographic Ledger | Staff Tasks Dashboard |
 |:---:|:---:|:---:|
-| ![Intake Page](documentation/screenshots/Records%20Officer%20Intake%20Page.png) | ![RO Stats](documentation/screenshots/Records%20Officer%20Statistics%20Page.png) | ![Hash Chain Audit](documentation/screenshots/View%20Hash%20Chain%20Page.png) |
-
-| Staff Tasks Dashboard | Staff Statistics |
-|:---:|:---:|
-| ![Staff Tasks](documentation/screenshots/Staff%20Tasks%20Page.png) | ![Staff Stats](documentation/screenshots/Staff%20Statistics%20Page.png) |
+| ![Intake Page](documentation/screenshots/Records%20Officer%20Intake%20Page.png) | ![Hash Chain Audit](documentation/screenshots/View%20Hash%20Chain%20Page.png) | ![Staff Tasks](documentation/screenshots/Staff%20Tasks%20Page.png) |
 
 ---
 
+---
 ## 📄 Example Output
 
 Explore generated document tracking forms and administrative reports:
@@ -37,92 +34,90 @@ Explore generated document tracking forms and administrative reports:
 
 ## 🚀 Key Innovations
 
-1.  **Physical Workflow Integration:** Integrated QR code system for physical document tracking. Documents require physical scans at each handoff (Intake, Departmental Receipt, and Releasing) to ensure accountability.
-2.  **Trust Builder (Hash-Chaining):** An immutable, `sha256`-based chained ledger of all document actions. Every action is cryptographically linked to the previous one, ensuring a verifiable and tamper-proof audit trail.
-3.  **Universal Non-Repudiation:** A cryptographic enforcement layer where every authorized action (Intake, Receive, Rebuild, Release) is "signed" using a user's unique digital signature. Once an action is recorded in the chain, it is cryptographically impossible for the user or department to deny their authorization.
-4.  **AI Route Prediction:** A dynamic, keyword-driven system that suggests document routes based on the purpose of the request. The system "learns" from manual corrections made by Records Officers via a background weighted-keyword update job.
+1.  **The Trust Builder (Merkle-Chaining):** An immutable, `sha256`-based chained ledger of all document actions. Every movement is cryptographically bonded to the previous state, ensuring a tamper-proof audit trail.
+2.  **Universal Non-Repudiation (Ed25519):** A high-security enforcement layer where every action is signed using a user's unique digital signature. Once recorded, it is mathematically impossible to deny authorization.
+3.  **Physical Workflow (QR Codes):** Integrated QR code system for physical document tracking. Requires physical scans at Intake, Receipt, and Releasing to ensure accountability between handlers.
+4.  **AI Route Prediction (TF-IDF):** A dynamic, keyword-driven engine that suggests departmental routes based on document context. The system "learns" from expert corrections via a background learning job.
 5.  **Enterprise-Scale Reporting:** A high-performance export system for PDF and CSV reports that utilizes a "chunk-and-merge" strategy, allowing it to handle 10,000+ records without memory exhaustion.
+6.  **High-Performance Analytics:** Utilizes MySQL 8.0 Window Functions and intelligent caching to provide real-time throughput metrics and bottleneck detection without the "RAM Trap."
 
 ---
 
 ## ✨ Core Features
 
--   **Guest & Tracking Portals:** Public-facing submission forms and a multi-document tracking dashboard with an interactive "subway map" status view.
--   **Role-Based Access Control:** Secure, middleware-protected dashboards for **Admins**, **Records Officers**, and **Department Staff**.
--   **Full Document Lifecycle:** Manages the entire process from initial intake to departmental processing, return requests, and final releasing.
--   **Advanced Analytics:** A comprehensive "Bottleneck Detector" featuring time-series charts for throughput, departmental load distribution, and processing hotspots.
--   **QR Code Integration:** Automatic generation and camera-based scanning for efficient physical document handoffs.
--   **Database Security Suite:** Includes a **Backup Manager** for on-demand snapshots and the **System Health Monitor** for real-time integrity verification.
--   **Automated Maintenance:** Scheduled tasks for document pruning, database performance snapshots, and AI keyword weight updates.
--   **Interactive Route Editor:** A drag-and-drop interface for Records Officers to dynamically manage and modify document paths.
--   **Client Feedback:** Integrated 5-star rating system for completed documents to monitor service quality.
--   **Responsive Design:** Fully mobile-friendly dashboards for staff processing documents on the move.
+-   **Guest & Tracking Portals:** Public-facing submission forms and a multi-document tracking dashboard featuring an interactive "subway map" status view.
+-   **Role-Based Access Control (RBAC):** Secure, middleware-protected dashboards tailored for **Admins**, **Records Officers**, and **Department Staff**.
+-   **Full Document Lifecycle:** Comprehensive management from initial public submission to Records Office intake, multi-departmental processing, and final physical release.
+-   **Advanced Analytics (Bottleneck Detector):** Real-time business intelligence with time-series charts for throughput, departmental load distribution, and processing hotspots.
+-   **QR Code Integration:** Automatic tracking-form generation and high-speed camera-based scanning for efficient physical document handoffs.
+-   **Cryptographic Security Suite:** Real-time integrity monitoring, automated hash-chain repair tools, and Ed25519 digital signature enforcement.
+-   **Database Security & DevOps:** Integrated **Backup Manager** for on-demand snapshots and a **System Health Monitor** for technical oversight.
+-   **Automated Maintenance:** Scheduled tasks for pruning old documents, capturing performance snapshots, and updating AI keyword weights.
+-   **Interactive Route Editor:** A drag-and-drop interface allowing Records Officers to dynamically build and modify document processing paths.
+-   **Non-Linear Routing (Return Requests):** Flexible workflow allowing departments to return documents to previous steps for corrections or re-processing.
+-   **Client Feedback System:** Integrated 5-star rating and qualitative feedback system for completed documents to monitor service quality.
+-   **Responsive & Mobile-Friendly:** Fully optimized dashboards for staff processing documents on mobile devices and tablets.
+-   **Enterprise-Scale Reporting:** High-performance PDF/CSV export system utilizing a "chunk-and-merge" strategy for 10,000+ records.
 
 ---
 
 ## 🛠 Tech Stack
 
--   **Backend:** Laravel 12 (PHP 8.3)
--   **Database:** MySQL 8.0 (with time-series performance snapshots)
--   **Frontend:** Blade Templates, Tailwind CSS 4, Bootstrap 5 (Layout), Vanilla JS
--   **Analytics:** Chart.js
--   **Infrastructure:** Vite (HMR & Asset Bundling), Redis/Database Queue, mkcert (Local SSL)
+-   **Backend:** Laravel 12 (PHP 8.3 + Sodium)
+-   **Database:** MySQL 8.0 (Optimized Buffer Pools)
+-   **Frontend:** Tailwind CSS 4, Blade Templates, Vanilla JS, Chart.js
+-   **Infrastructure:** Vite (HMR), Redis Queue, mkcert (Local SSL)
 
 ---
 
-## 📖 Project Documentation
+## 📖 Deep Technical Documentation
 
-For deep technical dives into specific system components, please refer to the files in the `documentation/` directory:
-
--   **Architecture:**
-    -   [Architecture](documentation/ARCHITECTURE.md)
--   **Hardware Specs:**
-    -   [Hardware Specs](documentation/HARDWARE_SPECS.md)
--   **Standard Operations:**
-    -   [Standard Operations](documentation/OPERATIONS.md)
--   **Administration:**
-    -   [Administration](documentation/ADMINISTRATION.md)
+Refer to the `documentation/` directory for in-depth technical guides:
+-   [**Architecture**](documentation/ARCHITECTURE.md): Security models, Hashing formula, and Lifecycle states.
+*   [**Administration**](documentation/ADMINISTRATION.md): Analytics engine, Scaling for 1M records, and Backups.
+*   [**Operations**](documentation/OPERATIONS.md): Multi-threaded setup, Commands matrix, and SSL management.
+*   [**Hardware Specs**](documentation/HARDWARE_SPECS.md): RAM optimization and CPU core pinning logic.
 
 ---
 
 ## ⚡ Quick Start
 
-1.  **Clone & Install:**
+1.  **Clone & Setup:**
     ```bash
     git clone <repository-url>
     composer install && npm install
+    composer run setup
     ```
-2.  **Environment Setup:** Follow the [Setup Guide](documentation/OPERATIONS.md) to configure your `.env` and generate your local SSL certificates (`mkcert localhost`).
-3.  **Database:**
+2.  **Initialize Database:**
     ```bash
-    composer db:dev  # Simulates 10,000 documents over 5 years
+    composer db:dev  # Seeds ~10,000 documents for testing
     ```
-4.  **Run Development Server:**
+3.  **Launch Multi-Threaded Environment:**
     ```bash
-    composer dev  # Starts Server (Port 3050), Vite, Queue, Logs, and Scheduler
+    composer dev  # Starts Server (Port 3050), Vite, Queue, and Scheduler
     ```
 
 ---
 
-## 🔐 Default Accounts
+## 🔐 Default Accounts (Password: `password`)
 
-| Role | Email | Password |
+| Role | Email |
 |:---|:---|:---|
-| **Administrator** | `admin@dts.com` | `password` |
-| **Records Officer** | `records@dts.com` | `password` |
-| **Staff: Cash Unit** | `cash.unit@dts.com` | `password` |
-| **Staff: Admin Unit** | `administrative.unit@dts.com` | `password` |
-| **Staff: Personnel** | `personnel.unit@dts.com` | `password` |
-| **Staff: Supply Unit** | `supply.unit@dts.com` | `password` |
-| **Staff: Budget Unit** | `budget.unit@dts.com` | `password` |
-| **Staff: Accounting** | `accounting.unit@dts.com` | `password` |
-| **Staff: Legal Unit** | `legal.unit@dts.com` | `password` |
-| **Staff: Health & Nutrition** | `health.and.nutrition@dts.com` | `password` |
-| **Staff: BAC Unit** | `bids.and.awards.committee.unit@dts.com` | `password` |
-| **Staff: SDS Office** | `schools.division.superintendent.office@dts.com` | `password` |
-| **Staff: ASDS Office** | `assistant.schools.division.superintendent.office@dts.com` | `password` |
-| **Staff: CID** | `curriculum.implementation.division@dts.com` | `password` |
-| **Staff: SGOD** | `school.governance.and.operations.division@dts.com` | `password` |
+| **Administrator** | `admin@dts.com` |
+| **Records Officer** | `records@dts.com` |
+| **Staff: Cash Unit** | `cash.unit@dts.com` |
+| **Staff: Admin Unit** | `administrative.unit@dts.com`
+| **Staff: Personnel** | `personnel.unit@dts.com` |
+| **Staff: Supply Unit** | `supply.unit@dts.com` |
+| **Staff: Budget Unit** | `budget.unit@dts.com` |
+| **Staff: Accounting** | `accounting.unit@dts.com` |
+| **Staff: Legal Unit** | `legal.unit@dts.com` |
+| **Staff: Health & Nutrition** | `health.and.nutrition@dts.com` |
+| **Staff: BAC Unit** | `bids.and.awards.committee.unit@dts.com` |
+| **Staff: SDS Office** | `schools.division.superintendent.office@dts.com` |
+| **Staff: ASDS Office** | `assistant.schools.division.superintendent.office@dts.com` |
+| **Staff: CID** | `curriculum.implementation.division@dts.com` |
+| **Staff: SGOD** | `school.governance.and.operations.division@dts.com` |
 
 ---
 

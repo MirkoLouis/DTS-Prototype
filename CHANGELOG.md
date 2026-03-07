@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.7-Release+202603072130] - 2026-03-07
+
+### ADDED
+- **Tailwind CSS 4 Synchronization:** Fully upgraded the styling engine to Tailwind CSS 4, removing redundant configuration files (`tailwind.config.js`, `postcss.config.js`). Integrated theme settings and plugins directly into the CSS layer using `@theme` and `@plugin` directives.
+- **HTTPS Protocol Standardization:** Unified the application protocol to HTTPS across all configuration layers (`APP_URL`, `.env`, and Composer scripts), ensuring a secure context for QR scanning and cryptographic operations across development and production.
+- **Enhanced AI Input Context:** Renamed the primary prediction parameter in `RoutePredictionService` to `$inputContext` to better reflect its multi-source nature (Document Title + Purpose), improving code readability and maintainability.
+- **Expanded Core Feature Showcase:** Updated `README.md` with an exhaustive list of system capabilities, highlighting the full document lifecycle, advanced analytics, and cryptographic security suite.
+
+### CHANGED
+- **Vite Configuration Upgrade:** Updated `vite.config.js` to utilize the `@tailwindcss/vite` plugin for faster builds and improved HMR.
+- **In-Depth Documentation Realignment:** Realigned and deeply refactored the entire `@documentation/**` suite to provide more technical depth while improving readability.
+    - **`ARCHITECTURE.md`**: Added a Mermaid state diagram for the document lifecycle and clarified the Ed25519 cryptographic bonding logic.
+    - **`ADMINISTRATION.md`**: Expanded on high-performance analytics, caching strategies, and database metrics snapshots.
+    - **`OPERATIONS.md`**: Introduced a command matrix and detailed the 5-pillar multi-threaded development architecture.
+    - **`HARDWARE_SPECS.md`**: Detailed the technical rationale behind memory tuning and CPU core pinning for 1M+ record scaling.
+- **Table Layout Optimization:** Refined the intake table layout with optimized column widths and word-breaking rules to eliminate horizontal scrollbars and improve readability.
+
+### FIXED
+- **Modal Stacking & Backdrop Issues:** Resolved CSS conflicts in the security key and QR scanner modals by standardizing z-index stacking and backdrop opacity using Tailwind 4 syntax.
+- **Atomic State-Signature Bonding:** Upgraded the digital signature architecture to explicitly sign a combined bundle of the Action text and the Document State Hash, mathematically bonding the user's identity to the document's content.
+- **Enhanced Integrity Verification:** Refactored the `dts:verify-integrity` command to perform real-time verification of Ed25519 signatures during historical chain audits.
+
 ## [1.8.6-Alpha+202603071917] - 2026-03-07
 
 ### ADDED

@@ -1,27 +1,26 @@
 # System Requirements & Hardware Specifications
 
 ## Summary
-A comprehensive guide detailing the minimum and recommended hardware and software specifications for the Document Tracking System (DTS). This document explains the technical rationale behind the hardware requirements and how the application enforces these limits.
+A technical breakdown of the hardware and software specifications for the Document Tracking System (DTS). This document provides the rationale behind the system's performance limits and storage requirements.
 
 ## Table of Contents
 1. [Production Server Requirements](#1-production-server-requirements)
 2. [Software Infrastructure](#2-software-infrastructure)
-3. [Implementation: Database Tuning](#3-implementation-database-tuning)
-4. [Implementation: CPU Core Pinning](#4-implementation-cpu-core-pinning)
-5. [Developer Hardware (User's Laptop)](#5-developer-hardware-users-laptop)
-6. [Storage Scaling for 1M+ Records](#6-storage-scaling-for-1m-records)
+3. [Implementation: Database Memory Optimization](#3-implementation-database-memory-optimization)
+4. [Implementation: CPU Thread Allocation](#4-implementation-cpu-thread-allocation)
+5. [Storage Scaling for 1M+ Records](#5-storage-scaling-for-1m-records)
 
 ---
 
 ## 1. Production Server Requirements
 
-These specifications are tailored to the DTS's performance profile, specifically its **4GB InnoDB Buffer Pool** and **12-Thread Core Pinning** logic.
+These specifications are tailored to support the system's **4GB InnoDB Buffer Pool** and multi-threaded background processing.
 
 | Component | Minimal (Base Operations) | Recommended (1M+ Records) |
 |:---|:---|:---|
 | **OS** | Ubuntu 24.04 LTS | Ubuntu 24.04 LTS (HWE Kernel) |
 | **CPU** | 4 Cores (2.5GHz+) | 12+ Cores (3.0GHz+) |
-| **RAM** | 8 GB (4GB Buffer + 4GB OS/App) | 32 GB (16GB Buffer + Redis + Buffering) |
+| **RAM** | 8 GB (4GB Buffer + 4GB App/OS) | 32 GB (16GB Buffer + Redis + OS) |
 | **Storage** | 50 GB SSD (SATA) | 200 GB+ NVMe SSD (High IOPS) |
 | **Network** | 100 Mbps | 1 Gbps (Low Latency) |
 
@@ -29,73 +28,50 @@ These specifications are tailored to the DTS's performance profile, specifically
 
 ## 2. Software Infrastructure
 
-Regardless of hardware, the following software stack is mandatory:
-- **PHP:** 8.3+ (with `bcmath`, `curl`, `mbstring`, `openssl`, `pdo_mysql`)
-- **Web Server:** Nginx 1.24+ (Recommended) or Apache 2.4+
-- **Database:** MySQL 8.0+ (Required for Window Functions and JSON logic)
-- **Cache/Queue:** Redis 7.0+ (Mandatory for high-frequency dashboard updates)
-- **Node.js:** 20+ (For Vite asset bundling)
+The following software stack is mandatory for system stability:
+- **PHP:** 8.3+ (Required for Ed25519 signing via `sodium`).
+- **Database:** MySQL 8.0+ (Required for JSON logic and Window Functions).
+- **Cache/Queue:** Redis 7.0+ (Mandatory for high-frequency analytics and reporting).
+- **Web Server:** Nginx 1.24+ (Recommended for performance).
 
 ---
 
-## 3. Implementation: Database Tuning
+## 3. Implementation: Database Memory Optimization
 
-The system includes an Artisan command to programmatically optimize MySQL's memory settings. This ensures the 1,000,000 document index remains in RAM for sub-millisecond lookups.
+The DTS uses a **Large Buffer Pool** strategy to ensure that the document index for 1,000,000 documents remains in RAM. This allows for sub-millisecond lookups on tracking codes.
 
 ```php
-// app/Console/Commands/TuneDatabase.php
-public function handle()
-{
-    $this->info('Tuning database for 1,000,000 document load...');
-
-    // Set Buffer Pool to 4GB (Crucial for high-volume indexing)
+// Tuning command (app/Console/Commands/TuneDatabase.php)
+public function handle() {
+    // 4GB Buffer Pool: Keeps 1M document index in memory
     DB::statement("SET GLOBAL innodb_buffer_pool_size = 4294967296;");
     
-    // Set Log File Size to 1GB (Optimizes write-ahead logging)
+    // 1GB Log File: Optimizes high-volume write-ahead logging
     DB::statement("SET GLOBAL innodb_log_file_size = 1073741824;");
 }
 ```
 
 ---
 
-## 4. Implementation: CPU Core Pinning
+## 4. Implementation: CPU Thread Allocation
 
-The system's development environment utilizes `taskset` to isolate processes and prevent starvation. This strategy ensures the UI remains responsive during heavy background tasks.
+The development environment utilizes **CPU Core Pinning** (via `taskset`) to isolate background tasks and prevent process starvation.
 
-```bash
-// composer.json - Multi-threading through Core Pinning
-"serve:dev": "while true; do APP_URL=http://localhost:3050 taskset -c 0-3 php artisan serve --host 0.0.0.0 --port 3050; done",
-"queue:dev": "while true; do taskset -c 4 php artisan queue:listen ...; done",
-"logs:dev": "while true; do taskset -c 5 php artisan pail ...; done",
-"vite:dev": "while true; do APP_URL=http://localhost:3050 taskset -c 6-7 npm run dev ...; done",
-"schedule:dev": "while true; do taskset -c 8 php artisan schedule:work ...; done"
-
-```
+- **Cores 0-3**: Web Server (PHP-FPM/Artisan Serve).
+- **Core 4**: Queue Listener (AI learning, PDF Generation).
+- **Cores 6-7**: Vite (Asset Bundling).
+- **Core 8**: Task Scheduler.
 
 ---
 
-## 5. Developer Hardware (User's Laptop)
-
-The development environment is currently running on a high-performance Linux workstation. These specs are well-suited for simulating a full 10,000 document load.
-
-| Component | Specification | Current Status |
-|:---|:---|:---|
-| **OS** | Bazzite / Fedora Atomic (Linux 6.17) | Running in Distrobox (Ubuntu) |
-| **CPU** | 12 Logical Cores | **Optimal** (Matches 12-thread core pinning) |
-| **RAM** | 16 GB DDR4/DDR5 | **Sufficient** (Supports 4GB DB Buffer Pool) |
-| **Storage** | 476 GB SSD | **Good** (95 GB Available) |
-| **Environment** | Distrobox `coding` container | Provides mutable workspace in atomic OS |
-
----
-
-## 6. Storage Scaling for 1M+ Records
+## 5. Storage Scaling for 1M+ Records
 
 The DTS is designed for extreme data growth. Below is a storage forecast for 1 million documents:
 
-1.  **Core Document Data:** ~1.5 GB
-2.  **Document Logs (5M+ logs):** ~3.5 GB (including indexes)
-3.  **PDF Reports Cache:** ~10 GB (variable based on cleanup policy)
-4.  **Database Metrics:** ~500 MB (assuming 5-minute snapshot cycle)
-5.  **Total Database Footprint:** **~15 GB to 20 GB**
+1.  **Core Document Data**: ~1.5 GB
+2.  **Document Logs (5M+ logs)**: ~3.5 GB (including indexes and SHA-256 hashes)
+3.  **PDF Reports Cache**: ~10 GB (variable based on cleanup policy)
+4.  **Database Metrics**: ~500 MB (assuming 5-minute snapshot cycle)
+5.  **Total Database Footprint**: **~15 GB to 20 GB**
 
-> **Recommendation:** Utilize **NVMe SSDs** to maintain sub-10ms query times for the `document_logs` table once it exceeds 5 million rows, as random I/O performance becomes the primary bottleneck during Hash Chain verification.
+> **Recommendation**: Utilize **NVMe SSDs** to maintain sub-10ms query times for the `document_logs` table once it exceeds 5 million rows, as random I/O performance becomes the primary bottleneck during Hash Chain verification.

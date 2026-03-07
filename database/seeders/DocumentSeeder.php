@@ -147,7 +147,7 @@ class DocumentSeeder extends Seeder
                 $action = 'Declined';
                 
                 $stateHash = DocumentLog::calculateStateHash($document);
-                $signature = $recordsOfficer->public_key ?? 'signed_by_records';
+                $signature = $recordsOfficer->public_key ?? base64_encode("MOCK_SIG:" . $action . "|" . $stateHash);
                 $dataToHash = $document->id . $recordsOfficer->id . $action . $currentTimestamp->toIso8601String() . $previousHash . $stateHash . $signature;
                 $newHash = hash('sha256', $dataToHash);
                 DocumentLog::create([
@@ -178,7 +178,7 @@ class DocumentSeeder extends Seeder
             $action = 'Accepted and Document Routing finalized';
             $remarks = 'Route finalized. In transit to ' . $routeNames[0] . '.';
             $stateHash = DocumentLog::calculateStateHash($document);
-            $signature = $recordsOfficer->public_key ?? 'signed_by_records';
+            $signature = $recordsOfficer->public_key ?? base64_encode("MOCK_SIG:" . $action . "|" . $stateHash);
             $dataToHash = $document->id . $recordsOfficer->id . $action . $currentTimestamp->toIso8601String() . $previousHash . $stateHash . $signature;
             $newHash = hash('sha256', $dataToHash);
             DocumentLog::create(['document_id' => $document->id, 'user_id' => $recordsOfficer->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'document_state_hash' => $stateHash, 'signature' => $signature, 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
@@ -198,7 +198,7 @@ class DocumentSeeder extends Seeder
                 $action = 'Received';
                 $remarks = 'Document received by ' . $stepDepartment->name . '.';
                 $stateHash = DocumentLog::calculateStateHash($document);
-                $signature = $stepUser->public_key ?? 'signed_by_' . str_replace(' ', '_', strtolower($stepDepartment->name));
+                $signature = $stepUser->public_key ?? base64_encode("MOCK_SIG:" . $action . "|" . $stateHash);
                 $dataToHash = $document->id . $stepUser->id . $action . $currentTimestamp->toIso8601String() . $previousHash . $stateHash . $signature;
                 $newHash = hash('sha256', $dataToHash);
                 DocumentLog::create(['document_id' => $document->id, 'user_id' => $stepUser->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'document_state_hash' => $stateHash, 'signature' => $signature, 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
@@ -213,7 +213,7 @@ class DocumentSeeder extends Seeder
                     ? 'Final step processed by ' . $stepDepartment->name . '. In transit to Records Unit for releasing.'
                     : 'Step processed by ' . $stepDepartment->name . '. In transit to ' . ($routeNames[$i+1] ?? 'Records Unit') . '.';
                 $stateHash = DocumentLog::calculateStateHash($document);
-                $signature = $stepUser->public_key ?? 'signed_by_' . str_replace(' ', '_', strtolower($stepDepartment->name));
+                $signature = $stepUser->public_key ?? base64_encode("MOCK_SIG:" . $action . "|" . $stateHash);
                 $dataToHash = $document->id . $stepUser->id . $action . $currentTimestamp->toIso8601String() . $previousHash . $stateHash . $signature;
                 $newHash = hash('sha256', $dataToHash);
                 DocumentLog::create(['document_id' => $document->id, 'user_id' => $stepUser->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'document_state_hash' => $stateHash, 'signature' => $signature, 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
@@ -230,7 +230,7 @@ class DocumentSeeder extends Seeder
                     $action = 'Return Requested';
                     $remarks = 'Staff member requested document be returned for corrections.';
                     $stateHash = DocumentLog::calculateStateHash($document);
-                    $signature = $requestingUser->public_key ?? 'signed_by_' . str_replace(' ', '_', strtolower($requestingDepartment->name));
+                    $signature = $requestingUser->public_key ?? base64_encode("MOCK_SIG:" . $action . "|" . $stateHash);
                     $dataToHash = $document->id . $requestingUser->id . $action . $currentTimestamp->toIso8601String() . $previousHash . $stateHash . $signature;
                     $newHash = hash('sha256', $dataToHash);
                     DocumentLog::create(['document_id' => $document->id, 'user_id' => $requestingUser->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'document_state_hash' => $stateHash, 'signature' => $signature, 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
@@ -242,7 +242,7 @@ class DocumentSeeder extends Seeder
                     $action = 'Return Approved & Rerouted';
                     $remarks = 'Return request approved by Records Unit. Document rerouted back to ' . $requestingDepartment->name . '.';
                     $stateHash = DocumentLog::calculateStateHash($document);
-                    $signature = $recordsOfficer->public_key ?? 'signed_by_records';
+                    $signature = $recordsOfficer->public_key ?? base64_encode("MOCK_SIG:" . $action . "|" . $stateHash);
                     $dataToHash = $document->id . $recordsOfficer->id . $action . $currentTimestamp->toIso8601String() . $previousHash . $stateHash . $signature;
                     $newHash = hash('sha256', $dataToHash);
                     DocumentLog::create(['document_id' => $document->id, 'user_id' => $recordsOfficer->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'document_state_hash' => $stateHash, 'signature' => $signature, 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
@@ -280,7 +280,7 @@ class DocumentSeeder extends Seeder
                 $action = 'Ready for Releasing';
                 $remarks = 'All processing steps completed. Document received by Records Unit for final releasing.';
                 $stateHash = DocumentLog::calculateStateHash($document);
-                $signature = $recordsOfficer->public_key ?? 'signed_by_records';
+                $signature = $recordsOfficer->public_key ?? base64_encode("MOCK_SIG:" . $action . "|" . $stateHash);
                 $dataToHash = $document->id . $recordsOfficer->id . $action . $currentTimestamp->toIso8601String() . $previousHash . $stateHash . $signature;
                 $newHash = hash('sha256', $dataToHash);
                 DocumentLog::create(['document_id' => $document->id, 'user_id' => $recordsOfficer->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'document_state_hash' => $stateHash, 'signature' => $signature, 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);
@@ -295,7 +295,7 @@ class DocumentSeeder extends Seeder
                     $action = 'Document Released';
                     $remarks = 'The document has been released to the client.';
                     $stateHash = DocumentLog::calculateStateHash($document);
-                    $signature = $recordsOfficer->public_key ?? 'signed_by_records';
+                    $signature = $recordsOfficer->public_key ?? base64_encode("MOCK_SIG:" . $action . "|" . $stateHash);
                     $dataToHash = $document->id . $recordsOfficer->id . $action . $currentTimestamp->toIso8601String() . $previousHash . $stateHash . $signature;
                     $newHash = hash('sha256', $dataToHash);
                     DocumentLog::create(['document_id' => $document->id, 'user_id' => $recordsOfficer->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'document_state_hash' => $stateHash, 'signature' => $signature, 'created_at' => $currentTimestamp, 'updated_at' => $currentTimestamp]);

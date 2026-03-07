@@ -1,7 +1,7 @@
 # DTS Architecture & Core Logic
 
 ## Summary
-A comprehensive technical deep-dive into the foundations of the Document Tracking System (DTS). This document covers the security models, AI-driven routing, document lifecycle management, and the architectural safeguards that ensure system integrity and resilience.
+A technical deep-dive into the foundations of the Document Tracking System (DTS). This document covers the security models, AI-driven routing, document lifecycle management, and the architectural safeguards that ensure system integrity and resilience.
 
 ## Table of Contents
 1. [Role-Based Access Control (RBAC)](#1-role-based-access-control-rbac)
@@ -16,142 +16,112 @@ A comprehensive technical deep-dive into the foundations of the Document Trackin
 
 RBAC is the security foundation of the DTS, ensuring that users only access the data and actions necessary for their specific job functions.
 
-### Implementation: The Traffic Cop (Middleware)
-The core logic resides in `app/Http/Middleware/RoleMiddleware.php`. This middleware performs two vital functions: initial login redirection and route protection.
+### The "Traffic Cop" (Middleware)
+The core logic resides in `app/Http/Middleware/RoleMiddleware.php`. This middleware performs two vital functions:
+1.  **Initial Redirection**: Routes the generic `/dashboard` to role-specific entry points.
+2.  **Gatekeeping**: Blocks unauthorized access to role-protected routes using Laravel's middleware parameters.
 
 ```php
-// app/Http/Middleware/RoleMiddleware.php
-public function handle(Request $request, Closure $next, ...$roles)
-{
-    $user = $request->user();
-
-    // Traffic Cop: Redirect to role-specific dashboard
-    if ($request->is('dashboard')) {
-        return match ($user->role) {
-            'admin' => redirect()->route('admin.dashboard'),
-            'officer' => redirect()->route('officer.intake'),
-            'staff' => redirect()->route('staff.tasks'),
-            default => abort(403),
-        };
-    }
-
-    // Gatekeeper: Route Protection
-    if (!in_array($user->role, $roles)) {
-        abort(403, 'Unauthorized access.');
-    }
-
-    return $next($request);
-}
+// Redirect logic in RoleMiddleware
+return match ($user->role) {
+    'admin' => redirect()->route('admin.dashboard'),
+    'officer' => redirect()->route('intake'),
+    'staff' => redirect()->route('staff.tasks'),
+    default => abort(403),
+};
 ```
 
-### User Management & Automated Permissions
-When an Administrator creates a new user, the system automatically handles department assignment and digital signature initialization, ensuring the user is immediately ready for the document workflow.
+### Automated Provisioning
+When an Administrator creates a user, the system automatically handles:
+- **Department Assignment**: Links the user to a functional unit (e.g., Cash Unit).
+- **Signature Readiness**: Prepares the profile for Ed25519 digital signature initialization.
 
 ---
 
 ## 2. Document Lifecycle & Statuses
 
-The document lifecycle follows a structured path, moving from public submission to multi-department processing, and finally back to a centralized release point.
+The document lifecycle follows a structured, non-linear path. A document is physically tracked via QR codes at every handoff point.
 
-### Detailed Status Definitions
-- **`pending`**: Entry point. Awaiting Records Office intake.
-- **`declined`**: Terminal state. Rejected during intake (e.g., missing attachments).
-- **`in_transit`**: Physically moving between handlers.
-- **`processing`**: Actively being worked on by a department.
-- **`ready_for_release`**: All processing steps complete; returned to Records Office.
-- **`completed`**: Terminal state. Physically handed back to the guest.
-- **`frozen`**: Administrative pause for investigations or integrity errors.
+### Lifecycle State Machine
+```mermaid
+stateDiagram-v2
+    [*] --> pending: Guest Submission
+    pending --> in_transit: RO Intake (Finalize Route)
+    in_transit --> processing: Dept Receive (QR Scan)
+    processing --> in_transit: Dept Complete
+    in_transit --> ready_for_release: Final Dept Complete
+    ready_for_release --> completed: RO Release (QR Scan)
+    
+    processing --> in_transit: Return Request
+    ready_for_release --> in_transit: Return Request
+    
+    pending --> declined: RO Intake (Decline)
+    
+    state "Integrity Error" as Error
+    pending --> Error: Tamper Detected
+    in_transit --> Error: Tamper Detected
+    processing --> Error: Tamper Detected
+    Error --> frozen: Auto-Freeze
+```
 
-### Non-Linearity: The "Return Request"
-A department can return a document to a previous step. This is handled by resetting the `current_step` while maintaining the `in_transit` status, allowing the target department to re-scan and process the document.
+### Status Definitions
+| Status | Description |
+|:---|:---|
+| **`pending`** | Initial state; awaiting Records Office intake and route finalization. |
+| **`declined`** | Terminal state; rejected during intake due to invalidity or missing data. |
+| **`in_transit`** | Document is physically moving between departments or to releasing. |
+| **`processing`** | Document has been scanned and is being worked on by a department. |
+| **`ready_for_release`** | Internal processing complete; sitting in the Records Office release queue. |
+| **`completed`** | Terminal state; physically handed back to the guest. |
+| **`frozen`** | Administrative lock; triggered by integrity failure or manual override. |
 
 ---
 
 ## 3. AI Route Prediction Engine
 
-A hybrid expert system that predicts a departmental sequence (route) based on weighted keyword correlations.
+The DTS employs a **Weighted TF-IDF (Term Frequency-Inverse Document Frequency)** engine to predict document routes.
 
-### Implementation: Weighted Scoring
-The `RoutePredictionService` tokenizes the input and performs a weighted sum across the `prediction_keywords` table.
-
-```php
-// app/Services/RoutePredictionService.php
-public function predict(string $purposeText): array
-{
-    $tokens = preg_split('/[\s,.;]+/', strtolower($purposeText), -1, PREG_SPLIT_NO_EMPTY);
-
-    // SQL-level weighted aggregation for performance
-    $departmentScores = DB::table('prediction_keywords')
-        ->join('departments', 'prediction_keywords.department_id', '=', 'departments.id')
-        ->whereIn('prediction_keywords.keyword', $tokens)
-        ->select('departments.name', DB::raw('SUM(prediction_keywords.weight) as score'))
-        ->groupBy('departments.name')
-        ->orderByDesc('score')
-        ->get();
-
-    return $departmentScores->pluck('name')->toArray() ?: ['Records'];
-}
-```
+### Prediction Logic
+1.  **Context Assembly**: Combines `Title` + `Purpose` into a single input string.
+2.  **Tokenization**: Splits text, converts to lowercase, and filters out non-semantic "stopwords" (e.g., "the", "and", "N/A").
+3.  **Scoring**:
+    *   **TF**: Frequency of the keyword in the current input.
+    *   **Weight**: Learned frequency of this keyword's association with a department.
+    *   **IDF**: `log(Total Documents / Documents containing this Keyword)`.
+4.  **Ranking**: Departments are ranked by cumulative score, with guest-preferred departments receiving an automatic priority boost.
 
 ### The Learning Loop
-When a Records Officer manually overrides a suggested route for a non-official purpose, the `UpdateKeywordWeights` job is dispatched to adjust the weights, improving future accuracy.
+When a Records Officer manually corrects a route, the `UpdateKeywordWeights` job:
+-   **Increments Weight**: Strengthens the association between tokens and the chosen department.
+-   **Increments Document Count**: Updates the global frequency used for IDF calculations.
 
 ---
 
 ## 4. Document Hashing & Integrity (The Trust Builder)
 
-The "Trust Builder" guarantees the immutability of document records using cryptographic Merkle-chaining.
+The "Trust Builder" ensures absolute non-repudiation and data immutability through cryptographic bonding.
 
-### Implementation: The Cryptographic Chain
-Hashing is embedded in the `DocumentLog` model's `boot()` method to ensure it cannot be bypassed by application code.
+### The Cryptographic Block
+Every log entry acts as a block in a chain. The hash of each block is calculated using:
+1.  **Previous Hash**: The `hash` of the preceding log entry (Genesis uses `genesis_hash`).
+2.  **State Hash**: A SHA-256 snapshot of the Document's metadata (Title, Submitter, Tracking Code).
+3.  **Digital Signature**: An **Ed25519** signature generated using the user's private key (encrypted with their PIN).
+4.  **Transaction Data**: Document ID, User ID, Action, and ISO-8601 Timestamp.
 
-```php
-// app/Models/DocumentLog.php
-protected static function boot() {
-    static::creating(function ($log) {
-        $lastLog = self::where('document_id', $log->document_id)->latest('id')->first();
-        $log->previous_hash = $lastLog ? $lastLog->hash : 'genesis_hash';
-        
-        // Non-Repudiation: Digital Signature binding
-        $log->signature = auth()->user()?->public_key ?? 'signed_by_guest';
-        
-        // State Hashing: Snapshot of document metadata at this moment
-        $log->document_state_hash = self::calculateStateHash($log->document);
-
-        // Chain Hashing: Previous Hash + Current Data + Signature
-        $dataToHash = $log->document_id . $log->action . $log->created_at->toIso8601String() . 
-                      $log->previous_hash . $log->document_state_hash . $log->signature;
-        
-        $log->hash = hash('sha256', $dataToHash);
-    });
-}
-```
+### Integrity Verification (Two-Layer Audit)
+-   **Layer 1 (Chain)**: Recalculates every block hash from the genesis log forward to detect historical tampering.
+-   **Layer 2 (Live)**: Compares the Document's current database state against the `document_state_hash` in its latest log to detect "silent" database edits.
 
 ---
 
 ## 5. Resilience & Fallback Strategies
 
-Designed to ensure the DTS remains stable under heavy load or edge-case scenarios.
+### Memory-Safe Processing
+To handle 1,000,000+ records, the system avoids "The RAM Trap" by:
+-   **SQL-Level Aggregation**: Using MySQL Window Functions (`LAG()`, `OVER()`) for analytics instead of PHP loops.
+-   **PDF Chunking**: Generating large reports in batches of 250, saving chunks to disk, and merging them using `libmergepdf`.
 
-### Memory-Safe PDF Chunking
-To prevent RAM exhaustion when generating reports with 10,000+ documents, the system uses a chunking and merging strategy.
-
-```php
-// app/Jobs/GenerateReportJob.php
-$query->chunk(250, function ($documents) use ($merger) {
-    // Generate a standalone PDF for this chunk
-    $pdf = Pdf::loadView('officer.report-pdf', ['releasedDocuments' => $documents]);
-    
-    // Save to disk to free up RAM immediately
-    $tempPath = tempnam(sys_get_temp_dir(), 'pdf_chunk_');
-    file_put_contents($tempPath, $pdf->output());
-    $merger->addFile($tempPath);
-    
-    gc_collect_cycles(); // Force memory cleanup
-});
-```
-
-### Other Safeguards
-- **Queue Persistence**: Workers are wrapped in a shell loop that automatically restarts after a crash.
-- **AI Defaults**: Defaults to the `Records Unit` if no keywords are matched, ensuring no "orphaned" documents.
-- **Integrity Repair**: Authorized admins can rebuild a broken chain starting from a specific point forward using `php artisan dts:rebuild-chain`.
+### Fail-Safe Defaults
+-   **AI Fallback**: If no keywords match, the system defaults to the `Records Unit` to prevent orphaned documents.
+-   **Queue Resilience**: Workers are configured with `--tries=3` and `--timeout=1200` to survive heavy processing loads.
+-   **Auto Restart**: Workers are configured with `while true;` and `sleep 10` meaning the workers auto restart themselves after 10 seconds.
