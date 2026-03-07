@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.6-Alpha+202603071917] - 2026-03-07
+
+### ADDED
+- **Combined Context AI Input:** Expanded the AI's input to include both the **Document Title** and the **Purpose**. This provides a much stronger signal for routing, especially when the purpose field is brief but the title is descriptive.
+
 ## [1.8.5-Alpha+202603071852] - 2026-03-07
 
 ### ADDED
