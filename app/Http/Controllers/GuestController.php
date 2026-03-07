@@ -68,7 +68,10 @@ class GuestController extends Controller
             if ($existingPurpose) {
                 $finalPurposeId = $existingPurpose->id;
             } else {
-                $suggestedRoute = $routePredictionService->predict($otherPurposeText);
+                $suggestedRoute = $routePredictionService->predict(
+                    $otherPurposeText, 
+                    $request->input('department')
+                );
                 $newPurpose = Purpose::create([
                     'name' => $otherPurposeText,
                     'is_official' => false,
