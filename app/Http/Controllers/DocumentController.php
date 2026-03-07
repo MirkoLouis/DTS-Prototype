@@ -88,7 +88,9 @@ class DocumentController extends Controller
         $purpose = $document->purpose;
         if ($purpose->suggested_route !== $routeNames) {
             if (!$purpose->is_official) {
-                UpdateKeywordWeights::dispatch($purpose->name, $routeNames);
+                // Combine title and purpose for better prediction context
+                $combinedContext = $document->title . ' ' . $purpose->name;
+                UpdateKeywordWeights::dispatch($combinedContext, $routeNames);
             }
             $purpose->update(['suggested_route' => $routeNames]);
         }
