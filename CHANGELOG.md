@@ -6,19 +6,14 @@ All notable changes to this project will be documented in this file.
 
 ### ADDED
 - **Combined Context AI Input:** Expanded the AI's input to include both the **Document Title** and the **Purpose**. This provides a much stronger signal for routing, especially when the purpose field is brief but the title is descriptive.
-
-## [1.8.5-Alpha+202603071852] - 2026-03-07
-
-### ADDED
-- **TF-IDF AI Route Prediction:** Upgraded the `RoutePredictionService` to use a Term Frequency-Inverse Document Frequency inspired logic. The system now prioritizes rare, highly discriminative keywords over common "noise" words, significantly improving prediction accuracy.
+- **Token Cleaning & Stopword Filtering:** Implemented a robust tokenization filter that automatically ignores common placeholders (e.g., "N/A", "NA") and non-semantic stopwords (e.g., "the", "and", "for"). This prevents database bloat and ensures that only discriminative words are used for learning and prediction.
 - **Guest-Preferred Routing:** Integrated the guest-selected department from the submission form directly into the predicted route. The preferred department is now automatically set as the first step for all "Other" purpose requests.
-- **IDF Persistence:** Added a `document_count` tracking layer to the `prediction_keywords` table to mathematically model the rarity of keywords across the entire document corpus.
 
 ### CHANGED
-- **Enhanced Learning Job:** Updated `UpdateKeywordWeights` to support IDF calculation by tracking unique keyword appearances per document/department association.
+- **Enhanced Learning Job:** Updated `UpdateKeywordWeights` to support IDF calculation by tracking unique keyword appearances per document/department association across the combined Title/Purpose context.
 - **Intelligent Fallback:** Refined the prediction fallback to always prioritize the guest's selected department, even when no keywords are recognized.
 
-## [1.8.4-Alpha+202603062137] - 2026-03-06
+## [1.8.5-Alpha+202603071916] - 2026-03-07
 
 ### ADDED
 - **Pre-Action Integrity Guard (Active Lock):** Implemented a real-time integrity verification layer that checks a document's live state against its last signed log entry *before* allowing any processing actions.

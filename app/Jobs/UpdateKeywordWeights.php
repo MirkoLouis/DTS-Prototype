@@ -32,8 +32,15 @@ class UpdateKeywordWeights implements ShouldQueue
      */
     public function handle(): void
     {
-        // Tokenize the purpose text
-        $tokens = preg_split('/[\s,.;]+/', strtolower($this->purposeText), -1, PREG_SPLIT_NO_EMPTY);
+        // Tokenize and clean the purpose text
+        $rawTokens = preg_split('/[\s,.;]+/', strtolower($this->purposeText), -1, PREG_SPLIT_NO_EMPTY);
+        
+        // Define stopwords and placeholders to ignore
+        $stopWords = ['the', 'and', 'for', 'with', 'n/a', 'na', 'not', 'applicable', 'this', 'that'];
+        
+        $tokens = array_filter($rawTokens, function($token) use ($stopWords) {
+            return strlen($token) > 2 && !in_array($token, $stopWords);
+        });
 
         if (empty($tokens) || empty($this->finalizedRoute)) {
             return;

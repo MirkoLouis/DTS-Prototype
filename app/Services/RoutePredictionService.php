@@ -20,9 +20,16 @@ class RoutePredictionService
     public function predict(string $purposeText, ?string $preferredDepartment = null): array
     {
         $purposeText = strtolower($purposeText);
-        // Tokenize and count term frequencies (TF)
-        $tokens = preg_split('/[\s,.;]+/', $purposeText, -1, PREG_SPLIT_NO_EMPTY);
+        // Tokenize
+        $rawTokens = preg_split('/[\s,.;]+/', $purposeText, -1, PREG_SPLIT_NO_EMPTY);
         
+        // Define stopwords and placeholders to ignore
+        $stopWords = ['the', 'and', 'for', 'with', 'n/a', 'na', 'not', 'applicable', 'this', 'that'];
+        
+        $tokens = array_filter($rawTokens, function($token) use ($stopWords) {
+            return strlen($token) > 2 && !in_array($token, $stopWords);
+        });
+
         if (empty($tokens)) {
             return $preferredDepartment ? [$preferredDepartment] : ['Records Unit'];
         }
