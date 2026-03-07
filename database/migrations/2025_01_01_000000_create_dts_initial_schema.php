@@ -143,6 +143,8 @@ return new class extends Migration
             $table->index('document_id', 'idx_log_document_id');
             $table->index('user_id', 'idx_log_user_id');
             $table->index('hash', 'idx_log_hash');
+            $table->index('action', 'idx_log_action');
+            $table->index('created_at', 'idx_log_created_at');
         });
 
         Schema::create('prediction_keywords', function (Blueprint $table) {
