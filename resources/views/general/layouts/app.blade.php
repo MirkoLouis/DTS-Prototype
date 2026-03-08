@@ -7,6 +7,21 @@
 
         <title>{{ config('app.name', 'Laravel') }}</title>
 
+        <!-- Theme Detection Script -->
+        <script>
+            (function() {
+                const theme = localStorage.getItem('theme');
+                const isDark = theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                if (isDark) {
+                    document.documentElement.classList.add('dark');
+                    document.documentElement.setAttribute('data-bs-theme', 'dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    document.documentElement.setAttribute('data-bs-theme', 'light');
+                }
+            })();
+        </script>
+
         <!-- Fonts -->
 
         <!-- Scripts -->

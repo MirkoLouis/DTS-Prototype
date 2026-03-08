@@ -5,11 +5,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>DepEd Iligan - Document Tracking System</title>
 
+    <!-- Theme Detection Script -->
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme');
+            const isDark = theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+                document.documentElement.setAttribute('data-bs-theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.documentElement.setAttribute('data-bs-theme', 'light');
+            }
+        })();
+    </script>
+
     @vite(['resources/scss/bootstrap.scss', 'resources/js/bootstrap_public.js'])
 
     <style>
         body {
             background-color: #f8f9fa;
+        }
+        [data-bs-theme="dark"] body {
+            background-color: #111827; /* gray-900 */
         }
         .container {
             max-width: 800px;
@@ -69,6 +87,9 @@
     </style>
 </head>
 <body class="antialiased">
+    <div class="fixed top-4 right-4 z-50">
+        <x-theme-switcher />
+    </div>
     <div class="container mt-5">
         <div class="text-center mb-4">
             <img src="{{ asset('images/logoipsum-411.png') }}" alt="DepEd Logo" style="height: 80px;">
