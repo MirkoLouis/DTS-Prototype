@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.10-Alpha+202603080830] - 2026-03-08
+
+### FIXED
+- **Trust Builder Hashing Precision:** Standardized cryptographic hashing to second-level precision (stripping microseconds) across the `DocumentLog` model, `VerifyIntegrityChain` command, and `RebuildHashChain` command. This eliminates false-positive integrity failures caused by database timestamp rounding.
+- **Seeder Timestamp Corruption:** Resolved a critical object reference bug in `DocumentSeeder` where all logs for a single document shared the same final timestamp. This fix restores the accuracy of the historical ledger and fixes the "Zero TAT" issue in dashboard charts.
+- **Massive Record Query Exception:** Resolved `QueryException: Prepared statement contains too many placeholders` in the System Health Monitor. Implemented manual pagination and chunked `whereIn` queries to handle integrity reports with 90,000+ records safely.
+- **Tailwind 4 Modal Backdrops:** Standardized backdrop syntax and stacking contexts for all system modals (Report Progress, Signing, Decline, and Chart modals), resolving the "white background" overlay issue introduced during the CSS synchronization.
+
+### ADDED
+- **Intelligent Simulation Capping:** Updated `DocumentSeeder` to automatically cap data generation at the most recent completed work week (Friday at 5:00 PM).
+- **Improved Weekend Data Handling:** Refined seeder logic to move weekend-generated dates back to the preceding Friday instead of forward to Monday, preventing the creation of "future-dated" records relative to the current day.
+
+### CHANGED
+- **User Management UX Optimization:** 
+    - Moved the "Edit User" link directly under the Name column and removed the redundant "Actions" column to maximize horizontal space.
+    - Relocated the "Delete User" functionality into the Edit view for a safer, more centralized workflow.
+    - Enabled `break-all` wrapping for the email column and standardized vertical alignment for clipboard copy buttons.
+
 ## [1.8.9-Alpha+202603080708] - 2026-03-08
 
 ### ADDED

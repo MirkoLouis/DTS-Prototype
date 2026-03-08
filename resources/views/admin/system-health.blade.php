@@ -400,8 +400,8 @@
     @endpush
 
     <!-- Confirmation Modal (Similar to QR Scanner Modal) -->
-    <div id="confirmation-modal" class="fixed inset-0 z-50 overflow-y-auto hidden items-center justify-center bg-gray-900 bg-opacity-75">
-        <div class="relative w-full max-w-md p-4 bg-white dark:bg-gray-800 rounded-lg shadow-xl">
+    <div id="confirmation-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-gray-900/75 transition-opacity">
+        <div class="relative z-10 w-full max-w-md p-4 bg-white dark:bg-gray-800 rounded-lg shadow-xl mx-4">
             <div class="flex items-center justify-between mb-4 border-b dark:border-gray-700 pb-2">
                 <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">Confirm Action</h3>
                 <button id="cancel-btn-top" class="text-gray-400 hover:text-gray-500">

@@ -204,7 +204,10 @@ class DocumentLog extends Model
 
             // Ensure created_at is a Carbon instance if it's not already
             $createdAt = $documentLog->created_at ? Carbon::parse($documentLog->created_at) : Carbon::now();
-            $timestampForHashing = $createdAt->toIso8601String();
+            
+            // IMPORTANT: Strip microseconds to ensure consistency with DB storage precision.
+            // This prevents hash mismatches during integrity checks.
+            $timestampForHashing = $createdAt->startOfSecond()->toIso8601String();
             
             // Calculate final SHA-256 block hash
             $dataToHash = $documentLog->document_id . 
