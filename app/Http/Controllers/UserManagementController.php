@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use App\Models\Department;
+use App\Models\PublicKeyHistory;
 
 class UserManagementController extends Controller
 {
@@ -145,6 +146,16 @@ class UserManagementController extends Controller
 
     public function resetSignature(User $user)
     {
+        // Archive the current key if it exists
+        if ($user->public_key && $user->security_key_set_at) {
+            PublicKeyHistory::create([
+                'user_id' => $user->id,
+                'public_key' => $user->public_key,
+                'activated_at' => $user->security_key_set_at,
+                'deactivated_at' => now(),
+            ]);
+        }
+
         $user->update([
             'public_key' => null,
             'private_key' => null,

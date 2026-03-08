@@ -19,7 +19,6 @@ use Illuminate\Support\Facades\Route;
 Route::middleware('cache.response:55')->group(function () {
     Route::get('/', [GuestController::class, 'welcome'])->name('welcome');
     Route::get('/success/{tracking_code}/{document_id}', [GuestController::class, 'success'])->name('success');
-    Route::get('/track', [GuestController::class, 'track'])->name('track'); // Modified to accept query parameter
 
     // API route for fetching single document module via AJAX
     Route::get('/api/track-document/{tracking_code}', [GuestController::class, 'getTrackedDocumentModule']);
@@ -27,6 +26,8 @@ Route::middleware('cache.response:55')->group(function () {
     // API route for AJAX polling to get status updates
     Route::get('/api/document-status', [GuestController::class, 'getStatusUpdates'])->name('api.document.status');
 });
+
+Route::get('/track', [GuestController::class, 'track'])->name('track'); 
 
 Route::post('/submit-document', [GuestController::class, 'store'])->name('document.store');
 

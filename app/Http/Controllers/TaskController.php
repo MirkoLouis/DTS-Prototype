@@ -98,7 +98,12 @@ class TaskController extends Controller
         $user = Auth::user()->load('department');
         $userDepartment = $user->department;
 
+        // Advance the step and set status to 'in_transit' BEFORE signing
         $totalSteps = count($document->finalized_route);
+        $document->current_step += 1;
+        $document->status = 'in_transit';
+        $document->save();
+
         $action = 'Processing Complete';
         
         // Determine the remarks for the log
@@ -109,22 +114,25 @@ class TaskController extends Controller
             $remarks = "Step processed by {$userDepartment->name}. In transit to {$nextDepartmentName}.";
         }
 
-        // 1. Generate Cryptographic Signature (Bonded to current document state)
+        // 1. Generate Cryptographic Signature (Bonded to the NOW UPDATED document state)
         $stateHash = DocumentLog::calculateStateHash($document);
         $signature = $user->sign($request->pin, $action, $stateHash);
 
         if ($signature === false) {
+            // Revert state if signing fails
+            $document->current_step -= 1;
+            $document->status = 'processing';
+            $document->save();
             return back()->with('error', 'Invalid Security PIN. Transaction aborted.');
         }
 
         if ($signature === null) {
+            // Revert state if no signature found
+            $document->current_step -= 1;
+            $document->status = 'processing';
+            $document->save();
             return back()->with('error', 'Your digital signature has not been initialized. Please refresh the page.');
         }
-
-        // Advance the step and set status to 'in_transit'
-        $document->current_step += 1;
-        $document->status = 'in_transit';
-        $document->save();
 
         // Create a log entry for this action, including the Ed25519 signature
         DocumentLog::create([
@@ -133,6 +141,7 @@ class TaskController extends Controller
             'action' => $action,
             'remarks' => $remarks,
             'signature' => $signature, // This is now a real cryptographic signature
+            'document_state_hash' => $stateHash, // Explicitly pass the hash used for signing
         ]);
 
         // Determine the redirect route based on user role

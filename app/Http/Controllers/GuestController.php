@@ -141,7 +141,8 @@ class GuestController extends Controller
         $trackingCodes = [];
 
         if ($codesParam) {
-            $trackingCodes = array_filter(explode(',', $codesParam));
+            // Trim each code to prevent issues with whitespace in URL
+            $trackingCodes = array_map('trim', array_filter(explode(',', $codesParam)));
         }
 
         if (empty($trackingCodes)) {

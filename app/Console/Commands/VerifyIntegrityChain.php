@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
+use App\Models\PublicKeyHistory;
 
 class VerifyIntegrityChain extends Command
 {
@@ -60,15 +61,27 @@ class VerifyIntegrityChain extends Command
 
                         // 2. Verify Cryptographic Signature (Atomic Bonding)
                         // Only verify logs that have real signatures (length > 64 chars implies Ed25519 vs fallback strings)
-                        if ($log->signature && strlen($log->signature) > 64 && $log->user && $log->user->public_key) {
+                        if ($log->signature && strlen($log->signature) > 64 && $log->user) {
                             $signedData = $log->action . '|' . $log->document_state_hash;
-                            $isValidSignature = \App\Models\DocumentLog::verifySignature(
-                                $log->signature,
-                                $signedData,
-                                $log->user->public_key
-                            );
+                            
+                            // Find the public key that was active when this log was created
+                            $publicKey = $this->getPublicKeyAtTime($log->user, $log->created_at);
 
-                            if (!$isValidSignature) {
+                            if ($publicKey) {
+                                $isValidSignature = \App\Models\DocumentLog::verifySignature(
+                                    $log->signature,
+                                    $signedData,
+                                    $publicKey
+                                );
+
+                                if (!$isValidSignature) {
+                                    $invalidSignaturesCount++;
+                                    if (!in_array($log->id, $mismatchedIds)) {
+                                        $mismatchedIds[] = $log->id;
+                                    }
+                                }
+                            } else {
+                                // If no public key was active at that time, but a signature exists, it's a mismatch
                                 $invalidSignaturesCount++;
                                 if (!in_array($log->id, $mismatchedIds)) {
                                     $mismatchedIds[] = $log->id;
@@ -155,5 +168,42 @@ class VerifyIntegrityChain extends Command
 
         $this->info('Successfully verified all historical logs and live document states.');
         return 0;
+    }
+
+    /**
+     * Resolve the public key that was active for a user at a specific timestamp.
+     */
+    protected function getPublicKeyAtTime($user, $timestamp)
+    {
+        // Ensure timestamp is a Carbon instance for comparison
+        $timestamp = Carbon::parse($timestamp);
+
+        // 1. Check history first
+        $historicalKey = PublicKeyHistory::where('user_id', $user->id)
+            ->where('activated_at', '<=', $timestamp)
+            ->where('deactivated_at', '>=', $timestamp)
+            ->first();
+
+        if ($historicalKey) {
+            return $historicalKey->public_key;
+        }
+
+        // 2. Check current key
+        if ($user->public_key) {
+            // If the user has a key but no history entries yet, this MUST be their first key.
+            // We trust it for all their logs.
+            $hasHistory = PublicKeyHistory::where('user_id', $user->id)->exists();
+            if (!$hasHistory) {
+                return $user->public_key;
+            }
+
+            // If they have history, the current key is only valid for logs created 
+            // after (or at) the most recent 'security_key_set_at' timestamp.
+            if ($user->security_key_set_at && $user->security_key_set_at <= $timestamp) {
+                return $user->public_key;
+            }
+        }
+
+        return null;
     }
 }
