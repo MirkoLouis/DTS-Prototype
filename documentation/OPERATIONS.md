@@ -47,6 +47,7 @@ The `composer dev` command launches five concurrent, isolated processes:
 | **`composer prod`** | Performance | Benchmark the system in optimized production mode. |
 | **`composer db:dev`** | Database | Resets DB and seeds ~10,000 documents (5-year simulation). |
 | **`composer db:prod`** | Database | Resets DB and seeds only production-essential data. |
+| **`composer proxy`** | Security | Starts the HTTPS Proxy (3051 -> 3050) for mobile QR scanning. |
 | **`php artisan dts:verify-integrity`** | Security | System-wide audit of the cryptographic ledger. |
 | **`php artisan dts:tune-db`** | Performance | Injects 4GB Buffer Pool and 1GB Redo settings into MySQL. |
 | **`php artisan dts:snapshot-db-metrics`** | Monitoring | Captures real-time DB health snapshots. |
@@ -55,13 +56,25 @@ The `composer dev` command launches five concurrent, isolated processes:
 
 ## 3. Local SSL Management (HTTPS)
 
-Modern browsers require HTTPS for camera access (QR Scanner). The DTS uses a hybrid SSL architecture.
+Modern browsers require HTTPS for camera access (QR Scanner). The DTS uses a **Nomadic HTTPS Architecture** designed for cross-device testing.
 
-### Implementation: Vite SSL Priming
-Frontend assets (Vite) are served over HTTPS using `mkcert` generated certificates.
+### Nomadic Infrastructure (mDNS)
+The system is configured to use mDNS (`.local`) hostnames. This allows you to access the project from any device on your local network (e.g., `https://mirkolouis.local:3051`) without manually updating IP addresses in `.env`.
 
-1. **Install Certificates**: Run `mkcert localhost` to generate `localhost.crt` and `localhost.key`.
-2. **Priming**: Before scanning, visit `https://localhost:3050` and accept the self-signed certificate. This allows the browser to load the secure QR processing scripts.
+### Secure Development Proxy
+Because the built-in PHP server (`artisan serve`) does not support SSL directly, the project includes a secure bridge:
+- **Internal Server**: Runs on `http://0.0.0.0:3050`.
+- **Secure Proxy**: `local-ssl-proxy` bridges port 3051 to 3050 using your `mkcert` certificates.
+
+### Setup Instructions
+1. **Generate Universal Certificates**:
+   ```bash
+   # Cover localhost, local IPs, and your machine's .local hostname
+   mkcert localhost 127.0.0.1 ::1 "$(hostname).local"
+   mv localhost+*.pem localhost.crt && mv localhost+*-key.pem localhost.key
+   ```
+2. **Launch the Proxy**: Run `composer proxy` in a dedicated terminal.
+3. **SSL Priming**: Before scanning, visit your machine's nomadic URL (e.g., `https://mirkolouis.local:3051`) on your mobile device and accept the self-signed certificate. This unlocks the camera API for the QR scanner.
 
 ---
 
