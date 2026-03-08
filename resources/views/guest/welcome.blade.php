@@ -23,6 +23,9 @@
     @vite(['resources/scss/bootstrap.scss', 'resources/js/bootstrap_public.js'])
 
     <style>
+        html {
+            overflow-y: scroll;
+        }
         body {
             background-color: #f8f9fa;
         }
@@ -84,10 +87,16 @@
             text-decoration: none;
             cursor: pointer;
         }
+        .theme-switcher-fixed {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1050;
+        }
     </style>
 </head>
 <body class="antialiased">
-    <div class="fixed top-4 right-4 z-50">
+    <div class="theme-switcher-fixed">
         <x-theme-switcher />
     </div>
     <div class="container mt-5">

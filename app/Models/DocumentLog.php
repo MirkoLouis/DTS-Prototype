@@ -37,16 +37,16 @@ class DocumentLog extends Model
     public static function calculateStateHash(Document $document)
     {
         $stateData = [
-            $document->tracking_code,
-            $document->title,
-            $document->submitter_name,
-            $document->submitter_email,
-            $document->submitter_phone,
-            $document->district,
-            $document->department,
-            $document->purpose_id,
-            // finalized_route is also critical to protect
-            is_array($document->finalized_route) ? json_encode($document->finalized_route) : $document->finalized_route,
+            (string) $document->tracking_code,
+            (string) $document->title,
+            (string) $document->submitter_name,
+            (string) $document->submitter_email,
+            (string) $document->submitter_phone,
+            (string) $document->district,
+            (string) $document->department,
+            (string) $document->purpose_id,
+            // Ensure finalized_route is consistently hashed as a JSON string if it's an array
+            is_array($document->finalized_route) ? json_encode($document->finalized_route) : (string) $document->finalized_route,
         ];
 
         return hash('sha256', implode('|', $stateData));
@@ -203,11 +203,15 @@ class DocumentLog extends Model
             }
 
             // Ensure created_at is a Carbon instance if it's not already
-            $createdAt = $documentLog->created_at ? Carbon::parse($documentLog->created_at) : Carbon::now();
+            if (!$documentLog->created_at) {
+                $documentLog->created_at = Carbon::now()->startOfSecond();
+            } else {
+                $documentLog->created_at = Carbon::parse($documentLog->created_at)->startOfSecond();
+            }
             
             // IMPORTANT: Strip microseconds to ensure consistency with DB storage precision.
             // This prevents hash mismatches during integrity checks.
-            $timestampForHashing = $createdAt->startOfSecond()->toIso8601String();
+            $timestampForHashing = $documentLog->created_at->toIso8601String();
             
             // Calculate final SHA-256 block hash
             $dataToHash = $documentLog->document_id . 

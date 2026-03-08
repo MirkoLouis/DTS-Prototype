@@ -111,19 +111,24 @@ class ReleasingController extends Controller
         $action = 'Document Released';
         $remarks = 'The document has been released to the client.';
 
-        // Digital Signature (Bonded to current document state)
+        // Update document state BEFORE signing and logging to ensure integrity bonding
+        $document->update(['status' => 'completed']);
+
+        // 1. Generate Cryptographic Signature (Bonded to the NOW COMPLETED document state)
         $stateHash = DocumentLog::calculateStateHash($document);
         $signature = $user->sign($request->pin, $action, $stateHash);
 
         if ($signature === false) {
+            // Revert status if signing fails
+            $document->update(['status' => 'ready_for_release']);
             return back()->with('error', 'Invalid Security PIN. Transaction aborted.');
         }
 
         if ($signature === null) {
+            // Revert status if no signature found
+            $document->update(['status' => 'ready_for_release']);
             return back()->with('error', 'Your digital signature has not been initialized.');
         }
-
-        $document->update(['status' => 'completed']);
 
         DocumentLog::create([
             'document_id' => $document->id,
@@ -131,6 +136,7 @@ class ReleasingController extends Controller
             'action' => $action,
             'remarks' => $remarks,
             'signature' => $signature,
+            'document_state_hash' => $stateHash, // Explicitly pass the hash used for signing
         ]);
 
         return redirect()->route('releasing')->with('success', 'Document marked as completed and released.');

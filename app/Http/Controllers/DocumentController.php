@@ -57,10 +57,26 @@ class DocumentController extends Controller
 
         $user = Auth::user();
         $firstDepartment = $routeNames[0];
+
+        // Convert the simple array of names into the new structured format.
+        $finalizedRoute = array_map(function ($name) {
+            return ['name' => $name, 'type' => 'initial'];
+        }, $routeNames);
+
+        // Update the document BEFORE signing.
+        // This is critical because the DocumentLog::calculateStateHash()
+        // and the automatic 'creating' event in DocumentLog model
+        // must use the SAME document state.
+        $document->update([
+            'status' => 'in_transit',
+            'finalized_route' => $finalizedRoute,
+            'current_step' => 1,
+        ]);
+
         $action = 'Accepted and Document Routing finalized';
         $remarks = "Route finalized. In transit to {$firstDepartment}.";
 
-        // 1. Generate Cryptographic Signature (Bonded to current document state)
+        // 1. Generate Cryptographic Signature (Bonded to the NOW UPDATED document state)
         $stateHash = DocumentLog::calculateStateHash($document);
         $signature = $user->sign($request->pin, $action, $stateHash);
 
@@ -71,18 +87,6 @@ class DocumentController extends Controller
         if ($signature === null) {
             return back()->with('error', 'Your digital signature has not been initialized.');
         }
-
-        // Convert the simple array of names into the new structured format.
-        $finalizedRoute = array_map(function ($name) {
-            return ['name' => $name, 'type' => 'initial'];
-        }, $routeNames);
-
-        // Update the document
-        $document->update([
-            'status' => 'in_transit',
-            'finalized_route' => $finalizedRoute,
-            'current_step' => 1,
-        ]);
 
         // "Learn" from the officer's changes
         $purpose = $document->purpose;
@@ -102,6 +106,7 @@ class DocumentController extends Controller
             'action' => $action,
             'remarks' => $remarks,
             'signature' => $signature,
+            'document_state_hash' => $stateHash, // Explicitly pass the hash used for signing
         ]);
 
         return redirect()->route('intake')->with('success', 'Document accepted and is now in transit!');

@@ -73,4 +73,12 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Department::class);
     }
+
+    /**
+     * Get the public key history for this user.
+     */
+    public function publicKeyHistories()
+    {
+        return $this->hasMany(PublicKeyHistory::class);
+    }
 }

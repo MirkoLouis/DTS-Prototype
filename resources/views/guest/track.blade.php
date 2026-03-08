@@ -22,11 +22,20 @@
 
     @vite(['resources/scss/bootstrap.scss', 'resources/js/bootstrap_public.js'])
     <style>
+        html {
+            overflow-y: scroll;
+        }
         .subway-map-wrapper { padding-top: 1rem; padding-bottom: 1rem; }
+        .theme-switcher-fixed {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1050;
+        }
     </style>
 </head>
 <body>
-    <div class="fixed top-4 right-4 z-50">
+    <div class="theme-switcher-fixed">
         <x-theme-switcher />
     </div>
     <div class="container-lg mt-5 mb-5">

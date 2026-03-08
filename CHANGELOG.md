@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.1-Alpha+202603082130] - 2026-03-08
+
+### ADDED
+- **Historical Signature Archiving:** Implemented a robust key versioning system that preserves historical digital signatures after a PIN reset. Old public keys are now archived in the `user_public_key_histories` table, allowing the system to mathematically verify ancient logs even if the user has since changed their keys.
+- **Atomic Integrity Locking:** Upgraded the workflow controllers (`DocumentController`, `TaskController`, `ReleasingController`) to explicitly bind cryptographic signatures to the *finalized* document state. State hashes are now calculated post-update and passed directly to the ledger, ensuring 100% verification accuracy.
+
+### FIXED
+- **Timestamp Rounding Race Condition:** Resolved a critical integrity mismatch where microseconds in `Carbon::now()` caused discrepancies between the hashed timestamp and the database-stored value. Standardized on second-level precision (`startOfSecond()`) across all cryptographic operations.
+- **Stale Tracking Cache:** Fixed a bug where newly submitted documents appeared missing due to 55-second route caching. Moved the tracking portal to a non-cached route for real-time guest feedback.
+- **Guest Portal UI Alignment:** Standardized the theme switcher positioning and forced vertical scrollbar visibility across the guest submission and tracking pages, ensuring visual consistency with the authenticated dashboard.
+- **Deterministic State Hashing:** Hardened the `calculateStateHash` formula with explicit type casting and null-safe JSON normalization to prevent false-positive tampering alerts.
+
+### CHANGED
+- **Schema Consolidation:** Refactored the database architecture by squashing incremental migrations for Ed25519 keys, prediction metadata, and key history into the initial schema definition for cleaner environment initialization.
+
 ## [1.9.0-Alpha+202603081100] - 2026-03-08
 
 ### ADDED
