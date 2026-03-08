@@ -7,6 +7,21 @@
 
         <title>{{ config('app.name', 'Laravel') }}</title>
 
+        <!-- Theme Detection Script -->
+        <script>
+            (function() {
+                const theme = localStorage.getItem('theme');
+                const isDark = theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                if (isDark) {
+                    document.documentElement.classList.add('dark');
+                    document.documentElement.setAttribute('data-bs-theme', 'dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    document.documentElement.setAttribute('data-bs-theme', 'light');
+                }
+            })();
+        </script>
+
         <!-- Browser Cache Optimizations -->
         <meta http-equiv="Cache-Control" content="max-age=60, public">
         <link rel="dns-prefetch" href="{{ config('app.url') }}">
@@ -18,6 +33,9 @@
         @vite(['resources/css/app.css', 'resources/css/fonts.css', 'resources/js/app.js'])
     </head>
     <body class="font-sans text-gray-900 antialiased">
+        <div class="fixed top-4 right-4 z-50">
+            <x-theme-switcher />
+        </div>
         <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100 dark:bg-gray-900">
             <div>
                 <a href="/">

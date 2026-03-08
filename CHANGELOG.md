@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.11-Alpha+202603081000] - 2026-03-08
+
+### ADDED
+- **Interactive Theme Switcher:** Implemented a global, Alpine.js-powered theme switcher component (`<x-theme-switcher />`).
+    - Integrated into the desktop and mobile navigation bars for all authenticated users.
+    - Added to the Guest Portal (Welcome, Track, Success) and Auth pages (Login, Register) in a fixed top-right position.
+    - Seamlessly toggles between Tailwind CSS `dark` mode and Bootstrap 5 `data-bs-theme="dark"`.
+    - Persists user preference via `localStorage`, ensuring the selected theme remains active across sessions.
+- **Cross-Browser Theme Consistency System:** Implemented a robust theme-detection script in the `<head>` of all layouts (App, Guest, and standalone portal pages). 
+    - Automatically detects system/browser dark mode preferences via `prefers-color-scheme`.
+    - Ensures the entire project, including the Guest Portal, correctly renders in dark mode when requested by the browser.
+- **Bootstrap 5 Dark Mode Integration:** Updated the public-facing portal (Welcome, Track, Success pages) to utilize Bootstrap 5's `data-bs-theme="dark"` attribute, resolving the "white background" issue in dark-preferring browsers.
+- **Enabled Guest-Portal Interaction:** Integrated Alpine.js into the public-facing JavaScript bundle (`bootstrap_public.js`), enabling the theme switcher and other interactive components to function correctly on non-authenticated pages.
+
+### FIXED
+- **User Management Accessibility:** Improved visibility of the "Edit User" link in the administrative table by adding `dark:text-indigo-400` classes, ensuring it is clearly legible against dark backgrounds.
+
 ## [1.8.10-Alpha+202603080830] - 2026-03-08
 
 ### FIXED
