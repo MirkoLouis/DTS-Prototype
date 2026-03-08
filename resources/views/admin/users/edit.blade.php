@@ -77,13 +77,27 @@
                                 <p class="text-sm text-gray-500 italic">No digital signature initialized yet.</p>
                             @endif
 
-                            <div class="flex justify-end pt-6 border-t border-gray-100 dark:border-gray-700 mt-6">
-                                <a href="{{ route('users.index') }}" class="mr-4 bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Cancel</a>
-                                <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                                    Update User
-                                </button>
+                            <div class="flex justify-between items-center pt-6 border-t border-gray-100 dark:border-gray-700 mt-6">
+                                <div class="flex items-center">
+                                    <button type="button" 
+                                            onclick="if(confirm('Are you sure you want to PERMANENTLY delete this user? This cannot be undone.')) document.getElementById('delete-user-form').submit();"
+                                            class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+                                        Delete User
+                                    </button>
+                                </div>
+                                <div class="flex items-center">
+                                    <a href="{{ route('users.index') }}" class="mr-4 bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Cancel</a>
+                                    <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                                        Update User
+                                    </button>
+                                </div>
                             </div>
                         </div>
+                    </form>
+                    
+                    <form id="delete-user-form" action="{{ route('users.destroy', $user) }}" method="POST" class="hidden">
+                        @csrf
+                        @method('DELETE')
                     </form>
                     
                     @if($user->public_key)

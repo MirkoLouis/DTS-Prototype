@@ -26,51 +26,103 @@ class SystemHealthController extends Controller
 
         // Handle Historical Log Mismatches
         $mismatchedLogsQuery = DocumentLog::query();
+        $perPage = $request->input('per_page', 10);
+        
         if (!empty($integrityCheckResult['mismatched_ids'])) {
-            $mismatchedLogsQuery->whereIn('id', $integrityCheckResult['mismatched_ids'])->with(['document', 'user']);
-
-            if ($request->filled('search')) {
-                $search = strtolower($request->input('search'));
-                $mismatchedLogsQuery->whereHas('document', function ($q) use ($search) {
-                    $q->whereRaw('LOWER(tracking_code) LIKE ?', ["%{$search}%"]);
+            $ids = $integrityCheckResult['mismatched_ids'];
+            
+            // If we have filters, we still need to apply them to the whole set of mismatched IDs.
+            // To avoid the placeholder limit, we only query the IDs we need for the current page
+            // UNLESS the user is searching. If searching, we must filter first.
+            if ($request->filled('search') || $request->filled('user') || $request->filled('date')) {
+                // If searching, we have to use whereIn, but we'll chunk the IDs to stay safe
+                // or just take a reasonable subset for the search.
+                // Given the placeholder limit is ~65k, and the error showed 90k+, 
+                // we'll chunk it to 1000 IDs per whereIn block to be absolutely safe.
+                $mismatchedLogsQuery->where(function($q) use ($ids) {
+                    foreach (array_chunk($ids, 1000) as $chunk) {
+                        $q->orWhereIn('id', $chunk);
+                    }
                 });
-            }
 
-            if ($request->filled('user')) {
-                $user = strtolower($request->input('user'));
-                $mismatchedLogsQuery->whereHas('user', function ($q) use ($user) {
-                    $q->whereRaw('LOWER(name) LIKE ?', ["%{$user}%"]);
-                });
-            }
+                if ($request->filled('search')) {
+                    $search = strtolower($request->input('search'));
+                    $mismatchedLogsQuery->whereHas('document', function ($q) use ($search) {
+                        $q->whereRaw('LOWER(tracking_code) LIKE ?', ["%{$search}%"]);
+                    });
+                }
 
-            if ($request->filled('date')) {
-                $mismatchedLogsQuery->whereDate('created_at', $request->input('date'));
+                if ($request->filled('user')) {
+                    $user = strtolower($request->input('user'));
+                    $mismatchedLogsQuery->whereHas('user', function ($q) use ($user) {
+                        $q->whereRaw('LOWER(name) LIKE ?', ["%{$user}%"]);
+                    });
+                }
+
+                if ($request->filled('date')) {
+                    $mismatchedLogsQuery->whereDate('created_at', $request->input('date'));
+                }
+
+                $mismatchedLogs = $mismatchedLogsQuery->with(['document', 'user'])
+                    ->paginate($perPage, ['*'], 'logs_page')->withQueryString();
+            } else {
+                // Optimized manual pagination for the default view (no search)
+                $currentPage = $request->input('logs_page', 1);
+                $pagedIds = array_slice($ids, ($currentPage - 1) * $perPage, $perPage);
+                
+                $items = DocumentLog::whereIn('id', $pagedIds)
+                    ->with(['document', 'user'])
+                    ->get();
+                    
+                $mismatchedLogs = new \Illuminate\Pagination\LengthAwarePaginator(
+                    $items,
+                    count($ids),
+                    $perPage,
+                    $currentPage,
+                    ['path' => $request->url(), 'query' => $request->query(), 'pageName' => 'logs_page']
+                );
             }
         } else {
-            // If there are no mismatched IDs, we can return an empty paginator.
-            $mismatchedLogsQuery->whereRaw('1 = 0'); // This ensures no records are returned
+            $mismatchedLogs = $mismatchedLogsQuery->whereRaw('1 = 0')->paginate($perPage, ['*'], 'logs_page');
         }
-        
-        $perPage = $request->input('per_page', 10);
-        $mismatchedLogs = $mismatchedLogsQuery->paginate($perPage, ['*'], 'logs_page')->withQueryString();
 
         // Handle Live State Mismatches (Active State Comparison)
         $mismatchedDocsQuery = \App\Models\Document::query();
         if (!empty($integrityCheckResult['mismatched_document_tracking_codes'])) {
-            $mismatchedDocsQuery->whereIn('tracking_code', $integrityCheckResult['mismatched_document_tracking_codes']);
+            $trackingCodes = $integrityCheckResult['mismatched_document_tracking_codes'];
 
             if ($request->filled('search')) {
+                $mismatchedDocsQuery->where(function($q) use ($trackingCodes) {
+                    foreach (array_chunk($trackingCodes, 1000) as $chunk) {
+                        $q->orWhereIn('tracking_code', $chunk);
+                    }
+                });
+
                 $search = strtolower($request->input('search'));
                 $mismatchedDocsQuery->where(function($q) use ($search) {
                     $q->whereRaw('LOWER(tracking_code) LIKE ?', ["%{$search}%"])
                       ->orWhereRaw('LOWER(title) LIKE ?', ["%{$search}%"]);
                 });
+                
+                $mismatchedDocuments = $mismatchedDocsQuery->paginate($perPage, ['*'], 'docs_page')->withQueryString();
+            } else {
+                // Optimized manual pagination for the default view
+                $currentPage = $request->input('docs_page', 1);
+                $pagedCodes = array_slice($trackingCodes, ($currentPage - 1) * $perPage, $perPage);
+                
+                $items = \App\Models\Document::whereIn('tracking_code', $pagedCodes)->get();
+                
+                $mismatchedDocuments = new \Illuminate\Pagination\LengthAwarePaginator(
+                    $items,
+                    count($trackingCodes),
+                    $perPage,
+                    $currentPage,
+                    ['path' => $request->url(), 'query' => $request->query(), 'pageName' => 'docs_page']
+                );
             }
         } else {
-            $mismatchedDocsQuery->whereRaw('1 = 0');
+            $mismatchedDocuments = $mismatchedDocsQuery->whereRaw('1 = 0')->paginate($perPage, ['*'], 'docs_page');
         }
-
-        $mismatchedDocuments = $mismatchedDocsQuery->paginate($perPage, ['*'], 'docs_page')->withQueryString();
 
         $appHealthMetrics = $this->getApplicationHealthMetrics();
 

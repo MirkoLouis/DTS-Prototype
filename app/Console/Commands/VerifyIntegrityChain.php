@@ -48,7 +48,7 @@ class VerifyIntegrityChain extends Command
                     foreach ($logs as $log) {
                         // 1. Verify Hash Chain Consistency
                         $expectedPreviousHash = $lastHashesByDocument[$log->document_id] ?? 'genesis_hash';
-                        $timestampForHashing = Carbon::parse($log->created_at)->toIso8601String();
+                        $timestampForHashing = Carbon::parse($log->created_at)->startOfSecond()->toIso8601String();
                         
                         $dataToHash = $log->document_id . $log->user_id . $log->action . $timestampForHashing . $expectedPreviousHash . $log->document_state_hash . $log->signature;
                         $recalculatedHash = hash('sha256', $dataToHash);
