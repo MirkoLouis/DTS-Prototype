@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.0-Alpha+202603081100] - 2026-03-08
+
+### ADDED
+- **Nomadic HTTPS Infrastructure (mDNS):** Implemented a robust Local Area Network (LAN) development environment utilizing mDNS (`.local`) hostnames. This allows cross-device access (iPhone/Laptop) without needing to update IP addresses when switching between hotspots and Wi-Fi.
+- **Secure Development Proxy:** Integrated `local-ssl-proxy` into the project's ecosystem via a new `composer proxy` command. This bridges the internal PHP server (HTTP) to a secure HTTPS port, unlocking mobile camera APIs for the QR scanner.
+- **Protocol Symmetry Enforcement:** Added `URL::forceScheme('https')` logic to the `AppServiceProvider` for development environments, ensuring all generated links, forms, and redirects correctly utilize the secure proxy scheme.
+- **Vite Environment Synchronization:** Refactored `vite.config.js` to explicitly load the `.env` file and inject `APP_URL` into the Node process, resolving the "Broken UI" and HMR asset loading issues on external devices.
+
+### FIXED
+- **Protocol Mismatch Errors:** Resolved `PR_END_OF_FILE_ERROR` and binary junk character responses during login by ensuring Laravel is aware of the secure proxy layer.
+- **Nomadic Setup Documentation:** Updated `GEMINI.md` with precise `mkcert` instructions for generating "Universal" certificates that cover localhost, multiple IPs, and mDNS hostnames.
+
 ## [1.8.11-Alpha+202603081000] - 2026-03-08
 
 ### ADDED

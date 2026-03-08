@@ -36,10 +36,11 @@ Explore generated document tracking forms and administrative reports:
 
 1.  **The Trust Builder (Merkle-Chaining):** An immutable, `sha256`-based chained ledger of all document actions. Every movement is cryptographically bonded to the previous state, ensuring a tamper-proof audit trail.
 2.  **Universal Non-Repudiation (Ed25519):** A high-security enforcement layer where every action is signed using a user's unique digital signature. Once recorded, it is mathematically impossible to deny authorization.
-3.  **Physical Workflow (QR Codes):** Integrated QR code system for physical document tracking. Requires physical scans at Intake, Receipt, and Releasing to ensure accountability between handlers.
-4.  **AI Route Prediction (TF-IDF):** A dynamic, keyword-driven engine that suggests departmental routes based on document context. The system "learns" from expert corrections via a background learning job.
-5.  **Enterprise-Scale Reporting:** A high-performance export system for PDF and CSV reports that utilizes a "chunk-and-merge" strategy, allowing it to handle 10,000+ records without memory exhaustion.
-6.  **High-Performance Analytics:** Utilizes MySQL 8.0 Window Functions and intelligent caching to provide real-time throughput metrics and bottleneck detection without the "RAM Trap."
+3.  **Nomadic HTTPS Infrastructure (mDNS):** A secure development environment utilizing mDNS (`.local`) hostnames. This allows cross-device access (e.g., iPhone/Laptop) for mobile QR scanning without needing to update IP addresses when switching networks.
+4.  **Physical Workflow (QR Codes):** Integrated QR code system for physical document tracking. Requires physical scans at Intake, Receipt, and Releasing to ensure accountability between handlers.
+5.  **AI Route Prediction (TF-IDF):** A dynamic, keyword-driven engine that suggests departmental routes based on document context. The system "learns" from expert corrections via a background learning job.
+6.  **Enterprise-Scale Reporting:** A high-performance export system for PDF and CSV reports that utilizes a "chunk-and-merge" strategy, allowing it to handle 10,000+ records without memory exhaustion.
+7.  **High-Performance Analytics:** Utilizes MySQL 8.0 Window Functions and intelligent caching to provide real-time throughput metrics and bottleneck detection without the "RAM Trap."
 
 ---
 
@@ -66,7 +67,7 @@ Explore generated document tracking forms and administrative reports:
 -   **Backend:** Laravel 12 (PHP 8.3 + Sodium)
 -   **Database:** MySQL 8.0 (Optimized Buffer Pools)
 -   **Frontend:** Tailwind CSS 4, Blade Templates, Vanilla JS, Chart.js
--   **Infrastructure:** Vite (HMR), Redis Queue, mkcert (Local SSL)
+-   **Infrastructure:** Vite (HMR), Redis Queue, mkcert (Local SSL), local-ssl-proxy
 
 ---
 
@@ -92,9 +93,11 @@ Refer to the `documentation/` directory for in-depth technical guides:
     ```bash
     composer db:dev  # Seeds ~10,000 documents for testing
     ```
-3.  **Launch Multi-Threaded Environment:**
+3.  **Launch Secure Environment:**
+    To enable mobile QR scanning and HTTPS, run these in separate terminals:
     ```bash
-    composer dev  # Starts Server (Port 3050), Vite, Queue, and Scheduler
+    composer dev    # Starts Server (Port 3050), Vite, Queue, and Scheduler
+    composer proxy  # Starts Secure HTTPS Proxy (Port 3051)
     ```
 
 ---

@@ -110,11 +110,15 @@ Every log entry acts as a block in a chain. The hash of each block is calculated
 
 ### Integrity Verification (Two-Layer Audit)
 -   **Layer 1 (Chain)**: Recalculates every block hash from the genesis log forward to detect historical tampering.
--   **Layer 2 (Live)**: Compares the Document's current database state against the `document_state_hash` in its latest log to detect "silent" database edits.
+### Layer 2 (Live): Secure Context & Protocol Symmetry
+To ensure the safety of mobile QR scanning and cryptographic operations, the system enforces a **Secure Context**:
+- **Protocol Symmetry**: The `AppServiceProvider` forces the `https` scheme if the application URL is configured with HTTPS, ensuring all generated links and forms remain secure even when behind a development proxy.
+- **HMR Synchronization**: The development environment utilizes mDNS (`.local`) and an HTTPS proxy to bridge external device traffic, unlocking camera APIs for real-time tracking on mobile hardware.
 
 ---
 
 ## 5. Resilience & Fallback Strategies
+
 
 ### Memory-Safe Processing
 To handle 1,000,000+ records, the system avoids "The RAM Trap" by:
