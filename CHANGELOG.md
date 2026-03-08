@@ -11,7 +11,7 @@ All notable changes to this project will be documented in this file.
 - **Vite Environment Synchronization:** Refactored `vite.config.js` to explicitly load the `.env` file and inject `APP_URL` into the Node process, resolving the "Broken UI" and HMR asset loading issues on external devices.
 
 ### FIXED
-- **Protocol Mismatch Errors:** Resolved `PR_END_OF_FILE_ERROR` and binary junk character responses during login by ensuring Laravel is aware of the secure proxy layer.
+- **Protocol Mismatch Errors:** Resolved `PR_END_OF_FILE_ERROR`, binary junk character responses during login, and HTTP redirects during logout by implementing `$middleware->trustProxies(at: '*')` in `bootstrap/app.php`. This ensures Laravel correctly detects the secure proxy layer.
 - **Nomadic Setup Documentation:** Updated `GEMINI.md` with precise `mkcert` instructions for generating "Universal" certificates that cover localhost, multiple IPs, and mDNS hostnames.
 
 ## [1.8.11-Alpha+202603081000] - 2026-03-08
