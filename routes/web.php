@@ -122,6 +122,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 
     // System pages
     Route::get('/system-health', [SystemHealthController::class, 'index'])->name('system.health');
+    Route::get('/system-health/debug-log/{log}', [SystemHealthController::class, 'debugLog'])->name('system.health.debug-log');
     Route::post('/system-health/run-check', [SystemHealthController::class, 'runIntegrityCheck'])->name('system.health.run-check');
     Route::get('/system-health/results', [SystemHealthController::class, 'getIntegrityCheckResults'])->name('system.health.results');
     Route::post('/system-health/rebuild-chain/{log}', [SystemHealthController::class, 'rebuildChain'])->name('system.health.rebuild-chain');

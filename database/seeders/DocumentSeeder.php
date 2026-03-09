@@ -140,7 +140,7 @@ class DocumentSeeder extends Seeder
                 $stateHash = DocumentLog::calculateStateHash($document);
                 $signature = 'signed_by_guest';
 $timestampForHashing = $intakeTimestamp->copy()->startOfSecond()->toIso8601String();
-                $dataToHash = $document->id . ($document->user_id ?? '') . $action . $timestampForHashing . $previousHash . $stateHash . $signature;
+                $dataToHash = $document->id . '|' . null . '|' . $action . '|' . $timestampForHashing . '|' . $previousHash . '|' . $stateHash . '|' . $signature;
                 $newHash = hash('sha256', $dataToHash);
                 $logsToInsert[] = ['document_id' => $document->id, 'user_id' => null, 'action' => $action, 'remarks' => 'Document submitted by guest via the public portal.', 'previous_hash' => $previousHash, 'hash' => $newHash, 'document_state_hash' => $stateHash, 'signature' => $signature, 'created_at' => $intakeTimestamp->copy(), 'updated_at' => $intakeTimestamp->copy()];
                 $previousHash = $newHash;
@@ -162,7 +162,7 @@ $timestampForHashing = $intakeTimestamp->copy()->startOfSecond()->toIso8601Strin
                     $stateHash = DocumentLog::calculateStateHash($document);
                     $signature = $recordsOfficer->public_key ?? base64_encode("MOCK_SIG:" . $action . "|" . $stateHash);
 $timestampForHashing = $currentTimestamp->copy()->startOfSecond()->toIso8601String();
-                    $dataToHash = $document->id . $recordsOfficer->id . $action . $timestampForHashing . $previousHash . $stateHash . $signature;
+                    $dataToHash = $document->id . '|' . $recordsOfficer->id . '|' . $action . '|' . $timestampForHashing . '|' . $previousHash . '|' . $stateHash . '|' . $signature;
                     $newHash = hash('sha256', $dataToHash);
                     $logsToInsert[] = [
                         'document_id' => $document->id, 
@@ -193,7 +193,7 @@ $timestampForHashing = $currentTimestamp->copy()->startOfSecond()->toIso8601Stri
                 $stateHash = DocumentLog::calculateStateHash($document);
                 $signature = $recordsOfficer->public_key ?? base64_encode("MOCK_SIG:" . $action . "|" . $stateHash);
 $timestampForHashing = $currentTimestamp->copy()->startOfSecond()->toIso8601String();
-                $dataToHash = $document->id . $recordsOfficer->id . $action . $timestampForHashing . $previousHash . $stateHash . $signature;
+                $dataToHash = $document->id . '|' . $recordsOfficer->id . '|' . $action . '|' . $timestampForHashing . '|' . $previousHash . '|' . $stateHash . '|' . $signature;
                 $newHash = hash('sha256', $dataToHash);
                 $logsToInsert[] = ['document_id' => $document->id, 'user_id' => $recordsOfficer->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'document_state_hash' => $stateHash, 'signature' => $signature, 'created_at' => $currentTimestamp->copy(), 'updated_at' => $currentTimestamp->copy()];
                 $previousHash = $newHash;
@@ -213,7 +213,7 @@ $timestampForHashing = $currentTimestamp->copy()->startOfSecond()->toIso8601Stri
                     $stateHash = DocumentLog::calculateStateHash($document);
                     $signature = $stepUser->public_key ?? base64_encode("MOCK_SIG:" . $action . "|" . $stateHash);
 $timestampForHashing = $currentTimestamp->copy()->startOfSecond()->toIso8601String();
-                    $dataToHash = $document->id . $stepUser->id . $action . $timestampForHashing . $previousHash . $stateHash . $signature;
+                    $dataToHash = $document->id . '|' . $stepUser->id . '|' . $action . '|' . $timestampForHashing . '|' . $previousHash . '|' . $stateHash . '|' . $signature;
                     $newHash = hash('sha256', $dataToHash);
                     $logsToInsert[] = ['document_id' => $document->id, 'user_id' => $stepUser->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'document_state_hash' => $stateHash, 'signature' => $signature, 'created_at' => $currentTimestamp->copy(), 'updated_at' => $currentTimestamp->copy()];
                     $previousHash = $newHash;
@@ -229,7 +229,7 @@ $timestampForHashing = $currentTimestamp->copy()->startOfSecond()->toIso8601Stri
                     $stateHash = DocumentLog::calculateStateHash($document);
                     $signature = $stepUser->public_key ?? base64_encode("MOCK_SIG:" . $action . "|" . $stateHash);
 $timestampForHashing = $currentTimestamp->copy()->startOfSecond()->toIso8601String();
-                    $dataToHash = $document->id . $stepUser->id . $action . $timestampForHashing . $previousHash . $stateHash . $signature;
+                    $dataToHash = $document->id . '|' . $stepUser->id . '|' . $action . '|' . $timestampForHashing . '|' . $previousHash . '|' . $stateHash . '|' . $signature;
                     $newHash = hash('sha256', $dataToHash);
                     $logsToInsert[] = ['document_id' => $document->id, 'user_id' => $stepUser->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'document_state_hash' => $stateHash, 'signature' => $signature, 'created_at' => $currentTimestamp->copy(), 'updated_at' => $currentTimestamp->copy()];
                     $previousHash = $newHash;
@@ -244,7 +244,7 @@ $timestampForHashing = $currentTimestamp->copy()->startOfSecond()->toIso8601Stri
                         $stateHash = DocumentLog::calculateStateHash($document);
                         $signature = $requestingUser->public_key ?? base64_encode("MOCK_SIG:" . $action . "|" . $stateHash);
 $timestampForHashing = $currentTimestamp->copy()->startOfSecond()->toIso8601String();
-                        $dataToHash = $document->id . $requestingUser->id . $action . $timestampForHashing . $previousHash . $stateHash . $signature;
+                        $dataToHash = $document->id . '|' . $requestingUser->id . '|' . $action . '|' . $timestampForHashing . '|' . $previousHash . '|' . $stateHash . '|' . $signature;
                         $newHash = hash('sha256', $dataToHash);
                         $logsToInsert[] = ['document_id' => $document->id, 'user_id' => $requestingUser->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'document_state_hash' => $stateHash, 'signature' => $signature, 'created_at' => $currentTimestamp->copy(), 'updated_at' => $currentTimestamp->copy()];
                         $previousHash = $newHash;
@@ -256,7 +256,7 @@ $timestampForHashing = $currentTimestamp->copy()->startOfSecond()->toIso8601Stri
                         $stateHash = DocumentLog::calculateStateHash($document);
                         $signature = $recordsOfficer->public_key ?? base64_encode("MOCK_SIG:" . $action . "|" . $stateHash);
     $timestampForHashing = $currentTimestamp->copy()->startOfSecond()->toIso8601String();
-                    $dataToHash = $document->id . $recordsOfficer->id . $action . $timestampForHashing . $previousHash . $stateHash . $signature;
+                    $dataToHash = $document->id . '|' . $recordsOfficer->id . '|' . $action . '|' . $timestampForHashing . '|' . $previousHash . '|' . $stateHash . '|' . $signature;
                         $newHash = hash('sha256', $dataToHash);
                         $logsToInsert[] = ['document_id' => $document->id, 'user_id' => $recordsOfficer->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'document_state_hash' => $stateHash, 'signature' => $signature, 'created_at' => $currentTimestamp->copy(), 'updated_at' => $currentTimestamp->copy()];
                         $previousHash = $newHash;
@@ -287,7 +287,7 @@ $timestampForHashing = $currentTimestamp->copy()->startOfSecond()->toIso8601Stri
                     $stateHash = DocumentLog::calculateStateHash($document);
                     $signature = $recordsOfficer->public_key ?? base64_encode("MOCK_SIG:" . $action . "|" . $stateHash);
 $timestampForHashing = $currentTimestamp->copy()->startOfSecond()->toIso8601String();
-                    $dataToHash = $document->id . $recordsOfficer->id . $action . $timestampForHashing . $previousHash . $stateHash . $signature;
+                    $dataToHash = $document->id . '|' . $recordsOfficer->id . '|' . $action . '|' . $timestampForHashing . '|' . $previousHash . '|' . $stateHash . '|' . $signature;
                     $newHash = hash('sha256', $dataToHash);
                     $logsToInsert[] = ['document_id' => $document->id, 'user_id' => $recordsOfficer->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'document_state_hash' => $stateHash, 'signature' => $signature, 'created_at' => $currentTimestamp->copy(), 'updated_at' => $currentTimestamp->copy()];
                     $previousHash = $newHash;
@@ -301,7 +301,7 @@ $timestampForHashing = $currentTimestamp->copy()->startOfSecond()->toIso8601Stri
                         $stateHash = DocumentLog::calculateStateHash($document);
                         $signature = $recordsOfficer->public_key ?? base64_encode("MOCK_SIG:" . $action . "|" . $stateHash);
     $timestampForHashing = $currentTimestamp->copy()->startOfSecond()->toIso8601String();
-                    $dataToHash = $document->id . $recordsOfficer->id . $action . $timestampForHashing . $previousHash . $stateHash . $signature;
+                    $dataToHash = $document->id . '|' . $recordsOfficer->id . '|' . $action . '|' . $timestampForHashing . '|' . $previousHash . '|' . $stateHash . '|' . $signature;
                         $newHash = hash('sha256', $dataToHash);
                         $logsToInsert[] = ['document_id' => $document->id, 'user_id' => $recordsOfficer->id, 'action' => $action, 'remarks' => $remarks, 'previous_hash' => $previousHash, 'hash' => $newHash, 'document_state_hash' => $stateHash, 'signature' => $signature, 'created_at' => $currentTimestamp->copy(), 'updated_at' => $currentTimestamp->copy()];
                         $generateMetrics($currentTimestamp);

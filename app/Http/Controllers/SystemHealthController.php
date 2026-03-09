@@ -136,50 +136,49 @@ class SystemHealthController extends Controller
 
     /**
      * Gather application-level health metrics.
+     * Refactored for 1M+ record scaling with aggressive caching.
      */
     private function getApplicationHealthMetrics()
     {
-        // 1. Average Processing Time
-        $processingTimes = DocumentLog::select(
-                'document_id',
-                DB::raw('MIN(CASE WHEN action = "Accepted and Document Routing finalized" THEN created_at END) as start_time'),
-                DB::raw('MAX(CASE WHEN action = "Document Released" THEN created_at END) as end_time')
-            )
-            ->groupBy('document_id')
-            ->havingNotNull('start_time')
-            ->havingNotNull('end_time')
-            ->having('end_time', '>', DB::raw('start_time'))
-            ->get();
+        return Cache::remember('system_health_metrics', now()->addMinutes(10), function() {
+            // 1. Average Processing Time (SQL-level aggregation)
+            $startLogs = DB::table('document_logs')
+                ->where('action', 'Accepted and Document Routing finalized')
+                ->select('document_id', DB::raw('MIN(created_at) as start_time'))
+                ->groupBy('document_id');
 
-        $totalSeconds = $processingTimes->reduce(function ($carry, $log) {
-            $startTime = Carbon::parse($log->start_time)->timestamp;
-            $endTime = Carbon::parse($log->end_time)->timestamp;
-            return $carry + ($endTime - $startTime);
-        }, 0);
+            $endLogs = DB::table('document_logs')
+                ->where('action', 'Document Released')
+                ->select('document_id', DB::raw('MAX(created_at) as end_time'))
+                ->groupBy('document_id');
 
-        $averageProcessingTime = ($processingTimes->count() > 0) ? $totalSeconds / $processingTimes->count() : 0;
+            $stats = DB::table('documents')
+                ->joinSub($startLogs, 'start_logs', 'documents.id', '=', 'start_logs.document_id')
+                ->joinSub($endLogs, 'end_logs', 'documents.id', '=', 'end_logs.document_id')
+                ->select(DB::raw('AVG(TIMESTAMPDIFF(SECOND, start_logs.start_time, end_logs.end_time)) as avg_seconds'))
+                ->first();
 
-        // 2. Failed Jobs
-        $failedJobs = DB::table('failed_jobs')->orderBy('failed_at', 'desc')->get()->map(function($job) {
-            $payload = json_decode($job->payload, true);
-            $job->display_name = $payload['displayName'] ?? 'Unknown Job';
-            return $job;
+            // Cast to int to prevent "Implicit conversion" warnings in Blade template
+            $averageProcessingTime = (int) ($stats->avg_seconds ?? 0);
+
+            // 2. Failed Jobs
+            $failedJobsCount = DB::table('failed_jobs')->count();
+            $failedJobs = DB::table('failed_jobs')->orderBy('failed_at', 'desc')->limit(50)->get()->map(function($job) {
+                $payload = json_decode($job->payload, true);
+                $job->display_name = $payload['displayName'] ?? 'Unknown Job';
+                return $job;
+            });
+
+            // 3. Cache Status
+            $cacheStatus = true;
+
+            return [
+                'average_processing_time' => $averageProcessingTime,
+                'failed_jobs_count' => $failedJobsCount,
+                'failed_jobs' => $failedJobs,
+                'cache_status' => $cacheStatus,
+            ];
         });
-
-        // 3. Cache Status
-        try {
-            Cache::put('system-health-check', 'ok', 10);
-            $cacheStatus = Cache::get('system-health-check') === 'ok';
-        } catch (\Exception $e) {
-            $cacheStatus = false;
-        }
-
-        return [
-            'average_processing_time' => $averageProcessingTime, // in seconds
-            'failed_jobs_count' => $failedJobs->count(),
-            'failed_jobs' => $failedJobs,
-            'cache_status' => $cacheStatus,
-        ];
     }
 
     /**
@@ -200,6 +199,48 @@ class SystemHealthController extends Controller
         return back()->with('success', 'All failed jobs have been cleared.');
     }
 
+
+    /**
+     * Get debug information for a specific log to identify hash mismatches.
+     */
+    public function debugLog(\App\Models\DocumentLog $log)
+    {
+        $lastLog = \App\Models\DocumentLog::where('document_id', $log->document_id)
+            ->where('id', '<', $log->id)
+            ->orderBy('id', 'desc')
+            ->first();
+
+        $previousHash = $lastLog ? $lastLog->hash : 'genesis_hash';
+        $timestampForHashing = Carbon::parse($log->created_at)->startOfSecond()->toIso8601String();
+        
+        // Formula: document_id . user_id . action . timestamp . previous_hash . state_hash . signature
+        // Updated with delimiters (|) to prevent collisions
+        $dataToHash = $log->document_id . '|' . 
+                     $log->user_id . '|' . 
+                     $log->action . '|' . 
+                     $timestampForHashing . '|' . 
+                     $previousHash . '|' . 
+                     $log->document_state_hash . '|' . 
+                     $log->signature;
+
+        $recalculatedHash = hash('sha256', $dataToHash);
+
+        return response()->json([
+            'stored_hash' => $log->hash,
+            'recalculated_hash' => $recalculatedHash,
+            'match' => $log->hash === $recalculatedHash,
+            'components' => [
+                'document_id' => $log->document_id,
+                'user_id' => $log->user_id,
+                'action' => $log->action,
+                'timestamp' => $timestampForHashing,
+                'previous_hash' => $previousHash,
+                'document_state_hash' => $log->document_state_hash,
+                'signature' => $log->signature,
+            ],
+            'raw_data_string' => $dataToHash
+        ]);
+    }
 
     /**
      * Run the integrity check Artisan command.

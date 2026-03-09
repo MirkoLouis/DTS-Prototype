@@ -213,13 +213,13 @@ class DocumentLog extends Model
             // This prevents hash mismatches during integrity checks.
             $timestampForHashing = $documentLog->created_at->toIso8601String();
             
-            // Calculate final SHA-256 block hash
-            $dataToHash = $documentLog->document_id . 
-                         $documentLog->user_id . 
-                         $documentLog->action . 
-                         $timestampForHashing . 
-                         $documentLog->previous_hash . 
-                         $documentLog->document_state_hash .
+            // Calculate final SHA-256 block hash with delimiters (|) to prevent collisions
+            $dataToHash = $documentLog->document_id . '|' . 
+                         $documentLog->user_id . '|' . 
+                         $documentLog->action . '|' . 
+                         $timestampForHashing . '|' . 
+                         $documentLog->previous_hash . '|' . 
+                         $documentLog->document_state_hash . '|' . 
                          $documentLog->signature;
 
             $documentLog->hash = hash('sha256', $dataToHash);

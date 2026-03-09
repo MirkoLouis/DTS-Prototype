@@ -137,6 +137,7 @@ return new class extends Migration
             // Performance Indexes
             $table->index('status', 'idx_status');
             $table->index('created_at', 'idx_created_at');
+            $table->index(['status', 'created_at'], 'idx_doc_status_created_composite');
         });
 
         Schema::create('document_logs', function (Blueprint $table) {
@@ -174,7 +175,7 @@ return new class extends Migration
             $table->unsignedInteger('connections');
             $table->decimal('avg_query_time_ms', 10, 4);
             $table->unsignedInteger('slow_queries');
-            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('created_at')->useCurrent()->index('idx_metrics_created_at');
         });
 
         Schema::create('report_jobs', function (Blueprint $table) {
