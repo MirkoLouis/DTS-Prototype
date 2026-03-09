@@ -275,6 +275,11 @@
                                                     <td class="px-6 py-4 text-sm text-red-500 dark:text-red-400 font-mono break-all max-w-xs">{{ $log->hash }}</td>
                                                     <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                                                         <div class="flex items-center space-x-2">
+                                                            <button type="button" 
+                                                                    class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 debug-log-btn" 
+                                                                    data-url="{{ route('system.health.debug-log', $log->id) }}">
+                                                                Debug
+                                                            </button>
                                                             <a href="{{ route('documents.show', $log->document->tracking_code) }}" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200">View</a>
                                                             
                                                             @if($log->document->status === 'frozen')
@@ -333,12 +338,106 @@
             </div>
         </div>
     </div>
+<div id="debug-hash-modal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-gray-900/75 transition-opacity">
+    <div class="relative z-10 w-full max-w-4xl p-6 bg-white dark:bg-gray-800 rounded-lg shadow-xl mx-4 max-h-[90vh] overflow-y-auto">
+        <div class="flex items-center justify-between mb-4 border-b dark:border-gray-700 pb-2">
+            <h3 class="text-xl font-bold text-gray-900 dark:text-gray-100">Hash Integrity Debugger</h3>
+            <button id="close-debug-modal" class="text-gray-400 hover:text-gray-500">
+                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
 
-    @push('scripts')
-        @vite(['resources/js/system-health.js'])
-        <script>
-            document.addEventListener('DOMContentLoaded', function () {
-                // Toggle failed jobs details
+        <div class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                    <h4 class="text-sm font-bold text-red-700 dark:text-red-400 uppercase mb-2">Stored in Database</h4>
+                    <p id="stored-hash-val" class="font-mono text-xs break-all dark:text-red-300"></p>
+                </div>
+                <div class="p-4 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg">
+                    <h4 class="text-sm font-bold text-indigo-700 dark:text-indigo-400 uppercase mb-2">Recalculated Now</h4>
+                    <p id="recalculated-hash-val" class="font-mono text-xs break-all dark:text-indigo-300"></p>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase mb-2">Hash Formula Components</h4>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead class="bg-gray-50 dark:bg-gray-700">
+                            <tr>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Field</th>
+                                <th class="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase">Value used for Hashing</th>
+                            </tr>
+                        </thead>
+                        <tbody id="debug-components-body" class="divide-y divide-gray-200 dark:divide-gray-700 font-mono text-xs">
+                            <!-- Populated via JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div>
+                <h4 class="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase mb-2">Final Concatenated String (SHA-256 Input)</h4>
+                <div class="p-4 bg-gray-100 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
+                    <p id="raw-data-string-val" class="font-mono text-xs break-all dark:text-gray-400"></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@push('scripts')
+    @vite(['resources/js/system-health.js'])
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const debugModal = document.getElementById('debug-hash-modal');
+            const closeDebugBtn = document.getElementById('close-debug-modal');
+            const componentsBody = document.getElementById('debug-components-body');
+            const storedHashVal = document.getElementById('stored-hash-val');
+            const recalculatedHashVal = document.getElementById('recalculated-hash-val');
+            const rawDataStringVal = document.getElementById('raw-data-string-val');
+
+            document.querySelectorAll('.debug-log-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const url = btn.dataset.url;
+                    btn.disabled = true;
+                    btn.textContent = '...';
+
+                    try {
+                        const response = await fetch(url);
+                        const data = await response.json();
+
+                        storedHashVal.textContent = data.stored_hash;
+                        recalculatedHashVal.textContent = data.recalculated_hash;
+                        rawDataStringVal.textContent = data.raw_data_string;
+
+                        componentsBody.innerHTML = '';
+                        for (const [key, value] of Object.entries(data.components)) {
+                            componentsBody.innerHTML += `
+                                <tr>
+                                    <td class="px-4 py-2 font-bold text-indigo-600 dark:text-indigo-400">${key}</td>
+                                    <td class="px-4 py-2 break-all dark:text-gray-300">${value === null ? '<span class="text-red-500 italic">null</span>' : value}</td>
+                                </tr>
+                            `;
+                        }
+
+                        debugModal.style.display = 'flex';
+                    } catch (error) {
+                        console.error('Debug error:', error);
+                        alert('Failed to fetch debug info.');
+                    } finally {
+                        btn.disabled = false;
+                        btn.textContent = 'Debug';
+                    }
+                });
+            });
+
+            if (closeDebugBtn) closeDebugBtn.addEventListener('click', () => debugModal.style.display = 'none');
+
+            // ... rest of scripts ...
+
                 const viewBtn = document.getElementById('view-failed-jobs');
                 const detailsSection = document.getElementById('failed-jobs-details');
                 if (viewBtn && detailsSection) {

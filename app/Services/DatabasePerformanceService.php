@@ -70,51 +70,51 @@ class DatabasePerformanceService
 
     /**
      * Get historical data for the charts.
-     * For now, this will generate random data.
+     * Refactored to use SQL-level aggregation for 1M+ record scaling.
      *
      * @param string $period
      * @return array
      */
     public function getChartData($period = 'daily')
     {
-        $query = DB::table('database_metrics');
+        $dateFormat = match ($period) {
+            'hourly' => '%H:00',
+            'weekly' => '%Y-%m-%d (Week %v)',
+            'monthly' => '%M %Y',
+            default => '%M %d', // daily
+        };
 
-        switch ($period) {
-            case 'hourly':
-                $query->where('created_at', '>=', now()->subHours(24));
-                break;
-            case 'weekly':
-                $query->where('created_at', '>=', now()->subWeeks(12));
-                break;
-            case 'monthly':
-                $query->where('created_at', '>=', now()->subMonths(12));
-                break;
-            default: // 'daily'
-                $query->where('created_at', '>=', now()->subDays(30));
-                break;
-        }
+        $startDate = match ($period) {
+            'hourly' => now()->subHours(24),
+            'weekly' => now()->subWeeks(12),
+            'monthly' => now()->subMonths(12),
+            default => now()->subDays(30),
+        };
 
-        // To avoid having too many data points on the chart, you can group the data
-        $results = $query->orderBy('created_at')->get()->groupBy(function($date) use ($period) {
-            if ($period === 'hourly') return \Carbon\Carbon::parse($date->created_at)->format('H:00');
-            if ($period === 'daily') return \Carbon\Carbon::parse($date->created_at)->format('M d');
-            if ($period === 'weekly') return \Carbon\Carbon::parse($date->created_at)->startOfWeek()->format('M d');
-            if ($period === 'monthly') return \Carbon\Carbon::parse($date->created_at)->format('M Y');
-            return \Carbon\Carbon::parse($date->created_at)->format('Y-m-d');
-        });
+        $results = DB::table('database_metrics')
+            ->where('created_at', '>=', $startDate)
+            ->select(
+                DB::raw("DATE_FORMAT(created_at, '{$dateFormat}') as label"),
+                DB::raw('AVG(connections) as avg_connections'),
+                DB::raw('AVG(avg_query_time_ms) as avg_query_time'),
+                DB::raw('SUM(slow_queries) as total_slow_queries'),
+                DB::raw('MIN(created_at) as sort_date')
+            )
+            ->groupBy('label')
+            ->orderBy('sort_date')
+            ->get();
 
-        $labels = $results->keys();
-        $connectionsData = $results->map(fn($group) => $group->avg('connections'));
-        $avgQueryTimeData = $results->map(fn($group) => $group->avg('avg_query_time_ms'));
-        $slowQueriesData = $results->map(fn($group) => $group->sum('slow_queries'));
-
+        $labels = $results->pluck('label');
+        $connectionsData = $results->pluck('avg_connections');
+        $avgQueryTimeData = $results->pluck('avg_query_time');
+        $slowQueriesData = $results->pluck('total_slow_queries');
 
         return [
             'labels' => $labels,
             'datasets' => [
                 [
                     'label' => 'Connections',
-                    'data' => $connectionsData->values(),
+                    'data' => $connectionsData,
                     'borderColor' => 'rgba(75, 192, 192, 1)',
                     'backgroundColor' => 'rgba(75, 192, 192, 0.2)',
                     'yAxisID' => 'y',
@@ -122,7 +122,7 @@ class DatabasePerformanceService
                 ],
                 [
                     'label' => 'Avg Query Time (ms)',
-                    'data' => $avgQueryTimeData->values(),
+                    'data' => $avgQueryTimeData,
                     'borderColor' => 'rgba(255, 159, 64, 1)',
                     'backgroundColor' => 'rgba(255, 159, 64, 0.2)',
                     'yAxisID' => 'y1',
@@ -130,7 +130,7 @@ class DatabasePerformanceService
                 ],
                 [
                     'label' => 'Slow Queries',
-                    'data' => $slowQueriesData->values(),
+                    'data' => $slowQueriesData,
                     'borderColor' => 'rgba(255, 99, 132, 1)',
                     'backgroundColor' => 'rgba(255, 99, 132, 0.2)',
                     'yAxisID' => 'y2',

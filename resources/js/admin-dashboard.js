@@ -182,8 +182,20 @@ document.addEventListener('DOMContentLoaded', function() {
         fetch(url)
             .then(response => response.json())
             .then(data => {
-                chart.data.labels = data.labels || [];
-                chart.data.datasets = data.datasets || [{ data: data.data }];
+                if (data.datasets) {
+                    // It's a full chart object (labels + datasets)
+                    chart.data.labels = data.labels || [];
+                    chart.data.datasets = data.datasets;
+                } else {
+                    // It's a simple data array (labels + data)
+                    chart.data.labels = data.labels || [];
+                    chart.data.datasets = [{
+                        data: data.data || [],
+                        backgroundColor: chart.data.datasets[0]?.backgroundColor || 'rgba(54, 162, 235, 0.5)',
+                        borderColor: chart.data.datasets[0]?.borderColor || 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }];
+                }
                 chart.update();
             })
             .catch(error => console.error(`Error fetching data for ${chart.canvas.id}:`, error));

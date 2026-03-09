@@ -24,58 +24,60 @@ class AdminDashboardController extends Controller
 
     /**
      * Get data for the 'Current Load' chart (documents pending at each department).
-     * Refactored to use SQL-level aggregation for 1M record performance.
+     * Refactored to use SQL-level aggregation and caching for 1M record performance.
      */
     public function getCurrentLoadData(Request $request)
     {
-        $departmentId = $request->get('department_id');
-        
-        $query = DB::table('documents')
-            ->where('status', 'processing')
-            ->where('current_step', '>', 0)
-            ->whereNotNull('finalized_route');
+        $departmentId = $request->get('department_id', 'all');
+        $cacheKey = "current_load_{$departmentId}";
 
-        if ($departmentId && $departmentId !== 'all') {
-            $department = Department::find($departmentId);
-            if ($department) {
-                $query->whereJsonContains('finalized_route', [['name' => $department->name]]);
-            }
-        }
+        return Cache::remember($cacheKey, now()->addMinutes(5), function() use ($departmentId) {
+            $query = DB::table('documents')
+                ->where('status', 'processing')
+                ->where('current_step', '>', 0)
+                ->whereNotNull('finalized_route');
 
-        // Use JSON_EXTRACT with a dynamic path based on current_step
-        // We calculate which department a document is CURRENTLY at in SQL.
-        $results = $query->select(
-                DB::raw("JSON_UNQUOTE(JSON_EXTRACT(finalized_route, CONCAT('$[', current_step - 1, '].name'))) as dept_name"),
-                DB::raw('COUNT(*) as count')
-            )
-            ->groupBy('dept_name')
-            ->get();
-
-        $departmentLoads = $results->pluck('count', 'dept_name')->toArray();
-
-        // Ensure all departments are represented if 'all' is selected
-        if (!$departmentId || $departmentId === 'all') {
-            $allDepartments = Department::pluck('name')->toArray();
-            foreach ($allDepartments as $deptName) {
-                if (!isset($departmentLoads[$deptName])) {
-                    $departmentLoads[$deptName] = 0;
+            if ($departmentId && $departmentId !== 'all') {
+                $department = Department::find($departmentId);
+                if ($department) {
+                    $query->whereJsonContains('finalized_route', [['name' => $department->name]]);
                 }
             }
-        } else {
-             $selectedDepartment = Department::find($departmentId);
-             if ($selectedDepartment) {
-                 $name = $selectedDepartment->name;
-                 $count = $departmentLoads[$name] ?? 0;
-                 $departmentLoads = [$name => $count];
-             }
-        }
 
-        arsort($departmentLoads);
+            // Use JSON_EXTRACT with a dynamic path based on current_step
+            $results = $query->select(
+                    DB::raw("JSON_UNQUOTE(JSON_EXTRACT(finalized_route, CONCAT('$[', current_step - 1, '].name'))) as dept_name"),
+                    DB::raw('COUNT(*) as count')
+                )
+                ->groupBy('dept_name')
+                ->get();
 
-        return response()->json([
-            'labels' => array_keys($departmentLoads),
-            'data' => array_values($departmentLoads),
-        ]);
+            $departmentLoads = $results->pluck('count', 'dept_name')->toArray();
+
+            // Ensure all departments are represented if 'all' is selected
+            if (!$departmentId || $departmentId === 'all') {
+                $allDepartments = Department::pluck('name')->toArray();
+                foreach ($allDepartments as $deptName) {
+                    if (!isset($departmentLoads[$deptName])) {
+                        $departmentLoads[$deptName] = 0;
+                    }
+                }
+            } else {
+                 $selectedDepartment = Department::find($departmentId);
+                 if ($selectedDepartment) {
+                     $name = $selectedDepartment->name;
+                     $count = $departmentLoads[$name] ?? 0;
+                     $departmentLoads = [$name => $count];
+                 }
+            }
+
+            arsort($departmentLoads);
+
+            return [
+                'labels' => array_keys($departmentLoads),
+                'data' => array_values($departmentLoads),
+            ];
+        });
     }
 
     /**
@@ -97,7 +99,7 @@ class AdminDashboardController extends Controller
 
         $cacheKey = "throughput_data_{$period}_{$departmentId}";
 
-        return Cache::remember($cacheKey, now()->addMinutes(5), function () use ($period, $departmentId) {
+        return Cache::remember($cacheKey, now()->addMinutes(10), function () use ($period, $departmentId) {
             $endDate = Carbon::now();
             $startDate = match ($period) {
                 'weekly' => Carbon::now()->subWeeks(12),
@@ -188,91 +190,95 @@ class AdminDashboardController extends Controller
     public function getReturnDeclineTrendData(Request $request)
     {
         $period = $request->get('period', 'daily');
-        $endDate = Carbon::now();
-        $startDate = match ($period) {
-            'weekly' => Carbon::now()->subWeeks(12),
-            'monthly' => Carbon::now()->subMonths(12),
-            'yearly' => Carbon::now()->subYears(5),
-            default => Carbon::now()->subDays(30),
-        };
-        $dateFormat = match ($period) {
-            'weekly' => '%x-%v',
-            'monthly' => '%Y-%m',
-            'yearly' => '%Y',
-            default => '%Y-%m-%d',
-        };
+        $cacheKey = "return_decline_trends_{$period}";
 
-        $periodMap = [];
-        $current = $startDate->clone();
-        while ($current <= $endDate) {
-            $label = $current->format(match($period) {
-                'weekly' => 'o-W',
-                'monthly' => 'Y-m',
-                'yearly' => 'Y',
-                default => 'Y-m-d'
-            });
-            $periodMap[$label] = ['declined' => 0, 'returned' => 0];
-            $current = match($period) {
-                'weekly' => $current->addWeek(),
-                'monthly' => $current->addMonth(),
-                'yearly' => $current->addYear(),
-                default => $current->addDay()
+        return Cache::remember($cacheKey, now()->addMinutes(10), function() use ($period) {
+            $endDate = Carbon::now();
+            $startDate = match ($period) {
+                'weekly' => Carbon::now()->subWeeks(12),
+                'monthly' => Carbon::now()->subMonths(12),
+                'yearly' => Carbon::now()->subYears(5),
+                default => Carbon::now()->subDays(30),
             };
-        }
+            $dateFormat = match ($period) {
+                'weekly' => '%x-%v',
+                'monthly' => '%Y-%m',
+                'yearly' => '%Y',
+                default => '%Y-%m-%d',
+            };
 
-        $declinedDocuments = DB::table('documents')
-            ->select(
-                DB::raw("DATE_FORMAT(declined_at, '{$dateFormat}') as period_label"),
-                DB::raw('COUNT(*) as count')
-            )
-            ->where('status', 'declined')
-            ->whereBetween('declined_at', [$startDate, $endDate])
-            ->groupBy('period_label')
-            ->get();
-
-        foreach ($declinedDocuments as $result) {
-            if (isset($periodMap[$result->period_label])) {
-                $periodMap[$result->period_label]['declined'] = $result->count;
+            $periodMap = [];
+            $current = $startDate->clone();
+            while ($current <= $endDate) {
+                $label = $current->format(match($period) {
+                    'weekly' => 'o-W',
+                    'monthly' => 'Y-m',
+                    'yearly' => 'Y',
+                    default => 'Y-m-d'
+                });
+                $periodMap[$label] = ['declined' => 0, 'returned' => 0];
+                $current = match($period) {
+                    'weekly' => $current->addWeek(),
+                    'monthly' => $current->addMonth(),
+                    'yearly' => $current->addYear(),
+                    default => $current->addDay()
+                };
             }
-        }
 
-        $returnRequests = DB::table('document_logs')
-            ->select(
-                DB::raw("DATE_FORMAT(created_at, '{$dateFormat}') as period_label"),
-                DB::raw('COUNT(*) as count')
-            )
-            ->where('action', 'LIKE', '%Return Request%')
-            ->whereBetween('created_at', [$startDate, $endDate])
-            ->groupBy('period_label')
-            ->get();
+            $declinedDocuments = DB::table('documents')
+                ->select(
+                    DB::raw("DATE_FORMAT(declined_at, '{$dateFormat}') as period_label"),
+                    DB::raw('COUNT(*) as count')
+                )
+                ->where('status', 'declined')
+                ->whereBetween('declined_at', [$startDate, $endDate])
+                ->groupBy('period_label')
+                ->get();
 
-        foreach ($returnRequests as $result) {
-            if (isset($periodMap[$result->period_label])) {
-                $periodMap[$result->period_label]['returned'] = $result->count;
+            foreach ($declinedDocuments as $result) {
+                if (isset($periodMap[$result->period_label])) {
+                    $periodMap[$result->period_label]['declined'] = $result->count;
+                }
             }
-        }
 
-        return response()->json([
-            'labels' => array_keys($periodMap),
-            'datasets' => [
-                [
-                    'label' => 'Declined Documents',
-                    'data' => array_column($periodMap, 'declined'),
-                    'borderColor' => '#ef4444', 
-                    'backgroundColor' => 'rgba(239, 68, 68, 0.2)',
-                    'tension' => 0.1,
-                    'fill' => true,
+            $returnRequests = DB::table('document_logs')
+                ->select(
+                    DB::raw("DATE_FORMAT(created_at, '{$dateFormat}') as period_label"),
+                    DB::raw('COUNT(*) as count')
+                )
+                ->where('action', 'LIKE', '%Return Request%')
+                ->whereBetween('created_at', [$startDate, $endDate])
+                ->groupBy('period_label')
+                ->get();
+
+            foreach ($returnRequests as $result) {
+                if (isset($periodMap[$result->period_label])) {
+                    $periodMap[$result->period_label]['returned'] = $result->count;
+                }
+            }
+
+            return [
+                'labels' => array_keys($periodMap),
+                'datasets' => [
+                    [
+                        'label' => 'Declined Documents',
+                        'data' => array_column($periodMap, 'declined'),
+                        'borderColor' => '#ef4444', 
+                        'backgroundColor' => 'rgba(239, 68, 68, 0.2)',
+                        'tension' => 0.1,
+                        'fill' => true,
+                    ],
+                    [
+                        'label' => 'Return Requests',
+                        'data' => array_column($periodMap, 'returned'),
+                        'borderColor' => '#f97316', 
+                        'backgroundColor' => 'rgba(249, 115, 22, 0.2)',
+                        'tension' => 0.1,
+                        'fill' => true,
+                    ],
                 ],
-                [
-                    'label' => 'Return Requests',
-                    'data' => array_column($periodMap, 'returned'),
-                    'borderColor' => '#f97316', 
-                    'backgroundColor' => 'rgba(249, 115, 22, 0.2)',
-                    'tension' => 0.1,
-                    'fill' => true,
-                ],
-            ],
-        ]);
+            ];
+        });
     }
         
     /**
@@ -280,34 +286,36 @@ class AdminDashboardController extends Controller
      */
     public function getDocumentStatusDistributionData()
     {
-        $statusDistribution = DB::table('documents')
-            ->select(DB::raw('count(*) as count, status'))
-            ->groupBy('status')
-            ->pluck('count', 'status');
+        return Cache::remember('status_distribution', now()->addMinutes(10), function() {
+            $statusDistribution = DB::table('documents')
+                ->select(DB::raw('count(*) as count, status'))
+                ->groupBy('status')
+                ->pluck('count', 'status');
 
-        $labels = $statusDistribution->keys();
-        $data = $statusDistribution->values();
+            $labels = $statusDistribution->keys();
+            $data = $statusDistribution->values();
 
-        $colorMap = [
-            'pending' => '#f97316', 
-            'in_transit' => '#3b82f6', 
-            'processing' => '#eab308', 
-            'ready_for_release' => '#84cc16', 
-            'completed' => '#22c55e', 
-            'declined' => '#ef4444', 
-            'frozen' => '#64748b', 
-        ];
+            $colorMap = [
+                'pending' => '#f97316', 
+                'in_transit' => '#3b82f6', 
+                'processing' => '#eab308', 
+                'ready_for_release' => '#84cc16', 
+                'completed' => '#22c55e', 
+                'declined' => '#ef4444', 
+                'frozen' => '#64748b', 
+            ];
 
-        $backgroundColors = $labels->map(fn($status) => $colorMap[$status] ?? '#A9A9A9')->toArray();
-        return response()->json([
-            'labels' => $labels,
-            'datasets' => [
-                [
-                    'data' => $data, 
-                    'backgroundColor' => $backgroundColors,
+            $backgroundColors = $labels->map(fn($status) => $colorMap[$status] ?? '#A9A9A9')->toArray();
+            return [
+                'labels' => $labels,
+                'datasets' => [
+                    [
+                        'data' => $data, 
+                        'backgroundColor' => $backgroundColors,
+                    ],
                 ],
-            ],
-        ]);
+            ];
+        });
     }
 
     /**
@@ -315,27 +323,29 @@ class AdminDashboardController extends Controller
      */
     public function getReturnRequestSourcesData()
     {
-        $returnData = DB::table('document_logs')
-            ->join('users', 'document_logs.user_id', '=', 'users.id')
-            ->join('departments', 'users.department_id', '=', 'departments.id')
-            ->where('document_logs.action', 'LIKE', '%Return Request%')
-            ->select('departments.name as department_name', DB::raw('COUNT(document_logs.id) as count'))
-            ->groupBy('departments.name')
-            ->orderBy('count', 'desc')
-            ->get();
+        return Cache::remember('return_request_sources', now()->addMinutes(10), function() {
+            $returnData = DB::table('document_logs')
+                ->join('users', 'document_logs.user_id', '=', 'users.id')
+                ->join('departments', 'users.department_id', '=', 'departments.id')
+                ->where('document_logs.action', 'LIKE', '%Return Request%')
+                ->select('departments.name as department_name', DB::raw('COUNT(document_logs.id) as count'))
+                ->groupBy('departments.name')
+                ->orderBy('count', 'desc')
+                ->get();
 
-        return response()->json([
-            'labels' => $returnData->pluck('department_name'),
-            'datasets' => [
-                [
-                    'label' => 'Return Requests Issued',
-                    'data' => $returnData->pluck('count'),
-                    'backgroundColor' => 'rgba(168, 85, 247, 0.5)', 
-                    'borderColor' => 'rgba(168, 85, 247, 1)',
-                    'borderWidth' => 1,
+            return [
+                'labels' => $returnData->pluck('department_name'),
+                'datasets' => [
+                    [
+                        'label' => 'Return Requests Issued',
+                        'data' => $returnData->pluck('count'),
+                        'backgroundColor' => 'rgba(168, 85, 247, 0.5)', 
+                        'borderColor' => 'rgba(168, 85, 247, 1)',
+                        'borderWidth' => 1,
+                    ],
                 ],
-            ],
-        ]);
+            ];
+        });
     }
 
     /**
@@ -343,51 +353,53 @@ class AdminDashboardController extends Controller
      */
     public function getProcessingHotspotsData()
     {
-        $startLogs = DB::table('document_logs')
-            ->where('action', 'Accepted and Document Routing finalized')
-            ->select('document_id', DB::raw('MIN(created_at) as start_time'))
-            ->groupBy('document_id');
+        return Cache::remember('processing_hotspots', now()->addMinutes(10), function() {
+            $startLogs = DB::table('document_logs')
+                ->where('action', 'Accepted and Document Routing finalized')
+                ->select('document_id', DB::raw('MIN(created_at) as start_time'))
+                ->groupBy('document_id');
 
-        $endLogs = DB::table('document_logs')
-            ->where('action', 'Document Released')
-            ->select('document_id', DB::raw('MAX(created_at) as end_time'))
-            ->groupBy('document_id');
+            $endLogs = DB::table('document_logs')
+                ->where('action', 'Document Released')
+                ->select('document_id', DB::raw('MAX(created_at) as end_time'))
+                ->groupBy('document_id');
 
-        $purposeMetrics = DB::table('documents')
-            ->leftJoinSub($startLogs, 'start_logs', 'documents.id', '=', 'start_logs.document_id')
-            ->leftJoinSub($endLogs, 'end_logs', 'documents.id', '=', 'end_logs.document_id')
-            ->join('purposes', 'documents.purpose_id', '=', 'purposes.id')
-            ->select(
-                'purposes.name as purpose_name',
-                DB::raw('COUNT(documents.id) as doc_count'),
-                DB::raw('AVG(TIMESTAMPDIFF(SECOND, start_logs.start_time, end_logs.end_time)) / 3600 as avg_duration_hours')
-            )
-            ->groupBy('purposes.name')
-            ->orderBy('doc_count', 'desc')
-            ->limit(15) 
-            ->get();
+            $purposeMetrics = DB::table('documents')
+                ->leftJoinSub($startLogs, 'start_logs', 'documents.id', '=', 'start_logs.document_id')
+                ->leftJoinSub($endLogs, 'end_logs', 'documents.id', '=', 'end_logs.document_id')
+                ->join('purposes', 'documents.purpose_id', '=', 'purposes.id')
+                ->select(
+                    'purposes.name as purpose_name',
+                    DB::raw('COUNT(documents.id) as doc_count'),
+                    DB::raw('AVG(TIMESTAMPDIFF(SECOND, start_logs.start_time, end_logs.end_time)) / 3600 as avg_duration_hours')
+                )
+                ->groupBy('purposes.name')
+                ->orderBy('doc_count', 'desc')
+                ->limit(15) 
+                ->get();
 
-        $colors = [
-            'rgba(239, 68, 68, 0.6)', 'rgba(59, 130, 246, 0.6)', 'rgba(16, 185, 129, 0.6)',
-            'rgba(245, 158, 11, 0.6)', 'rgba(139, 92, 246, 0.6)', 'rgba(236, 72, 153, 0.6)',
-            'rgba(20, 184, 166, 0.6)', 'rgba(249, 115, 22, 0.6)', 'rgba(107, 114, 128, 0.6)',
-            'rgba(79, 70, 229, 0.6)', 'rgba(217, 70, 239, 0.6)', 'rgba(101, 163, 13, 0.6)',
-            'rgba(2, 132, 199, 0.6)', 'rgba(185, 28, 28, 0.6)', 'rgba(30, 58, 138, 0.6)'
-        ];
+            $colors = [
+                'rgba(239, 68, 68, 0.6)', 'rgba(59, 130, 246, 0.6)', 'rgba(16, 185, 129, 0.6)',
+                'rgba(245, 158, 11, 0.6)', 'rgba(139, 92, 246, 0.6)', 'rgba(236, 72, 153, 0.6)',
+                'rgba(20, 184, 166, 0.6)', 'rgba(249, 115, 22, 0.6)', 'rgba(107, 114, 128, 0.6)',
+                'rgba(79, 70, 229, 0.6)', 'rgba(217, 70, 239, 0.6)', 'rgba(101, 163, 13, 0.6)',
+                'rgba(2, 132, 199, 0.6)', 'rgba(185, 28, 28, 0.6)', 'rgba(30, 58, 138, 0.6)'
+            ];
 
-        return response()->json([
-            'labels' => $purposeMetrics->pluck('purpose_name'),
-            'datasets' => [
-                [
-                    'label' => 'Document Volume',
-                    'data' => $purposeMetrics->pluck('doc_count'),
-                    'backgroundColor' => array_slice($colors, 0, $purposeMetrics->count()),
-                    'borderColor' => array_map(fn($c) => str_replace('0.6', '1', $c), array_slice($colors, 0, $purposeMetrics->count())),
-                    'borderWidth' => 1,
-                    'avgHours' => $purposeMetrics->pluck('avg_duration_hours')->map(fn($h) => $h ? round($h, 2) : 'N/A'),
+            return [
+                'labels' => $purposeMetrics->pluck('purpose_name'),
+                'datasets' => [
+                    [
+                        'label' => 'Document Volume',
+                        'data' => $purposeMetrics->pluck('doc_count'),
+                        'backgroundColor' => array_slice($colors, 0, $purposeMetrics->count()),
+                        'borderColor' => array_map(fn($c) => str_replace('0.6', '1', $c), array_slice($colors, 0, $purposeMetrics->count())),
+                        'borderWidth' => 1,
+                        'avgHours' => $purposeMetrics->pluck('avg_duration_hours')->map(fn($h) => $h ? round($h, 2) : 'N/A'),
+                    ]
                 ]
-            ]
-        ]);
+            ];
+        });
     }
 
     /**
@@ -395,25 +407,27 @@ class AdminDashboardController extends Controller
      */
     public function getSubmissionDistrictsData()
     {
-        $districtData = DB::table('documents')
-            ->select('district', DB::raw('COUNT(*) as count'))
-            ->whereNotNull('district')
-            ->groupBy('district')
-            ->orderBy('count', 'desc')
-            ->get();
+        return Cache::remember('submission_districts', now()->addMinutes(10), function() {
+            $districtData = DB::table('documents')
+                ->select('district', DB::raw('COUNT(*) as count'))
+                ->whereNotNull('district')
+                ->groupBy('district')
+                ->orderBy('count', 'desc')
+                ->get();
 
-        return response()->json([
-            'labels' => $districtData->pluck('district'),
-            'datasets' => [
-                [
-                    'label' => 'Documents Submitted',
-                    'data' => $districtData->pluck('count'),
-                    'backgroundColor' => 'rgba(99, 102, 241, 0.5)', 
-                    'borderColor' => 'rgba(99, 102, 241, 1)',
-                    'borderWidth' => 1,
+            return [
+                'labels' => $districtData->pluck('district'),
+                'datasets' => [
+                    [
+                        'label' => 'Documents Submitted',
+                        'data' => $districtData->pluck('count'),
+                        'backgroundColor' => 'rgba(99, 102, 241, 0.5)', 
+                        'borderColor' => 'rgba(99, 102, 241, 1)',
+                        'borderWidth' => 1,
+                    ]
                 ]
-            ]
-        ]);
+            ];
+        });
     }
 
     /**
@@ -422,49 +436,50 @@ class AdminDashboardController extends Controller
      */
     public function getAvgStepTimeByDepartmentData(Request $request)
     {
-        // Use a Window Function to calculate durations between logs directly in SQL.
-        // This calculates (Current Action Time - Previous Action Time) for pairs of Received -> Complete.
-        $durationsQuery = DB::table(function ($query) {
-            $query->select(
-                'document_id',
-                'user_id',
-                'action',
-                'created_at',
-                DB::raw("LAG(created_at) OVER (PARTITION BY document_id, user_id ORDER BY created_at) as prev_created_at"),
-                DB::raw("LAG(action) OVER (PARTITION BY document_id, user_id ORDER BY created_at) as prev_action")
+        $isFull = $request->has('full') ? 'full' : 'limited';
+        return Cache::remember("avg_step_time_{$isFull}", now()->addMinutes(10), function() use ($request) {
+            $durationsQuery = DB::table(function ($query) {
+                $query->select(
+                    'document_id',
+                    'user_id',
+                    'action',
+                    'created_at',
+                    DB::raw("LAG(created_at) OVER (PARTITION BY document_id, user_id ORDER BY created_at) as prev_created_at"),
+                    DB::raw("LAG(action) OVER (PARTITION BY document_id, user_id ORDER BY created_at) as prev_action")
+                )
+                ->from('document_logs')
+                ->whereIn('action', ['Received', 'Processing Complete']);
+            }, 'log_durations')
+            ->join('users', 'log_durations.user_id', '=', 'users.id')
+            ->join('departments', 'users.department_id', '=', 'departments.id')
+            ->where('log_durations.action', 'Processing Complete')
+            ->where('log_durations.prev_action', 'Received')
+            ->select(
+                'departments.name',
+                DB::raw('AVG(TIMESTAMPDIFF(SECOND, log_durations.prev_created_at, log_durations.created_at)) / 3600 as avg_hours')
             )
-            ->from('document_logs')
-            ->whereIn('action', ['Received', 'Processing Complete']);
-        }, 'log_durations')
-        ->join('users', 'log_durations.user_id', '=', 'users.id')
-        ->join('departments', 'users.department_id', '=', 'departments.id')
-        ->where('log_durations.action', 'Processing Complete')
-        ->where('log_durations.prev_action', 'Received')
-        ->select(
-            'departments.name',
-            DB::raw('AVG(TIMESTAMPDIFF(SECOND, log_durations.prev_created_at, log_durations.created_at)) / 3600 as avg_hours')
-        )
-        ->groupBy('departments.name')
-        ->orderBy('avg_hours', 'asc');
+            ->groupBy('departments.name')
+            ->orderBy('avg_hours', 'asc');
 
-        if (!$request->has('full')) {
-            $durationsQuery->limit(5);
-        }
+            if (!$request->has('full')) {
+                $durationsQuery->limit(5);
+            }
 
-        $results = $durationsQuery->get();
+            $results = $durationsQuery->get();
 
-        return response()->json([
-            'labels' => $results->pluck('name'),
-            'datasets' => [
-                [
-                    'label' => 'Average Step Time (hrs)',
-                    'data' => $results->pluck('avg_hours'),
-                    'backgroundColor' => 'rgba(14, 165, 233, 0.5)', 
-                    'borderColor' => 'rgba(14, 165, 233, 1)',
-                    'borderWidth' => 1,
+            return [
+                'labels' => $results->pluck('name'),
+                'datasets' => [
+                    [
+                        'label' => 'Average Step Time (hrs)',
+                        'data' => $results->pluck('avg_hours'),
+                        'backgroundColor' => 'rgba(14, 165, 233, 0.5)', 
+                        'borderColor' => 'rgba(14, 165, 233, 1)',
+                        'borderWidth' => 1,
+                    ],
                 ],
-            ],
-        ]);
+            ];
+        });
     }
 
     /**
@@ -478,7 +493,7 @@ class AdminDashboardController extends Controller
 
         $cacheKey = "dept_load_time_{$period}_{$departmentId}";
 
-        return Cache::remember($cacheKey, now()->addMinutes(5), function () use ($period, $departmentId) {
+        return Cache::remember($cacheKey, now()->addMinutes(10), function () use ($period, $departmentId) {
             $endDate = Carbon::now();
             $startDate = match ($period) {
                 'weekly' => Carbon::now()->subWeeks(12),
