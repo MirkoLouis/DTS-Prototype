@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.3-Alpha+202603122031] - 2026-03-12
+
+### ADDED
+- **Comprehensive Documentation Overhaul:** Expanded the core technical documentation suite to provide more technical depth while maintaining accessibility for non-technical stakeholders.
+    - **Dedicated Glossaries:** Integrated specialized glossaries into the Table of Contents of all primary `.md` files to define complex terms (e.g., Ed25519, HMR, Buffer Pool, PQC) within their local context.
+    - **`ADMINISTRATION.md` Expansion:** Detailed the "RAM Trap" avoidance strategy using MySQL 8.0 Window Functions and expanded the "1 Million Document Strategy" for high-performance indexing.
+    - **`ARCHITECTURE.md` Expansion:** Simplified the RBAC and "Trust Builder" models through intuitive analogies ("Traffic Cop," "Digital Seal") and clarified the "Active Guard" two-layer audit logic.
+    - **`HARDWARE_SPECS.md` Expansion:** Introduced the "Highway" analogy for CPU thread allocation and the "Desk vs. Filing Cabinet" analogy for memory optimization (InnoDB Buffer Pool).
+    - **`OPERATIONS.md` Expansion:** Detailed the "5-Pillar" multi-threaded development architecture and the "Nomadic HTTPS" setup for secure, cross-device mobile testing.
+    - **`QUANTUM_SAFETY.md` Expansion:** Simplified the threats posed by Shor's and Grover's algorithms through "Lock Picker" and "Library Searcher" analogies and detailed the roadmap for Hybrid/Lattice-Based cryptography.
+
 ## [1.9.2-Alpha+202603092200] - 2026-03-09
 
 ### ADDED
