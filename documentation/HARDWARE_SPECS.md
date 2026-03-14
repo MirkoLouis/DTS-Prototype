@@ -1,84 +1,110 @@
-# System Requirements & Hardware Specifications
+# DTS Hardware Requirements & Performance Specifications
 
 ## Summary
-A technical breakdown of the hardware and software requirements for the Document Tracking System (DTS). This document provides the technical rationale behind the system's performance limits, memory tuning, and storage forecasts.
+A technical guide detailing the hardware infrastructure required to run the Document Tracking System (DTS) effectively. This document focuses on **high-concurrency** scenarios, ensuring the system remains responsive under heavy load (1,000,000+ records and hundreds of simultaneous users). It provides both minimum and recommended specifications based on the system's memory-intensive architecture.
 
 ## Table of Contents
-1. [Production Server Requirements](#1-production-server-requirements)
-2. [Software Infrastructure](#2-software-infrastructure)
-3. [Implementation: Database Memory Optimization](#3-implementation-database-memory-optimization)
-4. [Implementation: CPU Thread Allocation](#4-implementation-cpu-thread-allocation)
-5. [Storage Scaling for 1M+ Records](#5-storage-scaling-for-1m-records)
+1. [Standard Hardware Specifications](#1-standard-hardware-specifications)
+2. [Technical Rationale: Why these specs?](#2-technical-rationale-why-these-specs)
+3. [Memory Strategy: InnoDB Buffer Pool](#3-memory-strategy-innodb-buffer-pool)
+4. [CPU Strategy: Core Pinning & Job Management](#4-cpu-strategy-core-pinning--job-management)
+5. [Storage Forecasting for 1M+ Records](#5-storage-forecasting-for-1m-records)
 6. [Glossary of Terms](#6-glossary-of-terms)
 
 ---
 
-## 1. Production Server Requirements
+## 1. Standard Hardware Specifications
 
-To maintain sub-second response times with a massive dataset, the server must be "right-sized." These specifications support the system's high-memory database strategy and multi-threaded background processing.
+These specifications are designed for high-concurrency environments, where multiple departments are processing documents simultaneously.
 
-| Component | Minimal (Base Operations) | Recommended (1M+ Records) |
+| Component | Minimum (High-Concurrency Ready) | Recommended (Enterprise Production) |
 |:---|:---|:---|
-| **OS** | Ubuntu 24.04 LTS | Ubuntu 24.04 LTS (HWE Kernel) |
-| **CPU** | 4 Cores (2.5GHz+) | 12+ Cores (3.0GHz+) |
-| **RAM** | 8 GB | 32 GB+ |
-| **Storage** | 50 GB SSD (SATA) | 200 GB+ NVMe SSD (High IOPS) |
-| **Network** | 100 Mbps | 1 Gbps (Low Latency) |
+| **CPU** | 8 Cores (3.0GHz+) | 16+ Cores (3.5GHz+) |
+| **RAM** | 16 GB | 64 GB+ (ECC Recommended) |
+| **Storage** | 100 GB NVMe SSD (High IOPS) | 500 GB+ NVMe SSD (RAID 10) |
+| **Network** | 1 Gbps (Low Latency) | 10 Gbps (Fiber Optic Backbone) |
 
 ---
 
-## 2. Software Infrastructure
+## 2. Technical Rationale: Why these specs?
 
-The following software versions are mandatory for the "Trust Builder" security suite and AI prediction logic:
-- **PHP 8.3+**: Required for the `sodium` library, which handles the Ed25519 digital signatures.
-- **MySQL 8.0+**: Required for **JSON** data storage and advanced **Window Functions** used in analytics.
-- **Redis 7.0+**: A specialized "Speed Layer" used to store temporary analytics and manage high-volume reporting.
-- **Nginx 1.24+**: A high-performance "Front Door" for the web server.
+The DTS is not a typical web application. It performs complex cryptographic math and real-time database lookups that require significant resources.
 
----
-
-## 3. Implementation: Database Memory Optimization
-
-The DTS uses a **Large Buffer Pool** strategy. Think of the server's RAM as a "Desk" and the Hard Drive as a "Filing Cabinet."
-- **Standard Systems**: Keep only a few folders on the desk. Every time they need something else, they have to walk to the filing cabinet (slow).
-- **DTS Strategy**: We use a massive "Desk" (4GB Buffer Pool). This allows us to keep the "Index" (the map) of 1,000,000 documents on the desk at all times.
-- **Result**: Looking up a document by its Tracking Code is almost instantaneous, regardless of how many millions of documents are in the cabinet.
+1.  **High IOPS (Storage)**: During a security audit (`dts:verify-integrity`), the system must read and re-verify millions of SHA-256 hashes. Traditional hard drives (SATA) will become a severe bottleneck. NVMe SSDs are required for their high "Input/Output Operations Per Second."
+2.  **Clock Speed (CPU)**: Ed25519 digital signatures and SHA-256 hashing are CPU-intensive. Faster clock speeds directly translate to faster document intake and release times.
+3.  **Low Latency (Network)**: While the QR scanner (`html5-qrcode`) is client-side, the **"Receive"** action requires an instant database lookup and state update. High network latency or slow DB response times will cause a noticeable delay ("lag") between the physical scan and the digital confirmation, frustrating staff in high-volume queues.
 
 ---
 
-## 4. Implementation: CPU Thread Allocation
+## 3. Memory Strategy: InnoDB Buffer Pool
 
-We use a technique called **CPU Core Pinning** (via `taskset`) to ensure that heavy background tasks (like generating reports) don't slow down the main website.
-Imagine a highway with 12 lanes:
-- **Lanes 0-3**: Reserved exclusively for the **Web Server**. Even if 100 people are submitting documents, the website stays snappy.
-- **Lane 4**: Reserved for the **AI and PDF Reports**. This lane can be 100% full, but it won't block the website lanes.
-- **Lanes 6-7**: Reserved for **Asset Bundling** (Vite).
-- **Lane 8**: Reserved for the **Task Scheduler** (Pruning and Backups).
+The system's speed depends on keeping the database "Map" (the index) in fast memory (RAM).
+
+### How to Allocate RAM:
+1.  **Dynamic Tuning**: Run `composer run db:tune` to instantly inject a 4GB buffer pool setting into the active MySQL instance.
+2.  **Permanent Configuration**: Locate your MySQL configuration file:
+    -   **Linux**: `/etc/mysql/my.cnf` or `/etc/my.cnf`
+    -   **Windows**: `C:\ProgramData\MySQL\MySQL Server 8.0\my.ini`.
+3.  **Apply Changes**: Add or modify the following under the `[mysqld]` section:
+    ```ini
+    [mysqld]
+    innodb_buffer_pool_size = 32G  # Set to at least 50% of your total RAM
+    innodb_log_file_size = 1G
+    ```
+- **Why?**: This ensures that looking up 1 document among 1,000,000 takes less than **0.001 seconds** because the system never has to check the slow hard drive to find where the data is located.
 
 ---
 
-## 5. Storage Scaling for 1M+ Records
+## 4. CPU Strategy: Core Pinning & Job Management
 
-The "Trust Builder" creates a lot of cryptographic data. Below is the storage forecast for 1 million documents:
+To prevent heavy background tasks (like generating a 500-page PDF report or AI learning) from slowing down the main website, DTS uses a **Split-Thread Philosophy**. By default, the system is configured to reserve half of the available CPU threads for user-facing interactions and the other half for "heavy lifting."
 
-1.  **Core Document Data**: ~1.5 GB
-2.  **The Cryptographic Ledger (5M logs)**: ~3.5 GB
-3.  **PDF Reports Cache**: ~10 GB (temporary files generated during large exports)
-4.  **Database Metrics History**: ~500 MB
-5.  **Total Database Footprint**: **~15 GB to 20 GB**
+### Default System Allocation (8-Core Baseline):
+The system uses the following default mapping in `composer.json`:
+-   **Web Server (`Cores 0-3`)**: Reserved for handling HTTP requests. This ensures that even if the system is under heavy background load, the website remains responsive.
+-   **Heavy Lifters (`Core 4`)**: Dedicated to the Queue Worker (PDF generation, AI training).
+-   **System Diagnostics (`Core 5`)**: Dedicated to real-time log streaming.
+-   **Asset Pipeline (`Cores 6-7`)**: Dedicated to Vite for instant CSS/JS updates.
+-   **Task Scheduler (`Core 8`)**: Dedicated to periodic maintenance like security audits.
 
-> **Recommendation**: Always use **NVMe SSDs**. During a security audit, the system has to "read" millions of logs very quickly. NVMe drives are significantly faster than SATA at this type of "Random Access."
+### How to Edit Core Pinning (Affinity):
+
+#### Linux (`taskset`)
+Core pinning is managed via the `taskset` utility within the `scripts` section of `composer.json`.
+1.  **Open `composer.json`**.
+2.  **Modify the `-c` flag**: Change the range (e.g., `taskset -c 0-7`) to match your server's core count. 
+    -   *Recommendation*: Allocate the first 50% of your cores to `serve:dev` and the remaining 50% to the other background processes.
+
+#### Windows (`start /affinity`)
+Windows does not use `taskset`. To achieve the same result via the command line, you must use the `start /affinity` command with a **Hexadecimal Mask**.
+-   **The Mask**: Each bit represents a core. `1` (hex) = Core 0, `F` = Cores 0-3, `FF` = Cores 0-7.
+-   **Example**: To pin the server to the first 4 cores (similar to Linux `0-3`):
+    ```cmd
+    start /affinity F php artisan serve --port 3050
+    ```
+-   **Manual Method**: Right-click the process in **Task Manager** > **Go to details** > Right-click the `.exe` > **Set affinity**.
+
+**Result**: This isolation ensures that a massive 10,000-record report generation task on Core 4 will never cause a "hang" or slowdown for a Records Officer performing an intake on Cores 0-3.
+
+## 5. Storage Forecasting for 1M+ Records
+
+The "Trust Builder" cryptographic ledger grows over time. Below is the projected storage footprint for 1 million documents:
+
+1.  **Core Document Metadata**: ~2.0 GB
+2.  **The Ledger (5,000,000+ Logs & Hashes)**: ~5.0 GB (The heaviest component).
+3.  **Analytics History**: ~1.0 GB.
+4.  **PDF/CSV Report Cache**: ~15.0 GB (Temporary files). 
+    - **Optimization**: The system includes an automated **Report Pruning Job**. Exported reports are automatically deleted from the server 60 minutes after generation to prevent storage exhaustion, as there is no historical download feature for security reasons.
+5.  **Total Projected Database Size**: **~25 GB to 35 GB**.
 
 ---
 
 ## 6. Glossary of Terms
 
-*   **Buffer Pool**: A slice of RAM used to keep the most important parts of the database "on the desk" for instant access.
-*   **Core Pinning**: A way to force specific software to only use specific CPU cores, preventing one task from slowing down others.
-*   **HWE Kernel (Hardware Enablement)**: A specific version of Linux that is optimized for newer, faster server hardware.
-*   **IOPS (Input/Output Operations Per Second)**: A measure of how many "reads" or "writes" a hard drive can do in one second. Higher is better for databases.
-*   **NVMe SSD**: The newest, fastest type of hard drive. It connects directly to the server's brain for maximum speed.
-*   **RAM (Random Access Memory)**: The server's "Active Memory." It's thousands of times faster than a hard drive but loses its data when the power goes out.
-*   **Redis**: A "Speed Layer" database that stores data entirely in RAM for sub-millisecond access.
-*   **SATA SSD**: An older, slower type of hard drive. Fine for basic use, but can become a bottleneck for million-record systems.
-*   **Taskset**: The command-line tool used to perform CPU Core Pinning.
+*   **ECC RAM**: "Error Correction Code" memory. It detects and fixes data corruption automatically, which is vital for high-security databases.
+*   **High Concurrency**: A situation where many users are using the system at the exact same time.
+*   **InnoDB Buffer Pool**: A slice of RAM used by the database to keep data "instantly ready" instead of loading it from the hard drive.
+*   **IOPS**: "Input/Output Operations Per Second." A measure of how many separate "reads" or "writes" a hard drive can do in one second.
+*   **NVMe SSD**: The newest and fastest type of hard drive that connects directly to the server's brain.
+*   **RAID 10**: A way of combining multiple hard drives for both extreme speed and data safety.
+*   **Taskset**: The technical command used to perform "CPU Core Pinning."

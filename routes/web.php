@@ -124,6 +124,8 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/system-health', [SystemHealthController::class, 'index'])->name('system.health');
     Route::get('/system-health/debug-log/{log}', [SystemHealthController::class, 'debugLog'])->name('system.health.debug-log');
     Route::post('/system-health/run-check', [SystemHealthController::class, 'runIntegrityCheck'])->name('system.health.run-check');
+    Route::get('/api/system-health/integrity-status/{jobId}', [SystemHealthController::class, 'getIntegrityCheckStatus'])->name('api.system-health.integrity-status');
+    Route::post('/api/system-health/integrity-cancel/{jobId}', [SystemHealthController::class, 'cancelIntegrityCheck'])->name('api.system-health.integrity-cancel');
     Route::get('/system-health/results', [SystemHealthController::class, 'getIntegrityCheckResults'])->name('system.health.results');
     Route::post('/system-health/rebuild-chain/{log}', [SystemHealthController::class, 'rebuildChain'])->name('system.health.rebuild-chain');
     Route::get('/api/system-health/db-performance', [SystemHealthController::class, 'getDbPerformanceData'])->name('api.system-health.db-performance');

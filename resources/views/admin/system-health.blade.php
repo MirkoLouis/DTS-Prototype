@@ -338,6 +338,7 @@
             </div>
         </div>
     </div>
+    <x-integrity-progress-modal />
 <div id="debug-hash-modal" class="fixed inset-0 z-[70] hidden items-center justify-center bg-gray-900/75 transition-opacity">
     <div class="relative z-10 w-full max-w-4xl p-6 bg-white dark:bg-gray-800 rounded-lg shadow-xl mx-4 max-h-[90vh] overflow-y-auto">
         <div class="flex items-center justify-between mb-4 border-b dark:border-gray-700 pb-2">

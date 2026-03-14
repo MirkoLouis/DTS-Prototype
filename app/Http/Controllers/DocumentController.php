@@ -6,6 +6,7 @@ use App\Models\Department;
 use App\Models\Document;
 use App\Models\DocumentLog;
 use App\Jobs\UpdateKeywordWeights;
+use App\Services\MetricUpdateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -13,6 +14,13 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class DocumentController extends Controller
 {
+    protected $metrics;
+
+    public function __construct(MetricUpdateService $metrics)
+    {
+        $this->metrics = $metrics;
+    }
+
     /**
      * Show the form for managing a document's route.
      *
@@ -56,7 +64,8 @@ class DocumentController extends Controller
         }
 
         $user = Auth::user();
-        $firstDepartment = $routeNames[0];
+        $firstDepartmentName = $routeNames[0];
+        $firstDepartment = Department::where('name', $firstDepartmentName)->first();
 
         // Convert the simple array of names into the new structured format.
         $finalizedRoute = array_map(function ($name) {
@@ -71,10 +80,16 @@ class DocumentController extends Controller
             'status' => 'in_transit',
             'finalized_route' => $finalizedRoute,
             'current_step' => 1,
+            'current_department_id' => $firstDepartment ? $firstDepartment->id : null,
         ]);
 
+        // Update Metrics
+        if ($firstDepartment) {
+            $this->metrics->incrementReceived($firstDepartment->id);
+        }
+
         $action = 'Accepted and Document Routing finalized';
-        $remarks = "Route finalized. In transit to {$firstDepartment}.";
+        $remarks = "Route finalized. In transit to {$firstDepartmentName}.";
 
         // 1. Generate Cryptographic Signature (Bonded to the NOW UPDATED document state)
         $stateHash = DocumentLog::calculateStateHash($document);
@@ -172,7 +187,14 @@ class DocumentController extends Controller
             // Is it waiting for the final receive by Records Unit?
             if ($currentStepIndex >= count($route)) {
                 if ($user->department && $user->department->name === 'Records Unit') {
-                    $document->update(['status' => 'ready_for_release']);
+                    $document->update([
+                        'status' => 'ready_for_release',
+                        'current_department_id' => $user->department_id
+                    ]);
+
+                    // Update Metrics
+                    $this->metrics->incrementReceived($user->department_id);
+
                     DocumentLog::create([
                         'document_id' => $document->id, 'user_id' => $user->id, 'action' => 'Ready for Releasing',
                         'remarks' => 'All processing steps completed. Document received by Records Unit for final releasing.',
@@ -184,7 +206,14 @@ class DocumentController extends Controller
             else {
                 $responsibleDepartmentName = $route[$currentStepIndex]['name'];
                 if ($user->department && $user->department->name === $responsibleDepartmentName) {
-                    $document->update(['status' => 'processing']);
+                    $document->update([
+                        'status' => 'processing',
+                        'current_department_id' => $user->department_id
+                    ]);
+
+                    // Update Metrics
+                    $this->metrics->incrementReceived($user->department_id);
+
                     DocumentLog::create([
                         'document_id' => $document->id, 'user_id' => $user->id, 'action' => 'Received',
                         'remarks' => "Document received by {$user->department->name}.",

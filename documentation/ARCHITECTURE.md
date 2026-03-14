@@ -1,122 +1,135 @@
-# DTS Architecture & Core Logic
+# DTS System Architecture & Core Logic
 
 ## Summary
-A technical deep-dive into the architectural foundations of the Document Tracking System (DTS). This document explains the security models, AI-driven routing, document lifecycle management, and the cryptographic safeguards that ensure system integrity and non-repudiation.
+A comprehensive technical deep-dive into the Document Tracking System (DTS) designed for the **DepEd Division of Iligan City**. This document details the underlying technologies, the end-to-end document lifecycle, the sophisticated cryptographic "Trust Builder" (hashing and Ed25519 signatures), and the AI-driven route prediction engine. It is intended for developers, system architects, and technical stakeholders.
 
 ## Table of Contents
-1. [Role-Based Access Control (RBAC)](#1-role-based-access-control-rbac)
-2. [Document Lifecycle & Statuses](#2-document-lifecycle--statuses)
-3. [AI Route Prediction Engine](#3-ai-route-prediction-engine)
-4. [Document Hashing & Integrity (The Trust Builder)](#4-document-hashing--integrity-the-trust-builder)
-5. [Resilience & Fallback Strategies](#5-resilience--fallback-strategies)
+1. [Technology Stack & Libraries](#1-technology-stack--libraries)
+2. [Document Lifecycle: The Digital Journey](#2-document-lifecycle-the-digital-journey)
+3. [The Trust Builder: Cryptographic Ledger](#3-the-trust-builder-cryptographic-ledger)
+4. [AI Route Prediction & Machine Learning](#4-ai-route-prediction--machine-learning)
+5. [Operational Infrastructure & Analytics Logic](#5-operational-infrastructure--analytics-logic)
 6. [Glossary of Terms](#6-glossary-of-terms)
 
 ---
 
-## 1. Role-Based Access Control (RBAC)
+## 1. Technology Stack & Libraries
 
-RBAC is the security foundation of the DTS, ensuring that users only access the data and actions necessary for their job functions.
+The DTS is built on a modern, high-performance stack optimized for security and scalability.
 
-### The "Traffic Cop" (Middleware)
-The core logic resides in `app/Http/Middleware/RoleMiddleware.php`. Think of this as a digital traffic cop that checks your "Access Badge" before you enter a room.
-1.  **Smart Redirection**: If you log in without a specific page in mind (the `/dashboard`), the cop checks your badge and sends you to the right starting point:
-    *   **Admins** go to the analytics suite.
-    *   **Officers** go to the Intake queue.
-    *   **Staff** go to their departmental Task list.
-2.  **Gatekeeping**: If a Staff member tries to sneak into an Admin page by guessing the URL, the cop blocks the request and shows a `403 Unauthorized` error.
+### Core Technologies
+- **PHP 8.3 & Laravel 12**: The primary backend engine. PHP 8.3 provides high-speed execution and native support for the `sodium` cryptographic library. Laravel 12 offers a robust framework for role-based access control, background jobs, and database management.
+- **MySQL 8.0**: Chosen for its support of **JSON** data types (used for flexible metadata) and **Window Functions** (used for high-speed, disk-level analytics calculations).
+- **Tailwind CSS 4 & Bootstrap 5 (CSS-only)**: A hybrid frontend approach. Tailwind CSS 4 provides modern, utility-first styling for interactive components, while Bootstrap 5 ensures a consistent grid layout.
+- **Node.js & Vite**: The asset pipeline that bundles frontend code for maximum performance (HMR).
 
-### Automated Provisioning
-When an Administrator creates a user, the system automatically handles:
-- **Unit Linking**: Connects the user to a functional unit (e.g., Cashier).
-- **Signature Readiness**: Prepares the profile for digital signature setup.
-
----
-
-## 2. Document Lifecycle & Statuses
-
-The document lifecycle follows a structured, non-linear path. A document is physically tracked via QR codes at every "Handoff" point.
-
-### Lifecycle State Machine
-```mermaid
-stateDiagram-v2
-    [*] --> pending: Guest Submission
-    pending --> in_transit: RO Intake (Finalize Route)
-    in_transit --> processing: Dept Receive (QR Scan)
-    processing --> in_transit: Dept Complete
-    in_transit --> ready_for_release: Final Dept Complete
-    ready_for_release --> completed: RO Release (QR Scan)
-    
-    processing --> in_transit: Return Request
-    ready_for_release --> in_transit: Return Request
-    
-    pending --> declined: RO Intake (Decline)
-    
-    state "Integrity Error" as Error
-    pending --> Error: Tamper Detected
-    in_transit --> Error: Tamper Detected
-    processing --> Error: Tamper Detected
-    Error --> frozen: Auto-Freeze
-```
-
-### Key Status Definitions
-| Status | Simplified Meaning |
-|:---|:---|
-| **`pending`** | Awaiting review. The document is in the "Waiting Room." |
-| **`in_transit`** | Physically moving. It's in an envelope traveling between desks. |
-| **`processing`** | Active work. A department has scanned it and is working on it. |
-| **`ready_for_release`** | Finished. It's waiting for the guest to pick it up. |
-| **`completed`** | Closed. The guest has walked away with their papers. |
-| **`frozen`** | Locked. The system detected a security problem and disabled all actions. |
+### Key Libraries
+- **Sodium (Ed25519)**: A world-class library for digital signatures and encryption. Used for non-repudiation in document actions.
+- **html5-qrcode**: Enables high-speed QR code scanning via mobile cameras or webcams, essential for physical document handoffs.
+- **Chart.js**: Powers the real-time "Bottleneck Detector" and throughput analytics dashboards.
+- **dompdf & iio/libmergepdf**: Used for generating and merging massive PDF reports (10,000+ records) efficiently using memory-safe chunking.
 
 ---
 
-## 3. AI Route Prediction Engine
+## 2. Document Lifecycle: The Digital Journey
 
-The DTS employs a **Weighted TF-IDF** engine—a "Smart Assistant" that learns how to route documents based on past experience.
+The DTS digitizes the physical document workflow while maintaining a strict chain of custody.
 
-### Prediction Logic
-1.  **Context Assembly**: The AI reads the `Title` and the `Purpose` together to understand the full story.
-2.  **Filtering**: It ignores "Filler Words" (e.g., "the," "and," "N/A") to focus only on important keywords like "Salary," "Appointment," or "Refund."
-3.  **The Learning Loop**: This is where the AI gets smarter. When a human (the Records Officer) manually corrects a route, the system takes note. 
-    *   *Example:* If a document says "Water Bill" and the human sends it to the "Cash Unit," the system increases the "connection" between "Water" and "Cash." The next time it sees "Water," it will suggest "Cash Unit" automatically.
-
----
-
-## 4. Document Hashing & Integrity (The Trust Builder)
-
-The "Trust Builder" ensures absolute **Non-Repudiation**—meaning once you sign an action, you can never deny it happened.
-
-### The Cryptographic Block
-Every log entry acts as a link in a chain. If you change even one letter in an old log, the "Digital Seal" (the Hash) breaks, and the whole chain becomes invalid.
-- **State Hash**: A digital snapshot of the document (Title, Submitter).
-- **Digital Signature**: An **Ed25519** signature generated using your private PIN. It's math-based proof that *you* performed the action.
-
-### The "Active Guard" (Two-Layer Audit)
-- **Layer 1 (The Past)**: Recalculates the chain from the very first log to make sure no one edited the history.
-- **Layer 2 (The Present)**: Compares the "Live Document" on the screen with the last "Signed Snapshot." If they don't match exactly, the system "Auto-Freezes" the document to prevent further tampering.
+| Step | Action | Responsible Code / Function | Description |
+|:---|:---|:---|:---|
+| **1** | **Submission** | `GuestController@store` | A guest submits a document. A **"Genesis Log"** is created with a unique tracking code. |
+| **2** | **Intake** | `DocumentController@finalize` | A Records Officer reviews the document and finalizes the route (assisted by AI). The first signature is generated. |
+| **3** | **Receive** | `DocumentController@scan` | A department scans the QR code to "Receive" the physical document. Status changes to **processing**. |
+| **4** | **Complete** | `TaskController@complete` | A department finishes their work. The user signs the action, and the document advances to the next step. |
+| **5** | **Return** | `ReturnRequestController@store` | (Optional) A department can inject a "Return Request" to send the document back for corrections. |
+| **6** | **Release** | `ReleasingController@complete` | The Records Officer performs the final release. The document is marked **completed** and signed. |
 
 ---
 
-## 5. Resilience & Fallback Strategies
+## 3. The Trust Builder: Cryptographic Ledger
 
-### Memory-Safe Processing
-To handle millions of documents, we use "Batch Processing." Instead of reading a 10,000-page report all at once, we generate 100 pages at a time and "stitch" them together. This prevents the server from running out of memory.
+The **Trust Builder** is the core security layer that ensures no document action can be tampered with or denied.
 
-### Secure Context & Protocol Symmetry
-To use the phone's camera for QR scanning, the browser requires a "Secure Context" (HTTPS). 
-- **Protocol Symmetry**: The system automatically upgrades all links to `https://` if configured, ensuring the camera stays active across all devices.
+### State Hashing (`calculateStateHash`)
+Every time a log is created, the system takes a "snapshot" of the document's metadata (Title, Submitter, Department, etc.).
+- **Logic**: It concatenates these fields with delimiters (`|`) and generates a **SHA-256** hash.
+- **Purpose**: If anyone modifies a document's title directly in the database, the State Hash won't match the historical record, triggering an **Auto-Freeze**.
+
+### Hash Chaining (`boot` method)
+Each log entry is a "block" in a chain.
+- **Logic**: A log's hash is calculated using the `previous_hash` + current metadata + `document_state_hash` + user's `signature`.
+- **Purpose**: This creates an immutable ledger where changing one old log breaks the entire chain downstream.
+
+### Digital Signatures (Ed25519)
+The DTS uses **Ed25519** for absolute non-repudiation.
+1.  **Key Storage**: Every user has a Public/Private key pair. The Private Key is encrypted using **Sodium Secretbox** with a key derived from the user's **Security PIN**.
+2.  **Signing**: When a user performs an action, the system decrypts the Private Key (using the PIN) and signs a bundle containing the `Action Text` and the `State Hash`.
+3.  **Departmental Identity**: While signatures are user-specific, they are cryptographically bonded to the user's unit, ensuring that "Unit Actions" are always verifiable back to a specific individual.
+
+---
+
+## 4. AI Route Prediction & Machine Learning
+
+The DTS includes a smart routing assistant that suggests the most likely department for a document based on its context.
+
+### TF-IDF Prediction Engine
+The AI uses a **Weighted TF-IDF** (Term Frequency - Inverse Document Frequency) algorithm.
+- **Scoring**: `Score = (Frequency of word in Title) * (Learned Weight) * (Rarity of word in system)`.
+- **Why it works**: Common words like "The" are ignored. Rare, impactful words like "Salary" or "Appointment" have higher scores, correctly pointing the document to "Payroll" or "Personnel."
+
+### Machine Learning Loop (`UpdateKeywordWeights`)
+The system "learns" from human expertise.
+1.  **Correction**: If a Records Officer changes an AI-suggested route, the system notices the discrepancy.
+2.  **Learning Job**: A background job (`UpdateKeywordWeights`) is dispatched to analyze the document's context and increment the weights of keywords for the *actual* department chosen.
+3.  **Result**: The more the system is used and "corrected," the more accurate its future suggestions become.
+
+---
+
+## 5. Operational Infrastructure & Analytics Logic
+
+### Nomadic SSL Management (mDNS)
+To support mobile QR scanning, the system uses **mDNS** (`.local`). This allows a phone and a server to communicate via a human-readable name without fixed IP addresses. A **Secure Proxy** (Port 3051) wraps the standard server (Port 3050) in an HTTPS "Cloak," providing the secure context required for camera access.
+
+### Analytics: The "RAM Trap" Guard
+DTS analytics dashboards use **MySQL 8.0 Window Functions** (`LAG()`, `OVER()`). 
+- **The Problem**: Standard apps load 100,000 rows into RAM to calculate math, crashing the server.
+- **The DTS Solution**: The database performs the math on disk before sending only the final totals to the dashboard. This ensures the system remains fast even with 1,000,000 records.
+
+### Project Commands Matrix
+
+| Category | Command | Purpose |
+|:---|:---|:---|
+| **Setup** | `composer run setup` | One-time install: installs Composer & NPM dependencies, tunes DB, generates keys, and builds assets. |
+| **Development** | `composer run dev` | Starts all 5 pillars (Server, Queue, Logs, Vite, Scheduler) with hot-reloading. |
+| | `composer run test` | Runs the full PHPUnit/Pest test suite. |
+| | `composer run serve:dev` | Starts the PHP development server on Port 3050 (with core pinning). |
+| | `composer run queue:dev` | Starts the background queue listener. |
+| | `composer run vite:dev` | Starts the Vite asset bundler for frontend changes. |
+| | `composer run logs:dev` | Streams real-time application logs using Laravel Pail. |
+| | `composer run schedule:dev` | Runs the local task scheduler. |
+| **Production** | `composer run prod` | Runs the 5 pillars in a high-performance, non-reloading state. |
+| | `composer run prod:optimize` | Caches config, routes, and views for maximum production speed. |
+| | `composer run prod:clear` | Clears all production caches. |
+| | `composer run serve:prod` | Starts the production-optimized PHP server. |
+| | `composer run queue:work-prod` | Starts a high-performance worker (512MB RAM limit). |
+| | `composer run schedule:work-prod` | Runs the production-grade task scheduler. |
+| **Database** | `composer run db:dev` | Resets and seeds the DB with 10,000 simulated records. |
+| | `composer run db:prod` | Resets and seeds the DB with a clean production state. |
+| | `composer run db:tune` | Injects optimized InnoDB settings (4GB Buffer Pool) into MySQL. |
+| **Infrastructure** | `composer run proxy` | Starts the Secure HTTPS Bridge (Port 3051) for mobile testing. |
+| **Security** | `php artisan dts:verify-integrity` | Performs a system-wide audit of the cryptographic ledger. |
+| | `php artisan dts:rebuild-chain {id}` | Utility to repair a broken hash chain from a specific log ID. |
 
 ---
 
 ## 6. Glossary of Terms
 
-*   **Ed25519**: A type of unbreakable "Digital Signature" that proves who you are without revealing your secret password.
-*   **HMR (Hot Module Replacement)**: A technology that updates the system's code in real-time without needing to refresh the page.
-*   **Immutable**: Something that cannot be changed after it's created. Once a log is saved, it's locked forever.
-*   **mDNS (.local)**: A way for devices on the same network (like a phone and a server) to talk to each other by name (e.g., `dts.local`) without needing an IP address.
-*   **Middleware**: A "Gatekeeper" script that checks if a request is safe or authorized before letting it reach the main system.
-*   **Non-Repudiation**: A technical guarantee that someone cannot say "It wasn't me" after they have signed an action.
-*   **RBAC (Role-Based Access Control)**: A system where your "Role" (Admin, Staff, etc.) determines what you can see and do.
-*   **SHA-256**: A mathematical "Seal" that creates a unique fingerprint for a piece of data.
-*   **State Hash**: A "Snapshot" of a document's details taken at a specific moment in time.
-*   **TF-IDF**: A math formula used by the AI to decide which keywords are the most important in a sentence.
+*   **Active Guard**: The real-time integrity monitor that checks for tampering before any action.
+*   **Ed25519**: A high-speed, high-security signature algorithm that is virtually unbreakable.
+*   **Genesis Hash**: The very first hash in a document's chain, created during submission.
+*   **HMR (Hot Module Replacement)**: A technology that updates the system's appearance in real-time during development.
+*   **Non-Repudiation**: A technical guarantee that the person who signed an action cannot later deny it.
+*   **SHA-256**: A mathematical algorithm that creates a unique "fingerprint" (hash) for data.
+*   **Sodium**: The cryptographic library used for signatures and PIN-based encryption.
+*   **TF-IDF**: A mathematical approach to understanding which words are most important in a sentence.
+*   **Trust Builder**: The collective name for the system's hashing and signature infrastructure.

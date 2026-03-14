@@ -74,10 +74,10 @@ Explore generated document tracking forms and administrative reports:
 ## 📖 Deep Technical Documentation
 
 Refer to the `documentation/` directory for in-depth technical guides:
--   [**Architecture**](documentation/ARCHITECTURE.md): Security models, Hashing formula, and Lifecycle states.
-*   [**Administration**](documentation/ADMINISTRATION.md): Analytics engine, Scaling for 1M records, and Backups.
-*   [**Operations**](documentation/OPERATIONS.md): Multi-threaded setup, Commands matrix, and SSL management.
-*   [**Hardware Specs**](documentation/HARDWARE_SPECS.md): RAM optimization and CPU core pinning logic.
+- [**System Architecture**](documentation/ARCHITECTURE.md): Tech stack, Cryptographic Ledger, and AI Routing.
+- [**Hardware Requirements**](documentation/HARDWARE_SPECS.md): High-concurrency specs and storage forecasting.
+- [**User Guide**](documentation/USER_GUIDE.md): Role-based workflows and interface navigation.
+- [**Quantum Safety**](documentation/QUANTUM_SAFETY.md): Post-quantum strategy and threat models.
 
 ---
 
@@ -85,19 +85,18 @@ Refer to the `documentation/` directory for in-depth technical guides:
 
 1.  **Clone & Setup:**
     ```bash
-    git clone <repository-url>
-    composer install && npm install
-    composer run setup
+    git clone <repository-url> <optional:folder-path>
+    composer run setup  # Installs both PHP & NPM dependencies and initializes the system
     ```
 2.  **Initialize Database:**
     ```bash
-    composer db:dev  # Seeds ~10,000 documents for testing
+    composer run db:dev  # Seeds ~10,000 documents for testing
     ```
 3.  **Launch Secure Environment:**
     To enable mobile QR scanning and HTTPS, run these in separate terminals:
     ```bash
-    composer dev    # Starts Server (Port 3050), Vite, Queue, and Scheduler
-    composer proxy  # Starts Secure HTTPS Proxy (Port 3051)
+    composer run dev    # Starts Server (Port 3050), Vite, Queue, and Scheduler
+    composer run proxy  # Starts Secure HTTPS Bridge (Port 3051)
     ```
 
 ---

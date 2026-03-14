@@ -47,6 +47,12 @@ class DTSMigrate extends Command
         ], $this->output);
 
         if ($exitCode === 0) {
+            $this->info("Clearing application cache...");
+            Artisan::call('cache:clear');
+
+            $this->info("Backfilling performance metrics for optimized dashboards...");
+            Artisan::call('dts:backfill-metrics', ['--fresh' => true]);
+
             $this->info("Database successfully initialized for " . ($this->option('devseed') ? 'DEVELOPMENT' : 'PRODUCTION') . ".");
         }
 

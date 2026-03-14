@@ -243,16 +243,48 @@ class SystemHealthController extends Controller
     }
 
     /**
-     * Run the integrity check Artisan command.
+     * Run the integrity check Artisan command asynchronously.
      */
     public function runIntegrityCheck()
     {
         try {
-            Artisan::call('dts:verify-integrity');
-            return response()->json(['status' => 'success', 'message' => 'Integrity check completed.']);
+            $integrityCheck = \App\Models\IntegrityCheck::create([
+                'user_id' => auth()->id(),
+                'status' => 'queued',
+                'progress' => 0,
+            ]);
+
+            \App\Jobs\IntegrityCheckJob::dispatch($integrityCheck);
+
+            return response()->json([
+                'status' => 'success', 
+                'message' => 'Integrity check started.',
+                'job_id' => $integrityCheck->id
+            ]);
         } catch (\Exception $e) {
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Get the status of an ongoing integrity check.
+     */
+    public function getIntegrityCheckStatus($jobId)
+    {
+        $check = \App\Models\IntegrityCheck::findOrFail($jobId);
+        return response()->json($check);
+    }
+
+    /**
+     * Cancel an ongoing integrity check.
+     */
+    public function cancelIntegrityCheck($jobId)
+    {
+        $check = \App\Models\IntegrityCheck::findOrFail($jobId);
+        if (in_array($check->status, ['queued', 'processing'])) {
+            $check->update(['status' => 'cancelled']);
+        }
+        return response()->json(['status' => 'success']);
     }
 
     /**

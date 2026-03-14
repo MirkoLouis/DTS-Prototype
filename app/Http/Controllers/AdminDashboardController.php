@@ -6,6 +6,7 @@ use App\Models\Document;
 use App\Models\DocumentLog;
 use App\Models\Purpose;
 use App\Models\Department;
+use App\Models\DailyDepartmentMetric;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
@@ -24,31 +25,24 @@ class AdminDashboardController extends Controller
 
     /**
      * Get data for the 'Current Load' chart (documents pending at each department).
-     * Refactored to use SQL-level aggregation and caching for 1M record performance.
+     * OPTIMIZED: Uses indexed current_department_id.
      */
     public function getCurrentLoadData(Request $request)
     {
         $departmentId = $request->get('department_id', 'all');
-        $cacheKey = "current_load_{$departmentId}";
+        $cacheKey = "current_load_v2_{$departmentId}";
 
         return Cache::remember($cacheKey, now()->addMinutes(5), function() use ($departmentId) {
             $query = DB::table('documents')
                 ->where('status', 'processing')
-                ->where('current_step', '>', 0)
-                ->whereNotNull('finalized_route');
+                ->whereNotNull('current_department_id');
 
             if ($departmentId && $departmentId !== 'all') {
-                $department = Department::find($departmentId);
-                if ($department) {
-                    $query->whereJsonContains('finalized_route', [['name' => $department->name]]);
-                }
+                $query->where('current_department_id', $departmentId);
             }
 
-            // Use JSON_EXTRACT with a dynamic path based on current_step
-            $results = $query->select(
-                    DB::raw("JSON_UNQUOTE(JSON_EXTRACT(finalized_route, CONCAT('$[', current_step - 1, '].name'))) as dept_name"),
-                    DB::raw('COUNT(*) as count')
-                )
+            $results = $query->join('departments', 'documents.current_department_id', '=', 'departments.id')
+                ->select('departments.name as dept_name', DB::raw('COUNT(*) as count'))
                 ->groupBy('dept_name')
                 ->get();
 
@@ -81,90 +75,41 @@ class AdminDashboardController extends Controller
     }
 
     /**
-     * Clear all dashboard-related cache.
-     */
-    public function clearCache()
-    {
-        Cache::flush(); 
-        return back()->with('success', 'Dashboard cache cleared successfully. All cached charts will now fetch fresh data.');
-    }
-
-    /**
-     * Get data for the 'Throughput' chart (documents processed over time).
+     * Get data for the 'Throughput' chart (Average TAT over time).
+     * OPTIMIZED: Uses daily_department_metrics.
      */
     public function getThroughputData(Request $request)
     {
         $period = $request->get('period', 'daily'); 
         $departmentId = $request->get('department_id', 'all');
 
-        $cacheKey = "throughput_data_{$period}_{$departmentId}";
+        $cacheKey = "throughput_data_v2_{$period}_{$departmentId}";
 
         return Cache::remember($cacheKey, now()->addMinutes(10), function () use ($period, $departmentId) {
-            $endDate = Carbon::now();
-            $startDate = match ($period) {
-                'weekly' => Carbon::now()->subWeeks(12),
-                'monthly' => Carbon::now()->subMonths(12),
-                'yearly' => Carbon::now()->subYears(5),
-                default => Carbon::now()->subDays(30),
-            };
-            $dateFormat = match ($period) {
-                'weekly' => '%x-%v', 
-                'monthly' => '%Y-%m',
-                'yearly' => '%Y',
-                default => '%Y-%m-%d',
-            };
-
-            $startLogs = DB::table('document_logs')
-                ->where('action', 'Accepted and Document Routing finalized')
-                ->select('document_id', DB::raw('MIN(created_at) as start_time'))
-                ->groupBy('document_id');
-
-            $endLogs = DB::table('document_logs')
-                ->where('action', 'Document Released')
-                ->select('document_id', DB::raw('MAX(created_at) as end_time'))
-                ->groupBy('document_id');
+            list($startDate, $endDate, $dateFormat) = $this->getDateParameters($period);
             
-            $query = DB::table('documents')
-                ->joinSub($startLogs, 'start_logs', 'documents.id', '=', 'start_logs.document_id')
-                ->joinSub($endLogs, 'end_logs', 'documents.id', '=', 'end_logs.document_id')
-                ->whereBetween('end_logs.end_time', [$startDate, $endDate]);
+            $query = DB::table('daily_department_metrics')
+                ->whereBetween('date', [$startDate, $endDate]);
 
             if ($departmentId && $departmentId !== 'all') {
-                $department = Department::find($departmentId);
-                if ($department) {
-                    $query->whereJsonContains('documents.finalized_route', [['name' => $department->name]]);
-                }
+                $query->where('department_id', $departmentId);
             }
 
-            $avgTimes = $query->select(
-                    DB::raw("DATE_FORMAT(end_logs.end_time, '{$dateFormat}') as period_label"),
-                    DB::raw('AVG(TIMESTAMPDIFF(HOUR, start_logs.start_time, end_logs.end_time)) as avg_duration_hours')
+            $results = $query->select(
+                    DB::raw("DATE_FORMAT(date, '{$dateFormat}') as period_label"),
+                    DB::raw('SUM(total_processing_seconds) as total_seconds'),
+                    DB::raw('SUM(processed_count + released_count) as total_count')
                 )
                 ->groupBy('period_label')
                 ->orderBy('period_label')
                 ->get();
 
-            $periodMap = [];
-            $current = $startDate->clone();
-            while ($current <= $endDate) {
-                $label = match($period) {
-                    'weekly' => $current->format('o-W'),
-                    'monthly' => $current->format('Y-m'),
-                    'yearly' => $current->format('Y'),
-                    default => $current->format('Y-m-d')
-                };
-                $periodMap[$label] = 0; 
-                $current = match($period) {
-                    'weekly' => $current->addWeek(),
-                    'monthly' => $current->addMonth(),
-                    'yearly' => $current->addYear(),
-                    default => $current->addDay()
-                };
-            }
+            $periodMap = $this->generatePeriodMap($startDate, $endDate, $period);
 
-            foreach ($avgTimes as $result) {
+            foreach ($results as $result) {
                 if (isset($periodMap[$result->period_label])) {
-                    $periodMap[$result->period_label] = (float) $result->avg_duration_hours;
+                    $avgHours = $result->total_count > 0 ? ($result->total_seconds / $result->total_count) / 3600 : 0;
+                    $periodMap[$result->period_label] = round($avgHours, 2);
                 }
             }
 
@@ -185,44 +130,141 @@ class AdminDashboardController extends Controller
     }
 
     /**
+     * Get data for the 'Average TAT by Department' chart.
+     * OPTIMIZED: Uses daily_department_metrics.
+     */
+    public function getAvgStepTimeByDepartmentData(Request $request)
+    {
+        $isFull = $request->has('full') ? 'full' : 'limited';
+        return Cache::remember("avg_step_time_v2_{$isFull}", now()->addMinutes(10), function() use ($request) {
+            $query = DB::table('daily_department_metrics')
+                ->join('departments', 'daily_department_metrics.department_id', '=', 'departments.id')
+                ->select(
+                    'departments.name',
+                    DB::raw('SUM(total_processing_seconds) as total_seconds'),
+                    DB::raw('SUM(processed_count + released_count) as total_count')
+                )
+                ->groupBy('departments.name')
+                ->having('total_count', '>', 0);
+
+            if (!$request->has('full')) {
+                $query->limit(5);
+            }
+
+            $results = $query->get()->map(function($r) {
+                $r->avg_hours = ($r->total_seconds / $r->total_count) / 3600;
+                return $r;
+            })->sortBy('avg_hours');
+
+            return [
+                'labels' => $results->pluck('name'),
+                'datasets' => [
+                    [
+                        'label' => 'Average Step Time (hrs)',
+                        'data' => $results->pluck('avg_hours')->map(fn($h) => round($h, 2)),
+                        'backgroundColor' => 'rgba(14, 165, 233, 0.5)', 
+                        'borderColor' => 'rgba(14, 165, 233, 1)',
+                        'borderWidth' => 1,
+                    ],
+                ],
+            ];
+        });
+    }
+
+    /**
+     * Get data for the 'Load vs. Time' correlation chart for a specific department.
+     * OPTIMIZED: Uses daily_department_metrics.
+     */
+    public function getDepartmentalLoadVsTimeData(Request $request)
+    {
+        $period = $request->get('period', 'daily');
+        $departmentId = $request->get('department_id', 'all');
+
+        $cacheKey = "dept_load_time_v2_{$period}_{$departmentId}";
+
+        return Cache::remember($cacheKey, now()->addMinutes(10), function () use ($period, $departmentId) {
+            list($startDate, $endDate, $dateFormat) = $this->getDateParameters($period);
+
+            $query = DB::table('daily_department_metrics')
+                ->whereBetween('date', [$startDate, $endDate]);
+
+            if ($departmentId && $departmentId !== 'all') {
+                $query->where('department_id', $departmentId);
+            }
+
+            $results = $query->select(
+                DB::raw("DATE_FORMAT(date, '{$dateFormat}') as period_label"),
+                DB::raw('SUM(received_count) as received_total'),
+                DB::raw('SUM(total_processing_seconds) as total_seconds'),
+                DB::raw('SUM(processed_count + released_count) as work_total')
+            )
+            ->groupBy('period_label')
+            ->get();
+
+            $periodMap = $this->generatePeriodMap($startDate, $endDate, $period);
+            $finalData = [];
+            foreach (array_keys($periodMap) as $label) {
+                $finalData[$label] = ['load' => 0, 'time' => 0];
+            }
+
+            foreach ($results as $result) {
+                if (isset($finalData[$result->period_label])) {
+                    $avgHours = $result->work_total > 0 ? ($result->total_seconds / $result->work_total) / 3600 : 0;
+                    $finalData[$result->period_label] = [
+                        'load' => (int) $result->received_total,
+                        'time' => round($avgHours, 2)
+                    ];
+                }
+            }
+
+            return [
+                'labels' => array_keys($finalData),
+                'datasets' => [
+                    [
+                        'label' => 'Documents Received',
+                        'data' => array_column($finalData, 'load'),
+                        'borderColor' => 'rgba(54, 162, 235, 1)',
+                        'backgroundColor' => 'rgba(54, 162, 235, 0.2)',
+                        'yAxisID' => 'y',
+                        'tension' => 0.1,
+                    ],
+                    [
+                        'label' => 'Avg. Processing Time (hrs)',
+                        'data' => array_column($finalData, 'time'),
+                        'borderColor' => 'rgba(255, 99, 132, 1)',
+                        'backgroundColor' => 'rgba(255, 99, 132, 0.2)',
+                        'yAxisID' => 'y1',
+                        'tension' => 0.1,
+                    ]
+                ]
+            ];
+        });
+    }
+
+    /**
+     * Clear all dashboard-related cache.
+     */
+    public function clearCache()
+    {
+        Cache::flush(); 
+        return back()->with('success', 'Dashboard cache cleared successfully. All cached charts will now fetch fresh data.');
+    }
+
+    /**
      * Get data for the 'Return & Decline Rate Trends' chart.
      */
     public function getReturnDeclineTrendData(Request $request)
     {
         $period = $request->get('period', 'daily');
-        $cacheKey = "return_decline_trends_{$period}";
+        $cacheKey = "return_decline_trends_v2_{$period}";
 
         return Cache::remember($cacheKey, now()->addMinutes(10), function() use ($period) {
-            $endDate = Carbon::now();
-            $startDate = match ($period) {
-                'weekly' => Carbon::now()->subWeeks(12),
-                'monthly' => Carbon::now()->subMonths(12),
-                'yearly' => Carbon::now()->subYears(5),
-                default => Carbon::now()->subDays(30),
-            };
-            $dateFormat = match ($period) {
-                'weekly' => '%x-%v',
-                'monthly' => '%Y-%m',
-                'yearly' => '%Y',
-                default => '%Y-%m-%d',
-            };
+            list($startDate, $endDate, $dateFormat) = $this->getDateParameters($period);
 
-            $periodMap = [];
-            $current = $startDate->clone();
-            while ($current <= $endDate) {
-                $label = $current->format(match($period) {
-                    'weekly' => 'o-W',
-                    'monthly' => 'Y-m',
-                    'yearly' => 'Y',
-                    default => 'Y-m-d'
-                });
-                $periodMap[$label] = ['declined' => 0, 'returned' => 0];
-                $current = match($period) {
-                    'weekly' => $current->addWeek(),
-                    'monthly' => $current->addMonth(),
-                    'yearly' => $current->addYear(),
-                    default => $current->addDay()
-                };
+            $periodMap = $this->generatePeriodMap($startDate, $endDate, $period);
+            $finalData = [];
+            foreach (array_keys($periodMap) as $label) {
+                $finalData[$label] = ['declined' => 0, 'returned' => 0];
             }
 
             $declinedDocuments = DB::table('documents')
@@ -236,8 +278,8 @@ class AdminDashboardController extends Controller
                 ->get();
 
             foreach ($declinedDocuments as $result) {
-                if (isset($periodMap[$result->period_label])) {
-                    $periodMap[$result->period_label]['declined'] = $result->count;
+                if (isset($finalData[$result->period_label])) {
+                    $finalData[$result->period_label]['declined'] = $result->count;
                 }
             }
 
@@ -252,17 +294,17 @@ class AdminDashboardController extends Controller
                 ->get();
 
             foreach ($returnRequests as $result) {
-                if (isset($periodMap[$result->period_label])) {
-                    $periodMap[$result->period_label]['returned'] = $result->count;
+                if (isset($finalData[$result->period_label])) {
+                    $finalData[$result->period_label]['returned'] = $result->count;
                 }
             }
 
             return [
-                'labels' => array_keys($periodMap),
+                'labels' => array_keys($finalData),
                 'datasets' => [
                     [
                         'label' => 'Declined Documents',
-                        'data' => array_column($periodMap, 'declined'),
+                        'data' => array_column($finalData, 'declined'),
                         'borderColor' => '#ef4444', 
                         'backgroundColor' => 'rgba(239, 68, 68, 0.2)',
                         'tension' => 0.1,
@@ -270,7 +312,7 @@ class AdminDashboardController extends Controller
                     ],
                     [
                         'label' => 'Return Requests',
-                        'data' => array_column($periodMap, 'returned'),
+                        'data' => array_column($finalData, 'returned'),
                         'borderColor' => '#f97316', 
                         'backgroundColor' => 'rgba(249, 115, 22, 0.2)',
                         'tension' => 0.1,
@@ -286,7 +328,7 @@ class AdminDashboardController extends Controller
      */
     public function getDocumentStatusDistributionData()
     {
-        return Cache::remember('status_distribution', now()->addMinutes(10), function() {
+        return Cache::remember('status_distribution_v2', now()->addMinutes(10), function() {
             $statusDistribution = DB::table('documents')
                 ->select(DB::raw('count(*) as count, status'))
                 ->groupBy('status')
@@ -323,7 +365,7 @@ class AdminDashboardController extends Controller
      */
     public function getReturnRequestSourcesData()
     {
-        return Cache::remember('return_request_sources', now()->addMinutes(10), function() {
+        return Cache::remember('return_request_sources_v2', now()->addMinutes(10), function() {
             $returnData = DB::table('document_logs')
                 ->join('users', 'document_logs.user_id', '=', 'users.id')
                 ->join('departments', 'users.department_id', '=', 'departments.id')
@@ -353,25 +395,13 @@ class AdminDashboardController extends Controller
      */
     public function getProcessingHotspotsData()
     {
-        return Cache::remember('processing_hotspots', now()->addMinutes(10), function() {
-            $startLogs = DB::table('document_logs')
-                ->where('action', 'Accepted and Document Routing finalized')
-                ->select('document_id', DB::raw('MIN(created_at) as start_time'))
-                ->groupBy('document_id');
-
-            $endLogs = DB::table('document_logs')
-                ->where('action', 'Document Released')
-                ->select('document_id', DB::raw('MAX(created_at) as end_time'))
-                ->groupBy('document_id');
-
+        return Cache::remember('processing_hotspots_v2', now()->addMinutes(10), function() {
             $purposeMetrics = DB::table('documents')
-                ->leftJoinSub($startLogs, 'start_logs', 'documents.id', '=', 'start_logs.document_id')
-                ->leftJoinSub($endLogs, 'end_logs', 'documents.id', '=', 'end_logs.document_id')
                 ->join('purposes', 'documents.purpose_id', '=', 'purposes.id')
                 ->select(
                     'purposes.name as purpose_name',
                     DB::raw('COUNT(documents.id) as doc_count'),
-                    DB::raw('AVG(TIMESTAMPDIFF(SECOND, start_logs.start_time, end_logs.end_time)) / 3600 as avg_duration_hours')
+                    DB::raw('AVG(TIMESTAMPDIFF(SECOND, documents.created_at, IFNULL(released_at, NOW()))) / 3600 as avg_duration_hours')
                 )
                 ->groupBy('purposes.name')
                 ->orderBy('doc_count', 'desc')
@@ -407,7 +437,7 @@ class AdminDashboardController extends Controller
      */
     public function getSubmissionDistrictsData()
     {
-        return Cache::remember('submission_districts', now()->addMinutes(10), function() {
+        return Cache::remember('submission_districts_v2', now()->addMinutes(10), function() {
             $districtData = DB::table('documents')
                 ->select('district', DB::raw('COUNT(*) as count'))
                 ->whereNotNull('district')
@@ -431,173 +461,50 @@ class AdminDashboardController extends Controller
     }
 
     /**
-     * Get data for the 'Average Step Time by Department' chart.
-     * Refactored to use Window Functions (MySQL 8.0) to avoid RAM traps.
+     * Helper function to get date parameters based on the period.
      */
-    public function getAvgStepTimeByDepartmentData(Request $request)
+    private function getDateParameters($period)
     {
-        $isFull = $request->has('full') ? 'full' : 'limited';
-        return Cache::remember("avg_step_time_{$isFull}", now()->addMinutes(10), function() use ($request) {
-            $durationsQuery = DB::table(function ($query) {
-                $query->select(
-                    'document_id',
-                    'user_id',
-                    'action',
-                    'created_at',
-                    DB::raw("LAG(created_at) OVER (PARTITION BY document_id, user_id ORDER BY created_at) as prev_created_at"),
-                    DB::raw("LAG(action) OVER (PARTITION BY document_id, user_id ORDER BY created_at) as prev_action")
-                )
-                ->from('document_logs')
-                ->whereIn('action', ['Received', 'Processing Complete']);
-            }, 'log_durations')
-            ->join('users', 'log_durations.user_id', '=', 'users.id')
-            ->join('departments', 'users.department_id', '=', 'departments.id')
-            ->where('log_durations.action', 'Processing Complete')
-            ->where('log_durations.prev_action', 'Received')
-            ->select(
-                'departments.name',
-                DB::raw('AVG(TIMESTAMPDIFF(SECOND, log_durations.prev_created_at, log_durations.created_at)) / 3600 as avg_hours')
-            )
-            ->groupBy('departments.name')
-            ->orderBy('avg_hours', 'asc');
-
-            if (!$request->has('full')) {
-                $durationsQuery->limit(5);
-            }
-
-            $results = $durationsQuery->get();
-
-            return [
-                'labels' => $results->pluck('name'),
-                'datasets' => [
-                    [
-                        'label' => 'Average Step Time (hrs)',
-                        'data' => $results->pluck('avg_hours'),
-                        'backgroundColor' => 'rgba(14, 165, 233, 0.5)', 
-                        'borderColor' => 'rgba(14, 165, 233, 1)',
-                        'borderWidth' => 1,
-                    ],
-                ],
-            ];
-        });
+        $endDate = Carbon::now();
+        switch ($period) {
+            case 'weekly':
+                return [$endDate->copy()->subWeeks(12), $endDate, '%x-%v'];
+            case 'monthly':
+                return [$endDate->copy()->subMonths(12), $endDate, '%Y-%m'];
+            case 'yearly':
+                return [$endDate->copy()->subYears(5), $endDate, '%Y'];
+            default: // daily
+                return [$endDate->copy()->subDays(30), $endDate, '%Y-%m-%d'];
+        }
     }
 
     /**
-     * Get data for the 'Load vs. Time' correlation chart for a specific department.
-     * Refactored for SQL-level performance.
+     * Helper function to generate a map of periods with default value 0.
      */
-    public function getDepartmentalLoadVsTimeData(Request $request)
+    private function generatePeriodMap($startDate, $endDate, $period)
     {
-        $period = $request->get('period', 'daily');
-        $departmentId = $request->get('department_id', 'all');
+        $periodMap = [];
+        $current = $startDate->clone();
+        
+        $format = match($period) {
+            'weekly' => 'o-W',
+            'monthly' => 'Y-m',
+            'yearly' => 'Y',
+            default => 'Y-m-d'
+        };
 
-        $cacheKey = "dept_load_time_{$period}_{$departmentId}";
+        $addMethod = match($period) {
+            'weekly' => 'addWeek',
+            'monthly' => 'addMonth',
+            'yearly' => 'addYear',
+            default => 'addDay'
+        };
 
-        return Cache::remember($cacheKey, now()->addMinutes(10), function () use ($period, $departmentId) {
-            $endDate = Carbon::now();
-            $startDate = match ($period) {
-                'weekly' => Carbon::now()->subWeeks(12),
-                'monthly' => Carbon::now()->subMonths(12),
-                'yearly' => Carbon::now()->subYears(5),
-                default => Carbon::now()->subDays(30),
-            };
-            $dateFormat = match ($period) {
-                'weekly' => '%x-%v',
-                'monthly' => '%Y-%m',
-                'yearly' => '%Y',
-                default => '%Y-%m-%d',
-            };
-
-            // 1. Calculate Avg Processing Time per Period in SQL
-            $durationsSubquery = DB::table(function ($query) {
-                $query->select(
-                    'document_id',
-                    'user_id',
-                    'action',
-                    'created_at',
-                    DB::raw("LAG(created_at) OVER (PARTITION BY document_id, user_id ORDER BY created_at) as prev_created_at"),
-                    DB::raw("LAG(action) OVER (PARTITION BY document_id, user_id ORDER BY created_at) as prev_action")
-                )
-                ->from('document_logs')
-                ->whereIn('action', ['Received', 'Processing Complete']);
-            }, 'log_durations')
-            ->join('users', 'log_durations.user_id', '=', 'users.id')
-            ->where('log_durations.action', 'Processing Complete')
-            ->where('log_durations.prev_action', 'Received');
-
-            if ($departmentId && $departmentId !== 'all') {
-                $durationsSubquery->where('users.department_id', $departmentId);
-            }
-
-            $timeResults = $durationsSubquery->select(
-                DB::raw("DATE_FORMAT(log_durations.created_at, '{$dateFormat}') as period_label"),
-                DB::raw('AVG(TIMESTAMPDIFF(SECOND, log_durations.prev_created_at, log_durations.created_at)) / 3600 as avg_hours')
-            )
-            ->groupBy('period_label')
-            ->get()
-            ->pluck('avg_hours', 'period_label');
-
-            // 2. Calculate Received Load per Period in SQL
-            $loadQuery = DB::table('document_logs')
-                ->join('users', 'document_logs.user_id', '=', 'users.id')
-                ->where('action', 'Received')
-                ->whereBetween('document_logs.created_at', [$startDate, $endDate]);
-
-            if ($departmentId && $departmentId !== 'all') {
-                $loadQuery->where('users.department_id', $departmentId);
-            }
-
-            $loadResults = $loadQuery->select(
-                DB::raw("DATE_FORMAT(document_logs.created_at, '{$dateFormat}') as period_label"),
-                DB::raw('COUNT(document_logs.id) as received_count')
-            )
-            ->groupBy('period_label')
-            ->get()
-            ->pluck('received_count', 'period_label');
-
-            // 3. Map to periods to ensure no gaps
-            $periodMap = [];
-            $current = $startDate->clone();
-            while ($current <= $endDate) {
-                $label = $current->format(match($period) {
-                    'weekly' => 'o-W',
-                    'monthly' => 'Y-m',
-                    'yearly' => 'Y',
-                    default => 'Y-m-d'
-                });
-                $periodMap[$label] = [
-                    'load' => (int) ($loadResults[$label] ?? 0),
-                    'time' => (float) ($timeResults[$label] ?? 0)
-                ];
-                $current = match($period) {
-                    'weekly' => $current->addWeek(),
-                    'monthly' => $current->addMonth(),
-                    'yearly' => $current->addYear(),
-                    default => $current->addDay()
-                };
-            }
-
-            return [
-                'labels' => array_keys($periodMap),
-                'datasets' => [
-                    [
-                        'label' => 'Documents Received',
-                        'data' => array_column($periodMap, 'load'),
-                        'borderColor' => 'rgba(54, 162, 235, 1)',
-                        'backgroundColor' => 'rgba(54, 162, 235, 0.2)',
-                        'yAxisID' => 'y',
-                        'tension' => 0.1,
-                    ],
-                    [
-                        'label' => 'Avg. Processing Time (hrs)',
-                        'data' => array_column($periodMap, 'time'),
-                        'borderColor' => 'rgba(255, 99, 132, 1)',
-                        'backgroundColor' => 'rgba(255, 99, 132, 0.2)',
-                        'yAxisID' => 'y1',
-                        'tension' => 0.1,
-                    ]
-                ]
-            ];
-        });
+        while ($current <= $endDate) {
+            $label = $current->format($format);
+            $periodMap[$label] = 0; 
+            $current->$addMethod();
+        }
+        return $periodMap;
     }
 }

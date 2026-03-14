@@ -7,6 +7,7 @@ use App\Models\Document;
 use App\Models\DocumentLog;
 use App\Models\Purpose;
 use App\Models\ReportJob;
+use App\Models\DailyDepartmentMetric;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
@@ -18,7 +19,7 @@ class StatisticsController extends Controller
 {
     /**
      * Display the statistics dashboard.
-     * Refactored for 1M record scaling by optimizing the submitter list extraction.
+     * OPTIMIZED: Uses denormalized released_at and released_by_user_id.
      */
     public function index(Request $request)
     {
@@ -36,30 +37,17 @@ class StatisticsController extends Controller
             // Base query for documents
             $query = Document::query();
 
-            // Date and action filtering must happen on the same log entry.
-            $query->whereHas('logs', function ($q) use ($departmentId, $filterYear, $filterMonth, $filterDay) {
-                $q->where('action', 'Document Released');
-                
-                // User sub-query
-                $q->whereHas('user', function ($userQuery) use ($departmentId) {
-                    $userQuery->where('department_id', $departmentId);
-                });
+            // OPTIMIZED: Use the denormalized columns instead of whereHas('logs')
+            $query->where('status', 'completed')
+                  ->where('released_by_user_id', '>', 0)
+                  ->whereHas('releasedByUser', function ($userQuery) use ($departmentId) {
+                      $userQuery->where('department_id', $departmentId);
+                  });
 
-                // Apply date filters if they are provided and not 'all'
-                $year = $filterYear && $filterYear !== 'all' ? $filterYear : null;
-                $month = $filterMonth && $filterMonth !== 'all' ? $filterMonth : null;
-                $day = $filterDay && $filterDay !== 'all' ? $filterDay : null;
-
-                if ($year) {
-                    $q->whereYear('created_at', $year);
-                }
-                if ($month) {
-                    $q->whereMonth('created_at', $month);
-                }
-                if ($day) {
-                    $q->whereDay('created_at', $day);
-                }
-            });
+            // Apply date filters
+            if ($filterYear && $filterYear !== 'all') $query->whereYear('released_at', $filterYear);
+            if ($filterMonth && $filterMonth !== 'all') $query->whereMonth('released_at', $filterMonth);
+            if ($filterDay && $filterDay !== 'all') $query->whereDay('released_at', $filterDay);
 
             if ($searchTerm) {
                 $query->where(function ($q) use ($searchTerm) {
@@ -76,8 +64,7 @@ class StatisticsController extends Controller
                 $query->whereRaw('LOWER(json_unquote(json_extract(guest_info, "$.name"))) LIKE ?', ['%' . strtolower($filterSubmitter) . '%']);
             }
 
-            // OPTIMIZATION: Instead of $query->get() which is a RAM trap, 
-            // use a dedicated query for unique submitters using JSON_EXTRACT in SQL.
+            // OPTIMIZATION: Unique submitters extraction
             $submitterQuery = clone $query;
             $viewData['submitters'] = $submitterQuery
                 ->select(DB::raw('DISTINCT json_unquote(json_extract(guest_info, "$.name")) as submitter_name'))
@@ -85,14 +72,13 @@ class StatisticsController extends Controller
                 ->pluck('submitter_name')
                 ->filter();
 
-            $viewData['releasedDocuments'] = $query->with('purpose')->latest('updated_at')->paginate(10)->withQueryString();
-            
+            $viewData['releasedDocuments'] = $query->with('purpose')->latest('released_at')->paginate(10)->withQueryString();
             $viewData['purposes'] = Purpose::orderBy('name')->get();
             
-            // OPTIMIZATION: Avoid heavy DocumentLog query if possible, or limit it.
-            $viewData['years'] = DB::table('document_logs')
-                ->select(DB::raw('DISTINCT YEAR(created_at) as year'))
-                ->where('action', 'Document Released')
+            // OPTIMIZED: Avoid heavy log scans for years list
+            $viewData['years'] = Document::where('status', 'completed')
+                ->whereNotNull('released_at')
+                ->select(DB::raw('DISTINCT YEAR(released_at) as year'))
                 ->orderBy('year', 'desc')
                 ->pluck('year');
         }
@@ -120,21 +106,14 @@ class StatisticsController extends Controller
 
         $query = Document::query();
 
-        $query->whereHas('logs', function ($q) use ($departmentId, $filterYear, $filterMonth, $filterDay) {
-            $q->where('action', 'Document Released');
-            $q->whereHas('user', function ($userQuery) use ($departmentId) {
-                $userQuery->where('department_id', $departmentId);
-            });
-            if ($filterYear && $filterYear !== 'all') {
-                $q->whereYear('created_at', $filterYear);
-            }
-            if ($filterMonth && $filterMonth !== 'all') {
-                $q->whereMonth('created_at', $filterMonth);
-            }
-            if ($filterDay && $filterDay !== 'all') {
-                $q->whereDay('created_at', $filterDay);
-            }
-        });
+        $query->where('status', 'completed')
+              ->whereHas('releasedByUser', function ($userQuery) use ($departmentId) {
+                  $userQuery->where('department_id', $departmentId);
+              });
+
+        if ($filterYear && $filterYear !== 'all') $query->whereYear('released_at', $filterYear);
+        if ($filterMonth && $filterMonth !== 'all') $query->whereMonth('released_at', $filterMonth);
+        if ($filterDay && $filterDay !== 'all') $query->whereDay('released_at', $filterDay);
 
         if ($searchTerm) {
             $query->where(function ($q) use ($searchTerm) {
@@ -219,6 +198,7 @@ class StatisticsController extends Controller
 
     /**
      * Get data for the 'Documents Received' chart.
+     * OPTIMIZED: Uses daily_department_metrics.
      */
     public function getCurrentLoadData(Request $request)
     {
@@ -227,14 +207,12 @@ class StatisticsController extends Controller
 
         list($startDate, $endDate, $dateFormat) = $this->getDateParameters($period);
 
-        $results = DB::table('document_logs')
-            ->join('users', 'document_logs.user_id', '=', 'users.id')
-            ->whereBetween('document_logs.created_at', [$startDate, $endDate])
-            ->where('document_logs.action', 'Received')
-            ->where('users.department_id', $departmentId)
+        $results = DB::table('daily_department_metrics')
+            ->where('department_id', $departmentId)
+            ->whereBetween('date', [$startDate, $endDate])
             ->select(
-                DB::raw("DATE_FORMAT(document_logs.created_at, '{$dateFormat}') as period_label"),
-                DB::raw('COUNT(DISTINCT document_logs.document_id) as received_count')
+                DB::raw("DATE_FORMAT(date, '{$dateFormat}') as period_label"),
+                DB::raw('SUM(received_count) as received_count')
             )
             ->groupBy('period_label')
             ->get()
@@ -244,7 +222,7 @@ class StatisticsController extends Controller
 
         foreach ($results as $label => $count) {
             if (isset($periodMap[$label])) {
-                $periodMap[$label] = $count;
+                $periodMap[$label] = (int) $count;
             }
         }
 
@@ -256,6 +234,7 @@ class StatisticsController extends Controller
 
     /**
      * Get data for the 'Throughput' chart.
+     * OPTIMIZED: Uses daily_department_metrics.
      */
     public function getThroughputData(Request $request)
     {
@@ -264,14 +243,12 @@ class StatisticsController extends Controller
 
         list($startDate, $endDate, $dateFormat) = $this->getDateParameters($period);
 
-        $results = DB::table('document_logs')
-            ->join('users', 'document_logs.user_id', '=', 'users.id')
-            ->whereBetween('document_logs.created_at', [$startDate, $endDate])
-            ->where('document_logs.action', 'Processing Complete')
-            ->where('users.department_id', $departmentId)
+        $results = DB::table('daily_department_metrics')
+            ->where('department_id', $departmentId)
+            ->whereBetween('date', [$startDate, $endDate])
             ->select(
-                DB::raw("DATE_FORMAT(document_logs.created_at, '{$dateFormat}') as period_label"),
-                DB::raw('COUNT(DISTINCT document_logs.document_id) as processed_count')
+                DB::raw("DATE_FORMAT(date, '{$dateFormat}') as period_label"),
+                DB::raw('SUM(processed_count + released_count) as processed_count')
             )
             ->groupBy('period_label')
             ->get()
@@ -281,7 +258,7 @@ class StatisticsController extends Controller
 
         foreach ($results as $label => $count) {
             if (isset($periodMap[$label])) {
-                $periodMap[$label] = $count;
+                $periodMap[$label] = (int) $count;
             }
         }
 
@@ -293,7 +270,7 @@ class StatisticsController extends Controller
 
     /**
      * Get data for the 'Average Processing Time' chart.
-     * Refactored to use Window Functions to avoid N+1 and RAM traps.
+     * OPTIMIZED: Uses daily_department_metrics.
      */
     public function getAverageProcessingTimeData(Request $request)
     {
@@ -302,37 +279,23 @@ class StatisticsController extends Controller
 
         list($startDate, $endDate, $dateFormat) = $this->getDateParameters($period);
         
-        // Use Window Function to find the gap between Received and Complete in one SQL query.
-        $durationsResults = DB::table(function ($query) {
-            $query->select(
-                'document_id',
-                'user_id',
-                'action',
-                'created_at',
-                DB::raw("LAG(created_at) OVER (PARTITION BY document_id, user_id ORDER BY created_at) as prev_created_at"),
-                DB::raw("LAG(action) OVER (PARTITION BY document_id, user_id ORDER BY created_at) as prev_action")
+        $results = DB::table('daily_department_metrics')
+            ->where('department_id', $departmentId)
+            ->whereBetween('date', [$startDate, $endDate])
+            ->select(
+                DB::raw("DATE_FORMAT(date, '{$dateFormat}') as period_label"),
+                DB::raw('SUM(total_processing_seconds) as total_seconds'),
+                DB::raw('SUM(processed_count + released_count) as total_count')
             )
-            ->from('document_logs')
-            ->whereIn('action', ['Received', 'Processing Complete']);
-        }, 'log_durations')
-        ->join('users', 'log_durations.user_id', '=', 'users.id')
-        ->where('users.department_id', $departmentId)
-        ->where('log_durations.action', 'Processing Complete')
-        ->where('log_durations.prev_action', 'Received')
-        ->whereBetween('log_durations.created_at', [$startDate, $endDate])
-        ->select(
-            DB::raw("DATE_FORMAT(log_durations.created_at, '{$dateFormat}') as period_label"),
-            DB::raw('AVG(TIMESTAMPDIFF(SECOND, log_durations.prev_created_at, log_durations.created_at)) / 3600 as avg_hours')
-        )
-        ->groupBy('period_label')
-        ->get()
-        ->pluck('avg_hours', 'period_label');
+            ->groupBy('period_label')
+            ->get();
 
         $periodMap = $this->generatePeriodMap($startDate, $endDate, $period);
 
-        foreach ($durationsResults as $label => $avg) {
-            if (isset($periodMap[$label])) {
-                $periodMap[$label] = round($avg, 2);
+        foreach ($results as $result) {
+            if (isset($periodMap[$result->period_label])) {
+                $avgHours = $result->total_count > 0 ? ($result->total_seconds / $result->total_count) / 3600 : 0;
+                $periodMap[$result->period_label] = round($avgHours, 2);
             }
         }
         
