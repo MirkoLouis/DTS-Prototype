@@ -2,13 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Department;
 use App\Models\Document;
 use App\Models\DocumentLog;
+use App\Services\MetricUpdateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class TaskController extends Controller
 {
+    protected $metrics;
+
+    public function __construct(MetricUpdateService $metrics)
+    {
+        $this->metrics = $metrics;
+    }
+
     /**
      * Display the tasks page for Staff, showing documents assigned to their department.
      */
@@ -26,11 +35,10 @@ class TaskController extends Controller
         if (!$userDepartment) {
             $documentsForUser = collect();
         } else {
+            // OPTIMIZATION: Use the indexed current_department_id instead of JSON extraction
             $query = Document::with('purpose')
                 ->where('status', 'processing')
-                ->where(function ($q) use ($userDepartment) {
-                    $q->whereRaw("JSON_UNQUOTE(JSON_EXTRACT(finalized_route, CONCAT('$[', current_step - 1, '].name'))) = ?", [$userDepartment->name]);
-                });
+                ->where('current_department_id', $userDepartment->id);
 
             // Apply Filters
             if ($searchTerm) {
@@ -98,11 +106,38 @@ class TaskController extends Controller
         $user = Auth::user()->load('department');
         $userDepartment = $user->department;
 
+        // Calculate processing time from the last 'Received' log for this department
+        $lastReceivedLog = $document->logs()
+            ->where('action', 'Received')
+            ->where('user_id', $user->id)
+            ->latest()
+            ->first();
+        
+        $secondsTaken = $lastReceivedLog ? now()->diffInSeconds($lastReceivedLog->created_at) : 0;
+
         // Advance the step and set status to 'in_transit' BEFORE signing
         $totalSteps = count($document->finalized_route);
         $document->current_step += 1;
         $document->status = 'in_transit';
+
+        // Update current_department_id to the NEXT department (if any)
+        $nextDepartmentId = null;
+        if ($document->current_step <= $totalSteps) {
+            $nextDeptName = $document->finalized_route[$document->current_step - 1]['name'];
+            $nextDept = Department::where('name', $nextDeptName)->first();
+            $nextDepartmentId = $nextDept ? $nextDept->id : null;
+        } else {
+            // If it was the last processing step, it's heading to Records Unit for release
+            $recordsUnit = Department::where('name', 'Records Unit')->first();
+            $nextDepartmentId = $recordsUnit ? $recordsUnit->id : null;
+        }
+        
+        $originalDepartmentId = $document->current_department_id;
+        $document->current_department_id = $nextDepartmentId;
         $document->save();
+
+        // Update Metrics for the COMPLETING department
+        $this->metrics->incrementProcessed($userDepartment->id, $secondsTaken);
 
         $action = 'Processing Complete';
         
@@ -122,6 +157,7 @@ class TaskController extends Controller
             // Revert state if signing fails
             $document->current_step -= 1;
             $document->status = 'processing';
+            $document->current_department_id = $originalDepartmentId;
             $document->save();
             return back()->with('error', 'Invalid Security PIN. Transaction aborted.');
         }
@@ -130,6 +166,7 @@ class TaskController extends Controller
             // Revert state if no signature found
             $document->current_step -= 1;
             $document->status = 'processing';
+            $document->current_department_id = $originalDepartmentId;
             $document->save();
             return back()->with('error', 'Your digital signature has not been initialized. Please refresh the page.');
         }

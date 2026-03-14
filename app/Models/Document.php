@@ -27,6 +27,9 @@ class Document extends Model
         'declined_at',
         'finalized_route',
         'current_step',
+        'current_department_id',
+        'released_at',
+        'released_by_user_id',
     ];
 
     /**
@@ -35,9 +38,27 @@ class Document extends Model
      * @var array<string, string>
      */
     protected $casts = [
-                                'guest_info' => 'array',
-                                'finalized_route' => 'array',        'declined_at' => 'datetime',
+        'guest_info' => 'array',
+        'finalized_route' => 'array',
+        'declined_at' => 'datetime',
+        'released_at' => 'datetime',
     ];
+
+    /**
+     * Get the user who released the document.
+     */
+    public function releasedByUser()
+    {
+        return $this->belongsTo(User::class, 'released_by_user_id');
+    }
+
+    /**
+     * Get the department currently responsible for the document.
+     */
+    public function currentDepartment()
+    {
+        return $this->belongsTo(Department::class, 'current_department_id');
+    }
 
     /**
      * Accessor for submitter name.

@@ -4,11 +4,19 @@ namespace App\Http\Controllers;
 
 use App\Models\Document;
 use App\Models\DocumentLog;
+use App\Services\MetricUpdateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class ReleasingController extends Controller
 {
+    protected $metrics;
+
+    public function __construct(MetricUpdateService $metrics)
+    {
+        $this->metrics = $metrics;
+    }
+
     /**
      * Display a listing of the documents ready for release.
      */
@@ -82,7 +90,15 @@ class ReleasingController extends Controller
             return redirect()->route('releasing')->with('error', 'This document has not completed all intermediate processing steps.');
         }
 
-        $document->update(['status' => 'ready_for_release']);
+        $document->update([
+            'status' => 'ready_for_release',
+            'current_department_id' => $user->department_id
+        ]);
+
+        // Update Metrics
+        if ($user->department_id) {
+            $this->metrics->incrementReceived($user->department_id);
+        }
 
         DocumentLog::create([
             'document_id' => $document->id,
@@ -111,8 +127,26 @@ class ReleasingController extends Controller
         $action = 'Document Released';
         $remarks = 'The document has been released to the client.';
 
+        // Calculate processing time from the last 'Ready for Releasing' log
+        $lastReadyLog = $document->logs()
+            ->where('action', 'Ready for Releasing')
+            ->latest()
+            ->first();
+        
+        $secondsTaken = $lastReadyLog ? now()->diffInSeconds($lastReadyLog->created_at) : 0;
+
         // Update document state BEFORE signing and logging to ensure integrity bonding
-        $document->update(['status' => 'completed']);
+        $document->update([
+            'status' => 'completed',
+            'current_department_id' => null,
+            'released_at' => now(),
+            'released_by_user_id' => $user->id,
+        ]);
+
+        // Update Metrics for the RELEASING department (Records Unit)
+        if ($user->department_id) {
+            $this->metrics->incrementReleased($user->department_id, $secondsTaken);
+        }
 
         // 1. Generate Cryptographic Signature (Bonded to the NOW COMPLETED document state)
         $stateHash = DocumentLog::calculateStateHash($document);
@@ -120,13 +154,23 @@ class ReleasingController extends Controller
 
         if ($signature === false) {
             // Revert status if signing fails
-            $document->update(['status' => 'ready_for_release']);
+            $document->update([
+                'status' => 'ready_for_release',
+                'current_department_id' => $user->department_id,
+                'released_at' => null,
+                'released_by_user_id' => null,
+            ]);
             return back()->with('error', 'Invalid Security PIN. Transaction aborted.');
         }
 
         if ($signature === null) {
             // Revert status if no signature found
-            $document->update(['status' => 'ready_for_release']);
+            $document->update([
+                'status' => 'ready_for_release',
+                'current_department_id' => $user->department_id,
+                'released_at' => null,
+                'released_by_user_id' => null,
+            ]);
             return back()->with('error', 'Your digital signature has not been initialized.');
         }
 

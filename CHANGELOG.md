@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.4-Alpha+202603142150] - 2026-03-14
+
+### ADDED
+- **Asynchronous Integrity Auditing:** Implemented a robust background job system (`IntegrityCheckJob`) for performing full-scale cryptographic audits without blocking the UI.
+- **Real-Time Audit Progress:** Integrated a dynamic progress modal with estimated time remaining and live status updates for system integrity verification.
+- **Performance Analytics V2:** Re-engineered the dashboard and statistics controllers to utilize pre-aggregated `DailyDepartmentMetric` data, ensuring sub-second response times for 1M+ record datasets.
+- **Metrics Backfilling Utility:** Added `dts:backfill-metrics` Artisan command to generate historical analytics data for existing or seeded datasets.
+- **Consolidated Documentation Suite:** Deeply refactored the project's documentation into three high-depth technical guides (`ARCHITECTURE.md`, `HARDWARE_SPECS.md`, `USER_GUIDE.md`), eliminating redundancy and improving navigation.
+- **Windows-Specific Performance Tuning:** Added instructions for managing MySQL RAM allocation and CPU Processor Affinity (`start /affinity`) on Windows environments.
+
+### FIXED
+- **Analytics "RAM Trap" Finalization:** Completely eliminated model hydration in dashboard queries by transitioning all chart data to indexed metric tables and SQL-level aggregations.
+- **Quick-Start Redundancy:** Streamlined the `README.md` setup guide by consolidating multiple install steps into the automated `composer run setup` command.
+- **Audit UI Stability:** Resolved several UI flickering and modal stacking issues in the System Health and Statistics dashboards.
+
+### CHANGED
+- **Removed Test Purpose:** Excised the "System Test: Full Route" purpose from seeders and UI dropdowns to ensure only valid official purposes are utilized.
+- **Schema Optimization:** Enhanced the "Genesis" migration with composite indexes on `current_department_id` and status fields for optimized document movement tracking.
+- **Documentation Categorization:** Organized the Project Commands Matrix into logical functional groups (Setup, Development, Production, etc.) for better developer onboarding.
+
 ## [1.9.3-Alpha+202603122031] - 2026-03-12
 
 ### ADDED

@@ -5,11 +5,19 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Document;
 use App\Models\DocumentLog;
+use App\Services\MetricUpdateService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rule;
 
 class ReturnRequestController extends Controller
 {
+    protected $metrics;
+
+    public function __construct(MetricUpdateService $metrics)
+    {
+        $this->metrics = $metrics;
+    }
+
     /**
      * Display the form for requesting a document return.
      *
@@ -65,7 +73,11 @@ class ReturnRequestController extends Controller
                 $document->finalized_route = $newRoute;
                 $document->status = 'in_transit'; // Put the document back in transit to the new step.
                 $document->current_step = $newStep; // Set the pointer to the new, correct step.
+                $document->current_department_id = $requestingDepartment->id;
                 $document->save();
+
+                // Update Metrics
+                $this->metrics->incrementReceived($requestingDepartment->id);
 
                 // 4. Log the action
                 DocumentLog::create([
@@ -111,7 +123,11 @@ class ReturnRequestController extends Controller
 
         // 4. Update the document
         $document->finalized_route = $newRoute;
+        $document->current_department_id = $requestingDepartment->id; // It will be heading here next
         $document->save();
+
+        // Update Metrics
+        $this->metrics->incrementReceived($requestingDepartment->id);
 
         // 5. Log the action
         DocumentLog::create([

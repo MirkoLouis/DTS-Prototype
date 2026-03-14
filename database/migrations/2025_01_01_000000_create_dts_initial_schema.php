@@ -132,12 +132,21 @@ return new class extends Migration
             $table->string('status')->default('pending');
             $table->json('finalized_route')->nullable();
             $table->integer('current_step')->nullable();
+            
+            // Denormalized Optimization Columns (Consolidated from 2026_03_13)
+            $table->foreignId('current_department_id')->nullable()->constrained('departments')->onDelete('set null');
+            $table->timestamp('released_at')->nullable();
+            $table->foreignId('released_by_user_id')->nullable()->constrained('users')->onDelete('set null');
+
             $table->timestamps();
 
             // Performance Indexes
             $table->index('status', 'idx_status');
             $table->index('created_at', 'idx_created_at');
             $table->index(['status', 'created_at'], 'idx_doc_status_created_composite');
+            $table->index('current_department_id', 'idx_doc_current_dept');
+            $table->index('released_at', 'idx_doc_released_at');
+            $table->index('released_by_user_id', 'idx_doc_released_by');
         });
 
         Schema::create('document_logs', function (Blueprint $table) {
@@ -170,6 +179,23 @@ return new class extends Migration
         });
 
         // 4. Analytics & Utilities
+        Schema::create('daily_department_metrics', function (Blueprint $table) { // Consolidated from 2026_03_13
+            $table->id();
+            $table->foreignId('department_id')->constrained()->onDelete('cascade');
+            $table->date('date');
+            $table->unsignedInteger('received_count')->default(0);
+            $table->unsignedInteger('processed_count')->default(0);
+            $table->unsignedInteger('released_count')->default(0);
+            $table->unsignedBigInteger('total_processing_seconds')->default(0);
+            $table->timestamps();
+
+            // Unique index for high-performance UPSERTS
+            $table->unique(['department_id', 'date'], 'idx_dept_date_unique');
+            
+            // Fast date-based lookups for charts
+            $table->index('date', 'idx_metrics_date');
+        });
+
         Schema::create('database_metrics', function (Blueprint $table) {
             $table->id();
             $table->unsignedInteger('connections');
@@ -188,6 +214,16 @@ return new class extends Migration
             $table->text('error_message')->nullable();
             $table->timestamps();
         });
+
+        Schema::create('integrity_checks', function (Blueprint $table) { // Consolidated from 2026_03_14
+            $table->uuid('id')->primary();
+            $table->foreignId('user_id')->constrained()->onDelete('cascade');
+            $table->string('status')->default('queued');
+            $table->unsignedInteger('progress')->default(0);
+            $table->json('results')->nullable();
+            $table->text('error_message')->nullable();
+            $table->timestamps();
+        });
     }
 
     /**
@@ -195,8 +231,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        Schema::dropIfExists('integrity_checks');
         Schema::dropIfExists('report_jobs');
         Schema::dropIfExists('database_metrics');
+        Schema::dropIfExists('daily_department_metrics');
         Schema::dropIfExists('prediction_keywords');
         Schema::dropIfExists('document_logs');
         Schema::dropIfExists('documents');

@@ -352,7 +352,8 @@
                 progressTime.textContent = 'Est. time remaining: Calculating...';
                 
                 closeReportModalBtn.textContent = 'Cancel Report';
-                closeReportModalBtn.classList.add('bg-red-500', 'text-white');
+                closeReportModalBtn.classList.remove('bg-white', 'text-gray-700', 'hover:bg-gray-50', 'dark:bg-gray-600', 'dark:text-gray-200', 'dark:hover:bg-gray-500');
+                closeReportModalBtn.classList.add('bg-red-500', 'text-white', 'hover:bg-red-600');
                 downloadBtnContainer.innerHTML = '';
 
                 startTime = Date.now();
@@ -412,7 +413,8 @@
             progressBar.style.width = '100%';
             progressBar.classList.remove('bg-blue-600');
             closeReportModalBtn.textContent = 'Close Window';
-            closeReportModalBtn.classList.remove('bg-red-500');
+            closeReportModalBtn.classList.remove('bg-red-500', 'text-white', 'hover:bg-red-600');
+            closeReportModalBtn.classList.add('bg-white', 'text-gray-700', 'hover:bg-gray-50', 'dark:bg-gray-600', 'dark:text-gray-200', 'dark:hover:bg-gray-500');
 
             if (success) {
                 progressBar.classList.add('bg-green-500');
