@@ -42,7 +42,7 @@ This project is a functional prototype for a modern, web-based Document Tracking
 2.  Install dependencies: `composer install` and `npm install`.
 3.  Create your `.env` file from `.env.example` and configure your database credentials.
 4.  Generate an application key: `php artisan key:generate`.
-5.  Run database migrations and seeders: `php artisan migrate:fresh --seed`. This will create the necessary tables and populate them with comprehensive, realistic data.
+5.  Run database migrations `php artisan migrate` and seeders: `php artisan migrate:fresh --seed`. This will create the necessary tables and populate them with comprehensive, realistic data.
 6.  Set up your local development environment by following the instructions in the section below.
 
 ## Local Development Environment
@@ -70,7 +70,7 @@ You must run two processes in separate terminals:
 
 1.  **Terminal 1: Start the PHP Backend Server:**
     ```bash
-    php artisan serve
+    php artisan serve --host=127.0.0.1 --port=3001
     ```
 2.  **Terminal 2: Start the Vite Frontend Server:**
     ```bash
