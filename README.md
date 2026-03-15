@@ -26,18 +26,15 @@ A comprehensive, production-ready prototype for a modern, web-based **Document T
 ---
 ## 📄 Example Output
 
-<<<<<<< HEAD
 1.  Clone the repository.
 2.  Install dependencies: `composer install` and `npm install`.
 3.  Create your `.env` file from `.env.example` and configure your database credentials.
 4.  Generate an application key: `php artisan key:generate`.
-5.  Run database migrations `php artisan migrate` and seeders: `php artisan migrate:fresh --seed`. This will create the necessary tables and populate them with comprehensive, realistic data.
+5.  Run database migrations and seeders: `composer run db:dev`. This will create the necessary tables and populate them with comprehensive, realistic data.
 6.  Set up your local development environment by following the instructions in the section below.
-=======
 Explore generated document tracking forms and administrative reports:
 -   **[Sample Tracking Form (PDF)](documentation/examples/document-tracking-form-DEPED-A84BC8C861.pdf):** A printable form given to guests with a unique tracking code and QR code.
 -   **[Sample Historical Report (PDF)](documentation/examples/released-documents-24a8d2af-8610-4db2-b38b-938249269b3e.pdf):** A comprehensive summary of documents processed over a specific period.
->>>>>>> 7852969e9df195118a5b02eee64c86f3cf8b3dc3
 
 ---
 
@@ -104,17 +101,80 @@ Refer to the `documentation/` directory for in-depth technical guides:
 3.  **Launch Secure Environment:**
     To enable mobile QR scanning and HTTPS, run these in separate terminals:
     ```bash
-<<<<<<< HEAD
-    php artisan serve --host=127.0.0.1 --port=3001
-    ```
-2.  **Terminal 2: Start the Vite Frontend Server:**
-    ```bash
-    npm run dev
-=======
     composer run dev    # Starts Server (Port 3050), Vite, Queue, and Scheduler
     composer run proxy  # Starts Secure HTTPS Bridge (Port 3051)
->>>>>>> 7852969e9df195118a5b02eee64c86f3cf8b3dc3
     ```
+
+### Troubleshooting
+
+#### `composer run dev` exits with code 1
+
+- On Windows, ensure your `composer.json` scripts are not using Linux-specific commands like `taskset` and `while true; do ...; done`.
+- If `composer run dev` works but `composer validate --strict` exits with code 1, your lock file is likely stale:
+
+```bash
+composer update --lock
+```
+
+Use full `composer update` only when you intentionally want to refresh package versions.
+
+#### App URL cannot be reached
+
+Ensure `.env` `APP_URL` matches the running server port. Default local setup:
+
+```dotenv
+APP_URL=http://localhost:3050
+VITE_APP_URL="${APP_URL}"
+VITE_HMR_HOST=localhost
+```
+
+If using HTTPS proxy (`composer run proxy`), set `APP_URL=https://localhost:3051`.
+
+#### `Unknown column 'private_key'` SQL error
+
+This happens when the database was initialized before the `private_key` column existed in the consolidated schema. Rebuild the database:
+
+```bash
+composer run db:dev
+```
+
+This command drops and recreates all tables, then seeds development data.
+
+#### `Target class [DatabaseSeeder] does not exist`
+
+If this appears during `php artisan migrate:fresh --seed`, run:
+
+```bash
+composer run db:dev
+```
+
+or explicitly specify the seeder:
+
+```bash
+php artisan migrate:fresh --seed --seeder=DevelopmentSeeder
+```
+
+#### `composer run proxy` fails with `ENOENT` for certificate files
+
+If `local-ssl-proxy` cannot find `localhost.crt` or `localhost.key`, ensure the proxy script uses the actual certificate files present in this repository:
+
+```bash
+composer run proxy
+```
+
+Expected script in `composer.json`:
+
+```json
+"proxy": "npx local-ssl-proxy --source 3051 --target 3050 --cert localhost.pem --key localhost-key.pem"
+```
+
+#### `composer run proxy` shows `DEP0060 util._extend` warning
+
+If you see a Node deprecation warning after `Started proxy: https://localhost:3051 -> http://localhost:3050`, the proxy is still running correctly. This warning comes from an upstream dependency used by `local-ssl-proxy` on newer Node versions.
+
+#### `[schedule]` logs appear while running `composer run dev`
+
+This is expected. `composer run dev` starts `php artisan schedule:work`, so periodic tasks (for example `dts:verify-integrity` and `dts:snapshot-db-metrics`) are logged by design.
 
 ---
 

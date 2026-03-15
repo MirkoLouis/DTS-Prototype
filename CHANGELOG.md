@@ -2,6 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.5-Alpha+202603151200] - 2026-03-15
+
+### FIXED
+- **Windows Development Script Compatibility:** Replaced Linux-specific `taskset` and Bash loop scripts in `composer.json` with cross-shell commands so `composer run dev` no longer exits with code 1 on Windows.
+- **Broken Production Script Reference:** Updated the production concurrent script to remove the missing `logs:dev` task reference that could terminate process groups unexpectedly.
+- **Unreachable APP_URL:** Corrected `.env` `APP_URL` from `http://localhost:3001` to `http://localhost:3050` to match the port used by `composer run serve:dev`, making the application accessible after running `composer run dev`.
+- **Missing Vite Environment Variables:** Added `VITE_APP_URL` and `VITE_HMR_HOST` to `.env` so `vite.config.js` correctly resolves the HMR host and asset base URL.
+- **Missing `private_key` Column:** Resolved `SQLSTATE[42S22]: Column not found: 1054 Unknown column 'private_key'` error caused by the live database being initialized before the column was consolidated into the genesis migration. Running `composer run db:dev` (`migrate:fresh`) correctly recreates the schema with all columns.
+- **Missing Default Seeder Entry Point:** Resolved `Target class [DatabaseSeeder] does not exist` by adding `database/seeders/DatabaseSeeder.php` and delegating to `DevelopmentSeeder`, allowing `php artisan migrate:fresh --seed` to work in this repository.
+- **HTTPS Proxy Certificate Path Error:** Resolved `ENOENT` failure in `composer run proxy` by updating the proxy script to use existing certificate filenames (`localhost.pem` and `localhost-key.pem`) instead of missing `.crt/.key` files.
+- **Proxy Runtime Clarification:** Documented that Node's `DEP0060 util._extend` message shown after `composer run proxy` starts is a non-blocking deprecation warning from an upstream dependency and does not indicate proxy failure.
+
+### CHANGED
+- **Development Runtime Behavior:** The `serve:dev`, `queue:dev`, `vite:dev`, and `schedule:dev` commands now run as native long-running processes managed directly by `concurrently`.
+- **Validation Note:** `composer validate --strict` now primarily reports lock-file synchronization status when `composer.lock` is stale relative to `composer.json`.
+- **Documented Database Init Requirement:** Clarified that `composer run db:dev` must be run once before `composer run dev` to ensure the database schema is up to date, especially after schema changes to the genesis migration.
+- **Scheduler Log Visibility:** Clarified that `[schedule]` entries during `composer run dev` are expected Laravel scheduler activity (`schedule:work`) for periodic commands like integrity checks and DB metric snapshots.
+
 ## [1.9.4-Alpha+202603142150] - 2026-03-14
 
 ### ADDED
