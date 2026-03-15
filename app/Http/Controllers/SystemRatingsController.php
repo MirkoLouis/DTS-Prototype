@@ -11,7 +11,7 @@ class SystemRatingsController extends Controller
     /**
      * Display a dashboard of client ratings and feedback.
      */
-    public function index()
+    public function index(Request $request)
     {
         $stats = Document::query()
             ->select(
@@ -26,14 +26,32 @@ class SystemRatingsController extends Controller
             ->whereNotNull('rating')
             ->first();
 
-        $documents = Document::with('purpose')
-            ->whereNotNull('rating')
-            ->latest('updated_at') // Sort by when they were completed/rated
-            ->paginate(15);
+        $query = Document::with('purpose')
+            ->whereNotNull('rating');
+
+        if ($request->filled('rating')) {
+            $query->where('rating', $request->input('rating'));
+        }
+
+        if ($request->filled('purpose')) {
+            $query->whereHas('purpose', function ($q) use ($request) {
+                $q->where('name', $request->input('purpose'));
+            });
+        }
+
+        if ($request->filled('date')) {
+            $query->whereDate('updated_at', $request->input('date'));
+        }
+
+        $documents = $query->latest('updated_at') // Sort by when they were completed/rated
+            ->paginate(15)->withQueryString();
+        
+        $purposes = \App\Models\Purpose::orderBy('name')->get();
 
         return view('admin.system.ratings', [
             'stats' => $stats,
             'documents' => $documents,
+            'purposes' => $purposes,
         ]);
     }
 }

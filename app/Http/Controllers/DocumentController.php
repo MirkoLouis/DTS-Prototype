@@ -6,6 +6,7 @@ use App\Models\Department;
 use App\Models\Document;
 use App\Models\DocumentLog;
 use App\Jobs\UpdateKeywordWeights;
+use App\Services\MetricUpdateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -13,6 +14,13 @@ use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class DocumentController extends Controller
 {
+    protected $metrics;
+
+    public function __construct(MetricUpdateService $metrics)
+    {
+        $this->metrics = $metrics;
+    }
+
     /**
      * Show the form for managing a document's route.
      *
@@ -21,6 +29,8 @@ class DocumentController extends Controller
      */
     public function manage(Document $document)
     {
+        \Illuminate\Support\Facades\Gate::authorize('manage', $document);
+
         // Eager load the purpose to get the suggested_route
         $document->load('purpose');
         $departments = Department::all();
@@ -40,8 +50,11 @@ class DocumentController extends Controller
      */
     public function finalize(Request $request, Document $document)
     {
+        \Illuminate\Support\Facades\Gate::authorize('manage', $document);
+
         $request->validate([
             'final_route' => 'required|json',
+            'pin' => 'required|string',
         ]);
 
         $routeNames = json_decode($request->final_route);
@@ -50,36 +63,65 @@ class DocumentController extends Controller
             return back()->with('error', 'The route cannot be empty. Please add at least one step.');
         }
 
+        $user = Auth::user();
+        $firstDepartmentName = $routeNames[0];
+        $firstDepartment = Department::where('name', $firstDepartmentName)->first();
+
         // Convert the simple array of names into the new structured format.
         $finalizedRoute = array_map(function ($name) {
             return ['name' => $name, 'type' => 'initial'];
         }, $routeNames);
 
-        // Update the document
+        // Update the document BEFORE signing.
+        // This is critical because the DocumentLog::calculateStateHash()
+        // and the automatic 'creating' event in DocumentLog model
+        // must use the SAME document state.
         $document->update([
-            'status' => 'in_transit', // Changed from 'processing'
+            'status' => 'in_transit',
             'finalized_route' => $finalizedRoute,
-            'current_step' => 1, // Set the current step to the first step in the route
+            'current_step' => 1,
+            'current_department_id' => $firstDepartment ? $firstDepartment->id : null,
         ]);
+
+        // Update Metrics
+        if ($firstDepartment) {
+            $this->metrics->incrementReceived($firstDepartment->id);
+        }
+
+        $action = 'Accepted and Document Routing finalized';
+        $remarks = "Route finalized. In transit to {$firstDepartmentName}.";
+
+        // 1. Generate Cryptographic Signature (Bonded to the NOW UPDATED document state)
+        $stateHash = DocumentLog::calculateStateHash($document);
+        $signature = $user->sign($request->pin, $action, $stateHash);
+
+        if ($signature === false) {
+            return back()->with('error', 'Invalid Security PIN. Transaction aborted.');
+        }
+
+        if ($signature === null) {
+            return back()->with('error', 'Your digital signature has not been initialized.');
+        }
 
         // "Learn" from the officer's changes
         $purpose = $document->purpose;
         if ($purpose->suggested_route !== $routeNames) {
-            // If the purpose is not official, dispatch a job to learn from the changes.
             if (!$purpose->is_official) {
-                UpdateKeywordWeights::dispatch($purpose->name, $routeNames);
+                // Combine title and purpose for better prediction context
+                $combinedContext = $document->title . ' ' . $purpose->name;
+                UpdateKeywordWeights::dispatch($combinedContext, $routeNames);
             }
-            // Update the purpose's suggested_route for immediate use
             $purpose->update(['suggested_route' => $routeNames]);
         }
 
-        // Create the initial document log
-        $firstDepartment = $finalizedRoute[0]['name'];
+        // Create the initial document log with the real signature
         DocumentLog::create([
             'document_id' => $document->id,
-            'user_id' => Auth::id(),
-            'action' => 'Accepted and Document Routing finalized',
-            'remarks' => "Route finalized. In transit to {$firstDepartment}.",
+            'user_id' => $user->id,
+            'action' => $action,
+            'remarks' => $remarks,
+            'signature' => $signature,
+            'document_state_hash' => $stateHash, // Explicitly pass the hash used for signing
         ]);
 
         return redirect()->route('intake')->with('success', 'Document accepted and is now in transit!');
@@ -94,6 +136,8 @@ class DocumentController extends Controller
      */
     public function decline(Request $request, Document $document)
     {
+        \Illuminate\Support\Facades\Gate::authorize('manage', $document);
+
         // Ensure only pending documents can be declined
         if ($document->status !== 'pending') {
             return back()->with('error', 'This document cannot be declined as it is already being processed.');
@@ -143,7 +187,14 @@ class DocumentController extends Controller
             // Is it waiting for the final receive by Records Unit?
             if ($currentStepIndex >= count($route)) {
                 if ($user->department && $user->department->name === 'Records Unit') {
-                    $document->update(['status' => 'ready_for_release']);
+                    $document->update([
+                        'status' => 'ready_for_release',
+                        'current_department_id' => $user->department_id
+                    ]);
+
+                    // Update Metrics
+                    $this->metrics->incrementReceived($user->department_id);
+
                     DocumentLog::create([
                         'document_id' => $document->id, 'user_id' => $user->id, 'action' => 'Ready for Releasing',
                         'remarks' => 'All processing steps completed. Document received by Records Unit for final releasing.',
@@ -155,7 +206,14 @@ class DocumentController extends Controller
             else {
                 $responsibleDepartmentName = $route[$currentStepIndex]['name'];
                 if ($user->department && $user->department->name === $responsibleDepartmentName) {
-                    $document->update(['status' => 'processing']);
+                    $document->update([
+                        'status' => 'processing',
+                        'current_department_id' => $user->department_id
+                    ]);
+
+                    // Update Metrics
+                    $this->metrics->incrementReceived($user->department_id);
+
                     DocumentLog::create([
                         'document_id' => $document->id, 'user_id' => $user->id, 'action' => 'Received',
                         'remarks' => "Document received by {$user->department->name}.",
@@ -206,14 +264,79 @@ class DocumentController extends Controller
      * @param  \App\Models\Document  $document
      * @return \Illuminate\View\View
      */
-    public function show(Document $document)
+    public function show(Document $document, Request $request)
     {
+        \Illuminate\Support\Facades\Gate::authorize('view', $document);
+
         $document->load(['purpose', 'logs.user']);
+
+        // Default back URL based on role
+        $role = Auth::user()->role;
+        $defaultBackUrl = match($role) {
+            'admin' => route('admin.dashboard'),
+            'officer' => route('officer.tasks'),
+            'staff' => route('staff.tasks'),
+            default => route('dashboard'),
+        };
+
         $backUrl = url()->previous();
+        
+        // Handle specific back_to redirection if provided via query param
+        $backTo = $request->query('back_to');
+        if ($backTo) {
+            if ($backTo === 'integrity-monitor') {
+                $backUrl = route('integrity-monitor');
+            } elseif ($backTo === 'intake') {
+                $backUrl = route('intake');
+            } elseif ($backTo === 'releasing') {
+                $backUrl = route('releasing');
+            } elseif ($backTo === 'tasks') {
+                $backUrl = match($role) {
+                    'officer' => route('officer.tasks'),
+                    'staff' => route('staff.tasks'),
+                    default => $defaultBackUrl,
+                };
+            } elseif ($backTo === 'completed') {
+                $backUrl = match($role) {
+                    'officer' => route('officer.tasks.completed'),
+                    'staff' => route('staff.tasks.completed'),
+                    default => $defaultBackUrl,
+                };
+            } elseif (str_contains($backTo, config('app.url'))) {
+                // If it's a raw URL, ensure it's from our own app
+                $backUrl = $backTo;
+            }
+        }
+
+        // If the previous URL is the same as the current one (e.g., after a refresh),
+        // or if it's external, or if it's the login/logout page, use the default dashboard route.
+        if (!$backUrl || $backUrl === url()->current() || !str_contains($backUrl, config('app.url'))) {
+            $backUrl = $defaultBackUrl;
+        }
 
         return view('general.show-document', [
             'document' => $document,
             'backUrl' => $backUrl,
+            'backToKey' => $backTo, // Pass the key itself to preserve it in the "View Hash Chain" link
+        ]);
+    }
+
+    /**
+     * Display the hash chain for a specific document.
+     *
+     * @param  \App\Models\Document  $document
+     * @return \Illuminate\View\View
+     */
+    public function showHashChain(Document $document, Request $request)
+    {
+        \Illuminate\Support\Facades\Gate::authorize('view', $document);
+
+        $document->load(['logs.user']); // Load logs and the user associated with each log
+
+        return view('general.document-hash-chain', [
+            'document' => $document,
+            'logs' => $document->logs()->orderBy('created_at')->get(), // Ensure logs are chronological
+            'back_to' => $request->query('back_to'), // Pass the back_to parameter to the view
         ]);
     }
 
@@ -225,6 +348,8 @@ class DocumentController extends Controller
      */
     public function freeze(Document $document)
     {
+        \Illuminate\Support\Facades\Gate::authorize('freeze', $document);
+
         $document->status = 'frozen';
         $document->save();
 
@@ -246,19 +371,42 @@ class DocumentController extends Controller
      */
     public function unfreeze(Document $document)
     {
-        // Add logic to determine what the previous status was, or just revert to 'processing'.
-        // For simplicity, we'll revert to 'processing'.
-        $document->status = 'processing';
+        \Illuminate\Support\Facades\Gate::authorize('unfreeze', $document);
+
+        // Find the last status before it was frozen by looking at the second to last log entry
+        // (The last log entry would be the 'frozen' action itself)
+        $lastValidLog = $document->logs()
+            ->where('action', '!=', 'ADMIN: Document frozen.')
+            ->where('action', '!=', 'System Auto-Freeze')
+            ->orderBy('id', 'desc')
+            ->first();
+
+        $previousStatus = $document->status; // Default to current if everything fails
+
+        if ($lastValidLog) {
+            // Map the last action to its likely status
+            $previousStatus = match($lastValidLog->action) {
+                'Submitted' => 'pending',
+                'Accepted and Document Routing finalized' => 'in_transit',
+                'Received' => 'processing',
+                'Processing Complete' => 'in_transit',
+                'Ready for Releasing' => 'ready_for_release',
+                'Document Released' => 'completed',
+                default => 'processing'
+            };
+        }
+
+        $document->status = $previousStatus;
         $document->save();
 
         DocumentLog::create([
             'document_id' => $document->id,
             'user_id' => Auth::id(),
             'action' => 'ADMIN: Document unfrozen.',
-            'remarks' => 'An administrator has unfrozen this document, allowing it to continue processing.',
+            'remarks' => "An administrator has unfrozen this document, restoring its status to " . ucfirst($previousStatus) . ".",
         ]);
 
-        return response()->json(['status' => 'success', 'message' => 'Document has been unfrozen successfully.']);
+        return response()->json(['status' => 'success', 'message' => "Document has been unfrozen and restored to " . ucfirst($previousStatus) . "."]);
     }
 
     /**

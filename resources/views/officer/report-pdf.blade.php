@@ -4,178 +4,203 @@
     <meta charset="UTF-8">
     <title>Released Documents Report</title>
     <style>
+        /* Define margins using padding on the body for better merging compatibility */
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
-        html, body {
+        
+        body {
             font-family: 'Helvetica', 'Arial', sans-serif;
-            padding-top: .5in;
-            padding-left: .5in;
-            padding-right: .5in;
+            font-size: 9px;
+            padding: 0.5in 0.5in 0.2in 0.5in; /* Top, Right, Bottom, Left */
+            background-color: white;
         }
 
         .header {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
         .header img {
-            width: 60px;
+            width: 50px;
             height: auto;
         }
         .header p {
             margin: 0;
-            font-size: 14px;
+            font-size: 11px;
         }
         .header .division {
             font-weight: bold;
-            margin-top: 5px;
-            font-size: 22px;
+            margin-top: 3px;
+            font-size: 16px;
         }
         .title {
             text-align: center;
             font-weight: bold;
-            font-size: 20px;
+            font-size: 14px;
             margin-bottom: 10px;
+            text-transform: uppercase;
         }
-        .report-details {
-            font-size: 12px;
-        }
-        .charts-container {
-            margin-top: 15px;
-            margin-bottom: 15px;
+        .charts-section {
             text-align: center;
         }
-        .charts-container img {
-            max-width: 45%;
+        .charts-section img {
+            max-width: 100%;
             height: auto;
-            margin: 25px;
+            border: 1px solid #eee;
         }
         .filters {
-            margin-top: 15px;
-            margin-bottom: 10px;
-            font-size: 11px;
+            margin-bottom: 15px;
             font-style: italic;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 5px;
         }
+        
         .styled-table {
             width: 100%;
             border-collapse: collapse;
-            font-size: 10px;
-            margin-bottom: .3in;
-            table-layout: fixed; /* Added to ensure fixed column widths are respected */
+            table-layout: fixed;
         }
         .styled-table th, .styled-table td {
-            border: 1px solid #ddd;
-            padding: 6px;
-            word-wrap: break-word; /* Allow long words to break within cells */
+            border: 1px solid #999;
+            padding: 4px;
+            vertical-align: top;
+            word-wrap: break-word;
         }
         .styled-table th {
-            background-color: #f2f2f2;
+            background-color: #f0f0f0;
+            font-weight: bold;
             text-align: left;
         }
-        /* Custom styles for columns */
-        .no-wrap {
-            white-space: nowrap;
+
+        .col-tracking { width: 15%; }
+        .col-title { width: 30%; }
+        .col-purpose { width: 15%; }
+        .col-district { width: 10%; }
+        .col-submitter { width: 15%; }
+        .col-date { width: 15%; }
+
+        .fixed-height-cell {
+            height: 24px; 
+            line-height: 12px;
+            overflow: hidden;
         }
-        .tracking-code-col {
-            width: 15%; /* Adjusted width */
+
+        .page-break {
+            page-break-after: always;
         }
-        .title-col {
-            width: 30%; /* Give more space for title, it can wrap */
-        }
-        .purpose-col {
-            width: 25%; /* Shortened width for purpose */
-        }
-        .submitted-by-col {
-            width: 15%; /* Default width */
-        }
-        .released-at-col {
-            width: 15%; /* Adjusted width */
-        }
+
         .footer {
+            margin-top: 10px;
             text-align: right;
-            font-size: 10px;
-            color: #777;
+            font-size: 7px;
+            color: #999;
         }
     </style>
 </head>
 <body>
-    <div class="header">
-        <img src="https://upload.wikimedia.org/wikipedia/commons/2/23/Seal_of_the_Department_of_Education_of_the_Philippines.png" alt="DepEd Logo">
-        <p>Republic of the Philippines</p>
-        <p>Department of Education</p>
-        <p>Region X - Northern Mindanao</p>
-        <p class="division">SCHOOLS DIVISION OF ILIGAN CITY</p>
-    </div>
-
-    <h2 class="title">Released Documents Report</h2>
-
-    <div class="report-details">
-        <strong>Department:</strong> {{ $departmentName }}<br>
-        <strong>Date Generated:</strong> {{ now()->format('F d, Y h:i A') }}
-    </div>
-
-    @if (!empty($charts))
-        <div class="charts-container">
-            <h3 class="title">Charts</h3>
-            @foreach ($charts as $chart)
-                @if ($chart)
-                    <img src="{{ $chart }}">
-                @endif
-            @endforeach
+    @if ($isFirstChunk)
+        {{-- PAGE 1 --}}
+        <div class="header">
+            <img src="{{ public_path('images/logoipsum-411.png') }}" alt="DepEd Logo">
+            <p>Republic of the Philippines</p>
+            <p>Department of Education</p>
+            <p>Region X - Northern Mindanao</p>
+            <p class="division">SCHOOLS DIVISION OF ILIGAN CITY</p>
         </div>
+
+        <h2 class="title">Released Documents Report</h2>
+
+        <div style="margin-bottom: 10px;">
+            <strong>Department:</strong> {{ $departmentName }}<br>
+            <strong>Date Generated:</strong> {{ now()->format('F d, Y h:i A') }}
+        </div>
+
+        <div class="filters">
+            <strong>Filters Applied:</strong>
+            @php
+                $allowedKeys = ['year', 'month', 'day', 'purpose_id', 'submitter', 'search'];
+                $displayFilters = array_filter($filters, function($value, $key) use ($allowedKeys) {
+                    return in_array($key, $allowedKeys) && !empty($value) && $value !== 'all';
+                }, ARRAY_FILTER_USE_BOTH);
+            @endphp
+            @if(empty($displayFilters)) None @else
+                @foreach($displayFilters as $key => $value)
+                    <span>{{ ucfirst(str_replace('_', ' ', $key)) }}: <strong>
+                        @if ($key === 'month') {{ date('F', mktime(0, 0, 0, $value, 10)) }}
+                        @elseif ($key === 'purpose_id') {{ \App\Models\Purpose::find($value)?->name ?? $value }}
+                        @else {{ $value }} @endif
+                    </strong>;</span>
+                @endforeach
+            @endif
+        </div>
+
+        @if (isset($charts['throughput']))
+            <div class="charts-section">
+                <h3 style="margin-bottom: 15px; text-decoration: underline; font-size: 18px;">{{ $departmentName }} Performance Charts</h3>
+                <h4 style="margin-bottom: 8px; font-size: 14px;">Documents Processed Over Time</h4>
+                <img src="{{ $charts['throughput'] }}">
+            </div>
+            <div class="page-break"></div>
+        @endif
+
+        {{-- PAGE 2 (If charts exist) --}}
+        @if (isset($charts['load']) || isset($charts['avg_time']))
+            <div class="charts-section">
+                @if (isset($charts['load']))
+                    <div style="margin-bottom: 25px;">
+                        <h4 style="margin-bottom: 8px; font-size: 14px;">Documents Received</h4>
+                        <img src="{{ $charts['load'] }}" style="max-width: 90%;">
+                    </div>
+                @endif
+
+                @if (isset($charts['avg_time']))
+                    <div style="margin-bottom: 25px;">
+                        <h4 style="margin-bottom: 8px; font-size: 14px;">Average Processing Time</h4>
+                        <img src="{{ $charts['avg_time'] }}" style="max-width: 90%;">
+                    </div>
+                @endif
+            </div>
+            <div class="page-break"></div>
+        @elseif (isset($charts['throughput']))
+            {{-- We already had throughput and broke the page, but no other charts. --}}
+            {{-- The next content (table) will start on the new page. --}}
+        @endif
     @endif
 
-    <div class="filters">
-        <strong>Filters Applied:</strong>
-        @if(empty(array_filter($filters)))
-            None
-        @else
-            @foreach($filters as $key => $value)
-                @if($value && $value !== 'all')
-                    <span>{{ ucfirst(str_replace('_', ' ', $key)) }}: <strong>
-                        @if ($key === 'month')
-                            {{ date('F', mktime(0, 0, 0, $value, 10)) }}
-                        @else
-                            {{ $value }}
-                        @endif
-                    </strong>;</span>
-                @endif
-            @endforeach
-        @endif
-    </div>
-
+    {{-- Data Table --}}
     <table class="styled-table">
         <thead>
             <tr>
-                <th class="tracking-code-col no-wrap">Tracking Code</th>
-                <th class="title-col">Title</th>
-                <th class="purpose-col">Purpose</th>
-                <th class="submitted-by-col">Submitted By</th>
-                <th class="released-at-col no-wrap">Released At</th>
+                <th class="col-tracking">Tracking Code</th>
+                <th class="col-title">Title</th>
+                <th class="col-purpose">Purpose</th>
+                <th class="col-district">District</th>
+                <th class="col-submitter">Submitted By</th>
+                <th class="col-date">Released At</th>
             </tr>
         </thead>
         <tbody>
-            @forelse ($releasedDocuments as $doc)
+            @foreach ($releasedDocuments as $doc)
                 <tr>
-                    <td class="no-wrap">{{ $doc->tracking_code }}</td>
-                    <td>{{ $doc->title }}</td>
-                    <td class="purpose-col">{{ $doc->purpose->name }}</td>
+                    <td>{{ $doc->tracking_code }}</td>
+                    <td>
+                        <div class="fixed-height-cell">
+                            {{ $doc->title }}
+                        </div>
+                    </td>
+                    <td>{{ $doc->purpose->name }}</td>
+                    <td>{{ $doc->district }}</td>
                     <td>{{ $doc->guest_info['name'] ?? 'N/A' }}</td>
-                    <td class="no-wrap">{{ $doc->updated_at->format('Y-m-d h:i A') }}</td>
+                    <td>{{ $doc->updated_at->format('Y-m-d h:i A') }}</td>
                 </tr>
-            @empty
-                <tr>
-                    <td colspan="5" style="text-align: center;">No released documents found for the selected criteria.</td>
-                </tr>
-            @endforelse
+            @endforeach
         </tbody>
     </table>
 
     <div class="footer">
-        Generated by the Document Tracking System.
+        Document Tracking System - Batch processed at {{ now()->format('h:i:s A') }}
     </div>
-
 </body>
 </html>

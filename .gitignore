@@ -67,7 +67,6 @@ package-lock.json
 /database/database.sqlite-journal
 /sources/
 /old/
-/documentation/
 
 Homestead.yaml
 Homestead.json
@@ -77,9 +76,13 @@ yarn-error.log
 .idea
 phpstan-baseline.neon
 
-GEMINI.md                                                                             │
-ARTISAN_COMMANDS.md                                                                   │
-DEPARTMENT_ROLES.md                                                                   │
-PRESENTATION_SCRIPT.md                                                                │
+commit.md
+GEMINI.md
+ARTISAN_COMMANDS.md
+DEPARTMENT_ROLES.md
+PRESENTATION_SCRIPT.md
 GEMINI.md
 ADMIN_DASHBOARD_SUGGESTIONS.md
+BLOCKCHAIN_ANALYSIS.md
+REDIS_IMPLEMENTATION_PLAN.md
+FINDINGS.md

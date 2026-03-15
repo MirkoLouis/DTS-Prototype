@@ -5,7 +5,7 @@
         </h2>
     </x-slot>
 
-    <div class="py-12">
+    <div class="py-2">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
             <!-- Action Buttons -->
@@ -34,6 +34,12 @@
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900 dark:text-gray-100">
                     <h3 class="text-lg font-semibold mb-4">Available Backups</h3>
+                    <form action="{{ route('system.backups.index') }}" method="GET" class="mb-4">
+                        <div class="flex items-center space-x-4">
+                            <input type="text" name="search" placeholder="Search by file name or date" class="border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" value="{{ request('search') }}">
+                            <a href="{{ route('system.backups.index') }}" class="text-gray-500 hover:text-gray-700">Clear</a>
+                        </div>
+                    </form>
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead class="bg-gray-50 dark:bg-gray-700">
@@ -202,6 +208,18 @@
                     console.error('Error polling for backups:', error);
                     clearInterval(pollingInterval);
                     clearTimeout(pollingTimeout);
+                });
+            }
+
+            const filterForm = document.querySelector('form[action="{{ route('system.backups.index') }}"]');
+            if (filterForm) {
+                const searchInput = filterForm.querySelector('input[name="search"]');
+                let debounceTimer;
+                searchInput.addEventListener('keyup', () => {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(() => {
+                        filterForm.submit();
+                    }, 300);
                 });
             }
         });

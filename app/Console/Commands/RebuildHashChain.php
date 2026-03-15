@@ -58,8 +58,10 @@ class RebuildHashChain extends Command
 
             $log->previous_hash = $previousHash;
             
-            $timestampForHashing = Carbon::parse($log->created_at)->toIso8601String();
-            $dataToHash = $log->document_id . $log->user_id . $log->action . $timestampForHashing . $previousHash;
+            $timestampForHashing = Carbon::parse($log->created_at)->startOfSecond()->toIso8601String();
+            
+            // Include document_state_hash and signature to match DocumentLog::boot() logic
+            $dataToHash = $log->document_id . $log->user_id . $log->action . $timestampForHashing . $previousHash . $log->document_state_hash . $log->signature;
             $newHash = hash('sha256', $dataToHash);
 
             $log->hash = $newHash;

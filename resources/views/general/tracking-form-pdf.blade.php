@@ -103,7 +103,7 @@
         function renderFormContent($details, $rowCount, $qrCode, $trackingUrl) {
             echo '
             <div class="header">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/2/23/Seal_of_the_Department_of_Education_of_the_Philippines.png" alt="DepEd Logo">
+                <img src="' . public_path('images/logoipsum-411.png') . '" alt="DepEd Logo">
                 <p>Republic of the Philippines</p>
                 <p>Department of Education</p>
                 <p>Region X - Northern Mindanao</p>

@@ -35,6 +35,14 @@ class BackupManagerController extends Controller
                     'last_modified' => Carbon::createFromTimestamp($disk->lastModified($file)),
                 ];
             })
+            ->when($request->filled('search'), function ($collection) use ($request) {
+                $search = strtolower($request->input('search'));
+                return $collection->filter(function ($backup) use ($search) {
+                    $fileName = strtolower($backup['file_name']);
+                    $date = strtolower($backup['last_modified']->format('M d, Y, h:i A'));
+                    return str_contains($fileName, $search) || str_contains($date, $search);
+                });
+            })
             ->sortByDesc('last_modified') // Sort by last modified date, most recent first
             ->values(); // Reset keys after sorting
 
@@ -76,8 +84,10 @@ class BackupManagerController extends Controller
     public function download($fileName)
     {
         $diskName = config('backup.backup.destination.disks')[0];
-        // $appName = config('backup.backup.name'); // Not needed anymore
-        $filePath = $fileName; // $fileName now contains the full relative path (e.g., 'DTS_Prototype/2026-01-12-...')
+        // Sanitize the fileName to prevent path traversal
+        $safeFileName = basename($fileName);
+        $appName = config('backup.backup.name');
+        $filePath = $appName . '/' . $safeFileName;
 
         if (Storage::disk($diskName)->exists($filePath)) {
             return Storage::disk($diskName)->download($filePath);
@@ -95,12 +105,14 @@ class BackupManagerController extends Controller
     public function delete($fileName)
     {
         $diskName = config('backup.backup.destination.disks')[0];
-        // $appName = config('backup.backup.name'); // Not needed anymore
-        $filePath = $fileName; // $fileName now contains the full relative path (e.g., 'DTS_Prototype/2026-01-12-...')
+        // Sanitize the fileName to prevent path traversal
+        $safeFileName = basename($fileName);
+        $appName = config('backup.backup.name');
+        $filePath = $appName . '/' . $safeFileName;
 
         if (Storage::disk($diskName)->exists($filePath)) {
             Storage::disk($diskName)->delete($filePath);
-            return back()->with('success', "Backup '{$fileName}' was deleted successfully.");
+            return back()->with('success', "Backup '{$safeFileName}' was deleted successfully.");
         }
 
         return back()->with('error', 'The requested backup file could not be found for deletion.');

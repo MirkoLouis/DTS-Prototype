@@ -23,6 +23,9 @@ class User extends Authenticatable
         'password',
         'role',
         'department_id',
+        'public_key',
+        'private_key',
+        'security_key_set_at',
     ];
 
     /**
@@ -33,6 +36,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'private_key',
     ];
 
     /**
@@ -45,7 +49,21 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'security_key_set_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Sign data using the user's private key, PIN, and document state hash.
+     * 
+     * @param string $pin
+     * @param string $actionText
+     * @param string $stateHash
+     * @return string|false Base64 encoded signature or false if PIN is wrong.
+     */
+    public function sign(string $pin, string $actionText, string $stateHash)
+    {
+        return DocumentLog::signAction($this, $pin, $actionText, $stateHash);
     }
 
     /**
@@ -54,5 +72,13 @@ class User extends Authenticatable
     public function department()
     {
         return $this->belongsTo(Department::class);
+    }
+
+    /**
+     * Get the public key history for this user.
+     */
+    public function publicKeyHistories()
+    {
+        return $this->hasMany(PublicKeyHistory::class);
     }
 }

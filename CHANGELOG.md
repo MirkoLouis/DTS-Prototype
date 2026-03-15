@@ -2,6 +2,450 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.4-Alpha+202603142150] - 2026-03-14
+
+### ADDED
+- **Asynchronous Integrity Auditing:** Implemented a robust background job system (`IntegrityCheckJob`) for performing full-scale cryptographic audits without blocking the UI.
+- **Real-Time Audit Progress:** Integrated a dynamic progress modal with estimated time remaining and live status updates for system integrity verification.
+- **Performance Analytics V2:** Re-engineered the dashboard and statistics controllers to utilize pre-aggregated `DailyDepartmentMetric` data, ensuring sub-second response times for 1M+ record datasets.
+- **Metrics Backfilling Utility:** Added `dts:backfill-metrics` Artisan command to generate historical analytics data for existing or seeded datasets.
+- **Consolidated Documentation Suite:** Deeply refactored the project's documentation into three high-depth technical guides (`ARCHITECTURE.md`, `HARDWARE_SPECS.md`, `USER_GUIDE.md`), eliminating redundancy and improving navigation.
+- **Windows-Specific Performance Tuning:** Added instructions for managing MySQL RAM allocation and CPU Processor Affinity (`start /affinity`) on Windows environments.
+
+### FIXED
+- **Analytics "RAM Trap" Finalization:** Completely eliminated model hydration in dashboard queries by transitioning all chart data to indexed metric tables and SQL-level aggregations.
+- **Quick-Start Redundancy:** Streamlined the `README.md` setup guide by consolidating multiple install steps into the automated `composer run setup` command.
+- **Audit UI Stability:** Resolved several UI flickering and modal stacking issues in the System Health and Statistics dashboards.
+
+### CHANGED
+- **Removed Test Purpose:** Excised the "System Test: Full Route" purpose from seeders and UI dropdowns to ensure only valid official purposes are utilized.
+- **Schema Optimization:** Enhanced the "Genesis" migration with composite indexes on `current_department_id` and status fields for optimized document movement tracking.
+- **Documentation Categorization:** Organized the Project Commands Matrix into logical functional groups (Setup, Development, Production, etc.) for better developer onboarding.
+
+## [1.9.3-Alpha+202603122031] - 2026-03-12
+
+### ADDED
+- **Comprehensive Documentation Overhaul:** Expanded the core technical documentation suite to provide more technical depth while maintaining accessibility for non-technical stakeholders.
+    - **Dedicated Glossaries:** Integrated specialized glossaries into the Table of Contents of all primary `.md` files to define complex terms (e.g., Ed25519, HMR, Buffer Pool, PQC) within their local context.
+    - **`ADMINISTRATION.md` Expansion:** Detailed the "RAM Trap" avoidance strategy using MySQL 8.0 Window Functions and expanded the "1 Million Document Strategy" for high-performance indexing.
+    - **`ARCHITECTURE.md` Expansion:** Simplified the RBAC and "Trust Builder" models through intuitive analogies ("Traffic Cop," "Digital Seal") and clarified the "Active Guard" two-layer audit logic.
+    - **`HARDWARE_SPECS.md` Expansion:** Introduced the "Highway" analogy for CPU thread allocation and the "Desk vs. Filing Cabinet" analogy for memory optimization (InnoDB Buffer Pool).
+    - **`OPERATIONS.md` Expansion:** Detailed the "5-Pillar" multi-threaded development architecture and the "Nomadic HTTPS" setup for secure, cross-device mobile testing.
+    - **`QUANTUM_SAFETY.md` Expansion:** Simplified the threats posed by Shor's and Grover's algorithms through "Lock Picker" and "Library Searcher" analogies and detailed the roadmap for Hybrid/Lattice-Based cryptography.
+
+## [1.9.2-Alpha+202603092200] - 2026-03-09
+
+### ADDED
+- **High-Scale Performance Engine:** Re-architected the analytics layer to handle 1,000,000+ documents and 10,000,000+ logs without worker saturation.
+- **Aggressive Analytics Caching:** Implemented a multi-tier caching strategy for the Admin Dashboard and System Health monitor, eliminating the "deadlock" behavior during heavy API fetching.
+- **Hash Integrity Debugger:** Introduced a new administrative diagnostic tool that allows real-time inspection of cryptographic hash components and recalculated values directly from the UI.
+- **Collision-Resistant Hashing:** Hardened the "Trust Builder" formula with delimited field concatenation (`|`), preventing mathematical collisions during chain verification.
+- **Mock-Signature Awareness:** Enhanced the integrity checker to mathematically validate `MOCK_SIG` format signatures for seeded datasets while maintaining strict Ed25519 enforcement for production logs.
+
+### FIXED
+- **Worker Saturation Deadlock:** Resolved a critical system hang where concurrent dashboard API requests blocked navigation to other administrative pages.
+- **The "RAM Trap" (SQL Refactoring):** Migrated heavy model-iteration logic to MySQL 8.0 Window Functions and SQL-level aggregations, reducing PHP memory usage by 95% at scale.
+- **Integrity Validation False-Positives:** Corrected mismatches between seeder-generated logs and strict cryptographic verification logic.
+- **Implicit Precision Warnings:** Resolved PHP log spam caused by float-to-int conversions in Blade templates during time-series calculations.
+- **Missing Variable Bug:** Patched a 500 error in the district submission endpoint caused by a missing `$` prefix.
+
+### CHANGED
+- **Performance-Critical Indexing:** Consolidated composite indexes for document status and date tracking into the "Genesis" migration for optimized production delivery.
+- **Seeder Reversion:** Reverted default document creation to 10,000 for standard development cycles while preserving high-scale architectural optimizations.
+
+## [1.9.1-Alpha+202603082130] - 2026-03-08
+
+### ADDED
+- **Historical Signature Archiving:** Implemented a robust key versioning system that preserves historical digital signatures after a PIN reset. Old public keys are now archived in the `user_public_key_histories` table, allowing the system to mathematically verify ancient logs even if the user has since changed their keys.
+- **Atomic Integrity Locking:** Upgraded the workflow controllers (`DocumentController`, `TaskController`, `ReleasingController`) to explicitly bind cryptographic signatures to the *finalized* document state. State hashes are now calculated post-update and passed directly to the ledger, ensuring 100% verification accuracy.
+
+### FIXED
+- **Timestamp Rounding Race Condition:** Resolved a critical integrity mismatch where microseconds in `Carbon::now()` caused discrepancies between the hashed timestamp and the database-stored value. Standardized on second-level precision (`startOfSecond()`) across all cryptographic operations.
+- **Stale Tracking Cache:** Fixed a bug where newly submitted documents appeared missing due to 55-second route caching. Moved the tracking portal to a non-cached route for real-time guest feedback.
+- **Guest Portal UI Alignment:** Standardized the theme switcher positioning and forced vertical scrollbar visibility across the guest submission and tracking pages, ensuring visual consistency with the authenticated dashboard.
+- **Deterministic State Hashing:** Hardened the `calculateStateHash` formula with explicit type casting and null-safe JSON normalization to prevent false-positive tampering alerts.
+
+### CHANGED
+- **Schema Consolidation:** Refactored the database architecture by squashing incremental migrations for Ed25519 keys, prediction metadata, and key history into the initial schema definition for cleaner environment initialization.
+
+## [1.9.0-Alpha+202603081100] - 2026-03-08
+
+### ADDED
+- **Nomadic HTTPS Infrastructure (mDNS):** Implemented a robust Local Area Network (LAN) development environment utilizing mDNS (`.local`) hostnames. This allows cross-device access (iPhone/Laptop) without needing to update IP addresses when switching between hotspots and Wi-Fi.
+- **Secure Development Proxy:** Integrated `local-ssl-proxy` into the project's ecosystem via a new `composer proxy` command. This bridges the internal PHP server (HTTP) to a secure HTTPS port, unlocking mobile camera APIs for the QR scanner.
+- **Protocol Symmetry Enforcement:** Added `URL::forceScheme('https')` logic to the `AppServiceProvider` for development environments, ensuring all generated links, forms, and redirects correctly utilize the secure proxy scheme.
+- **Vite Environment Synchronization:** Refactored `vite.config.js` to explicitly load the `.env` file and inject `APP_URL` into the Node process, resolving the "Broken UI" and HMR asset loading issues on external devices.
+
+### FIXED
+- **Protocol Mismatch Errors:** Resolved `PR_END_OF_FILE_ERROR`, binary junk character responses during login, and HTTP redirects during logout by implementing `$middleware->trustProxies(at: '*')` in `bootstrap/app.php`. This ensures Laravel correctly detects the secure proxy layer.
+- **Nomadic Setup Documentation:** Updated `GEMINI.md` with precise `mkcert` instructions for generating "Universal" certificates that cover localhost, multiple IPs, and mDNS hostnames.
+
+## [1.8.11-Alpha+202603081000] - 2026-03-08
+
+### ADDED
+- **Interactive Theme Switcher:** Implemented a global, Alpine.js-powered theme switcher component (`<x-theme-switcher />`).
+    - Integrated into the desktop and mobile navigation bars for all authenticated users.
+    - Added to the Guest Portal (Welcome, Track, Success) and Auth pages (Login, Register) in a fixed top-right position.
+    - Seamlessly toggles between Tailwind CSS `dark` mode and Bootstrap 5 `data-bs-theme="dark"`.
+    - Persists user preference via `localStorage`, ensuring the selected theme remains active across sessions.
+- **Cross-Browser Theme Consistency System:** Implemented a robust theme-detection script in the `<head>` of all layouts (App, Guest, and standalone portal pages). 
+    - Automatically detects system/browser dark mode preferences via `prefers-color-scheme`.
+    - Ensures the entire project, including the Guest Portal, correctly renders in dark mode when requested by the browser.
+- **Bootstrap 5 Dark Mode Integration:** Updated the public-facing portal (Welcome, Track, Success pages) to utilize Bootstrap 5's `data-bs-theme="dark"` attribute, resolving the "white background" issue in dark-preferring browsers.
+- **Enabled Guest-Portal Interaction:** Integrated Alpine.js into the public-facing JavaScript bundle (`bootstrap_public.js`), enabling the theme switcher and other interactive components to function correctly on non-authenticated pages.
+
+### FIXED
+- **User Management Accessibility:** Improved visibility of the "Edit User" link in the administrative table by adding `dark:text-indigo-400` classes, ensuring it is clearly legible against dark backgrounds.
+
+## [1.8.10-Alpha+202603080830] - 2026-03-08
+
+### FIXED
+- **Trust Builder Hashing Precision:** Standardized cryptographic hashing to second-level precision (stripping microseconds) across the `DocumentLog` model, `VerifyIntegrityChain` command, and `RebuildHashChain` command. This eliminates false-positive integrity failures caused by database timestamp rounding.
+- **Seeder Timestamp Corruption:** Resolved a critical object reference bug in `DocumentSeeder` where all logs for a single document shared the same final timestamp. This fix restores the accuracy of the historical ledger and fixes the "Zero TAT" issue in dashboard charts.
+- **Massive Record Query Exception:** Resolved `QueryException: Prepared statement contains too many placeholders` in the System Health Monitor. Implemented manual pagination and chunked `whereIn` queries to handle integrity reports with 90,000+ records safely.
+- **Tailwind 4 Modal Backdrops:** Standardized backdrop syntax and stacking contexts for all system modals (Report Progress, Signing, Decline, and Chart modals), resolving the "white background" overlay issue introduced during the CSS synchronization.
+
+### ADDED
+- **Intelligent Simulation Capping:** Updated `DocumentSeeder` to automatically cap data generation at the most recent completed work week (Friday at 5:00 PM).
+- **Improved Weekend Data Handling:** Refined seeder logic to move weekend-generated dates back to the preceding Friday instead of forward to Monday, preventing the creation of "future-dated" records relative to the current day.
+
+### CHANGED
+- **User Management UX Optimization:** 
+    - Moved the "Edit User" link directly under the Name column and removed the redundant "Actions" column to maximize horizontal space.
+    - Relocated the "Delete User" functionality into the Edit view for a safer, more centralized workflow.
+    - Enabled `break-all` wrapping for the email column and standardized vertical alignment for clipboard copy buttons.
+
+## [1.8.9-Alpha+202603080708] - 2026-03-08
+
+### ADDED
+- **Digital Signature Reset Feature:** Implemented an administrative tool to reset a user's digital signature (Ed25519 keys and PIN association). This allows users who have forgotten their Security PIN to re-initialize their cryptographic identity.
+    - Added `resetSignature` method to `UserManagementController`.
+    - Integrated "Reset Digital Signature" buttons in both the User Edit page and the main User Management list.
+    - Added a global signature status indicator (Active vs. Not Set) in the administrative user table.
+- **Enhanced Mass Assignment Protection:** Updated the `User` model to include `security_key_set_at` in the `$fillable` array, ensuring consistent state management during signature resets and initializations.
+
+### FIXED
+- **DocumentSeeder Performance & Stability:** Completely refactored Stage 2 of the `DocumentSeeder` to utilize database chunking and batch insertions.
+    - Resolved a critical `QueryException` where the `documents` table would become temporarily inaccessible or unresponsive during massive sequential updates.
+    - Improved seeding speed and memory efficiency by grouping `DocumentLog` and `database_metrics` insertions into chunks of 200 documents.
+
+## [1.8.8-Release+202603072130] - 2026-03-07
+
+
+### FIXED
+- **SQL Ambiguity in Statistics:** Resolved a `SyntaxError` in the `StatisticsController` caused by an ambiguous `created_at` column in join queries. Explicitly qualified all analytical queries with subquery aliases.
+- **Seeding Integrity Mismatches:** Fixed "Live State Errors" where `db:dev` generated documents failed integrity checks. Modified `DocumentLog` boot logic to respect manually set hashes and updated `DocumentSeeder` to save document states before calculating cryptographic snapshots.
+- **Verification Chain False Positives:** Improved `VerifyIntegrityChain` command to accurately detect tampering while ignoring legitimate seeder-generated state shifts.
+
+### ADDED
+- **High-Performance Analytical Indexing:** Added composite indexes to `document_logs` (`action`, `created_at`) to ensure sub-second response times for dashboard charts at 1M+ record scale.
+- **Automated Metrics Lifecycle Management:** Implemented `dts:prune-metrics` command to automatically summarize granular 5-minute snapshots into hourly averages and prune data older than 90 days, preventing infinite storage growth.
+- **Window Function Optimization:** Refactored analytical subqueries to filter by relevant actions early, significantly reducing memory and CPU usage for processing time calculations.
+
+## [1.8.7-Release+202603072130] - 2026-03-07
+
+### ADDED
+- **Tailwind CSS 4 Synchronization:** Fully upgraded the styling engine to Tailwind CSS 4, removing redundant configuration files (`tailwind.config.js`, `postcss.config.js`). Integrated theme settings and plugins directly into the CSS layer using `@theme` and `@plugin` directives.
+- **HTTPS Protocol Standardization:** Unified the application protocol to HTTPS across all configuration layers (`APP_URL`, `.env`, and Composer scripts), ensuring a secure context for QR scanning and cryptographic operations across development and production.
+- **Enhanced AI Input Context:** Renamed the primary prediction parameter in `RoutePredictionService` to `$inputContext` to better reflect its multi-source nature (Document Title + Purpose), improving code readability and maintainability.
+- **Expanded Core Feature Showcase:** Updated `README.md` with an exhaustive list of system capabilities, highlighting the full document lifecycle, advanced analytics, and cryptographic security suite.
+
+### CHANGED
+- **Vite Configuration Upgrade:** Updated `vite.config.js` to utilize the `@tailwindcss/vite` plugin for faster builds and improved HMR.
+- **In-Depth Documentation Realignment:** Realigned and deeply refactored the entire `@documentation/**` suite to provide more technical depth while improving readability.
+    - **`ARCHITECTURE.md`**: Added a Mermaid state diagram for the document lifecycle and clarified the Ed25519 cryptographic bonding logic.
+    - **`ADMINISTRATION.md`**: Expanded on high-performance analytics, caching strategies, and database metrics snapshots.
+    - **`OPERATIONS.md`**: Introduced a command matrix and detailed the 5-pillar multi-threaded development architecture.
+    - **`HARDWARE_SPECS.md`**: Detailed the technical rationale behind memory tuning and CPU core pinning for 1M+ record scaling.
+- **Table Layout Optimization:** Refined the intake table layout with optimized column widths and word-breaking rules to eliminate horizontal scrollbars and improve readability.
+
+### FIXED
+- **Modal Stacking & Backdrop Issues:** Resolved CSS conflicts in the security key and QR scanner modals by standardizing z-index stacking and backdrop opacity using Tailwind 4 syntax.
+- **Atomic State-Signature Bonding:** Upgraded the digital signature architecture to explicitly sign a combined bundle of the Action text and the Document State Hash, mathematically bonding the user's identity to the document's content.
+- **Enhanced Integrity Verification:** Refactored the `dts:verify-integrity` command to perform real-time verification of Ed25519 signatures during historical chain audits.
+
+## [1.8.6-Alpha+202603071917] - 2026-03-07
+
+### ADDED
+- **Combined Context AI Input:** Expanded the AI's input to include both the **Document Title** and the **Purpose**. This provides a much stronger signal for routing, especially when the purpose field is brief but the title is descriptive.
+- **Token Cleaning & Stopword Filtering:** Implemented a robust tokenization filter that automatically ignores common placeholders (e.g., "N/A", "NA") and non-semantic stopwords (e.g., "the", "and", "for"). This prevents database bloat and ensures that only discriminative words are used for learning and prediction.
+- **Guest-Preferred Routing:** Integrated the guest-selected department from the submission form directly into the predicted route. The preferred department is now automatically set as the first step for all "Other" purpose requests.
+
+### CHANGED
+- **Enhanced Learning Job:** Updated `UpdateKeywordWeights` to support IDF calculation by tracking unique keyword appearances per document/department association across the combined Title/Purpose context.
+- **Intelligent Fallback:** Refined the prediction fallback to always prioritize the guest's selected department, even when no keywords are recognized.
+
+## [1.8.5-Alpha+202603071916] - 2026-03-07
+
+### ADDED
+- **Pre-Action Integrity Guard (Active Lock):** Implemented a real-time integrity verification layer that checks a document's live state against its last signed log entry *before* allowing any processing actions.
+- **On-Access Auto-Freeze:** Integrated the `IntegrityCheckFailed` security event into the document policy layer. Attempting to access action forms for a tampered document now triggers an immediate system freeze.
+- **Unauthorized UI Lockout:** Enhanced the Tasks, Releasing, and Route Management dashboards to dynamically hide action buttons and display a locked "Unauthorized" status for documents that are either frozen or have failed integrity checks.
+- **Pre-Intake Validation:** Extended the "Trust Builder" to validate the submission log before route finalization, ensuring no document details were altered between submission and intake.
+
+### CHANGED
+- **Improved Lifecycle Restoration:** Refactored the administrative `unfreeze` logic to correctly handle the 'Pending' state. Documents frozen immediately after submission can now be safely restored to their initial intake queue.
+- **Policy-Driven Action Guards:** Centralized all security and integrity checks within the `DocumentPolicy`, providing a single source of truth for action authorization.
+
+### FIXED
+- **Unfreeze State Bug:** Resolved an issue where documents frozen at the 'Submitted' stage would incorrectly default to 'Processing' upon being unfrozen, preventing them from appearing in the Intake queue.
+
+## [1.8.3-Alpha+202603062120] - 2026-03-06
+
+### ADDED
+- **Proactive Security Guard (Scheduled Integrity Checks):** Transitioned the "Active State Comparison" from a manual tool to a fully automated background process. The `dts:verify-integrity` command is now scheduled to run every 10 minutes via the Laravel Task Scheduler.
+- **Automated Security Response (Auto-Freeze):** Implemented a real-time response system that automatically sets a document's status to `frozen` if any integrity mismatch is detected during the background scan.
+- **Intelligent Recovery System:** Enhanced the administrative `unfreeze` logic to automatically restore a document to its last valid lifecycle state (e.g., `in_transit`, `ready_for_release`) based on its chronological history.
+- **Security Audit Logs (Auto-Freeze):** Every system-initiated freeze is now recorded in the `document_logs` with a "System Auto-Freeze" action and detailed security remarks.
+
+### CHANGED
+- **Admin UI Enhancement:** Added intuitive "Freeze/Unfreeze Document" buttons to the main document details view for manual administrative intervention.
+- **Non-Repudiation UI Integration:** Standardized all critical document actions to use the secure, masked `SigningModal` for cryptographic authorization.
+
+### FIXED
+- **Lifecycle Recovery Consistency:** Resolved a bug where unfrozen documents would default to 'processing' regardless of their actual previous state.
+
+## [1.8.2-Alpha+202603062110] - 2026-03-06
+
+### ADDED
+- **Active State Comparison (Live Tamper Detection):** Implemented a real-time verification layer in the `dts:verify-integrity` command. The system now compares the *current live database state* of every document against the `document_state_hash` recorded in its most recent cryptographic log.
+- **Tampering Detection UI:** Enhanced the System Health Monitor with a dedicated "Live State Mismatches" section that highlights documents whose details (title, submitter, route) have been modified without a corresponding signed log entry.
+- **Automated Integrity Status Card:** Updated the dashboard to show a dual-status overview: Chain Integrity (Historical Logs) vs. Live State (Current Documents), providing a complete picture of system health.
+
+### CHANGED
+- **Enhanced Verification Logic:** Refactored `VerifyIntegrityChain` into a two-step process: (1) Historical Chain Verification and (2) Active State Comparison, ensuring both past and present data are protected.
+- **Refined Integrity Reporting:** Updated the integrity check cache to store specific tracking codes of tampered documents, enabling targeted investigation by administrators.
+
+### FIXED
+- **Document Detail Inconsistencies:** Standardized the state hashing formula to include all critical metadata (tracking_code, title, submitter info, district, department, purpose, and route), closing potential gaps in document protection.
+
+## [1.8.1-Alpha+202603062101] - 2026-03-06
+
+### FIXED
+- **Cryptographic Salt Derivation:** Resolved a `sodium_crypto_pwhash` error by ensuring the salt is exactly 16 bytes (SODIUM_CRYPTO_PWHASH_SALTBYTES). Implemented a deterministic 16-byte binary hash of the user's email as the salt.
+- **PIN Entry Privacy:** Replaced standard browser `prompt()` calls with a custom `x-signing-modal` utilizing `type="password"`. This ensures Security PINs are masked with dots and never displayed as raw text during entry.
+- **Initialization UX:** Enabled "Enter" key submission in the digital signature initialization modal and added automatic focus to the PIN input for a smoother onboarding experience.
+- **Database Schema Completeness:** Added the missing `private_key` column to the `users` table and synchronized the `User` model's `$fillable` and `$casts` attributes to support encrypted key storage.
+
+### ADDED
+- **True Cryptographic Signatures (Ed25519):** Upgraded the "Trust Builder" system from simple string placeholders to a robust Ed25519 signing architecture. Actions are now mathematically proven using the performing user's private key.
+- **Encrypted Private Key Storage:** Implemented a secure key management flow where Ed25519 private keys are encrypted using a user-defined Secret PIN via `sodium_crypto_secretbox` (Argon2id key derivation) before being stored.
+- **Secure Signing Modal:** Created a reusable `<x-signing-modal />` component to handle secure PIN collection and callback-based transaction signing across the application.
+- **Signature Helper Methods:** Added `signAction` and `verifySignature` to the `DocumentLog` model, and a `sign()` helper to the `User` model to encapsulate complex `sodium` operations.
+
+### CHANGED
+- **Mandatory Signing Workflow:** Critical lifecycle events (Route Finalization, Task Completion, and Document Releasing) now strictly require a Security PIN to authorize and sign the transaction.
+- **Streamlined Physical Handoff:** Removed the PIN requirement when "receiving" documents for release. This reduces friction in the physical workflow while maintaining strict signing requirements for the final "Released" state.
+- **Ledger Verification Formula:** Updated the hash-chaining logic to bake the new cryptographic Ed25519 signatures into the SHA-256 block hash, ensuring absolute non-repudiation.
+
+## [1.8.0-Alpha+202603061900] - 2026-03-06
+
+### FIXED
+- **Integrity Protection Logic:** Corrected a critical flaw in `DocumentLog::calculateStateHash` where submitter information was being hashed as `null` due to missing properties on the `Document` model. Updated the logic to use new model accessors that correctly extract data from the `guest_info` JSON field.
+- **Admin Path Traversal:** Patched a security vulnerability in `BackupManagerController` where unsanitized `fileName` parameters allowed potential directory traversal. Implemented `basename()` sanitization for all download and delete operations.
+- **Broken Object Level Authorization (BOLA):** Secured document detail routes by transitioning from incremental database IDs to unique `tracking_code` strings for route model binding and implementing a robust `DocumentPolicy`.
+- **SortableJS Integration:** Resolved an `Uncaught ReferenceError: Sortable is not defined` by explicitly importing `sortablejs` in the main application bundle and utilizing the global `window.Sortable` object in the UI.
+- **RBAC Caching Conflict:** Fixed a bug where role-specific navigation menus were being incorrectly cached across different user sessions. Updated `CacheResponse` middleware to use `private` visibility and `no-store` directives.
+- **Circular Navigation Loop:** Resolved a "Back" button trap in the document details view by implementing a persistent `back_to` parameter that intelligently redirects users to their appropriate dashboard (Intake, Tasks, Releasing, or Completed) even after viewing the hash chain.
+- **Robust Redirection:** Enhanced `DocumentController@show` with role-aware fallback logic to ensure the "Back" button always leads to a valid, authorized page, preventing 403 errors during navigation.
+
+### ADDED
+- **Document Access Policy:** Created `App\Policies\DocumentPolicy` to centralize and enforce granular access rules for viewing, managing, and processing documents based on user roles and departmental assignments.
+- **Document State Accessors:** Added `submitter_name`, `submitter_email`, and `submitter_phone` accessors to the `Document` model for cleaner data handling and improved integrity verification.
+- **Context-Aware Navigation Links:** Integrated `back_to` query parameters across all administrative tables to provide a seamless "View Details -> Back to List" user experience.
+
+### CHANGED
+- **Non-Enumerable Routing:** Reconfigured the `Document` model to use `tracking_code` as the primary route key, preventing unauthorized users from discovering documents through ID guessing.
+- **Global Asset Availability:** Updated `app.js` to expose `Sortable` and `Html5Qrcode` to the global scope, ensuring high-interactivity components work reliably across all Blade templates.
+
+## [1.7.5-Alpha+202603061830] - 2026-03-06
+
+### FIXED
+- **Environment Port Synchronization:** Resolved a conflict where shell-level `APP_URL` variables were overriding local `.env` settings. Explicitly declared the `APP_URL` within Composer scripts to ensure consistent environment behavior.
+
+### ADDED
+- **Production Orchestration Script:** Introduced `composer prod`, a high-performance entry point that utilizes `queue:work` (instead of `listen`) and the `--no-reload` flag. This allows for benchmarking the system's maximum throughput in a "Day 1" clean state.
+
+### CHANGED
+- **System-Wide Port Standard:** Reconfigured the default application port to **3050** (from 3000) across all configuration files, documentation, and automated scripts to prevent common local service conflicts.
+- **Multithreaded Optimization:** Enabled the `--no-reload` flag for the production-mode server to fully utilize the `PHP_CLI_SERVER_WORKERS=4` configuration, significantly increasing concurrent request handling.
+
+## [1.7.4-Alpha+202603032120] - 2026-03-03
+
+### FIXED
+- **SQL Ambiguity in Analytics:** Resolved a critical `500 Internal Server Error` in the `AdminDashboardController` caused by an ambiguous `created_at` column in join-heavy analytics queries. Explicitly referenced subquery aliases in `getAvgStepTimeByDepartmentData` and `getDepartmentalLoadVsTimeData` to restore dashboard functionality.
+
+### ADDED
+- **In-Depth Technical Documentation Suite:** Consolidated 15+ individual documentation files into three authoritative guides (`ARCHITECTURE.md`, `ADMINISTRATION.md`, `OPERATIONS.md`). Each guide was enriched with technical deep-dives and relevant code snippets (RBAC Middleware, Hash-Chaining logic, AI Routing, etc.).
+- **Hardware & Scaling Guide:** Created `HARDWARE_SPECS.md` providing a comprehensive breakdown of server requirements (Minimal vs. Recommended) and storage forecasts for scaling the system to 1 million documents.
+
+### CHANGED
+- **Migration Squashing (Schema Consolidation):** Refactored the database architecture by squashing 21 separate migration files into a single, clean `2025_01_01_000000_create_dts_initial_schema.php`. This significantly reduces project overhead and simplifies the initialization process for new environments while maintaining all performance indexes and security fields.
+
+## [1.7.3-Alpha+202603032041] - 2026-03-03
+
+### FIXED
+- **Neutralized the "RAM Trap":** Completely refactored `AdminDashboardController` and `StatisticsController` to use SQL-level aggregation (`COUNT`, `GROUP BY`, `JSON_EXTRACT`) and MySQL 8.0 Window Functions (`LAG`). This prevents the 3-minute lag by ensuring 1M+ records are pre-aggregated by the database instead of being hydrated as Eloquent models.
+
+### ADDED
+- **Universal Browser Caching:** Applied `cache.response:55` middleware to all key administrative and staff routes (Intake, Tasks, Releasing, Statistics, Integrity Monitor, etc.). This enables sub-second navigation by serving pages and data from the browser cache.
+- **Dynamic Real-time Polling:** Integrated 60-second AJAX polling into the Admin Dashboard and Statistics pages to ensure analytics stay current without manual refreshes.
+
+## [1.7.2-Alpha+202603031030] - 2026-03-03
+
+### FIXED
+- **Multithreaded:** Apparently taskset was justa way to separate cores for specific tasks, with PHP_CLI_SERVER_WORKERS=4 the server (php artisan serve) is now truly multithreaded.
+
+## [1.7.1-Alpha+202603031030] - 2026-03-03
+
+### ADDED
+- **HTTP Header Optimization (Cache-Control):** Implemented a `CacheResponse` middleware to enable 55-second HTTP browser caching for guest-facing routes and AJAX status endpoints, drastically reducing redundant server hits during peak traffic.
+- **Automated Database Tuning Command:** Created the `dts:tune-db` Artisan command to programmatically optimize MySQL's InnoDB Buffer Pool (4GB) and Redo Log (1GB) using project credentials.
+- **Cross-Platform Troubleshooting Guides:** Added specific recovery steps for "Address already in use" port conflicts on both Linux and Windows (PowerShell/CMD) to the project documentation.
+- **Enhanced Guest Layout:** Integrated cache-control meta tags and DNS prefetching into the `guest.blade.php` layout for faster initial page rendering.
+
+### FIXED
+- **Infinite Process Execution:** Set `process-timeout: 0` in `composer.json` to prevent Composer from terminating long-running nested server pillars after 300 seconds.
+- **Concurrent Script Resolution:** Refactored the `concurrently` orchestration to use `composer run <command>` syntax, ensuring sub-scripts are correctly located across different environments.
+
+## [1.7.0-Alpha+202603030930] - 2026-03-03
+
+### ADDED
+- **Database Performance Indexing (O(log n) scaling):** Implemented critical composite and single indexes on high-traffic tables (`documents`, `document_logs`). This ensures sub-second query performance even with 1M+ records by optimizing status filtering, analytics aggregation, and hash-chain verification.
+- **CPU Core Pinning (Taskset Multi-Threading):** Developed a sophisticated thread allocation strategy for 12-thread architectures. Critical services (Web Server, Queue, Vite, Scheduler) are now pinned to dedicated CPU cores, preventing process starvation and ensuring high UI responsiveness during heavy background tasks.
+- **Resilient Background Service Wrappers:** All development and production scripts are now wrapped in `while true` loops with 10-second automatic recovery, providing a "self-healing" infrastructure for the dev environment.
+- **Dedicated Service Control Scripts:** Introduced separate Composer commands for granular service management (`serve:dev`, `queue:dev`, `logs:dev`, `vite:dev`, `schedule:dev`), allowing developers to isolate logs and debug individual layers in separate terminals.
+- **Production Optimization Suite:** Added `prod:optimize` and `prod:clear` commands to manage Laravel's configuration, route, and view caches, significantly reducing framework overhead for performance benchmarking.
+
+### CHANGED
+- **High-Performance Production Worker:** Updated `queue:work-prod` to use a long-lived process with a 512MB memory limit, enabling 10x faster job processing compared to standard listeners.
+- **Concurrent Development Entrypoint:** Refactored the main `composer dev` command to orchestrate the new taskset-pinned sub-scripts.
+
+## [1.6.1-Alpha+202603011900] - 2026-03-01
+
+### FIXED
+- **Initialization Modal Bug:** Resolved a critical issue where the security modal failed to spawn because users were being pre-seeded with public keys. Removed pre-seeded keys to ensure all real users undergo the initialization flow.
+
+### ADDED
+- **Granular Departmental Fallbacks:** Introduced dynamic, role-based fallback signatures (e.g., `signed_by_cash_unit`, `signed_by_records`) for the ledger, ensuring detailed accountability even for historical or un-onboarded data.
+
+### CHANGED
+- **Synchronized Fallback Logic:** Updated both the `DocumentLog` model and `DocumentSeeder` to use consistent, department-specific signature strings when a unique public key is not yet available.
+
+## [1.6.0-Alpha+202603011830] - 2026-03-01
+
+### ADDED
+- **Universal Non-Repudiation System:** Implemented a cryptographic enforcement layer that prevents any authorized user (Staff, Officer, or Admin) from denying their actions within the system.
+- **Department & Administrative Digital Signatures:** Integrated unique, user-initialized public keys into the `DocumentLog` hash-chain. Every movement in the ledger is now "signed" and cryptographically immutable.
+- **Dynamic Security Key Initialization:** Enhanced the `security-key-modal` component to provide a personalized experience, displaying the specific account name (e.g., "Admin User Digital Signature") during setup.
+- **Admin Signature Enforcement:** Closed the administrative security gap by requiring Admins to initialize their own digital signatures for high-level operations like hash-chain rebuilding.
+
+### FIXED
+- **Integrity Verification Logic:** Updated the `dts:verify-integrity` and `dts:rebuild-chain` Artisan commands to correctly handle and verify the new `signature` and `document_state_hash` fields.
+- **Seeder Cryptographic Alignment:** Synchronized `UserSeeder` and `DocumentSeeder` to generate 100% valid hash chains using the new signature-based formula, ensuring simulated data is production-grade.
+
+### CHANGED
+- **Hashing Formula Update:** Expanded the SHA-256 hashing sequence to include the `signature` field as a mandatory component for chain validity.
+- **Model-Level Automation:** Refactored the `DocumentLog` model to automatically fetch and attach the performing user's digital signature during the `creating` event.
+
+## [1.5.1-Alpha+202602281645] - 2026-02-28
+
+### FIXED
+- **PDF Tracking Form Template:** Corrected a `ParseError` (syntax error, unexpected identifier "images") in `resources/views/general/tracking-form-pdf.blade.php`. Resolved by replacing Blade `{{ }}` syntax with proper PHP string concatenation within the `@php` block.
+
+### ADDED
+- **Comprehensive Visual Documentation:** Updated `README.md` with 10+ new high-resolution screenshots in a categorized, multi-column layout, showcasing the Administrative Suite, Records Officer operations, and Staff dashboards.
+- **Sample Output Documentation:** Added direct links in the `README.md` to generated sample PDF outputs (`Tracking Form` and `Historical Report`) to demonstrate the system's document generation capabilities.
+- **Expanded Default Accounts:** Updated the "Default Accounts" section of the `README.md` to include the complete list of 15+ predefined accounts for all department units (Cash, Budget, Accounting, etc.) to assist in system testing and evaluation.
+
+## [1.5.0-Alpha+202602281530] - 2026-02-28
+
+### ADDED
+- **Environment-Specific Migration Tool:** Created a custom `php artisan dts:migrate` command to streamline project initialization.
+    - `--devseed`: Runs a fresh migration with the full `DevelopmentSeeder`, including 10,000+ dummy documents and metrics for testing.
+    - `--prodseed`: Runs a fresh migration using the new `ProductionSeeder`, creating only essential system data (Departments, Users, AI Keywords) for a clean production state.
+- **Production Seeder:** Implemented `ProductionSeeder.php` to provide a "Day 1" clean database configuration for DepEd Iligan.
+- **Comprehensive AI Knowledge Base:** Expanded `PredictionKeywordSeeder` to include keywords for all 14 departments and units, ensuring the AI Route Prediction works division-wide from the first document.
+
+### CHANGED
+- **Environment-Aware Purposes:** Updated `PurposeSeeder` to automatically exclude "System Test" purposes when the application is running in a production environment.
+- **Deployment Strategy:** Updated `DEPLOYMENT.md` with platform-specific instructions for Linux (Supervisor/Cron) and Windows Server (NSSM/Task Scheduler).
+
+### FIXED
+- **Department Naming Consistency:** Synchronized department names between the `DepartmentSeeder` and `PredictionKeywordSeeder` to prevent missing keyword associations.
+
+## 2026-02-25 (Wednesday, 9:30 PM)
+
+### ADDED
+- **Document State Hashing:** Enhanced the security chain by including a `document_state_hash` in every `DocumentLog`. This SHA-256 hash protects document metadata (title, submitter, etc.), ensuring any "silent" modifications to the document itself are detected.
+- **Digital Signatures (Non-Repudiation):** Each department now initializes a unique security key upon their first login. Every document movement is cryptographically "signed," providing non-repudiation and proof of authorization.
+- **Security Key Initialization Modal:** Created a new `x-security-key-modal` component that automatically guides department staff through the security key setup process on their first official login.
+
+### CHANGED
+- **Enhanced Security Verification:** Updated the `dts:verify-integrity` Artisan command to include the new `document_state_hash` in its chain verification logic.
+- **Seeder Security Upgrade:** Refactored `DocumentSeeder` to generate cryptographically valid chains that include the new state hashes and dummy signatures, ensuring seeded data is 100% integral.
+
+### FIXED
+- **Security Key Initialization:** Resolved a `JSON.parse` error by adding the `Accept: application/json` header to the initialization request.
+- **Key Validation:** Adjusted the minimum public key length in `SecurityKeyController` to 30 characters to match the system's generated key format.
+- **Modal Interactivity:** Removed the `readonly` restriction on the security key field and added a "Regenerate" button, allowing departments to more actively "decide" their cryptographic identity or provide their own.
+
+## 2026-02-23 (Monday, 6:45 PM)
+
+### ADDED
+- **Asynchronous Report Generation System:** Implemented a robust, non-blocking background job system for generating large-scale PDF and CSV reports.
+- **Merge Strategy for Large PDFs:** Optimized memory usage for massive reports by processing documents in small batches (500-1000 docs), generating temporary PDF chunks, and merging them using the `iio/libmergepdf` library.
+- **CSV Export Option:** Added a high-speed, memory-efficient CSV export option using database chunking, providing a reliable alternative for extremely large datasets.
+- **Real-Time Progress Modal:** Integrated a dynamic UI modal that tracks background job progress with specific status updates ("Filtering documents", "Generating PDF pages", etc.) and a real-time "Estimated time remaining" calculation.
+- **Report Cancellation:** Added functionality to safely cancel a running background report generation from the UI, preventing wasted server resources.
+
+### CHANGED
+- **Smart Export Constraints:** Implemented an intelligent validation layer that enforces a 3,000-document limit for PDF generation to ensure server stability, automatically suggesting the CSV option for larger datasets.
+- **Optimized Database Querying:** Refined data fetching logic to only select necessary columns and use relationship constraints, drastically reducing the RAM footprint during data preparation.
+- **Enhanced PDF Layout:** Reorganized report layout to accommodate large horizontal charts, utilizing strategic page breaks and fixed table dimensions for a polished, professional presentation.
+
+### FIXED
+- **Documentation Alignment:** Standardized system ports (3001) and framework version (Laravel 12) across all documentation files (`README.md`, `PROJECT_OVERVIEW.md`, `WINDOWS_SETUP.md`).
+- **Command Accuracy:** Corrected the signature for the database restore command (`db:restore --file=`) and added missing documentation for `dts:snapshot-db-metrics` in `ARTISAN_COMMANDS.md`.
+- **RBAC Clarity:** Updated `RBAC_DOCUMENTATION.md` to reflect the correct dashboard route for staff members (`/staff-tasks`).
+
+## 2026-02-22 (Sunday, 3:30 PM)
+
+### CHANGED
+- **Enhanced Filtering and User Experience:** Implemented immediate filter application, debounced search, and case-insensitive text searching across several administrative tables for improved usability.
+    - **ReleasingController:**
+        - Added filtering by search term (tracking code, title), purpose, submitter name, and date to the `index` method.
+        - Updated `resources/views/officer/releasing/index.blade.php` to include filter UI elements and JavaScript for AJAX-based filtering and pagination.
+    - **UserManagementController:**
+        - Added filtering by name, email, and role to the `index` method.
+        - Updated `resources/views/admin/users/index.blade.php` to include filter UI elements, implement debounced search for text inputs, and immediate submission for select inputs. The "Filter" button was removed.
+    - **SystemHealthController:**
+        - Made the search for tracking code and user name in the `index` method case-insensitive for the mismatched logs table.
+        - Updated `resources/views/admin/system-health.blade.php` to include a "per page" selector, auto-submit filters on change, and removed the filter button.
+    - **SystemRatingsController:**
+        - Added filtering by rating, purpose, and date to the `index` method.
+        - Updated `resources/views/admin/system/ratings.blade.php` to include filter UI elements, auto-submit filters on change, and removed the filter button.
+    - **BackupManagerController:**
+        - Expanded the search functionality in the `index` method to include the `last_modified` date, in addition to the file name, with case-insensitive matching.
+        - Updated `resources/views/admin/backups.blade.php` to implement a debounced search for the file name/date input and removed the filter button.
+
+## 2026-02-19 (Thursday, 13:45 PM)
+
+
+### ADDED
+- **Windows Setup Guide:** Created `WINDOWS_SETUP.md` with comprehensive instructions for setting up the project on Windows, including prerequisites (XAMPP/Laragon), Git configuration (autocrlf), and `mkcert` installation.
+    - Added a **Verification** section with commands (`php -v`, `node -v`, etc.) to confirm prerequisite versions.
+- **Database Performance Monitoring System:** Implemented a new performance tracking system for administrators to monitor database health.
+    - Added `DATABASE_PERFORMANCE_METRICS.md` to document the chart logic and metrics.
+    - Created `SYSTEM_MONITORING_LOGIC.md` explaining the background data generation.
+    - Introduced `dts:snapshot-db-metrics` Artisan command (scheduled every 5 minutes) to capture connections, average query time, and slow queries.
+    - Enhanced System Health page with an interactive time-series chart for these metrics.
+- **Database Metrics Export:** Admins can now download historical performance data as CSV from the System Health page.
+
+### FIXED
+- **Performance Data Retention:** Implemented automatic cleanup of old metrics to prevent database bloat.
+- **Admin Dashboard UI:** Refined chart labels and standardized layout across analytics pages.
+
 ## [1.4.0] - 2026-01-30
 
 ### Added

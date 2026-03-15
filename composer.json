@@ -8,6 +8,7 @@
     "require": {
         "php": "^8.2",
         "barryvdh/laravel-dompdf": "^3.1",
+        "iio/libmergepdf": "^4.0",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1",
         "simplesoftwareio/simple-qrcode": "^4.2",
@@ -38,6 +39,7 @@
     "scripts": {
         "setup": [
             "composer install",
+            "@db:tune",
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
             "@php artisan key:generate",
             "@php artisan migrate --force",
@@ -46,8 +48,44 @@
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
+<<<<<<< HEAD
             "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"npm run dev\" --names=server,queue,logs,vite --kill-others"
+=======
+            "@db:tune",
+            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74,#818cf8\" \"composer run serve:dev\" \"composer run queue:dev\" \"composer run logs:dev\" \"composer run vite:dev\" \"composer run schedule:dev\" --names=server,queue,logs,vite,schedule --kill-others"
+>>>>>>> 7852969e9df195118a5b02eee64c86f3cf8b3dc3
         ],
+        "prod": [
+            "Composer\\Config::disableProcessTimeout",
+            "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74,#818cf8\" \"composer run serve:prod\" \"composer run queue:work-prod\" \"composer run logs:dev\" \"composer run vite:dev\" \"composer run schedule:work-prod\" --names=server,queue,logs,vite,schedule --kill-others"
+        ],
+        "db:tune": "php artisan dts:tune-db",
+        "serve:dev": "while true; do taskset -c 0-3 php artisan serve --host 0.0.0.0 --port 3050; echo 'Server stopped. Restarting in 10s...'; sleep 10; done",
+        "queue:dev": "while true; do taskset -c 4 php artisan queue:listen --tries=1; echo 'Queue worker stopped. Restarting in 10s...'; sleep 10; done",
+        "logs:dev": "while true; do taskset -c 5 php artisan pail --timeout=0; echo 'Logs worker stopped. Restarting in 10s...'; sleep 10; done",
+        "vite:dev": "while true; do taskset -c 6-7 npm run dev; echo 'Vite stopped. Restarting in 10s...'; sleep 10; done",
+        "schedule:dev": "while true; do taskset -c 8 php artisan schedule:work; echo 'Scheduler stopped. Restarting in 10s...'; sleep 10; done",
+        "prod:optimize": [
+            "php artisan config:cache",
+            "php artisan route:cache",
+            "php artisan view:cache",
+            "php artisan event:cache"
+        ],
+        "prod:clear": [
+            "php artisan config:clear",
+            "php artisan route:clear",
+            "php artisan view:clear",
+            "php artisan event:clear"
+        ],
+        "serve:prod": "while true; do taskset -c 0-3 php artisan serve --host 0.0.0.0 --port 3050 --no-reload; echo 'Production-mode Server stopped. Restarting in 10s...'; sleep 10; done",
+        "queue:work-prod": "while true; do taskset -c 4 php artisan queue:work --tries=3 --timeout=1200 --memory=512; echo 'High-performance Queue worker stopped. Restarting in 10s...'; sleep 10; done",
+        "schedule:work-prod": "while true; do taskset -c 8 php artisan schedule:work; echo 'Production Scheduler stopped. Restarting in 10s...'; sleep 10; done",
+        "db:dev": [
+            "Composer\\Config::disableProcessTimeout",
+            "php artisan dts:migrate --devseed"
+        ],
+        "db:prod": "php artisan dts:migrate --prodseed",
+        "proxy": "npx local-ssl-proxy --source 3051 --target 3050 --cert localhost.crt --key localhost.key",
         "test": [
             "@php artisan config:clear --ansi",
             "@php artisan test"
@@ -80,6 +118,7 @@
         "optimize-autoloader": true,
         "preferred-install": "dist",
         "sort-packages": true,
+        "process-timeout": 0,
         "allow-plugins": {
             "pestphp/pest-plugin": true,
             "php-http/discovery": true

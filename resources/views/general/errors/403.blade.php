@@ -4,11 +4,7 @@
             <div class="col-md-10">
                 <div class="card">
                     <div class="card-header bg-danger text-white">
-                        <h4 class="mb-0">403 | Access Denied</h4>
-                    </div>
-
-                    <div class="card-body text-center">
-                        <p class="lead text-light">You do not have the required permissions to access this page.</p>
+                        <h4 class="mb-0">403 | Access Denied hey</h4>
                         <button onclick="history.back()" class="btn btn-secondary">
                             <i class="fas fa-arrow-left"></i> Go Back
                         </button>

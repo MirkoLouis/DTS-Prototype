@@ -4,12 +4,42 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Request Submitted Successfully</title>
+
+    <!-- Theme Detection Script -->
+    <script>
+        (function() {
+            const theme = localStorage.getItem('theme');
+            const isDark = theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+            if (isDark) {
+                document.documentElement.classList.add('dark');
+                document.documentElement.setAttribute('data-bs-theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                document.documentElement.setAttribute('data-bs-theme', 'light');
+            }
+        })();
+    </script>
+
     @vite(['resources/scss/bootstrap.scss', 'resources/js/bootstrap_public.js'])
+    <style>
+        html {
+            overflow-y: scroll;
+        }
+        .theme-switcher-fixed {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1050;
+        }
+    </style>
 </head>
 <body>
+    <div class="theme-switcher-fixed">
+        <x-theme-switcher />
+    </div>
     <div class="container mt-5">
         <div class="text-center mb-4">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/3/33/DepEd_logo.svg/1200px-DepEd_logo.svg.png" alt="DepEd Logo" style="height: 80px;">
+            <img src="{{ asset('images/logoipsum-411.png') }}" alt="DepEd Logo" style="height: 80px;">
         </div>
         <div class="card shadow-sm">
             <div class="card-header text-center bg-success text-white">

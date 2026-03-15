@@ -5,7 +5,7 @@
         </h2>
     </x-slot>
 
-    <div class="py-12">
+    <div class="py-2">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-6">
             {{-- Find Document Section --}}
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
@@ -33,48 +33,43 @@
             </div>
 
             {{-- Recently Added Documents Section --}}
-            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg" id="documents-section">
                 <div class="p-6 text-gray-900 dark:text-gray-100">
-                    <div class="flex justify-between items-center mb-4">
+                    <div class="mb-6 space-y-4">
                         <h3 class="text-2xl font-bold">Recently Added Documents</h3>
                         {{-- Filters and Search --}}
-                        <div class="flex items-end space-x-2">
-                            <div>
+                        <div class="flex flex-row items-end gap-2 pb-4 border-b border-gray-100 dark:border-gray-700 w-full">
+                            <div class="flex-grow flex-shrink-0" style="flex-basis: 12%;">
                                 <label for="date-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Date Handled</label>
-                                <input type="date" id="date-filter" class="filter-input block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                <input type="date" id="date-filter" class="filter-input block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm sm:text-sm">
                             </div>
-                            <div>
+                            <div class="flex-grow flex-shrink-0" style="flex-basis: 15%;">
                                 <label for="status-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Status</label>
-                                <select id="status-filter" class="filter-input block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                <select id="status-filter" class="filter-input block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm sm:text-sm">
                                     <option value="all">All Statuses</option>
                                     @foreach($statuses as $status)
                                         <option value="{{ $status }}">{{ ucfirst($status) }}</option>
                                     @endforeach
                                 </select>
                             </div>
-                            <div>
+                            <div class="flex-grow flex-shrink-0" style="flex-basis: 22%;">
                                 <label for="purpose-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Purpose</label>
-                                <select id="purpose-filter" class="filter-input block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                <select id="purpose-filter" class="filter-input block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm sm:text-sm">
                                     <option value="all">All Purposes</option>
                                     @foreach($purposes as $purpose)
                                         <option value="{{ $purpose->name }}">{{ $purpose->name }}</option>
                                     @endforeach
                                 </select>
                             </div>
-                            <div>
-                                <label for="submitter-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Submitter</label>
-                                <select id="submitter-filter" class="filter-input block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
-                                    <option value="all">All Submitters</option>
-                                    @foreach($submitters as $submitter)
-                                        <option value="{{ $submitter }}">{{ $submitter }}</option>
-                                    @endforeach
-                                </select>
+                            <div class="flex-grow flex-shrink-0" style="flex-basis: 18%;">
+                                <label for="submitter-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Submitter Name</label>
+                                <input type="text" id="submitter-filter" class="filter-input block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm sm:text-sm" placeholder="Search submitter...">
                             </div>
-                            <div>
-                                <label for="table-search" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Search</label>
-                                <input type="text" id="table-search" class="block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" placeholder="Search...">
+                            <div class="flex-grow flex-shrink-0" style="flex-basis: 22%;">
+                                <label for="table-search" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Search using Tracking Number or Title</label>
+                                <input type="text" id="table-search" class="block w-full border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm sm:text-sm" placeholder="Search...">
                             </div>
-                            <button id="clear-filters-btn" class="inline-flex items-center px-4 py-2 bg-gray-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-500 active:bg-gray-700 focus:outline-none focus:border-gray-700 focus:ring focus:ring-gray-200 disabled:opacity-25 transition">
+                            <button id="clear-filters-btn" class="flex-shrink-0 inline-flex items-center px-4 py-2 bg-gray-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-500 active:bg-gray-700 focus:outline-none focus:border-gray-700 focus:ring focus:ring-gray-200 disabled:opacity-25 transition">
                                 Clear
                             </button>
                         </div>
@@ -107,6 +102,8 @@
                     const html = await response.text();
                     documentsContainer.innerHTML = html;
                     history.pushState(null, '', url);
+                    // Center the section in view if it's not already well-positioned
+                    document.getElementById("documents-section").scrollIntoView({ behavior: "smooth"});
                 } catch (error) {
                     console.error('Fetch error:', error);
                     documentsContainer.innerHTML = '<tr><td colspan="6" class="text-center py-4">Failed to load documents. Please try again.</td></tr>';
@@ -136,7 +133,7 @@
                     if (searchTerm) url.searchParams.set('search', searchTerm);
                     if (status && status !== 'all') url.searchParams.set('status', status);
                     if (purpose && purpose !== 'all') url.searchParams.set('purpose', purpose);
-                    if (submitter && submitter !== 'all') url.searchParams.set('submitter', submitter);
+                    if (submitter) url.searchParams.set('submitter', submitter);
                     if (date) url.searchParams.set('date_handled', date);
                     url.searchParams.set('page', '1'); // Reset to page 1 on new search/filter
 
@@ -148,7 +145,7 @@
                 searchInput.value = '';
                 statusFilter.value = 'all';
                 purposeFilter.value = 'all';
-                submitterFilter.value = 'all';
+                submitterFilter.value = '';
                 dateFilter.value = '';
                 handleFilterChange();
             }
@@ -156,7 +153,7 @@
             searchInput.addEventListener('keyup', handleFilterChange);
             statusFilter.addEventListener('change', handleFilterChange);
             purposeFilter.addEventListener('change', handleFilterChange);
-            submitterFilter.addEventListener('change', handleFilterChange);
+            submitterFilter.addEventListener('keyup', handleFilterChange);
             dateFilter.addEventListener('change', handleFilterChange);
             clearFiltersBtn.addEventListener('click', clearFilters);
 
@@ -164,12 +161,14 @@
             // AJAX pagination and route-toggle logic using event delegation
             documentsContainer.addEventListener('click', (e) => {
                 // Handle clicks on pagination links
-                if (e.target.tagName === 'A' && e.target.closest('.pagination')) {
+                const paginationLink = e.target.closest('#pagination-links a');
+                if (paginationLink) {
                     e.preventDefault();
-                    const url = e.target.getAttribute('href');
-                    if (url) {
+                    const url = paginationLink.getAttribute('href');
+                    if (url && url !== '#') {
                         fetchDocuments(url);
                     }
+                    return;
                 }
 
                 // Handle clicks on route toggle buttons

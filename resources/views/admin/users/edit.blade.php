@@ -5,7 +5,7 @@
         </h2>
     </x-slot>
 
-    <div class="py-12">
+    <div class="py-2">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900 dark:text-gray-100">
@@ -60,14 +60,51 @@
                                 @enderror
                             </div>
 
-                            <div class="flex justify-end">
-                                <a href="{{ route('users.index') }}" class="mr-4 bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Cancel</a>
-                                <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
-                                    Update User
-                                </button>
+                            <h3 class="text-lg font-semibold mt-6">Digital Signature</h3>
+                            @if($user->public_key)
+                                <p class="text-sm text-gray-600 dark:text-gray-400">
+                                    This user has a digital signature initialized (since {{ $user->security_key_set_at->format('M d, Y') }}).
+                                    If the user has forgotten their Security PIN, you can reset it here.
+                                </p>
+                                <div class="mt-2">
+                                    <button type="button" 
+                                            onclick="if(confirm('Are you sure you want to reset the digital signature for {{ $user->name }}? They will need to set it up again before performing any signed actions.')) document.getElementById('reset-signature-form').submit();"
+                                            class="bg-red-100 text-red-700 hover:bg-red-200 font-medium py-1 px-3 rounded text-sm border border-red-300">
+                                        Reset Digital Signature
+                                    </button>
+                                </div>
+                            @else
+                                <p class="text-sm text-gray-500 italic">No digital signature initialized yet.</p>
+                            @endif
+
+                            <div class="flex justify-between items-center pt-6 border-t border-gray-100 dark:border-gray-700 mt-6">
+                                <div class="flex items-center">
+                                    <button type="button" 
+                                            onclick="if(confirm('Are you sure you want to PERMANENTLY delete this user? This cannot be undone.')) document.getElementById('delete-user-form').submit();"
+                                            class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+                                        Delete User
+                                    </button>
+                                </div>
+                                <div class="flex items-center">
+                                    <a href="{{ route('users.index') }}" class="mr-4 bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Cancel</a>
+                                    <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                                        Update User
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </form>
+                    
+                    <form id="delete-user-form" action="{{ route('users.destroy', $user) }}" method="POST" class="hidden">
+                        @csrf
+                        @method('DELETE')
+                    </form>
+                    
+                    @if($user->public_key)
+                        <form id="reset-signature-form" action="{{ route('users.reset-signature', $user) }}" method="POST" class="hidden">
+                            @csrf
+                        </form>
+                    @endif
                 </div>
             </div>
         </div>

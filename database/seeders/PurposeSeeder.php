@@ -113,19 +113,5 @@ class PurposeSeeder extends Seeder
         foreach ($purposes as $purpose) {
             Purpose::updateOrCreate(['name' => $purpose['name']], $purpose);
         }
-
-        // --- Add the new System Test Purpose ---
-        $allDepartmentNames = Department::orderBy('id')->pluck('name')->toArray();
-
-        if (!empty($allDepartmentNames)) {
-            Purpose::updateOrCreate(
-                ['name' => 'System Test: Full Route'],
-                [
-                    'is_official' => true,
-                    'requirements' => ['Test Document 1', 'Test Document 2'],
-                    'suggested_route' => $allDepartmentNames,
-                ]
-            );
-        }
     }
 }

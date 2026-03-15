@@ -68,7 +68,11 @@ class GuestController extends Controller
             if ($existingPurpose) {
                 $finalPurposeId = $existingPurpose->id;
             } else {
-                $suggestedRoute = $routePredictionService->predict($otherPurposeText);
+                $combinedContext = $request->input('title') . ' ' . $otherPurposeText;
+                $suggestedRoute = $routePredictionService->predict(
+                    $combinedContext, 
+                    $request->input('department')
+                );
                 $newPurpose = Purpose::create([
                     'name' => $otherPurposeText,
                     'is_official' => false,
@@ -137,7 +141,8 @@ class GuestController extends Controller
         $trackingCodes = [];
 
         if ($codesParam) {
-            $trackingCodes = array_filter(explode(',', $codesParam));
+            // Trim each code to prevent issues with whitespace in URL
+            $trackingCodes = array_map('trim', array_filter(explode(',', $codesParam)));
         }
 
         if (empty($trackingCodes)) {

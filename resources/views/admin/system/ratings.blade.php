@@ -10,7 +10,7 @@
         </div>
     </x-slot>
 
-    <div class="py-12">
+    <div class="py-2">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
 
             <!-- Stats Cards -->
@@ -33,6 +33,26 @@
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900 dark:text-gray-100">
                     <h3 class="text-lg font-semibold mb-4">All Rated Documents</h3>
+                    <form action="{{ route('system.ratings') }}" method="GET" class="mb-4">
+                        <div class="flex items-center space-x-4">
+                            <select name="rating" class="border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                <option value="">All Ratings</option>
+                                <option value="5" @if(request('rating') == 5) selected @endif>5 Stars</option>
+                                <option value="4" @if(request('rating') == 4) selected @endif>4 Stars</option>
+                                <option value="3" @if(request('rating') == 3) selected @endif>3 Stars</option>
+                                <option value="2" @if(request('rating') == 2) selected @endif>2 Stars</option>
+                                <option value="1" @if(request('rating') == 1) selected @endif>1 Star</option>
+                            </select>
+                            <select name="purpose" class="border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm">
+                                <option value="">All Purposes</option>
+                                @foreach($purposes as $purpose)
+                                    <option value="{{ $purpose->name }}" @if(request('purpose') == $purpose->name) selected @endif>{{ $purpose->name }}</option>
+                                @endforeach
+                            </select>
+                            <input type="date" name="date" class="border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm" value="{{ request('date') }}">
+                            <a href="{{ route('system.ratings') }}" class="text-gray-500 hover:text-gray-700">Clear</a>
+                        </div>
+                    </form>
                     <div class="overflow-x-auto">
                         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                             <thead class="bg-gray-50 dark:bg-gray-700">
@@ -76,4 +96,19 @@
             </div>
         </div>
     </div>
+    @push('scripts')
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                const filterForm = document.querySelector('form[action="{{ route("system.ratings") }}"]');
+                if (filterForm) {
+                    const inputs = filterForm.querySelectorAll('input, select');
+                    inputs.forEach(input => {
+                        input.addEventListener('change', () => {
+                            filterForm.submit();
+                        });
+                    });
+                }
+            });
+        </script>
+    @endpush
 </x-app-layout>

@@ -107,10 +107,17 @@ document.addEventListener('DOMContentLoaded', function() {
     function initialize() {
         initializeCharts();
 
+        const updateAllStatisticsCharts = () => {
+            if (currentLoadPeriodEl) fetchChartData(currentLoadChart, currentLoadUrl, currentLoadPeriodEl.value, 'documents received');
+            if (avgProcessingTimePeriodEl) fetchChartData(avgProcessingTimeChart, avgProcessingTimeUrl, avgProcessingTimePeriodEl.value, 'avg processing time');
+            if (throughputPeriodEl) fetchChartData(throughputChart, throughputUrl, throughputPeriodEl.value, 'throughput');
+        };
+
         // Initial data fetch
-        if (currentLoadPeriodEl) fetchChartData(currentLoadChart, currentLoadUrl, currentLoadPeriodEl.value, 'documents received');
-        if (avgProcessingTimePeriodEl) fetchChartData(avgProcessingTimeChart, avgProcessingTimeUrl, avgProcessingTimePeriodEl.value, 'avg processing time');
-        if (throughputPeriodEl) fetchChartData(throughputChart, throughputUrl, throughputPeriodEl.value, 'throughput');
+        updateAllStatisticsCharts();
+
+        // Polling: Update all statistics charts every 60 seconds
+        setInterval(updateAllStatisticsCharts, 60000);
 
         // Add event listeners
         currentLoadPeriodEl?.addEventListener('change', (e) => fetchChartData(currentLoadChart, currentLoadUrl, e.target.value, 'documents received'));
@@ -134,6 +141,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const html = await response.text();
                 documentsContainer.innerHTML = html;
                 history.pushState(null, '', url);
+                document.getElementById("released-documents-section").scrollIntoView({ behavior: "smooth" });
             } catch (error) {
                 console.error('Fetch error:', error);
                 documentsContainer.innerHTML = '<p class="text-center text-red-500">Failed to load documents. Please try again.</p>';

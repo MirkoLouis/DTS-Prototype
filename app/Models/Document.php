@@ -27,6 +27,9 @@ class Document extends Model
         'declined_at',
         'finalized_route',
         'current_step',
+        'current_department_id',
+        'released_at',
+        'released_by_user_id',
     ];
 
     /**
@@ -35,9 +38,93 @@ class Document extends Model
      * @var array<string, string>
      */
     protected $casts = [
-                                'guest_info' => 'array',
-                                'finalized_route' => 'array',        'declined_at' => 'datetime',
+        'guest_info' => 'array',
+        'finalized_route' => 'array',
+        'declined_at' => 'datetime',
+        'released_at' => 'datetime',
     ];
+
+    /**
+     * Get the user who released the document.
+     */
+    public function releasedByUser()
+    {
+        return $this->belongsTo(User::class, 'released_by_user_id');
+    }
+
+    /**
+     * Get the department currently responsible for the document.
+     */
+    public function currentDepartment()
+    {
+        return $this->belongsTo(Department::class, 'current_department_id');
+    }
+
+    /**
+     * Accessor for submitter name.
+     */
+    public function getSubmitterNameAttribute()
+    {
+        return $this->guest_info['name'] ?? null;
+    }
+
+    /**
+     * Accessor for submitter email.
+     */
+    public function getSubmitterEmailAttribute()
+    {
+        return $this->guest_info['email'] ?? null;
+    }
+
+    /**
+     * Accessor for submitter phone.
+     */
+    public function getSubmitterPhoneAttribute()
+    {
+        return $this->guest_info['phone'] ?? null;
+    }
+
+    /**
+     * Determine if the current authenticated user can process this document.
+     * This takes integrity checks and freezing into account.
+     *
+     * @return bool
+     */
+    public function getCanProcessAttribute()
+    {
+        $user = auth()->user();
+        if (!$user) return false;
+
+        if ($this->status === 'frozen') return false;
+
+        return $user->can('process', $this);
+    }
+
+    /**
+     * Determine if the current authenticated user can manage (finalize) this document.
+     *
+     * @return bool
+     */
+    public function getCanManageAttribute()
+    {
+        $user = auth()->user();
+        if (!$user) return false;
+
+        if ($this->status === 'frozen') return false;
+
+        return $user->can('manage', $this);
+    }
+
+    /**
+     * Get the route key for the model.
+     * Use tracking_code instead of the incremental ID to prevent ID enumeration.
+     *
+     * @return string
+     */
+    public function getRouteKeyName()
+    {
+        return 'tracking_code';
+    }
 
     /**
      * Get the purpose associated with the document.

@@ -1,24 +1,32 @@
 <div id="documents-table-body">
     {{-- Desktop Table View (visible on medium screens and up, hidden below medium) --}}
     <div class="overflow-x-auto hidden md:block">
-        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700 table-fixed">
             <thead class="bg-gray-50 dark:bg-gray-700">
                 <tr>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Tracking Code</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Submitter</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Purpose</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Status</th>
-                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">Date Handled</th>
-                    <th scope="col" class="relative px-6 py-3"><span class="sr-only">Actions</span></th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[20%]">Tracking Code</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[20%]">Submitter</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[35%]">Purpose</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[10%]">Status</th>
+                    <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider w-[15%]">Date Handled</th>
                 </tr>
             </thead>
             <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 @forelse($handledLogs as $log)
                     @php $document = $log->document; @endphp
                     <tr>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-gray-100 break-all max-w-xs">{{ $document->tracking_code }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ $document->guest_info['name'] }}</td>
-                        <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{{ $document->purpose->name }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900 dark:text-gray-100">
+                            <a href="{{ route('documents.show', ['document' => $document->tracking_code, 'back_to' => 'intake']) }}" class="hover:underline hover:text-indigo-600 dark:hover:text-indigo-400">
+                                {{ $document->tracking_code }}
+                            </a>
+                            <br>
+                            <button type="button" class="route-toggle-btn text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 text-xs"
+                                    data-target-id="details-row-{{ $document->tracking_code }}">
+                                View Route
+                            </button>
+                        </td>
+                        <td class="px-6 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ $document->guest_info['name'] }}</td>
+                        <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-400 break-words">{{ $document->purpose->name }}</td>
                         <td class="px-6 py-4 text-sm">
                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                                 @switch($document->status)
@@ -33,15 +41,9 @@
                             </span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">{{ $log->created_at->format('M d, Y h:i A') }}</td>
-                        <td class="px-6 py-4 text-right text-sm font-medium">
-                            <button type="button" class="route-toggle-btn text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200"
-                                    data-target-id="details-row-{{ $document->id }}">
-                                View Route
-                            </button>
-                        </td>
                     </tr>
-                    <tr id="details-row-{{ $document->id }}" class="details-row" style="display: none;">
-                        <td colspan="6" class="p-4 bg-gray-50 dark:bg-gray-900/50">
+                    <tr id="details-row-{{ $document->tracking_code }}" class="details-row" style="display: none;">
+                        <td colspan="5" class="p-4 bg-gray-50 dark:bg-gray-900/50">
                             <h4 class="font-bold mb-2 text-gray-800 dark:text-gray-200">Route for {{ $document->tracking_code }}:</h4>
                             @if($document->finalized_route)
                                 <div class="overflow-x-auto">
@@ -54,7 +56,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No documents match your search.</td>
+                        <td colspan="5" class="px-6 py-4 text-center text-gray-500 dark:text-gray-400">No documents match your search.</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -67,7 +69,11 @@
             @php $document = $log->document; @endphp
             <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow mb-4 space-y-2">
                 <div class="flex justify-between items-center">
-                    <div class="font-bold text-lg text-gray-900 dark:text-gray-100">{{ $document->tracking_code }}</div>
+                    <div class="font-bold text-lg text-gray-900 dark:text-gray-100">
+                        <a href="{{ route('documents.show', ['document' => $document->tracking_code, 'back_to' => 'intake']) }}" class="hover:underline hover:text-indigo-600 dark:hover:text-indigo-400">
+                            {{ $document->tracking_code }}
+                        </a>
+                    </div>
                     <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
                         @switch($document->status)
                             @case('pending') bg-yellow-100 text-yellow-800 @break
@@ -89,12 +95,12 @@
 
                 <div>
                     <button type="button" class="route-toggle-btn w-full text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200 mt-2 py-2 px-4 rounded-md border border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900 hover:bg-indigo-100 dark:hover:bg-indigo-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150"
-                            data-target-id="details-row-mobile-{{ $document->id }}">
+                            data-target-id="details-row-mobile-{{ $document->tracking_code }}">
                         View Route
                     </button>
                 </div>
                 
-                <div id="details-row-mobile-{{ $document->id }}" class="details-row mt-2" style="display: none;">
+                <div id="details-row-mobile-{{ $document->tracking_code }}" class="details-row mt-2" style="display: none;">
                     <h4 class="font-bold mb-2 text-gray-800 dark:text-gray-200">Route:</h4>
                     <div class="overflow-x-auto">
                         @if($document->finalized_route)

@@ -4,33 +4,69 @@ namespace App\Http\Controllers;
 
 use App\Models\Document;
 use App\Models\DocumentLog;
+use App\Services\MetricUpdateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class ReleasingController extends Controller
 {
+    protected $metrics;
+
+    public function __construct(MetricUpdateService $metrics)
+    {
+        $this->metrics = $metrics;
+    }
+
     /**
      * Display a listing of the documents ready for release.
      */
     public function index(Request $request)
     {
-        // The new status 'ready_for_release' simplifies this query significantly.
-        $documents = Document::where('status', 'ready_for_release')
-                                ->latest()
-                                ->paginate(10);
+        $searchTerm = $request->input('search');
+        $filterPurpose = $request->input('purpose');
+        $filterSubmitter = $request->input('submitter');
+        $filterDate = $request->input('date');
+
+        $query = Document::where('status', 'ready_for_release');
+
+        if ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('tracking_code', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('title', 'like', '%' . $searchTerm . '%');
+            });
+        }
+
+        if ($filterPurpose && $filterPurpose !== 'all') {
+            $query->whereHas('purpose', function ($subQuery) use ($filterPurpose) {
+                $subQuery->where('name', $filterPurpose);
+            });
+        }
+
+        if ($filterSubmitter) {
+            $query->whereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(guest_info, "$.name"))) LIKE ?', ['%' . strtolower($filterSubmitter) . '%']);
+        }
+
+        if ($filterDate) {
+            $query->whereDate('created_at', $filterDate);
+        }
+
+        $documents = $query->with('purpose')->latest()->paginate(10)->withQueryString();
 
         if ($request->ajax()) {
             return view('general.partials.releasing-table', ['documents' => $documents]);
         }
 
+        $purposes = \App\Models\Purpose::orderBy('name')->get();
+
         return view('officer.releasing.index', [
             'documents' => $documents,
+            'purposes' => $purposes,
         ]);
     }
 
     /**
      * Receive a document that has finished its route and add it to the releasing queue.
-     * This is a stricter version of the general scan action, specifically for the releasing workflow.
+     * Stricter version of the scan action, specifically for releasing, now with cryptographic signing.
      *
      * @param  \Illuminate\Http\Request  $request
      * @return \Illuminate\Http\RedirectResponse
@@ -42,29 +78,27 @@ class ReleasingController extends Controller
         ]);
 
         $document = Document::where('tracking_code', $request->tracking_code)->firstOrFail();
-        $user = Auth::user(); // No need to load department, but useful for logging
+        $user = Auth::user();
 
-        // STRICT VALIDATION:
-        // 1. The document must be 'in_transit'.
+        // VALIDATION
         if ($document->status !== 'in_transit') {
-            $statusMessage = 'This document cannot be received for releasing. Its current status is: ' . ucfirst($document->status);
-            if (in_array($document->status, ['ready_for_release', 'completed'])) {
-                $statusMessage = 'This document is already in the releasing process or has been completed.';
-            }
-            return redirect()->route('releasing')->with('error', $statusMessage);
+            return redirect()->route('releasing')->with('error', 'This document is not in a receivable state.');
         }
 
-        // 2. The document must have completed all steps in its route.
         $route = $document->finalized_route;
-        $currentStepIndex = $document->current_step - 1;
-
-        if ($currentStepIndex < count($route)) {
-            $nextDepartment = $route[$currentStepIndex]['name'] ?? 'an unknown department';
-            return redirect()->route('releasing')->with('error', "This document has not completed its route. It is still in transit to {$nextDepartment}.");
+        if (($document->current_step - 1) < count($route)) {
+            return redirect()->route('releasing')->with('error', 'This document has not completed all intermediate processing steps.');
         }
 
-        // If validation passes, update the document status.
-        $document->update(['status' => 'ready_for_release']);
+        $document->update([
+            'status' => 'ready_for_release',
+            'current_department_id' => $user->department_id
+        ]);
+
+        // Update Metrics
+        if ($user->department_id) {
+            $this->metrics->incrementReceived($user->department_id);
+        }
 
         DocumentLog::create([
             'document_id' => $document->id,
@@ -73,7 +107,7 @@ class ReleasingController extends Controller
             'remarks' => 'All processing steps completed. Document received by Records Unit for final releasing.',
         ]);
 
-        return redirect()->route('releasing')->with('success', "Document {$document->tracking_code} is now ready for releasing and has been added to the queue.");
+        return redirect()->route('releasing')->with('success', "Document {$document->tracking_code} is now ready for releasing.");
     }
 
     /**
@@ -81,20 +115,72 @@ class ReleasingController extends Controller
      */
     public function complete(Request $request, Document $document)
     {
-        // Ensure the document is actually ready for release before proceeding.
         if ($document->status !== 'ready_for_release') {
             return redirect()->route('releasing')->with('error', 'This document is not ready for release.');
         }
 
-        // Update status to 'completed'
-        $document->update(['status' => 'completed']);
+        $request->validate([
+            'pin' => ['required', 'string'],
+        ]);
 
-        // Create the final log entry to mark the document as officially released.
+        $user = Auth::user();
+        $action = 'Document Released';
+        $remarks = 'The document has been released to the client.';
+
+        // Calculate processing time from the last 'Ready for Releasing' log
+        $lastReadyLog = $document->logs()
+            ->where('action', 'Ready for Releasing')
+            ->latest()
+            ->first();
+        
+        $secondsTaken = $lastReadyLog ? now()->diffInSeconds($lastReadyLog->created_at) : 0;
+
+        // Update document state BEFORE signing and logging to ensure integrity bonding
+        $document->update([
+            'status' => 'completed',
+            'current_department_id' => null,
+            'released_at' => now(),
+            'released_by_user_id' => $user->id,
+        ]);
+
+        // Update Metrics for the RELEASING department (Records Unit)
+        if ($user->department_id) {
+            $this->metrics->incrementReleased($user->department_id, $secondsTaken);
+        }
+
+        // 1. Generate Cryptographic Signature (Bonded to the NOW COMPLETED document state)
+        $stateHash = DocumentLog::calculateStateHash($document);
+        $signature = $user->sign($request->pin, $action, $stateHash);
+
+        if ($signature === false) {
+            // Revert status if signing fails
+            $document->update([
+                'status' => 'ready_for_release',
+                'current_department_id' => $user->department_id,
+                'released_at' => null,
+                'released_by_user_id' => null,
+            ]);
+            return back()->with('error', 'Invalid Security PIN. Transaction aborted.');
+        }
+
+        if ($signature === null) {
+            // Revert status if no signature found
+            $document->update([
+                'status' => 'ready_for_release',
+                'current_department_id' => $user->department_id,
+                'released_at' => null,
+                'released_by_user_id' => null,
+            ]);
+            return back()->with('error', 'Your digital signature has not been initialized.');
+        }
+
         DocumentLog::create([
             'document_id' => $document->id,
-            'user_id' => Auth::id(),
-            'action' => 'Document Released',
-            'remarks' => 'The document has been released to the client.',
+            'user_id' => $user->id,
+            'action' => $action,
+            'remarks' => $remarks,
+            'signature' => $signature,
+            'document_state_hash' => $stateHash, // Explicitly pass the hash used for signing
         ]);
 
         return redirect()->route('releasing')->with('success', 'Document marked as completed and released.');

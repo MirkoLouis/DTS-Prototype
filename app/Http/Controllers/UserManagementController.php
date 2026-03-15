@@ -7,17 +7,37 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use App\Models\Department;
+use App\Models\PublicKeyHistory;
 
 class UserManagementController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-         public function index()
-        {
-            $users = User::orderBy('name')->paginate(10);
-            return view('admin.users.index', compact('users'));
+    public function index(Request $request)
+    {
+        $query = User::query();
+
+        if ($request->filled('search')) {
+            $search = $request->input('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('email', 'like', "%{$search}%");
+            });
         }
+
+        if ($request->filled('role')) {
+            $query->where('role', $request->input('role'));
+        }
+
+        $users = $query->orderBy('name')->paginate(10)->withQueryString();
+
+        if ($request->ajax()) {
+            return view('admin.users.partials.users-list', compact('users'));
+        }
+
+        return view('admin.users.index', compact('users'));
+    }
     /**
      * Show the form for creating a new resource.
      */
@@ -122,6 +142,27 @@ class UserManagementController extends Controller
         }
 
         return redirect()->route('users.index')->with('success', 'User updated successfully.');
+    }
+
+    public function resetSignature(User $user)
+    {
+        // Archive the current key if it exists
+        if ($user->public_key && $user->security_key_set_at) {
+            PublicKeyHistory::create([
+                'user_id' => $user->id,
+                'public_key' => $user->public_key,
+                'activated_at' => $user->security_key_set_at,
+                'deactivated_at' => now(),
+            ]);
+        }
+
+        $user->update([
+            'public_key' => null,
+            'private_key' => null,
+            'security_key_set_at' => null,
+        ]);
+
+        return back()->with('success', "Digital signature for {$user->name} has been reset. They will be prompted to set a new one upon their next login or critical action.");
     }
 
     /**

@@ -5,11 +5,19 @@
         </h2>
     </x-slot>
 
-    <div class="py-6">
+    <div class="py-2">
         <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900 dark:text-gray-100">
-                    <h3 class="text-2xl font-bold mb-4">Processing Analytics</h3>
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-2xl font-bold">Processing Analytics</h3>
+                        <form action="{{ route('admin.dashboard.clear-cache') }}" method="POST" class="confirm-action" data-message="Are you sure you want to clear the dashboard cache? This will force all charts to recalculate from the database.">
+                            @csrf
+                            <button type="submit" class="inline-flex items-center px-3 py-1 bg-gray-200 dark:bg-gray-700 border border-transparent rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest hover:bg-gray-300 dark:hover:bg-gray-600 focus:outline-none transition">
+                                Clear Cache
+                            </button>
+                        </form>
+                    </div>
 
                     <div class="space-y-6">
                         <!-- Section: Main Overview (3 cols) -->
@@ -21,7 +29,8 @@
                              data-return-request-sources-url="{{ route('api.admin-dashboard.return-request-sources') }}"
                              data-processing-hotspots-url="{{ route('api.admin-dashboard.processing-hotspots') }}"
                              data-avg-step-time-url="{{ route('api.admin-dashboard.avg-step-time') }}"
-                             data-load-vs-time-url="{{ route('api.admin-dashboard.department-load-vs-time') }}">
+                             data-load-vs-time-url="{{ route('api.admin-dashboard.department-load-vs-time') }}"
+                             data-submission-districts-url="{{ route('api.admin-dashboard.submission-districts') }}">
 
                             <!-- Document Status Distribution Chart -->
                             <div class="bg-gray-50 dark:bg-gray-700/50 pt-3 px-5 pb-5 rounded-lg shadow">
@@ -34,7 +43,7 @@
                             <!-- Global Throughput Chart -->
                             <div class="bg-gray-50 dark:bg-gray-700/50 pt-3 px-5 pb-5 rounded-lg shadow">
                                 <div class="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">
-                                    <h4 class="text-lg font-bold">Global Average Processing Time (hrs)</h4>
+                                    <h4 class="text-lg font-bold">Departmental Average TAT over time (hrs)</h4>
                                     <select id="globalThroughputPeriod" class="form-select rounded-md shadow-sm border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 text-sm max-w-32">
                                         <option value="daily">Daily (Last 30 Days)</option>
                                         <option value="weekly">Weekly (Last 12 Weeks)</option>
@@ -49,7 +58,7 @@
 
                             <!-- Average Processing Time by Dept Chart -->
                             <div class="bg-gray-50 dark:bg-gray-700/50 pt-3 px-5 pb-5 rounded-lg shadow">
-                                <h4 class="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Top 5 Fastest Depts. (Avg)</h4>
+                                <h4 class="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Average TAT by Department (hrs)</h4>
                                 <div class="relative h-56">
                                     <canvas id="avgStepTimeChart"></canvas>
                                 </div>
@@ -123,11 +132,25 @@
                             </div>
                         </div>
 
-                        <!-- Section: Processing Hotspots -->
+                        <!-- Section: Purpose & Origin Analysis -->
                         <div class="bg-gray-50 dark:bg-gray-700/50 pt-3 px-5 pb-5 rounded-lg shadow mt-6">
-                            <h4 class="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Processing Hotspots by Purpose</h4>
-                            <div class="relative h-96">
-                                <canvas id="processingHotspotsChart"></canvas>
+                            <h3 class="text-xl font-bold mb-4">Purpose & Origin Analysis</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <!-- Processing Hotspots Chart -->
+                                <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-inner">
+                                    <h4 class="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Processing Hotspots (Purpose Popularity)</h4>
+                                    <div class="relative h-96">
+                                        <canvas id="processingHotspotsChart"></canvas>
+                                    </div>
+                                </div>
+
+                                <!-- Submission Volume by District Chart -->
+                                <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-inner">
+                                    <h4 class="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Submission Volume by District</h4>
+                                    <div class="relative h-96">
+                                        <canvas id="submissionDistrictsChart"></canvas>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -136,9 +159,68 @@
         </div>
     </div>
 
-    <x-chart-modal />
-
-    @push('scripts')
-        @vite('resources/js/admin-dashboard.js')
-    @endpush
-</x-app-layout>
+        <x-chart-modal />
+    
+        <!-- Confirmation Modal -->
+        <div id="confirmation-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-gray-900/75 transition-opacity">
+            <div class="relative z-10 w-full max-w-md p-4 bg-white dark:bg-gray-800 rounded-lg shadow-xl mx-4">
+                <div class="flex items-center justify-between mb-4 border-b dark:border-gray-700 pb-2">
+                    <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">Confirm Action</h3>
+                    <button id="cancel-btn-top" class="text-gray-400 hover:text-gray-500">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <div class="mb-6">
+                    <p id="confirmation-message" class="text-sm text-gray-600 dark:text-gray-400"></p>
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button id="cancel-btn" class="inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 border border-transparent rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest hover:bg-gray-300 dark:hover:bg-gray-600 focus:outline-none transition">
+                        Cancel
+                    </button>
+                    <button id="confirm-btn" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 active:bg-indigo-700 focus:outline-none transition">
+                        Yes, Proceed
+                    </button>
+                </div>
+            </div>
+        </div>
+    
+        @push('scripts')
+            @vite('resources/js/admin-dashboard.js')
+            <script>
+                document.addEventListener('DOMContentLoaded', function () {
+                    const confirmForms = document.querySelectorAll('.confirm-action');
+                    const modal = document.getElementById('confirmation-modal');
+                    const modalMessage = document.getElementById('confirmation-message');
+                    const confirmBtn = document.getElementById('confirm-btn');
+                    const cancelBtn = document.getElementById('cancel-btn');
+                    const cancelBtnTop = document.getElementById('cancel-btn-top');
+                    let currentForm = null;
+    
+                    confirmForms.forEach(form => {
+                        form.addEventListener('submit', (e) => {
+                            e.preventDefault();
+                            currentForm = form;
+                            modalMessage.textContent = form.dataset.message || 'Are you sure?';
+                            modal.style.display = 'flex';
+                        });
+                    });
+    
+                    [cancelBtn, cancelBtnTop].forEach(btn => {
+                        if (btn) btn.addEventListener('click', () => {
+                            modal.style.display = 'none';
+                            currentForm = null;
+                        });
+                    });
+    
+                    if (confirmBtn) {
+                        confirmBtn.addEventListener('click', () => {
+                            if (currentForm) currentForm.submit();
+                        });
+                    }
+                });
+            </script>
+        @endpush
+    </x-app-layout>
+    

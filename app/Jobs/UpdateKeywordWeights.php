@@ -32,8 +32,15 @@ class UpdateKeywordWeights implements ShouldQueue
      */
     public function handle(): void
     {
-        // Tokenize the purpose text
-        $tokens = preg_split('/[\s,.;]+/', strtolower($this->purposeText), -1, PREG_SPLIT_NO_EMPTY);
+        // Tokenize and clean the purpose text
+        $rawTokens = preg_split('/[\s,.;]+/', strtolower($this->purposeText), -1, PREG_SPLIT_NO_EMPTY);
+        
+        // Define stopwords and placeholders to ignore
+        $stopWords = ['the', 'and', 'for', 'with', 'n/a', 'na', 'not', 'applicable', 'this', 'that'];
+        
+        $tokens = array_filter($rawTokens, function($token) use ($stopWords) {
+            return strlen($token) > 2 && !in_array($token, $stopWords);
+        });
 
         if (empty($tokens) || empty($this->finalizedRoute)) {
             return;
@@ -42,19 +49,35 @@ class UpdateKeywordWeights implements ShouldQueue
         // Get the department models for the finalized route
         $departments = Department::whereIn('name', $this->finalizedRoute)->pluck('id', 'name');
 
+        // We only increment document_count once per keyword per handle() call
+        // to avoid double-counting if the same department appears multiple times in a route
+        $processedKeywordsPerDept = [];
+
         foreach ($this->finalizedRoute as $departmentName) {
             if (isset($departments[$departmentName])) {
                 $departmentId = $departments[$departmentName];
 
+                if (!isset($processedKeywordsPerDept[$departmentId])) {
+                    $processedKeywordsPerDept[$departmentId] = [];
+                }
+
                 foreach ($tokens as $token) {
-                    // Find or create the keyword entry and increment its weight
+                    // Find or create the keyword entry
                     $keyword = PredictionKeyword::firstOrCreate(
                         [
                             'keyword' => $token,
                             'department_id' => $departmentId,
                         ]
                     );
+                    
+                    // Increment absolute weight (frequency of correction)
                     $keyword->increment('weight');
+
+                    // Increment document_count (for IDF) only once per document per department
+                    if (!in_array($token, $processedKeywordsPerDept[$departmentId])) {
+                        $keyword->increment('document_count');
+                        $processedKeywordsPerDept[$departmentId][] = $token;
+                    }
                 }
             }
         }

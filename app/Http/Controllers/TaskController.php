@@ -2,13 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Department;
 use App\Models\Document;
 use App\Models\DocumentLog;
+use App\Services\MetricUpdateService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class TaskController extends Controller
 {
+    protected $metrics;
+
+    public function __construct(MetricUpdateService $metrics)
+    {
+        $this->metrics = $metrics;
+    }
+
     /**
      * Display the tasks page for Staff, showing documents assigned to their department.
      */
@@ -17,31 +26,50 @@ class TaskController extends Controller
         $user = Auth::user()->load('department');
         $userDepartment = $user->department;
 
+        $searchTerm = $request->input('search');
+        $filterStatus = $request->input('status');
+        $filterPurpose = $request->input('purpose');
+        $filterSubmitter = $request->input('submitter');
+        $filterDate = $request->input('date');
+
         if (!$userDepartment) {
             $documentsForUser = collect();
         } else {
-            $processingDocuments = Document::with('purpose')
-                                        ->where('status', 'processing')
-                                        ->latest()
-                                        ->get();
+            // OPTIMIZATION: Use the indexed current_department_id instead of JSON extraction
+            $query = Document::with('purpose')
+                ->where('status', 'processing')
+                ->where('current_department_id', $userDepartment->id);
 
-            // Filter documents to find those where the current step matches the user's department
-            $documentsForUser = $processingDocuments->filter(function ($document) use ($userDepartment) {
-                if (empty($document->finalized_route) || is_null($document->current_step)) {
-                    return false;
-                }
-                
-                // The current step is 1-based, the array is 0-based
-                $currentStepIndex = $document->current_step - 1;
-                
-                // Check if the current step is valid for the route
-                if (isset($document->finalized_route[$currentStepIndex])) {
-                    // Check if the department name at the current step matches the user's department name
-                    return $document->finalized_route[$currentStepIndex]['name'] === $userDepartment->name;
-                }
+            // Apply Filters
+            if ($searchTerm) {
+                $query->where(function ($q) use ($searchTerm) {
+                    $q->where('tracking_code', 'like', '%' . $searchTerm . '%')
+                      ->orWhere('title', 'like', '%' . $searchTerm . '%')
+                      ->orWhereHas('purpose', function ($subQuery) use ($searchTerm) {
+                          $subQuery->where('name', 'like', '%' . $searchTerm . '%');
+                      });
+                });
+            }
 
-                return false;
-            });
+            if ($filterStatus && $filterStatus !== 'all') {
+                $query->where('status', $filterStatus);
+            }
+
+            if ($filterPurpose && $filterPurpose !== 'all') {
+                $query->whereHas('purpose', function ($subQuery) use ($filterPurpose) {
+                    $subQuery->where('name', $filterPurpose);
+                });
+            }
+
+            if ($filterSubmitter) {
+                $query->whereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(guest_info, "$.name"))) LIKE ?', ['%' . strtolower($filterSubmitter) . '%']);
+            }
+
+            if ($filterDate) {
+                $query->whereDate('created_at', $filterDate);
+            }
+
+            $documentsForUser = $query->latest()->paginate(15)->withQueryString();
         }
 
         if ($request->ajax()) {
@@ -53,9 +81,14 @@ class TaskController extends Controller
             $viewName = 'officer.officer-tasks'; // New view for officers
         }
 
+        $purposes = \App\Models\Purpose::orderBy('name')->get();
+        $statuses = ['processing']; // Only processing for this view
+
         return view($viewName, [
             'documents' => $documentsForUser,
-            'departmentName' => $userDepartment ? $userDepartment->name : 'Your' // Provide a fallback
+            'departmentName' => $userDepartment ? $userDepartment->name : 'Your', // Provide a fallback
+            'purposes' => $purposes,
+            'statuses' => $statuses,
         ]);
     }
 
@@ -64,65 +97,88 @@ class TaskController extends Controller
      */
     public function complete(Request $request, Document $document)
     {
+        \Illuminate\Support\Facades\Gate::authorize('process', $document);
+
+        $request->validate([
+            'pin' => 'required|string',
+        ]);
+
         $user = Auth::user()->load('department');
         $userDepartment = $user->department;
 
-        // Authorization: Check if the document is actually assigned to this user's department
-        $currentStepIndex = $document->current_step - 1;
-        $currentDepartmentOnRoute = $document->finalized_route[$currentStepIndex]['name'] ?? null;
+        // Calculate processing time from the last 'Received' log for this department
+        $lastReceivedLog = $document->logs()
+            ->where('action', 'Received')
+            ->where('user_id', $user->id)
+            ->latest()
+            ->first();
+        
+        $secondsTaken = $lastReceivedLog ? now()->diffInSeconds($lastReceivedLog->created_at) : 0;
 
-        // Authorization: Check if the user is authorized to perform this action on this document.
-        // Get the department name for the current step in the document's route
-        $currentStepInRouteName = $document->finalized_route[$currentStepIndex]['name'] ?? null;
-
-        if ($user->role === 'officer') {
-            if (!$userDepartment) {
-                return back()->with('error', 'Your user account (Records Officer) is not assigned to a department, thus cannot complete this step.');
-            }
-            if ($document->status !== 'processing') {
-                return back()->with('error', 'The document is not in a processing state.');
-            }
-            if ($currentStepInRouteName !== $userDepartment->name) {
-                return back()->with('error', "As a Records Officer, you cannot complete this step. The document is currently at '{$currentStepInRouteName}' but your department is '{$userDepartment->name}'.");
-            }
-        }
-        // Staff-specific authorization (or general authorization if not officer)
-        else {
-            if (!$userDepartment) {
-                return back()->with('error', 'Your user account is not assigned to a department, thus cannot complete this step.');
-            }
-            if ($document->status !== 'processing') {
-                return back()->with('error', 'The document is not in a processing state.');
-            }
-            if ($currentStepInRouteName !== $userDepartment->name) {
-                return back()->with('error', "You are not authorized to complete this step. The document is currently at '{$currentStepInRouteName}' but your department is '{$userDepartment->name}'.");
-            }
-        }
-
-        // Advance the step and set status to 'in_transit'
+        // Advance the step and set status to 'in_transit' BEFORE signing
+        $totalSteps = count($document->finalized_route);
         $document->current_step += 1;
         $document->status = 'in_transit';
 
-        $totalSteps = count($document->finalized_route);
+        // Update current_department_id to the NEXT department (if any)
+        $nextDepartmentId = null;
+        if ($document->current_step <= $totalSteps) {
+            $nextDeptName = $document->finalized_route[$document->current_step - 1]['name'];
+            $nextDept = Department::where('name', $nextDeptName)->first();
+            $nextDepartmentId = $nextDept ? $nextDept->id : null;
+        } else {
+            // If it was the last processing step, it's heading to Records Unit for release
+            $recordsUnit = Department::where('name', 'Records Unit')->first();
+            $nextDepartmentId = $recordsUnit ? $recordsUnit->id : null;
+        }
+        
+        $originalDepartmentId = $document->current_department_id;
+        $document->current_department_id = $nextDepartmentId;
+        $document->save();
+
+        // Update Metrics for the COMPLETING department
+        $this->metrics->incrementProcessed($userDepartment->id, $secondsTaken);
+
         $action = 'Processing Complete';
         
         // Determine the remarks for the log
         if ($document->current_step > $totalSteps) {
-            // This was the final internal processing step.
             $remarks = "Final step processed by {$userDepartment->name}. In transit to Records Unit for releasing.";
         } else {
             $nextDepartmentName = $document->finalized_route[$document->current_step - 1]['name'];
             $remarks = "Step processed by {$userDepartment->name}. In transit to {$nextDepartmentName}.";
         }
 
-        $document->save();
+        // 1. Generate Cryptographic Signature (Bonded to the NOW UPDATED document state)
+        $stateHash = DocumentLog::calculateStateHash($document);
+        $signature = $user->sign($request->pin, $action, $stateHash);
 
-        // Create a log entry for this action
+        if ($signature === false) {
+            // Revert state if signing fails
+            $document->current_step -= 1;
+            $document->status = 'processing';
+            $document->current_department_id = $originalDepartmentId;
+            $document->save();
+            return back()->with('error', 'Invalid Security PIN. Transaction aborted.');
+        }
+
+        if ($signature === null) {
+            // Revert state if no signature found
+            $document->current_step -= 1;
+            $document->status = 'processing';
+            $document->current_department_id = $originalDepartmentId;
+            $document->save();
+            return back()->with('error', 'Your digital signature has not been initialized. Please refresh the page.');
+        }
+
+        // Create a log entry for this action, including the Ed25519 signature
         DocumentLog::create([
             'document_id' => $document->id,
             'user_id' => $user->id,
             'action' => $action,
             'remarks' => $remarks,
+            'signature' => $signature, // This is now a real cryptographic signature
+            'document_state_hash' => $stateHash, // Explicitly pass the hash used for signing
         ]);
 
         // Determine the redirect route based on user role
@@ -134,20 +190,62 @@ class TaskController extends Controller
     /**
      * Display a list of documents previously completed by the user.
      */
-    public function completed()
+    public function completed(Request $request)
     {
         $userId = Auth::id();
+        $searchTerm = $request->input('search');
+        $filterStatus = $request->input('status');
+        $filterPurpose = $request->input('purpose');
+        $filterSubmitter = $request->input('submitter');
+        $filterDate = $request->input('date');
 
-        // Find all logs where the user completed a processing step
-        $completedLogs = DocumentLog::where('user_id', $userId)
-            ->where('action', 'Processing Complete')
-            ->with('document.purpose') // Eager load for efficiency
-            ->latest()
-            ->get();
+        $query = Document::whereHas('logs', function ($q) use ($userId) {
+            $q->where('user_id', $userId)
+              ->where('action', 'Processing Complete');
+        })->with('purpose');
 
-        // Get the unique documents from the logs
-        $documents = $completedLogs->unique('document_id')->pluck('document');
+        // Apply Filters
+        if ($searchTerm) {
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('tracking_code', 'like', '%' . $searchTerm . '%')
+                  ->orWhere('title', 'like', '%' . $searchTerm . '%')
+                  ->orWhereHas('purpose', function ($subQuery) use ($searchTerm) {
+                      $subQuery->where('name', 'like', '%' . $searchTerm . '%');
+                  });
+            });
+        }
 
-        return view('staff.tasks-completed', ['documents' => $documents]);
+        if ($filterStatus && $filterStatus !== 'all') {
+            $query->where('status', $filterStatus);
+        }
+
+        if ($filterPurpose && $filterPurpose !== 'all') {
+            $query->whereHas('purpose', function ($subQuery) use ($filterPurpose) {
+                $subQuery->where('name', $filterPurpose);
+            });
+        }
+
+        if ($filterSubmitter) {
+            $query->whereRaw('LOWER(JSON_UNQUOTE(JSON_EXTRACT(guest_info, "$.name"))) LIKE ?', ['%' . strtolower($filterSubmitter) . '%']);
+        }
+
+        if ($filterDate) {
+            $query->whereDate('created_at', $filterDate);
+        }
+
+        $documents = $query->latest()->paginate(15)->withQueryString();
+
+        if ($request->ajax()) {
+            return view('general.partials.completed-tasks-list', ['documents' => $documents]);
+        }
+
+        $purposes = \App\Models\Purpose::orderBy('name')->get();
+        $statuses = ['processing', 'in_transit', 'ready_for_release', 'completed', 'declined'];
+
+        return view('staff.tasks-completed', [
+            'documents' => $documents,
+            'purposes' => $purposes,
+            'statuses' => $statuses,
+        ]);
     }
 }

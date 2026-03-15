@@ -7,6 +7,21 @@
 
         <title>{{ config('app.name', 'Laravel') }}</title>
 
+        <!-- Theme Detection Script -->
+        <script>
+            (function() {
+                const theme = localStorage.getItem('theme');
+                const isDark = theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
+                if (isDark) {
+                    document.documentElement.classList.add('dark');
+                    document.documentElement.setAttribute('data-bs-theme', 'dark');
+                } else {
+                    document.documentElement.classList.remove('dark');
+                    document.documentElement.setAttribute('data-bs-theme', 'light');
+                }
+            })();
+        </script>
+
         <!-- Fonts -->
 
         <!-- Scripts -->
@@ -25,13 +40,13 @@
                 </header>
             @endisset
 
-            <!-- Page Content -->
             <main>
                 <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 pt-4">
                     <x-flash-messages />
                 </div>
                 {{ $slot }}
             </main>
+            <x-security-key-modal />
         </div>
         @stack('scripts')
     </body>
