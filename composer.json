@@ -81,7 +81,7 @@
             "php artisan dts:migrate --devseed"
         ],
         "db:prod": "php artisan dts:migrate --prodseed",
-        "proxy": "npx local-ssl-proxy --source 3051 --target 3050 --cert localhost.crt --key localhost.key",
+        "proxy": "./node_modules/.bin/local-ssl-proxy --source 3051 --target 3050 --cert localhost.crt --key localhost.key",
         "test": [
             "@php artisan config:clear --ansi",
             "@php artisan test"

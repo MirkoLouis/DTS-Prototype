@@ -54,7 +54,7 @@
                     <p>You <strong style="text-decoration: underline;">MUST</strong> print the official Document Tracking Form. This printed form must be submitted to the Records Office along with your documents to begin the process.</p>
                 </div>
 
-                <a href="{{ route('documents.print-tracking-form', ['document' => $document_id]) }}" class="btn btn-primary btn-lg mt-3" target="_blank">
+                <a href="{{ route('documents.print-tracking-form', ['document' => $tracking_code]) }}" class="btn btn-primary btn-lg mt-3" target="_blank">
                     <i class="bi bi-printer-fill me-2"></i> Print Document Tracking Form
                 </a>
 

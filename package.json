@@ -14,6 +14,7 @@
         "axios": "^1.11.0",
         "concurrently": "^9.0.1",
         "laravel-vite-plugin": "^2.0.0",
+        "local-ssl-proxy": "^2.0.5",
         "postcss": "^8.4.31",
         "sass": "^1.97.1",
         "tailwindcss": "^4.0.0",
