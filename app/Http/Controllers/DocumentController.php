@@ -454,6 +454,11 @@ class DocumentController extends Controller
             'qrCode' => $qrCode,
         ]);
 
+        $pdf->setOptions([
+            'isHtml5ParserEnabled' => true,
+            'isRemoteEnabled' => true,
+        ]);
+
         return $pdf->setPaper('a4')->stream('document-tracking-form-'.$document->tracking_code.'.pdf');
     }
 }

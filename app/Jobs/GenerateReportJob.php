@@ -112,6 +112,7 @@ class GenerateReportJob implements ShouldQueue
                   $pdf->setPaper('a4', 'landscape');
                   $pdf->setOptions([
                       'isHtml5ParserEnabled' => true,
+                      'isRemoteEnabled' => true,
                       'defaultFont' => 'sans-serif',
                       'logOutputFile' => null,
                   ]);
