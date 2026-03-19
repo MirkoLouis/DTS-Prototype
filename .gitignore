@@ -40,6 +40,10 @@ app-release.apk
 .history/
 dumps/
 dist/
+paper/references/*
+paper/TEMPLATES/*
+paper/Templates (converted)/
+paper/\[DRAFT] Thesis nilang Jove.md
 
 # Files
 .DS_Store
