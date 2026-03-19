@@ -25,13 +25,15 @@ The use of QR codes has been proven to enhance physical-to-digital data synchron
 - **E-Document Tracking System (Saldon, 2015):** Designed for the DOST-X to expedite procurement processing. While it enhanced monitoring, it lacked the "Auto-Freeze" integrity mechanisms found in this study's prototype.
 
 ### 2.3 Synthesis of the Review
-The reviewed systems reveal a clear progression from manual logbooks to basic digital databases. However, a critical gap remains: most systems rely on "trusted" database administrators and policy-based security. This study addresses this deficiency by implementing **cryptographic-based integrity**, where the system itself verifies its own history via hash-chains, and ensures non-repudiation via Ed25519, effectively eliminating the possibility of "silent tampering" or "shadow system" fragmentation.
+The reviewed systems reveal a clear progression from manual logbooks to basic digital databases. However, a critical gap remains: most systems rely on "Policy-Based Security," where data integrity is dependent on the trustworthiness of system administrators and access control lists. This study addresses this deficiency by implementing **Cryptographic-Based Non-Repudiation**. 
+
+Unlike traditional models, the DTS prototype utilizes **Ed25519 digital signatures** and **SHA-256 hash-chaining** to ensure that the system itself verifies its own history. This shifts the "root of trust" from human administrators to mathematical proofs, effectively eliminating the possibility of "silent tampering" or the fragmentation caused by **Informal Information Systems (IIS)**. By utilizing a **Heuristic Context-Aware Routing** module instead of static logic, the system also adapts to evolving departmental workflows without compromising the audit trail's integrity.
 
 ### 2.4 Theoretical Framework
 The development of the DTS is anchored in the following theories:
 1. **Case Management Theory (Frankel et al., 2018):** Provides the structure for tracking a document through its various stages (Assessment, Planning, Implementation).
 2. **Information Integrity Theory:** Focuses on maintaining and assuring the accuracy and consistency of data over its entire life cycle.
-3. **Decision Support Theory (Keen et al., 1978):** Guides the AI-assisted routing module, which helps Records Officers make data-driven decisions based on historical routing weights.
+3. **Decision Support Theory (Keen et al., 1978):** Guides the **Heuristic Context-Aware Routing** module, which helps Records Officers make data-driven decisions based on historical routing weights.
 4. **General System Theory (Bertalanffy, 1968):** Views the DepEd Division Office as a socio-technical system where technological artifacts must integrate seamlessly with human workflows (e.g., QR scanning at floor hand-offs).
 
 ### 2.5 Conceptual Framework
@@ -39,8 +41,8 @@ The development of the DTS is anchored in the following theories:
 #### 2.5.1 Input-Process-Output (IPO) Model
 The conceptual framework follows an IPO model to illustrate the flow of data:
 - **INPUT:** Document metadata (Title, Purpose, Submitter), Security PINs, Department routes, and QR scan data.
-- **PROCESS:** Trust Builder (Hash-chaining), Ed25519 Signing, Active Guard (Integrity check), AI Route Prediction, and Asynchronous Report Generation.
-- **OUTPUT:** Immutable Audit Trail, Signed Document Logs, Real-time status visibility, and Automated Bottleneck Analytics.
+- **PROCESS:** Trust Builder (Hash-chaining), Ed25519 Signing, Active Guard (Integrity check), **Heuristic Route Prediction**, and Asynchronous Report Generation.
+- **OUTPUT:** Immutable Audit Trail, Signed Document Logs, Real-time status visualizations, and Automated Integrity Reports.isibility, and Automated Bottleneck Analytics.
 
 #### 2.5.2 Workflow Mapping
 The system maps the empirical "Google Sheets" workaround to a unified digital flow:
