@@ -46,6 +46,8 @@ Jaquilmo, C. A., & Sarmiento, J. R. (2023). Web-based electronic document tracki
 
 Khairi, A., Irawan, J., Fibrian, A. H., Sholeh, A. N., Pratama, W. K. T., Efendi, A., Rahman, Z., & Ikbal, M. (2022). PKM pelatihan dan pendampingan penggunaan sistem informasi berbasis web pada pelanggaran santri di pondok pesantren nurul jadid probolinggo. *GUYUB: Journal of Community Engagement*. https://doi.org/10.33650/guyub.v3i3.4789
 
+Kim, S., & Kim, D. (2024). Data-tracking in blockchain utilizing hash chain: A study of structured and adaptive process. *Symmetry*, *16*(1), 62. https://doi.org/10.3390/sym16010062
+
 Kolte, P. R. (2021). FTS: File tracking system for railway board. *International Journal for Research in Applied Science and Engineering Technology*. https://doi.org/10.22214/ijraset.2021.39741
 
 Krohn, H. (2019). Programación de buscadores en JavaScript para diccionarios digitales. *Cuadernos de Lingüística Hispánica*. https://doi.org/10.19053/0121053X.N34.2019.9410

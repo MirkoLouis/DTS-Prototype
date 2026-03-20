@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.5-Alpha+202603202150] - 2026-03-20
+
+### CHANGED
+- **Added hostname:** Added (`--hostname 0.0.0.0`) to composer proxy.
+- **Added DRAFTS:** Added proposal paper drafts.
+- **Updated Documentation:** Updated ARCHITECTURE.md and HARDWARE_SPECS.md.
+
 ## [1.9.4-Alpha+202603142150] - 2026-03-14
 
 ### ADDED

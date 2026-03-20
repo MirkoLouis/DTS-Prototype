@@ -42,9 +42,9 @@ The system utilizes automated unit and feature tests to verify its core security
 
 #### 3.3.2 Performance & Scalability Benchmarking
 To simulate the long-term throughput of the DepEd Division Office, the system was subjected to a high-scale load simulation:
--   **High-Volume Dataset:** 1,000,000 documents and 10,000,000 log entries were seeded to test database index efficiency and UI responsiveness.
--   **Algorithmic Optimization:** Refactored heavy analytics from PHP-side model hydration to database-side Window Functions, achieving **sub-second** dashboard response times through **O(log n)** query scaling.
--   **Asynchronous Audit Validation:** Verified that background workers (`IntegrityCheckJob`) can audit a 1M+ record ledger in a non-blocking manner, ensuring persistent system health monitoring in high-traffic environments.
+- **High-Volume Dataset:** 1,000,000 documents and 10,000,000 log entries were seeded to test database index efficiency and UI responsiveness.
+- **Algorithmic Optimization:** Refactored heavy analytics from PHP-side model hydration to database-side Window Functions, achieving **sub-second** dashboard response times. The implementation of **Micro-sharding** further optimized the audit process by allowing the system to verify independent hash chains without the computational overhead of a global ledger (Kim & Kim, 2024).
+- **Asynchronous Audit Validation:** Verified that background workers (`IntegrityCheckJob`) can audit a 1M+ record ledger in a non-blocking manner, ensuring persistent system health monitoring in high-traffic environments.
 
 ### 3.4 Deployment and Environment
 The prototype is architected for **On-Premise LAN Deployment**, prioritizing data sovereignty and local governance as per the DepEd IT Department's technical mandates.

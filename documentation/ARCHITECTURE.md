@@ -58,6 +58,8 @@ Every time a log is created, the system takes a "snapshot" of the document's met
 ### Hash Chaining (`boot` method)
 Each log entry is a "block" in a chain.
 - **Logic**: A log's hash is calculated using the `previous_hash` + current metadata + `document_state_hash` + user's `signature`.
+- **Independent Architecture (Micro-Sharding)**: Unlike a global blockchain, the DTS utilizes independent hash chains for each document. This provides O(log n) scaling and ensures that an integrity failure in one record does not halt the entire system.
+- **Academic Support**: This approach is supported by Kim and Kim (2024), who found that navigating independent hash chains is significantly more resource-efficient and faster than monolithic blockchain ledgers for high-volume data tracking.
 - **Purpose**: This creates an immutable ledger where changing one old log breaks the entire chain downstream.
 
 ### Digital Signatures (Ed25519)

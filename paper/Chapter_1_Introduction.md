@@ -22,7 +22,7 @@ Despite previous attempts at digitization, the DepEd Division of Iligan City con
 
 ### 1.4 Objectives
 This study aims to design, develop, and evaluate a cryptographically secure Document Tracking System for DepEd Iligan City that ensures unified accountability and operational efficiency. Specifically, it seeks to:
-1. **Develop a "Trust Builder" Audit Trail:** Implement a SHA-256 hash-chaining mechanism to ensure the immutability of document logs.
+1. **Develop a "Trust Builder" Audit Trail:** Implement a SHA-256 hash-chaining mechanism utilizing a **Micro-sharding** architecture to ensure the immutability and scalability of document logs.
 2. **Integrate Ed25519 Non-Repudiation:** Require digital signatures for critical administrative actions using elliptic curve cryptography.
 3. **Establish Unified Tracking:** Consolidate all document requests (internal and external) through a centralized guest portal to eliminate code fragmentation and **IIS usage**.
 4. **Optimize Physical Workflows:** Integrate QR code scanning at every department hand-off to confirm physical receipt and delivery.
@@ -46,5 +46,6 @@ The system is restricted to a local area network (LAN) deployment as per the cli
 - **Auto-Freeze:** A system state triggered when the Active Guard detects an integrity mismatch, preventing further actions on a document.
 - **Ed25519:** A high-speed elliptic curve signature scheme used in the system to ensure non-repudiation of administrative actions.
 - **Hash-Chaining:** A process where each log entry's hash depends on the hash of the preceding entry, creating a mathematically linked audit trail.
+- **Micro-sharding:** An architectural design that partitions the cryptographic ledger into independent, document-specific hash chains, ensuring that a failure in one record does not compromise the scalability or integrity of the entire system.
 - **Shadow System:** Unofficial information systems (like ad-hoc Google Sheets) used by staff when the primary system is deemed inadequate or broken.
 - **Trust Builder:** The system's core logic module responsible for generating the SHA-256 hash-chain for document logs.

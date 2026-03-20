@@ -24,6 +24,9 @@ The use of QR codes has been proven to enhance physical-to-digital data synchron
 - **MyCounselor (2022):** A local system for higher education institutes that improved organization through digital logs. However, it still required manual processes for certain record updates, leaving gaps in the audit trail.
 - **E-Document Tracking System (Saldon, 2015):** Designed for the DOST-X to expedite procurement processing. While it enhanced monitoring, it lacked the "Auto-Freeze" integrity mechanisms found in this study's prototype.
 
+#### 2.2.3 Emerging Cryptographic Architectures for Scalability
+Recent advancements in blockchain-inspired tracking emphasize the need for resource-efficient architectures. Kim and Kim (2024) proposed a "structured and adaptive hash chain" approach to mitigate the high computational and time costs associated with traditional global blockchain ledgers. Their study demonstrates that generating independent hash chains along specific process lines—rather than a single, monolithic chain—allows for faster tracking and verification while maintaining strict data symmetry. This research directly supports the DTS prototype's **Independent Hash Chain** architecture, which utilizes a **Micro-sharding** strategy to isolate document-specific logs. This design enables sub-second verification times and prevents system-wide bottlenecks (Kim & Kim, 2024).
+
 ### 2.3 Synthesis of the Review
 The reviewed systems reveal a clear progression from manual logbooks to basic digital databases. However, a critical gap remains: most systems rely on "Policy-Based Security," where data integrity is dependent on the trustworthiness of system administrators and access control lists. This study addresses this deficiency by implementing **Cryptographic-Based Non-Repudiation**. 
 
