@@ -33,6 +33,7 @@ The DTS is not a typical web application. It performs complex cryptographic math
 1.  **High IOPS (Storage)**: During a security audit (`dts:verify-integrity`), the system must read and re-verify millions of SHA-256 hashes. Traditional hard drives (SATA) will become a severe bottleneck. NVMe SSDs are required for their high "Input/Output Operations Per Second."
 2.  **Clock Speed (CPU)**: Ed25519 digital signatures and SHA-256 hashing are CPU-intensive. Faster clock speeds directly translate to faster document intake and release times.
 3.  **Low Latency (Network)**: While the QR scanner (`html5-qrcode`) is client-side, the **"Receive"** action requires an instant database lookup and state update. High network latency or slow DB response times will cause a noticeable delay ("lag") between the physical scan and the digital confirmation, frustrating staff in high-volume queues.
+4.  **Verification Scalability (Architecture)**: The system utilizes **Independent Hash Chains** (Micro-Sharding) for each document. Unlike traditional blockchains that require a global ledger check, DTS only verifies the specific chain for a single document. This reduces the **CPU and RAM overhead** for verification by orders of magnitude, allowing for sub-second audit times even as the total database grows to millions of records (Kim & Kim, 2024).
 
 ---
 

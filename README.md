@@ -34,7 +34,7 @@ Explore generated document tracking forms and administrative reports:
 
 ## 🚀 Key Innovations
 
-1.  **The Trust Builder (Merkle-Chaining):** An immutable, `sha256`-based chained ledger of all document actions. Every movement is cryptographically bonded to the previous state, ensuring a tamper-proof audit trail.
+1.  **The Trust Builder (Independent Hash-Chaining):** An immutable, `sha256`-based chained ledger of all document actions. By utilizing independent chains (Micro-Sharding) per document, the system ensures O(log n) scalability and prevents system-wide bottlenecks (Kim & Kim, 2024).
 2.  **Universal Non-Repudiation (Ed25519):** A high-security enforcement layer where every action is signed using a user's unique digital signature. Once recorded, it is mathematically impossible to deny authorization.
 3.  **Nomadic HTTPS Infrastructure (mDNS):** A secure development environment utilizing mDNS (`.local`) hostnames. This allows cross-device access (e.g., iPhone/Laptop) for mobile QR scanning without needing to update IP addresses when switching networks.
 4.  **Physical Workflow (QR Codes):** Integrated QR code system for physical document tracking. Requires physical scans at Intake, Receipt, and Releasing to ensure accountability between handlers.
