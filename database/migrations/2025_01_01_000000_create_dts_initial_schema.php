@@ -73,7 +73,7 @@ return new class extends Migration
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->text('public_key')->nullable();
-            $table->text('private_key')->nullable(); // Consolidated from 2026_03_06
+            $table->text('private_key')->nullable();
             $table->timestamp('security_key_set_at')->nullable();
             $table->foreignId('department_id')->nullable()->constrained()->onDelete('set null');
             $table->enum('role', ['officer', 'staff', 'admin'])->default('staff');
@@ -81,7 +81,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('user_public_key_histories', function (Blueprint $table) { // Consolidated from 2026_03_08
+        Schema::create('user_public_key_histories', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->text('public_key');
@@ -133,7 +133,6 @@ return new class extends Migration
             $table->json('finalized_route')->nullable();
             $table->integer('current_step')->nullable();
             
-            // Denormalized Optimization Columns (Consolidated from 2026_03_13)
             $table->foreignId('current_department_id')->nullable()->constrained('departments')->onDelete('set null');
             $table->timestamp('released_at')->nullable();
             $table->foreignId('released_by_user_id')->nullable()->constrained('users')->onDelete('set null');
@@ -174,12 +173,12 @@ return new class extends Migration
             $table->string('keyword')->index();
             $table->foreignId('department_id')->constrained('departments')->onDelete('cascade');
             $table->integer('weight')->default(1);
-            $table->unsignedInteger('document_count')->default(1); // Consolidated from 2026_03_07
+            $table->unsignedInteger('document_count')->default(1);
             $table->timestamps();
         });
 
         // 4. Analytics & Utilities
-        Schema::create('daily_department_metrics', function (Blueprint $table) { // Consolidated from 2026_03_13
+        Schema::create('daily_department_metrics', function (Blueprint $table) {
             $table->id();
             $table->foreignId('department_id')->constrained()->onDelete('cascade');
             $table->date('date');
@@ -215,7 +214,7 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('integrity_checks', function (Blueprint $table) { // Consolidated from 2026_03_14
+        Schema::create('integrity_checks', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->string('status')->default('queued');

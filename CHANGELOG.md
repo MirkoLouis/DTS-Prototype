@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.0-Beta+202603202230] - 2026-03-20
+
+### FIXED
+- **Critical Integrity Synchronization:** Standardized system-initiated signatures (Freeze/Unfreeze/System Actions) to utilize the `MOCK_SIG` format within the `DocumentLog` boot logic. This ensures administrative logs are cryptographically verifiable while remaining distinct from real PIN-signed actions.
+- **Hash Formula Delimiter Consistency:** Patched the `RebuildHashChain` command to include missing pipe (`|`) delimiters, aligning the "Self-Healing Ledger" logic with the production hashing formula to prevent chain corruption during repairs.
+- **Audit Pagination Reliability:** Removed redundant `orderBy` clauses from the `VerifyIntegrityChain` command and `IntegrityCheckJob`. This ensures `chunkById` functions correctly across massive datasets, preventing records from being skipped during large-scale integrity audits.
+- **Nomadic Navigation Logic:** Refactored the "Back" button safety check in `DocumentController` to utilize host-matching instead of literal `APP_URL` comparison. This resolves the redirection "trap" for users accessing the system via nomadic mDNS hostnames (e.g., `.local`) on mobile devices.
+- **Contextual Redirection:** Integrated missing `back_to` query parameters into the System Health Monitor and Integrity Monitor views to ensure a seamless "View Details -> Back to List" user experience.
+
+### ADDED
+- **Full-Spectrum Organizational Simulation:** Expanded the `PurposeSeeder` with 6 new categories and 8+ new document purposes. This ensures that the high-fidelity simulation now generates data for all 14 departments, providing a complete picture of the Division's operations.
+- **Comprehensive Analytics Transparency:** Updated the "Average TAT by Department" chart to include all departments—including those with zero activity—via a `LEFT JOIN` strategy. 
+- **Technical Pitch Documentation:** Enriched the `paper/PITCH_SCRIPT.md` with technical deep-dives into the 7-variable hash formula, the "Self-Healing Ledger" mechanics, and the temporal realism of the simulation engine.
+
+### CHANGED
+- **Analytics Performance Sorting:** Reconfigured the Average TAT charts to strictly order departments from the **lowest (fastest)** to the **highest (slowest)** turnaround time, with an alphabetical secondary sort for organizational clarity.
+
 ## [1.9.5-Alpha+202603202150] - 2026-03-20
 
 ### CHANGED

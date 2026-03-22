@@ -42,8 +42,7 @@ class IntegrityCheckJob implements ShouldQueue
             $processedLogs = 0;
 
             if ($totalLogs > 0) {
-                DocumentLog::with('user')->orderBy('document_id', 'asc')
-                    ->orderBy('id', 'asc')
+                DocumentLog::with('user')
                     ->chunkById(500, function ($logs) use (&$invalidLogsCount, &$invalidSignaturesCount, &$mismatchedIds, &$lastHashesByDocument, &$processedLogs, $totalLogs) {
                         
                         $this->integrityCheck->refresh();

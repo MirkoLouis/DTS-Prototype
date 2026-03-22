@@ -107,7 +107,49 @@ class PurposeSeeder extends Seeder
                 'is_official' => true,
                 'requirements' => ['Letter of Intent to Retire', 'Service Record'],
                 'suggested_route' => ['Personnel Unit', 'Accounting Unit', 'Schools Division Superintendent Office']
-            ]
+            ],
+
+            // Category 7: Administrative & Logistics
+            [
+                'name' => 'Request for Use of Division Facilities/Vehicle',
+                'is_official' => true,
+                'requirements' => ['Letter of Request', 'Approved Itinerary (if vehicle)'],
+                'suggested_route' => ['Administrative Unit', 'Assistant Schools Division Superintendent Office'],
+            ],
+            [
+                'name' => 'Request for Office Supplies/Equipment (RIS)',
+                'is_official' => true,
+                'requirements' => ['Requisition and Issue Slip (RIS)', 'Inventory Custodian Slip (ICS)'],
+                'suggested_route' => ['Supply Unit', 'Administrative Unit'],
+            ],
+
+            // Category 8: Procurement (BAC)
+            [
+                'name' => 'Submission of Bid Documents (Project Tender)',
+                'is_official' => true,
+                'requirements' => ['Bidding Documents', 'Technical Proposal', 'Financial Proposal'],
+                'suggested_route' => ['Bids and Awards Committee Unit', 'Legal Unit'],
+            ],
+
+            // Category 9: School Operations & Curriculum
+            [
+                'name' => 'Submission of Nutritional Status Report (SF13)',
+                'is_official' => true,
+                'requirements' => ['Nutritional Status Summary', 'School Health Profile'],
+                'suggested_route' => ['Health and Nutrition', 'Curriculum Implementation Division'],
+            ],
+            [
+                'name' => 'Request for Learning Resources/Textbooks',
+                'is_official' => true,
+                'requirements' => ['Inventory of Books', 'Request Form'],
+                'suggested_route' => ['Curriculum Implementation Division'],
+            ],
+            [
+                'name' => 'Submission of School Monitoring and Evaluation Report',
+                'is_official' => true,
+                'requirements' => ['Monitoring Tool Results', 'Analysis Report'],
+                'suggested_route' => ['School Governance and Operations Division', 'Assistant Schools Division Superintendent Office'],
+            ],
         ];
 
         foreach ($purposes as $purpose) {

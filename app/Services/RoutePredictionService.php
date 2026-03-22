@@ -24,7 +24,7 @@ class RoutePredictionService
         $rawTokens = preg_split('/[\s,.;]+/', $inputContext, -1, PREG_SPLIT_NO_EMPTY);
         
         // Define stopwords and placeholders to ignore
-        $stopWords = ['the', 'and', 'for', 'with', 'n/a', 'na', 'not', 'applicable', 'this', 'that'];
+        $stopWords = ['the', 'and', 'for', 'with', 'N/A', 'n/a', 'not', 'applicable', 'this', 'that'];
         
         $tokens = array_filter($rawTokens, function($token) use ($stopWords) {
             return strlen($token) > 2 && !in_array($token, $stopWords);
