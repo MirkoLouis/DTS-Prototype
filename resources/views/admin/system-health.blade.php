@@ -213,7 +213,7 @@
                                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-300">{{ $doc->updated_at->diffForHumans() }}</td>
                                                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                         <div class="flex items-center justify-end space-x-3">
-                                                            <a href="{{ route('documents.show', $doc->tracking_code) }}" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400">Investigate</a>
+                                                            <a href="{{ route('documents.show', ['document' => $doc->tracking_code, 'back_to' => 'system-health']) }}" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400">Investigate</a>
                                                             @if($doc->status !== 'frozen')
                                                                 <form action="{{ route('documents.freeze', $doc->tracking_code) }}" method="POST">
                                                                     @csrf
@@ -280,7 +280,7 @@
                                                                     data-url="{{ route('system.health.debug-log', $log->id) }}">
                                                                 Debug
                                                             </button>
-                                                            <a href="{{ route('documents.show', $log->document->tracking_code) }}" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200">View</a>
+                                                            <a href="{{ route('documents.show', ['document' => $log->document->tracking_code, 'back_to' => 'system-health']) }}" class="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-200">View</a>
                                                             
                                                             @if($log->document->status === 'frozen')
                                                                 <form action="{{ route('documents.unfreeze', $log->document->tracking_code) }}" method="POST" class="unfreeze-form">

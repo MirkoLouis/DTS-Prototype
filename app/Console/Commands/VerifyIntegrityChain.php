@@ -43,8 +43,7 @@ class VerifyIntegrityChain extends Command
             $lastHashesByDocument = [];
 
             // Process logs in chunks of 1000 to keep memory usage low and constant
-            \App\Models\DocumentLog::with('user')->orderBy('document_id', 'asc')
-                ->orderBy('id', 'asc')
+            \App\Models\DocumentLog::with('user')
                 ->chunkById(1000, function ($logs) use (&$invalidLogsCount, &$invalidSignaturesCount, &$mismatchedIds, &$lastHashesByDocument, $progressBar) {
                     foreach ($logs as $log) {
                         // 1. Verify Hash Chain Consistency

@@ -154,29 +154,22 @@ class DocumentLog extends Model
         parent::boot();
 
         static::creating(function ($documentLog) {
-            // Populate the digital signature from the performing user, if available
-            if (!$documentLog->signature) {
-                if ($documentLog->user_id) {
-                    $user = User::find($documentLog->user_id);
-                    if ($user && $user->public_key) {
-                        $documentLog->signature = $user->public_key;
-                    } else {
-                        $role = $user ? $user->role : 'unknown';
-                        $documentLog->signature = match($role) {
-                            'admin' => 'signed_by_admin',
-                            'officer' => 'signed_by_records',
-                            'staff' => $user->department 
-                                ? 'signed_by_' . strtolower(str_replace(' ', '_', $user->department->name)) 
-                                : 'signed_by_department',
-                            default => 'unsigned'
-                        };
-                    }
-                } else {
-                    $documentLog->signature = 'signed_by_guest';
+            // 1. Protect the document's state at this point in time
+            // This MUST happen before signature generation so we can bond the signature to the state.
+            if (!$documentLog->document_state_hash) {
+                $document = $documentLog->document;
+                if ($document) {
+                    $documentLog->document_state_hash = self::calculateStateHash($document);
                 }
             }
 
-            // Find the most recent log for this document to chain the hash
+            // 2. Populate the digital signature if not provided (System/Seeded Actions)
+            if (!$documentLog->signature) {
+                $stateHash = $documentLog->document_state_hash ?? 'unknown_state';
+                $documentLog->signature = base64_encode("MOCK_SIG:{$documentLog->action}|{$stateHash}");
+            }
+
+            // 3. Find the most recent log for this document to chain the hash
             $lastLog = self::where('document_id', $documentLog->document_id)
                                 ->orderBy('id', 'desc')
                                 ->first();
@@ -188,32 +181,21 @@ class DocumentLog extends Model
                 $documentLog->previous_hash = $previousHash;
             }
 
-            // Protect the document's state at this point in time
-            // If the seeder provided a state hash, we honor it.
-            if (!$documentLog->document_state_hash) {
-                $document = $documentLog->document;
-                if ($document) {
-                    $documentLog->document_state_hash = self::calculateStateHash($document);
-                }
-            }
-
             // If the seeder provided a final hash, we skip the automatic calculation.
             if ($documentLog->hash) {
                 return;
             }
 
-            // Ensure created_at is a Carbon instance if it's not already
+            // 4. Ensure created_at is a Carbon instance and strip microseconds
             if (!$documentLog->created_at) {
                 $documentLog->created_at = Carbon::now()->startOfSecond();
             } else {
                 $documentLog->created_at = Carbon::parse($documentLog->created_at)->startOfSecond();
             }
             
-            // IMPORTANT: Strip microseconds to ensure consistency with DB storage precision.
-            // This prevents hash mismatches during integrity checks.
             $timestampForHashing = $documentLog->created_at->toIso8601String();
             
-            // Calculate final SHA-256 block hash with delimiters (|) to prevent collisions
+            // 5. Calculate final SHA-256 block hash with delimiters (|)
             $dataToHash = $documentLog->document_id . '|' . 
                          $documentLog->user_id . '|' . 
                          $documentLog->action . '|' . 

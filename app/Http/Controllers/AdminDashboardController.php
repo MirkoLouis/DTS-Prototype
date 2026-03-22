@@ -137,24 +137,32 @@ class AdminDashboardController extends Controller
     {
         $isFull = $request->has('full') ? 'full' : 'limited';
         return Cache::remember("avg_step_time_v2_{$isFull}", now()->addMinutes(10), function() use ($request) {
-            $query = DB::table('daily_department_metrics')
-                ->join('departments', 'daily_department_metrics.department_id', '=', 'departments.id')
+            $query = DB::table('departments')
+                ->leftJoin('daily_department_metrics', 'departments.id', '=', 'daily_department_metrics.department_id')
                 ->select(
                     'departments.name',
-                    DB::raw('SUM(total_processing_seconds) as total_seconds'),
-                    DB::raw('SUM(processed_count + released_count) as total_count')
+                    DB::raw('IFNULL(SUM(total_processing_seconds), 0) as total_seconds'),
+                    DB::raw('IFNULL(SUM(processed_count + released_count), 0) as total_count')
                 )
-                ->groupBy('departments.name')
-                ->having('total_count', '>', 0);
+                ->groupBy('departments.name');
 
             if (!$request->has('full')) {
-                $query->limit(5);
+                $query->orderBy(DB::raw('IFNULL(SUM(total_processing_seconds) / NULLIF(SUM(processed_count + released_count), 0), 999999)'), 'asc')
+                      ->limit(5);
             }
 
             $results = $query->get()->map(function($r) {
-                $r->avg_hours = ($r->total_seconds / $r->total_count) / 3600;
+                $r->avg_hours = $r->total_count > 0 ? ($r->total_seconds / $r->total_count) / 3600 : 0;
                 return $r;
-            })->sortBy('avg_hours');
+            });
+            
+            // Always sort by TAT (lowest to highest) for both limited and full views
+            $results = $results->sort(function($a, $b) {
+                if ($a->avg_hours == $b->avg_hours) {
+                    return strcmp($a->name, $b->name);
+                }
+                return ($a->avg_hours < $b->avg_hours) ? -1 : 1;
+            });
 
             return [
                 'labels' => $results->pluck('name'),

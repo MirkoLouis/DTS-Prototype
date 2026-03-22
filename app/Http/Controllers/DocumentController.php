@@ -286,6 +286,8 @@ class DocumentController extends Controller
         if ($backTo) {
             if ($backTo === 'integrity-monitor') {
                 $backUrl = route('integrity-monitor');
+            } elseif ($backTo === 'system-health') {
+                $backUrl = route('system.health');
             } elseif ($backTo === 'intake') {
                 $backUrl = route('intake');
             } elseif ($backTo === 'releasing') {
@@ -302,15 +304,18 @@ class DocumentController extends Controller
                     'staff' => route('staff.tasks.completed'),
                     default => $defaultBackUrl,
                 };
-            } elseif (str_contains($backTo, config('app.url'))) {
-                // If it's a raw URL, ensure it's from our own app
+            } elseif (str_contains($backTo, $request->getHost())) {
+                // If it's a raw URL, ensure it's from our own app by checking the host
                 $backUrl = $backTo;
             }
         }
 
         // If the previous URL is the same as the current one (e.g., after a refresh),
         // or if it's external, or if it's the login/logout page, use the default dashboard route.
-        if (!$backUrl || $backUrl === url()->current() || !str_contains($backUrl, config('app.url'))) {
+        // We check the host instead of a literal config match to support nomadic (mDNS) setups.
+        $isExternal = $backUrl && !str_contains($backUrl, $request->getHost());
+
+        if (!$backUrl || $backUrl === url()->current() || $isExternal) {
             $backUrl = $defaultBackUrl;
         }
 
