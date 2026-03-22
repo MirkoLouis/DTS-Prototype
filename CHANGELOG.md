@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.1-Beta+202603221000] - 2026-03-22
+
+### FIXED
+- **Error Page Accessibility:** Completely overhauled the `403.blade.php` error page to resolve long-standing text visibility issues in both light and dark themes. Replaced redundant Bootstrap card structures with a clean, centered Tailwind design.
+- **UI Component Standardization:** Integrated the project's own `x-secondary-button` and Tailwind theme-aware text classes into the 403 error page for visual consistency with the login and guest portals.
+
+### ADDED
+- **Administrative Self-Safeguards:** Implemented the **'Never Leave the Cockpit Empty'** rule. Administrators are now programmatically and physically prevented from deleting their own accounts or demoting their own roles via the UI and controller, ensuring the system always has an authorized pilot.
+- **Governance Narratives:** Enriched `paper/PITCH_SCRIPT.md` with expert narratives on administrative fail-safes and the "Endless Extensibility" of the User=Department architecture.
+- **Self-Editing Feedback:** Added clear UI notices and disabled states in the User Edit view to inform administrators when certain options are restricted during self-editing.
+
+### CHANGED
+- **Administrative UX:** Relocated the "Delete User" action behind a role-aware check in the Edit view, providing a safer and more centralized management workflow.
+
 ## [1.10.0-Beta+202603202230] - 2026-03-20
 
 ### FIXED

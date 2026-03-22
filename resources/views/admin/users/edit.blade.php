@@ -31,11 +31,17 @@
 
                             <div>
                                 <label for="role" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Role</label>
-                                <select name="role" id="role" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200" required>
+                                <select name="role" id="role" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 @if(auth()->id() === $user->id) bg-gray-100 cursor-not-allowed @endif" required @if(auth()->id() === $user->id) disabled @endif>
                                     <option value="staff" {{ old('role', $user->role) == 'staff' ? 'selected' : '' }}>Staff</option>
                                     <option value="officer" {{ old('role', $user->role) == 'officer' ? 'selected' : '' }}>Officer</option>
                                     <option value="admin" {{ old('role', $user->role) == 'admin' ? 'selected' : '' }}>Admin</option>
                                 </select>
+                                @if(auth()->id() === $user->id)
+                                    <p class="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                                        <i class="fas fa-info-circle mr-1"></i> You cannot change your own role to prevent accidental lockout.
+                                    </p>
+                                    <input type="hidden" name="role" value="{{ $user->role }}">
+                                @endif
                                 @error('role')
                                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                                 @enderror
@@ -79,11 +85,17 @@
 
                             <div class="flex justify-between items-center pt-6 border-t border-gray-100 dark:border-gray-700 mt-6">
                                 <div class="flex items-center">
-                                    <button type="button" 
-                                            onclick="if(confirm('Are you sure you want to PERMANENTLY delete this user? This cannot be undone.')) document.getElementById('delete-user-form').submit();"
-                                            class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
-                                        Delete User
-                                    </button>
+                                    @if(auth()->id() !== $user->id)
+                                        <button type="button" 
+                                                onclick="if(confirm('Are you sure you want to PERMANENTLY delete this user? This cannot be undone.')) document.getElementById('delete-user-form').submit();"
+                                                class="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">
+                                            Delete User
+                                        </button>
+                                    @else
+                                        <div class="bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 py-2 px-4 rounded border border-gray-200 dark:border-gray-600 text-sm italic">
+                                            Self-deletion is disabled for administrators.
+                                        </div>
+                                    @endif
                                 </div>
                                 <div class="flex items-center">
                                     <a href="{{ route('users.index') }}" class="mr-4 bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">Cancel</a>

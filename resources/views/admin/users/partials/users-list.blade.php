@@ -24,9 +24,9 @@
     <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200">
         @foreach ($users as $user)
             <tr>
-                <td class="px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-100">
+                <td class="px-6 py-4 text-m font-medium text-gray-900 dark:text-gray-100">
                     <div>{{ $user->name }}</div>
-                    <a href="{{ route('users.edit', $user) }}" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 text-xs mt-1 block">Edit User</a>
+                    <a href="{{ route('users.edit', $user) }}" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 text-sm mt-1 block">EDIT USER</a>
                 </td>
                 <td class="px-6 py-4 text-sm text-gray-500 dark:text-gray-300">
                     <div class="flex items-start">
