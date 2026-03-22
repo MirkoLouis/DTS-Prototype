@@ -106,6 +106,11 @@ class UserManagementController extends Controller
             'password' => ['nullable', 'string', 'min:8', 'confirmed'],
         ]);
 
+        // Prevent admin from changing their own role
+        if (auth()->id() === $user->id && $validatedData['role'] !== $user->role) {
+            return back()->with('error', 'You cannot change your own role.');
+        }
+
         $user->update([
             'name' => $validatedData['name'],
             'email' => $validatedData['email'],
