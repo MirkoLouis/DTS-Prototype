@@ -134,6 +134,13 @@ class TaskController extends Controller
         
         $originalDepartmentId = $document->current_department_id;
         $document->current_department_id = $nextDepartmentId;
+
+        if ($document->current_step > $totalSteps) {
+            $document->status = 'ready_for_release';
+        } else {
+            $document->status = 'in_transit';
+        }
+
         $document->save();
 
         // Update Metrics for the COMPLETING department

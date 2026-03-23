@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.10.2-Beta+202603232140] - 2026-03-23
+
+### FIXED
+- **Return Request Workflow:** Corrected the document status when a return request is processed, ensuring the document is set back to `in_transit` to the requesting department.
+- **Task Completion Logic:** Updated `TaskController` to correctly handle the transition to `ready_for_release` or `in_transit` based on whether there are more steps, ensuring the document is never left in an ambiguous state after completion.
+- **Model Lifecycle Hooks:** Refactored `DocumentLog` model to use the modern `booted()` method instead of `boot()`, aligning with Laravel 12 best practices.
+- **Metric Update Robustness:** Enhanced the `MetricUpdateService` to use a more stable `updateOrInsert` followed by explicit `increment` calls, preventing potential race conditions and ensuring accurate analytics across different database drivers.
+
+### ADDED
+- **High-Concurrency Testing Suite:** Introduced `tests/Feature/ConcurrencyTest.php` to verify system behavior under simultaneous user actions.
+- **Comprehensive Route Testing:** Added `tests/Feature/DocumentRoutesTest.php` for exhaustive verification of document lifecycle transitions and role-based routing.
+- **Composer Test Shortcuts:** Added `full_test` and `specific_test` scripts to `composer.json` for streamlined execution of the new test suites.
+
+### CHANGED
+- **Test Suite Modernization:** Relocated and refactored core integrity tests into the standard `tests/Feature` directory, replacing the legacy `tests/Integrity/IntegrityCheckTest.php` for better alignment with standard Laravel testing patterns.
+
 ## [1.10.1-Beta+202603221000] - 2026-03-22
 
 ### FIXED

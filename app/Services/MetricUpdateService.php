@@ -22,12 +22,19 @@ class MetricUpdateService
      */
     public function incrementReceived(int $departmentId, ?Carbon $date = null)
     {
-        $date = $date ?? now()->toDateString();
+        $dateString = $date ? $date->toDateString() : now()->toDateString();
         
+        // Ensure the record exists first (Safe cross-DB approach)
         DB::table('daily_department_metrics')->updateOrInsert(
-            ['department_id' => $departmentId, 'date' => $date],
-            ['received_count' => DB::raw('received_count + 1'), 'updated_at' => now()]
+            ['department_id' => $departmentId, 'date' => $dateString],
+            ['updated_at' => now()]
         );
+
+        // Then increment the specific metric
+        DB::table('daily_department_metrics')
+            ->where('department_id', $departmentId)
+            ->where('date', $dateString)
+            ->increment('received_count');
     }
 
     /**
@@ -35,16 +42,20 @@ class MetricUpdateService
      */
     public function incrementProcessed(int $departmentId, int $seconds, ?Carbon $date = null)
     {
-        $date = $date ?? now()->toDateString();
+        $dateString = $date ? $date->toDateString() : now()->toDateString();
         
         DB::table('daily_department_metrics')->updateOrInsert(
-            ['department_id' => $departmentId, 'date' => $date],
-            [
-                'processed_count' => DB::raw('processed_count + 1'),
-                'total_processing_seconds' => DB::raw("total_processing_seconds + {$seconds}"),
-                'updated_at' => now()
-            ]
+            ['department_id' => $departmentId, 'date' => $dateString],
+            ['updated_at' => now()]
         );
+
+        DB::table('daily_department_metrics')
+            ->where('department_id', $departmentId)
+            ->where('date', $dateString)
+            ->incrementEach([
+                'processed_count' => 1,
+                'total_processing_seconds' => $seconds
+            ]);
     }
 
     /**
@@ -52,15 +63,19 @@ class MetricUpdateService
      */
     public function incrementReleased(int $departmentId, int $seconds, ?Carbon $date = null)
     {
-        $date = $date ?? now()->toDateString();
+        $dateString = $date ? $date->toDateString() : now()->toDateString();
         
         DB::table('daily_department_metrics')->updateOrInsert(
-            ['department_id' => $departmentId, 'date' => $date],
-            [
-                'released_count' => DB::raw('released_count + 1'),
-                'total_processing_seconds' => DB::raw("total_processing_seconds + {$seconds}"),
-                'updated_at' => now()
-            ]
+            ['department_id' => $departmentId, 'date' => $dateString],
+            ['updated_at' => now()]
         );
+
+        DB::table('daily_department_metrics')
+            ->where('department_id', $departmentId)
+            ->where('date', $dateString)
+            ->incrementEach([
+                'released_count' => 1,
+                'total_processing_seconds' => $seconds
+            ]);
     }
 }

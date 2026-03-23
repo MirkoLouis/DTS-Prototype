@@ -149,9 +149,9 @@ class DocumentLog extends Model
      *
      * @return void
      */
-    protected static function boot()
+    protected static function booted()
     {
-        parent::boot();
+        parent::booted();
 
         static::creating(function ($documentLog) {
             // 1. Protect the document's state at this point in time
