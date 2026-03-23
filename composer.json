@@ -86,6 +86,8 @@
             "@php artisan config:clear --ansi",
             "@php artisan test"
         ],
+        "full_test": "DB_CONNECTION=sqlite DB_DATABASE=:memory: php artisan test",
+        "specific_test": "DB_CONNECTION=sqlite DB_DATABASE=:memory: php artisan test",
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"

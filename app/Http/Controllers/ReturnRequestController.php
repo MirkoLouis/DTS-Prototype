@@ -123,6 +123,7 @@ class ReturnRequestController extends Controller
 
         // 4. Update the document
         $document->finalized_route = $newRoute;
+        $document->status = 'in_transit'; // Put the document back in transit to the new step.
         $document->current_department_id = $requestingDepartment->id; // It will be heading here next
         $document->save();
 
