@@ -90,4 +90,19 @@ Thohir, M. A., Untari, E., Sukamti, Ahdhianto, E., & Desstya, A. (2022). Impleme
 
 Towards a bespoke document tracking system for Philippine higher educational institutions. (2019). *International Journal of Recent Technology and Engineering*. https://doi.org/10.35940/ijrte.b2255.078219
 
-Trinidad, J. T. (2022). Web-based accreditation with mobile data reporting and visualization. *South Asian Journal of Engineering and Technology*. https://doi.org/10.26524/sajet.2022.12.6
+Trinidad, J. T. (2022). Web-based accreditation with mobile data reporting and visualization. South Asian Journal of Engineering and Technology. https://doi.org/10.26524/sajet.2022.12.6
+
+# LEGAL BASES AND CORE TECHNICAL REFERENCES
+
+Acedo, G. G. (2025). Web-based document tracking system for Catanduanes State University with QR-code technology: In alignment with Republic Act No. 11032. *Journal of Information Systems Engineering and Management*, *10*(6s), 469-477. https://doi.org/10.5281/zenodo.10049652
+
+Bernstein, D. J., Duif, N., Lange, T., Schwabe, P., & Yang, B. Y. (2012). High-speed high-security signatures. *Journal of Cryptographic Engineering*, *2*(2), 77-89. https://doi.org/10.1007/s13389-012-0027-1 (Primary reference for **Ed25519**).
+
+Kim, S., & Kim, D. (2024). Data-tracking in blockchain utilizing hash chain: A study of structured and adaptive process. *Symmetry*, *16*(1), 62. https://doi.org/10.3390/sym16010062 (Basis for **Structured Adaptive Hash-Chains**).
+
+Mishra, P., & Sato, H. (2025). Securing E-governance: a blockchain-based framework for tamper-proof PDF document exchange. *Frontiers in Blockchain*, *8*. https://doi.org/10.3389/fbloc.2025.1699773
+
+Republic Act No. 11032. (2018). *Ease of Doing Business and Efficient Government Service Delivery Act of 2018*. Republic of the Philippines. https://www.officialgazette.gov.ph/2018/05/28/republic-act-no-11032/
+
+Zhai, X., Pang, S., Wang, M., Qiao, S., & Lv, Z. (2022). TVS: a trusted verification scheme for office documents based on blockchain. *Complex & Intelligent Systems*, *9*, 2865–2877. https://doi.org/10.1007/s40747-021-00617-1
+

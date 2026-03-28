@@ -12,7 +12,10 @@ The inefficiency of manual document tracking is a global challenge. Bala (2020) 
 Ensuring that digital records are immutable is critical for institutional trust. Agarkar (2012) emphasizes that security and "abstraction of file views" are essential for modern document management. Chavarro (2018) integrated digital signatures and encryption into institutional workflows to secure document management processes. This study extends these principles by utilizing **Ed25519 digital signatures** and **SHA-256 hash-chaining**, creating a mathematical dependency between logs that mirrors the security of blockchain audit trails.
 
 #### 2.1.3 QR Code Integration for Floor-to-Floor Workflows
-The use of QR codes has been proven to enhance physical-to-digital data synchronization. Farin (2022) found that QR code tracking in Philippine higher education was highly accepted due to its usability and readiness. Acedo (2025) further demonstrated that QR codes uniquesly identify each document for real-time status tracking, directly aiding compliance with the Ease of Doing Business Act (RA 11032).
+The use of QR codes has been proven to enhance physical-to-digital data synchronization. Farin (2022) found that QR code tracking in Philippine higher education was highly accepted due to its usability and readiness. Acedo (2025) further demonstrated that QR codes uniquely identify each document for real-time status tracking, ensuring that physical handoffs are digitally mirrored in the audit trail.
+
+#### 2.1.4 Legal Mandates for Efficient Government Service (RA 11032)
+In the Philippines, administrative workflows are strictly governed by **Republic Act No. 11032**, also known as the **"Ease of Doing Business and Efficient Government Service Delivery Act of 2018."** This law mandates that all government agencies, including the Department of Education, must implement simplified procedures and digital automation to reduce processing times and eliminate bureaucratic red tape (Republic Act No. 11032, 2018). The development of the DTS prototype directly supports these legal objectives by providing the "Active Guard" and automated bottleneck detection required to monitor compliance with mandated service windows for simple, complex, and highly technical transactions.
 
 ### 2.2 Related Studies/Systems
 
