@@ -1,8 +1,8 @@
 # REFERENCES
 
-Abidin, Z. (2019). Enhanced physical document management using NFC with verification for security and privacy. *International Journal of Advanced Computer Science and Applications*.
+Abidin, Z. (2019). Enhanced physical document management using NFC with verification for security and privacy. *International Journal of Advanced Computer Science and Applications*, *10*(3), 162-168.
 
-Abidin, Z., Zakaria, N. A., Harum, N., Suhaimi, M. S., Abas, Z., Idris, A., Ghazali, K. W. M., & Hamid, M. (2020). Document tracking using internet-of-things devices for fast data retrieval. *IOP Conference Series: Materials Science and Engineering*, *864*.
+Abidin, Z., Zakaria, N. A., Harum, N., Suhaimi, M. S., Abas, Z., Idris, A., Ghazali, K. W. M., & Hamid, M. (2020). Document tracking using internet-of-things devices for fast data retrieval. *IOP Conference Series: Materials Science and Engineering*, *864*, 012057.
 
 Acedo, G. G. (2025). Web-based document tracking system for Catanduanes State University with QR-code technology: In alignment with Republic Act No. 11032. *Journal of Information Systems Engineering and Management*, *10*(6s), 469-477.
 
@@ -14,7 +14,7 @@ Agarkar, M., Borle, A., Deshmukh, A., & Bhagat, M. (2012). An enhanced document 
 
 Akçay, M., Ardıç, İ., & Şen, Ş. (2019). Document management system. *2019 3rd International Symposium on Multidisciplinary Studies and Innovative Technologies (ISMSIT)*, 1-7.
 
-Al-khafaji, N., Abdullah, R. M., & Kashmoola, M. A. (2020). Evaluating the tracking e-files prototype project based on the task technology fit model. *Indonesian Journal of Electrical Engineering and Computer Science*.
+Al-khafaji, N., Abdullah, R. M., & Kashmoola, M. A. (2020). Evaluating the tracking e-files prototype project based on the task technology fit model. *Indonesian Journal of Electrical Engineering and Computer Science*, *18*(2), 947-951.
 
 Aqeel, M., Imtiaz, M., & Shahbaz, M. S. (2023). Web-based method to connect organizations and IT people using iterative model. *International Journal of Information Engineering and Electronic Business*.
 
@@ -32,6 +32,8 @@ Bernstein, D. J., Duif, N., Lange, T., Schwabe, P., & Yang, B. Y. (2012). High-s
 
 Bertalanffy, L. von. (1968). *General system theory: Foundations, development, applications*. Braziller.
 
+Brooke, J. (1996). SUS: A "quick and dirty" usability scale. *Usability evaluation in industry*, *189*(194), 4-7.
+
 Camposano, J. (2025). *Document tracking system in a government office: Basis for improvement*. Manuel S. Enverga University Foundation. https://mseuf.edu.ph/research/read/947
 
 Chavarro, F. A. C., Ardila, A. F., & Mora, D. C. F. (2018). *Implementation of a telematic security system for document management processes in higher education institutions*.
@@ -46,6 +48,8 @@ Demong, R., Hassan, L. F. A., Besar, T., & Zulkifli, Z. (2009). *Electronic docu
 
 Díaz, W. G., Macís, G. R., & Solano, F. (2017). *Sistema de ventas para librería Sánchez, Siuna, 2016*.
 
+Electronic Judiciary in Indonesia. (2021). *The electronic judiciary in Indonesia: Comparison with several other countries*. EAI. https://doi.org/10.4108/eai.14-4-2021.2312898
+
 Farin, M. N. (2024). Acceptability and usability of quick response code for on line document tracking in a higher education institution in the Philippines. *International Journal of Computer Science & Network Security*, *24*(11), 15-28. https://doi.org/10.22937/IJCSNS.2024.24.11.15
 
 Fernando, H., Hewavitharana, T., & Perera, A. (2019). Evaluation of electronic document management (EDM) systems for construction organizations. *2019 Moratuwa Engineering Research Conference (MERCon)*, 273-278.
@@ -57,6 +61,10 @@ Frankel, A. J., Gelman, S. R., & Pastor, D. K. (2018). *Case management: An intr
 Giraldo, C. G. (2016). *Sistemas de información como soporte para la acreditación*.
 
 González, J. H., Zarate, H., & Ortiz, J. (2019). Sistema de toma de decisions y negociación para nodos potenciales de un sistema de cómputo ad hoc. *INGENIERÍA Y COMPETITIVIDAD*.
+
+Gregor, S., & Hevner, A. R. (2013). Positioning and presenting design science research for maximum impact. *MIS Quarterly*, *37*(2), 337-355.
+
+Grepon, B. G. (2020). Designing and Implementing e-Justice Systems: An Information Systems Approach to Regional Trial Court Case Docket Management in Northern Mindanao, Philippines. *International Journal of Multidisciplinary Academic Research*, *8*, 44-54. (WCDIS Project).
 
 Haag, S., & Eckhardt, A. (2024). Dealing effectively with shadow IT by managing both cybersecurity and user needs. *MIS Quarterly Executive*, *23*(4), Article 5. https://doi.org/10.17705/2msqe.00104
 
@@ -106,6 +114,8 @@ Nihare, S., Kumbhare, M., Ukunde, M., Zade, R., Shende, P., & Pathak, A. (2020).
 
 NinjaOne. (2022). *Public sector IT in 2022: Confronting shadow IT in a hybrid world*. https://www.ninjaone.com/blog/public-sector-shadow-it/
 
+Obatoki, I., & Matthew, V. O. (2016). Design and Implementation of RFID-Based Document Management System. *International Journal of Recent Engineering Science (IJRES)*, *3*(2), 20-25.
+
 Olalia, R. L., & Bugayong, A. V. (2014). An accreditation exhibit repository for higher education institution. *International Journal of Computer Applications*, *102*, 12-19.
 
 Peffers, K., Tuunanen, T., Rothenberger, M. A., & Chatterjee, S. (2007). A design science research methodology for information systems research. *Journal of Management Information Systems*, *24*(3), 45-77.
@@ -122,6 +132,8 @@ Rellon, S. J., Diolata, A. J., & Sobejana, N. (2020). Web-based document trackin
 
 Rentrop, C., & Zimmermann, S. (2020). Shadow IT management concept for public sector. In *Information Technology in Public Administration*. Springer.
 
+Republic Act No. 10173. (2012). *Data Privacy Act of 2012*. Republic of the Philippines.
+
 Republic Act No. 11032. (2018). *Ease of Doing Business and Efficient Government Service Delivery Act of 2018*. Republic of the Philippines.
 
 Rimando, M. K. V., & Corpuz, R. R. (2022). A real time tracking system for school forms using QR codes with watermarking algorithm. *Journal of Artificial Intelligence, Machine Learning and Neural Network*, *2*(3), 24-33. https://doi.org/10.55529/jaimlnn.23.24.33
@@ -133,6 +145,8 @@ Rokosu. (2025). The impact of poor records management on local government admini
 Rosidin, R., Putra, S. A., & Witarsyah, D. (2023). Development of bridge structure health monitoring application using iterative incremental. *2023 International Conference on Advancement in Data Science, E-learning and Information System (ICADEIS)*, 1-6.
 
 Saldon, M. (2015). *E-document tracking system*.
+
+Saman, W. S. W. M., & Haider, A. (2012). Electronic Court Records Management: A Case Study. *Journal of e-Government Studies and Best Practices*, *2012*, 1-12.
 
 Salleh, S. F., Ujir, H., Sapawi, R., & Hashim, H. F. (2020). Accreditation document tracking system using scrum approach. *International Journal of Evaluation and Research in Education (IJERE)*, *9*(1), 153.
 
@@ -153,5 +167,7 @@ Thohir, M. A., Untari, E., Sukamti, Ahdhianto, E., & Desstya, A. (2022). Impleme
 Trinidad, J. T. (2022). Web-based accreditation with mobile data reporting and visualization. *South Asian Journal of Engineering and Technology*.
 
 Venable, J., Pries-Heje, J., & Baskerville, R. (2016). FEDS: A framework for evaluation in design science research. *European Journal of Information Systems*, *25*(1), 77-89.
+
+Wieringa, R. (2014). *Design science methodology for information systems and software engineering.* Springer.
 
 Zhai, X., Pang, S., Wang, M., Qiao, S., & Lv, Z. (2022). TVS: a trusted verification scheme for office documents based on blockchain. *Complex & Intelligent Systems*, *9*, 2865–2877.
