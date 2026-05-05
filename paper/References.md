@@ -44,17 +44,11 @@ Christinna, M., & Saragih, E. (2022). A new learned construction of Indonesian n
 
 Crosby, S. A., & Wallach, D. S. (2009). Efficient data structures for tamper-evident logging. *Proceedings of the 18th USENIX Security Symposium*, 317-334.
 
-Demong, R., Hassan, L. F. A., Besar, T., & Zulkifli, Z. (2009). *Electronic document tracking system (EDTS): A prototype*.
-
-Díaz, W. G., Macís, G. R., & Solano, F. (2017). *Sistema de ventas para librería Sánchez, Siuna, 2016*.
-
 Electronic Judiciary in Indonesia. (2021). *The electronic judiciary in Indonesia: Comparison with several other countries*. EAI. https://doi.org/10.4108/eai.14-4-2021.2312898
 
 Farin, M. N. (2024). Acceptability and usability of quick response code for on line document tracking in a higher education institution in the Philippines. *International Journal of Computer Science & Network Security*, *24*(11), 15-28. https://doi.org/10.22937/IJCSNS.2024.24.11.15
 
 Fernando, H., Hewavitharana, T., & Perera, A. (2019). Evaluation of electronic document management (EDM) systems for construction organizations. *2019 Moratuwa Engineering Research Conference (MERCon)*, 273-278.
-
-FormKiQ. (2023). *Scalability in document management systems: Comparing server-based and serverless architectures* [White paper]. FormKiQ.
 
 Frankel, A. J., Gelman, S. R., & Pastor, D. K. (2018). *Case management: An introduction to concepts and skills*. Oxford University Press.
 
@@ -98,8 +92,6 @@ Lee, S., & Paik, J. (2019). An asynchronous-driven node.js based intermediary-fr
 
 Maina, D. M., Maina, J. C., & Wabwire, J. (2025). Assessing the adequacy of existing infrastructure in the management of electronic records to support service delivery at the selected government ministries in Kenya. *Open Access Library Journal*, *12*, 1-16.
 
-Marchewitz, E. (2026, March 2). Shadow IT has entered the AI era, and state and local governments must act now. *StateTech Magazine*. https://statetechmagazine.com/article/2026/03/shadow-it-has-entered-ai-era-and-state-and-local-governments-must-act-now
-
 Martin, J. (1991). *Rapid application development*. Macmillan.
 
 Mishra, P., & Sato, H. (2025). Securing E-governance: A blockchain-based framework for tamper-proof PDF document exchange. *Frontiers in Blockchain*, *8*. https://doi.org/10.3389/fbloc.2025.1699773
@@ -112,8 +104,6 @@ Ngan, C. K., Paat, Y. F., & Green, R. (2022). HDSS: A healthcare decision suppor
 
 Nihare, S., Kumbhare, M., Ukunde, M., Zade, R., Shende, P., & Pathak, A. (2020). File tracking system. *International Journal of Advance Research and Innovative Ideas in Education*, *6*, 938-944.
 
-NinjaOne. (2022). *Public sector IT in 2022: Confronting shadow IT in a hybrid world*. https://www.ninjaone.com/blog/public-sector-shadow-it/
-
 Obatoki, I., & Matthew, V. O. (2016). Design and Implementation of RFID-Based Document Management System. *International Journal of Recent Engineering Science (IJRES)*, *3*(2), 20-25.
 
 Olalia, R. L., & Bugayong, A. V. (2014). An accreditation exhibit repository for higher education institution. *International Journal of Computer Applications*, *102*, 12-19.
@@ -125,6 +115,8 @@ Pérez-Colado, I., Pérez-Colado, V. M., Freire, M., Martínez-Ortiz, I., & Fern
 Piloton, A. J. L., dela Cerna, M. A., Reyna, R. A., & Gamboa, G. Z. (2023). Development of records tracking management system with QR code. *International Journal For Multidisciplinary Research*.
 
 Piloton, R. (2023). Physical logbooks and the lack of digital accountability in government units. *Local Governance Review*.
+
+Qiu, Z. (2022). A Deep Study of the Effects and Fixes of Server-Side Request Races in Web Applications. *19th International Conference on Mining Software Repositories (MSR ’22)*. https://doi.org/10.1145/3524842.3528463
 
 Raralio, D. G., Manzano, W. Q., & Lomibao, A. N. L. (2025). Development of document tracking and archiving system for procurement management office’s purchase request in apayao state college. *International Journal of Research and Scientific Innovation*, *XII*(VII), 1290-1308.
 
@@ -144,15 +136,9 @@ Rokosu. (2025). The impact of poor records management on local government admini
 
 Rosidin, R., Putra, S. A., & Witarsyah, D. (2023). Development of bridge structure health monitoring application using iterative incremental. *2023 International Conference on Advancement in Data Science, E-learning and Information System (ICADEIS)*, 1-6.
 
-Saldon, M. (2015). *E-document tracking system*.
-
 Saman, W. S. W. M., & Haider, A. (2012). Electronic Court Records Management: A Case Study. *Journal of e-Government Studies and Best Practices*, *2012*, 1-12.
 
 Salleh, S. F., Ujir, H., Sapawi, R., & Hashim, H. F. (2020). Accreditation document tracking system using scrum approach. *International Journal of Evaluation and Research in Education (IJERE)*, *9*(1), 153.
-
-Singh, G. (2024, August 8). *Tamper-proof credentials: How blockchain is transforming government document verification*. LinkedIn. https://www.linkedin.com/pulse/tamper-proof-credentials-how-blockchain-transforming-government-vnjcf
-
-SunSmart Global. (2022). *The scalability of document management system*. SunSmart Global Blog.
 
 Szkiel, A. (2024). Effectiveness of internal quality assurance systems for education in the light of the results of programme evaluations conducted by the polish accreditation commitee. *Scientific Papers of Silesian University of Technology. Organization and Management Series*.
 
@@ -167,6 +153,8 @@ Thohir, M. A., Untari, E., Sukamti, Ahdhianto, E., & Desstya, A. (2022). Impleme
 Trinidad, J. T. (2022). Web-based accreditation with mobile data reporting and visualization. *South Asian Journal of Engineering and Technology*.
 
 Venable, J., Pries-Heje, J., & Baskerville, R. (2016). FEDS: A framework for evaluation in design science research. *European Journal of Information Systems*, *25*(1), 77-89.
+
+Verizon. (2024). *2024 Data Breach Investigations Report*. https://www.verizon.com/business/resources/reports/2024-dbir-data-breach-investigations-report.pdf
 
 Wieringa, R. (2014). *Design science methodology for information systems and software engineering.* Springer.
 
