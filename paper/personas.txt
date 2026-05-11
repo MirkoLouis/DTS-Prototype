@@ -1,0 +1,83 @@
+1. The Skeptical Academic (The Logician)
+
+Focus: Chapters 1 & 3 (Internal Consistency)
+
+This persona doesn't just look for validity; they look for the "Thread of Truth" that connects the problem to the solution. They are the primary defense against Logical Disconnection.
+
+    Critique Areas:
+
+        The Golden Thread: If Chapter 1 identifies "Data Latency" as a primary problem, does Chapter 3's architecture explicitly solve it?
+
+        Scope Alignment: Do the boundaries set in the "Scope and Delimitation" (Ch 1) match the actual modules designed in the methodology (Ch 3)?
+
+        Claim Validation: Are you making "orphan claims" (e.g., "This is the first system to...") without a citation or data to prove it?
+
+    Key Question: "Does the solution in Chapter 3 actually kill the monster identified in Chapter 1, or did the scope change halfway through the paper?"
+
+2. The Technical Architect (The Reality Checker)
+
+Focus: Chapter 3 (Technical Grounding & Citations)
+
+This persona ensures that your technical choices aren't just buzzwords but are grounded in established engineering principles or referenced benchmarks.
+
+    Critique Areas:
+
+        Technical Justification: Why Python? Why MySQL? There must be a reference or a comparative claim (e.g., "MySQL was chosen due to its [X] capability as cited by [Author, Year]") rather than just listing it.
+
+        Hardware-Software Sync: If your software requirements claim "high-speed processing," do your hardware specs actually support that claim?
+
+        Feasibility Citations: If you claim a specific algorithm will achieve 95% accuracy, where is the foundational research that supports this possibility for your specific use case?
+
+    Key Question: "Are these technical specs a wishlist, or a documented plan backed by industry standards and peer-reviewed logic?"
+
+3. The Literature Critic (The Evidence Auditor)
+
+Focus: Chapter 2 & Claims Everywhere
+
+This persona is the "Fact-Checker." They ensure the proposal is a conversation with existing knowledge, not a monologue.
+
+    Critique Areas:
+
+        Citation Density: Every paragraph in Chapter 2—and many in Chapter 1—should have a citation. If a paragraph has no name and year, is it a "bold claim" or "common knowledge"? (Hint: In research, very little is common knowledge).
+
+        The "Recent & Relevant" Rule: Ensuring local and foreign studies are strictly within the 5-year window unless they are "Seminal Works" (foundational theories).
+
+        Synthesis vs. Summary: Checking if the "Synthesis" actually compares the studies to your project, or if it just repeats what they said.
+
+    Key Question: "Can you prove that statement with a citation, or are you asking the panel to take your word for it?"
+
+4. The Clarity Advocate (The Linguistic Stylist)
+
+Focus: All Chapters (Tone & Tense)
+
+This persona ensures the paper sounds "Professionally Academic"—avoiding both "Street Slang" and "Thesaurus Overload." They are also the Tense Guard.
+
+    Critique Areas:
+
+        Linguistic Calibration: Identifying "Lazy Words" (e.g., "thing," "stuff," "basically") and "Inflated Words" (e.g., "utilize" when "use" is better, or "plethora" when "many" suffices). The goal is precision, not complexity.
+
+        The Temporal Anchor: Since this is a proposal, plans must be in the Present Tense (e.g., "The system provides..." or "The study aims to...") rather than the Future Tense ("The system will provide..."), as the proposal represents the current state of the design.
+
+        Past Tense for History: Ensuring only completed literature (Ch 2) is in the past tense ("Smith (2022) found that...").
+
+    Key Question: "Is this sentence efficient? Does the tense reflect that this design exists as a formal proposal today?"
+
+5. The Structural Integrity Officer (The Cross-Referencer)
+
+Focus: Global Consistency
+
+This is a new persona specifically designed to catch the "Identity Crisis" in technical papers where names and figures change between chapters.
+
+    Critique Areas:
+
+        Naming Consistency: If the system is called "Edu-Trace" in Chapter 1, is it accidentally called "The Student Tracker" in Chapter 3?
+
+        Figure/Table Sync: Do the names of the diagrams in the text match the labels on the images?
+
+        Definition Audit: Does the "Definition of Terms" include every technical acronym used in Chapter 3? If "API" is used in the methodology, it must be defined in the introduction.
+
+    Key Question: "If I read Chapter 3 first, would I recognize the project described in Chapter 1, or do they feel like two different papers?"
+
+Pro-Tip for your Proposal:
+
+    The Proposal Tense Rule: Academic boards often prefer the Active Present Tense for proposals. Instead of saying "The researchers will gather data," use "The researchers gather data." It makes the proposal feel like a definitive, ongoing roadmap rather than a "maybe" in the future.
