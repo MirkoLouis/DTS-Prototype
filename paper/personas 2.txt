@@ -1,0 +1,83 @@
+1. The Domain Veteran (The Public Systems Advisor)
+
+Focus: DepEd Workflow, "Shadow Systems" Mitigation, & LAN Constraints.
+
+This persona represents your adviser. They are intimately familiar with the 10,000+ manually inputted entries currently sitting in unencrypted Google Sheets at DepEd. They will grill you on how this system survives a real government environment.
+
+    Critique Areas:
+
+        Shadow System Migration: How exactly does the "unified tracking protocol" ensure that staff don't just keep using their Google Sheets "coping mechanisms"?
+
+        The "Physical-to-Digital" Gap: You claim subsequent departments are "programmatically restricted" from receiving a document without a cryptographic scan. Is this too rigid for a busy DepEd office?
+
+        LAN Sovereignty: Since the system is restricted to a local network for data sovereignty, how do you handle remote verification if an official is off-site?
+
+    Key Question: "You’ve noted that 65% of data breaches are from external actors, justifying your LAN-only approach. But how does your SHA-256 hash-chaining protect against the 'insider threat'—an admin with direct MySQL access who knows how to recalculate the chain?"
+
+2. The Algorithmic Auditor (The Data Analyst)
+
+Focus: TF-IDF Route Prediction, SOP Alignment, & Measurable Objectives.
+
+This persona focuses on the Heuristic Route Prediction module. They will notice that your manuscript uses TF-IDF as a "decision-support tool" rather than a fully autonomous classifier.
+
+    Critique Areas:
+
+        Heuristic vs. Autonomous: Your technical objectives state the Records Officer "retains full authority over final routing decisions". Is the TF-IDF module actually necessary, or is it "AI-washing" a simple keyword search?
+
+        Objective 3 Validation: You aim to "automate repetitive routing decisions". How will you measure the "reduction in cognitive load" for the Records Officer in your evaluation?
+
+        Data Bias: If the TF-IDF weights are learned from existing (potentially flawed) manual routing, aren't you just digitizing old human errors?
+
+    Key Question: "In Section 3.4, you define TF-IDF as a heuristic tool. If the algorithm suggests a path that the Records Officer ignores 90% of the time, is your 'Trust Builder' actually failing its efficiency objective?"
+
+3. The Deep-Dive Engineer (The Technical Reality Checker)
+
+Focus: MySQL Row-Level Locking, Micro-sharding, & Laravel 12 Implementation.
+
+This persona wants to see the Technical Objectives in action. They will focus on how you solved the "race conditions" found in the guest kiosks.
+
+    Critique Areas:
+
+        Concurrency Control: You cite MySQL row-level locking as the solution to the kiosk race conditions. Can you explain the specific transaction isolation level used in your Laravel Eloquent implementation?
+
+        Micro-sharding Scalability: You claim that isolating hash-chains into document-specific segments ensures "sub-second verification" even with 1,000,000+ records. Have you tested the overhead of the IntegrityCheckJob running concurrently with these locks?
+
+        Cryptographic Keys: You are using Ed25519 for its 256-bit key size. Where are these keys physically stored? If they are on the server, does that negate the non-repudiation claim?
+
+    Key Question: "If your 'Active Guard' module triggers an 'Auto-Freeze' due to a detected mismatch, how does a legitimate user recover that document without compromising the entire mathematical integrity of the chain?"
+
+4. The Impact Strategist (The SDG & Research Auditor)
+
+Focus: SDG 9 (DPI), RA 11032 Compliance, & DSRM Rigor.
+
+This persona is looking for the Significance of the Study and your contribution to Digital Public Infrastructure (DPI).
+
+    Critique Areas:
+
+        SDG 9 Alignment: You claim to foster "institutional innovation" through resilient infrastructure. How does a localized LAN system contribute to a global goal of innovation?
+
+        RA 11032 Enforcement: Does your system provide the specific "verifiable timestamps" required by Philippine law, or just internal database timestamps that can be edited?
+
+        Theoretical Rigor: You anchor the system in General System Theory and Decision Support Theory. How do these specifically justify the "Active Guard" module?
+
+    Key Question: "You've positioned this as a 'localized form of DPI'. If other government units wanted to adopt this 'Mathematical-Based Security' model, is your prototype scalable enough to become a national template?"
+
+5. The Blueprint Auditor (The SRS & FEDS Purist)
+
+Focus: Evaluation Framework (FEDS), DSRM Cycles, & Internal Consistency.
+
+This persona focuses on Chapter 3 and the Evaluation Framework. They will hunt for "Identity Crises" between your methodology and your results.
+
+    Critique Areas:
+
+        FEDS Consistency: You use the Framework for Evaluation in Design Science (FEDS). Why is the "One-Week Field Implementation" considered "Naturalistic" if the researchers are still present to assist?
+
+        The "Verified Percentage" Metric: You require a "100% verified result" for validation. Is this a realistic benchmark for a prototype in its first live week?
+
+        Definition Audit: You define ACID Compliance and Micro-sharding in the Definition of Terms. Ensure these terms appear in your diagrams with the same meaning.
+
+    Key Question: "In your DSR 'Rigor Cycle', you cite Mishra and Sato (2025) for hash-chains. However, in your Table of Related Systems, you rely on Kim & Kim (2024). Which one actually dictates your 'Structured Adaptive' architecture?"
+
+A Final Tip for the Presentation:
+
+The "Temporal Anchor" is your best friend. When the panel asks "How will you handle X?", answer in the Present Tense: "The system handles X by...". This shows that the solution is already baked into your Design Science Research artifact and isn't just a future plan.
