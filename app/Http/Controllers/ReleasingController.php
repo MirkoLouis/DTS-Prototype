@@ -133,7 +133,7 @@ class ReleasingController extends Controller
             ->latest()
             ->first();
         
-        $secondsTaken = $lastReadyLog ? now()->diffInSeconds($lastReadyLog->created_at) : 0;
+        $secondsTaken = $lastReadyLog ? abs(now()->diffInSeconds($lastReadyLog->created_at)) : 0;
 
         // Update document state BEFORE signing and logging to ensure integrity bonding
         $document->update([

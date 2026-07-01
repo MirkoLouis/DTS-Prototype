@@ -76,10 +76,7 @@ class TaskController extends Controller
             return view('general.partials.tasks-list', ['documents' => $documentsForUser]);
         }
 
-        $viewName = 'staff.tasks'; // Default for staff
-        if (Auth::user()->role === 'officer') {
-            $viewName = 'officer.officer-tasks'; // New view for officers
-        }
+        $viewName = 'general.tasks';
 
         $purposes = \App\Models\Purpose::orderBy('name')->get();
         $statuses = ['processing']; // Only processing for this view
@@ -113,7 +110,7 @@ class TaskController extends Controller
             ->latest()
             ->first();
         
-        $secondsTaken = $lastReceivedLog ? now()->diffInSeconds($lastReceivedLog->created_at) : 0;
+        $secondsTaken = $lastReceivedLog ? abs(now()->diffInSeconds($lastReceivedLog->created_at)) : 0;
 
         // Advance the step and set status to 'in_transit' BEFORE signing
         $totalSteps = count($document->finalized_route);
@@ -188,9 +185,7 @@ class TaskController extends Controller
             'document_state_hash' => $stateHash, // Explicitly pass the hash used for signing
         ]);
 
-        // Determine the redirect route based on user role
-        $userRole = Auth::user()->role;
-        $redirectRoute = ($userRole === 'officer') ? 'officer.tasks' : 'staff.tasks';
+        $redirectRoute = 'tasks.index';
 
         return redirect()->route($redirectRoute)->with('success', 'Step completed. Document is now in transit.');
     }
@@ -249,7 +244,7 @@ class TaskController extends Controller
         $purposes = \App\Models\Purpose::orderBy('name')->get();
         $statuses = ['processing', 'in_transit', 'ready_for_release', 'completed', 'declined'];
 
-        return view('staff.tasks-completed', [
+        return view('general.tasks-completed', [
             'documents' => $documents,
             'purposes' => $purposes,
             'statuses' => $statuses,

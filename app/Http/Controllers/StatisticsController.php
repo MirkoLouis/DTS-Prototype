@@ -64,23 +64,17 @@ class StatisticsController extends Controller
                 $query->whereRaw('LOWER(json_unquote(json_extract(guest_info, "$.name"))) LIKE ?', ['%' . strtolower($filterSubmitter) . '%']);
             }
 
-            // OPTIMIZATION: Unique submitters extraction
-            $submitterQuery = clone $query;
-            $viewData['submitters'] = $submitterQuery
-                ->select(DB::raw('DISTINCT json_unquote(json_extract(guest_info, "$.name")) as submitter_name'))
-                ->orderBy('submitter_name')
-                ->pluck('submitter_name')
-                ->filter();
-
             $viewData['releasedDocuments'] = $query->with('purpose')->latest('released_at')->paginate(10)->withQueryString();
             $viewData['purposes'] = Purpose::orderBy('name')->get();
             
-            // OPTIMIZED: Avoid heavy log scans for years list
-            $viewData['years'] = Document::where('status', 'completed')
-                ->whereNotNull('released_at')
-                ->select(DB::raw('DISTINCT YEAR(released_at) as year'))
-                ->orderBy('year', 'desc')
-                ->pluck('year');
+            // OPTIMIZED: Avoid heavy full table scans by caching the years list
+            $viewData['years'] = \Illuminate\Support\Facades\Cache::remember('statistics_released_years', now()->addHours(1), function () {
+                return Document::where('status', 'completed')
+                    ->whereNotNull('released_at')
+                    ->select(DB::raw('DISTINCT YEAR(released_at) as year'))
+                    ->orderBy('year', 'desc')
+                    ->pluck('year');
+            });
         }
         
         if ($request->ajax() && Auth::user()->role === 'officer') {

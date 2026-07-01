@@ -8,7 +8,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ReleasingController;
 use App\Http\Controllers\TaskController;
 use App\Http\Controllers\SystemHealthController;
-use App\Http\Controllers\SystemRatingsController;
+
 use App\Http\Controllers\BackupManagerController;
 use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\StatisticsController;
@@ -31,8 +31,7 @@ Route::get('/track', [GuestController::class, 'track'])->name('track');
 
 Route::post('/submit-document', [GuestController::class, 'store'])->name('document.store');
 
-// Public route for submitting a rating
-Route::post('/documents/{document:tracking_code}/rate', [DocumentController::class, 'rate'])->name('documents.rate');
+
 Route::get('/documents/{document}/print-tracking-form', [DocumentController::class, 'printTrackingForm'])->name('documents.print-tracking-form');
 
 // The main dashboard route, which redirects based on role.
@@ -49,28 +48,23 @@ Route::get('/dashboard', function () {
 Route::middleware(['auth', 'role:officer'])->group(function () {
     Route::middleware('cache.response:55')->group(function () {
         Route::get('/intake', [IntakeController::class, 'index'])->name('intake');
-        Route::get('/officer-tasks', [TaskController::class, 'index'])->name('officer.tasks');
-        Route::get('/officer-completed-tasks', [TaskController::class, 'completed'])->name('officer.tasks.completed');
         Route::get('/releasing', [ReleasingController::class, 'index'])->name('releasing');
     });
 
     Route::post('/intake/find', [IntakeController::class, 'find'])->name('intake.find');
-    Route::post('/officer-tasks/{document}/complete', [TaskController::class, 'complete'])->name('officer.tasks.complete');
     Route::post('/releasing/receive', [ReleasingController::class, 'receive'])->name('releasing.receive');
     Route::post('/releasing/{document}/complete', [ReleasingController::class, 'complete'])->name('releasing.complete');
 });
 
-// Specific routes for Staff
-Route::middleware(['auth', 'role:staff'])->group(function () {
+// Shared tasks routes for both staff and officer
+Route::middleware(['auth', 'role:officer,staff'])->group(function () {
     Route::middleware('cache.response:55')->group(function () {
-        Route::get('/staff-tasks', [TaskController::class, 'index'])->name('staff.tasks');
-        Route::get('/staff-completed-tasks', [TaskController::class, 'completed'])->name('staff.tasks.completed');
+        Route::get('/tasks', [TaskController::class, 'index'])->name('tasks.index');
+        Route::get('/completed-tasks', [TaskController::class, 'completed'])->name('tasks.completed');
     });
 
-    Route::post('/staff-tasks/{document}/complete', [TaskController::class, 'complete'])->name('staff.tasks.complete');
-});
+    Route::post('/tasks/{document}/complete', [TaskController::class, 'complete'])->name('tasks.complete');
 
-Route::middleware(['auth', 'role:officer,staff'])->group(function () {
     // Return Request routes
     Route::get('/return-requests', [\App\Http\Controllers\ReturnRequestController::class, 'index'])->name('return-requests.index');
     Route::post('/return-requests', [\App\Http\Controllers\ReturnRequestController::class, 'store'])->name('return-requests.store');
@@ -99,7 +93,7 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
         Route::resource('users', \App\Http\Controllers\UserManagementController::class)->only(['index']);
         Route::get('/integrity-monitor', [IntegrityMonitorController::class, 'index'])->name('integrity-monitor');
         Route::get('/admin-dashboard', [AdminDashboardController::class, 'index'])->name('admin.dashboard');
-        Route::get('/system/ratings', [SystemRatingsController::class, 'index'])->name('system.ratings');
+
     });
 
     Route::resource('users', \App\Http\Controllers\UserManagementController::class)->except(['index']);

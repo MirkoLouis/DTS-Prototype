@@ -39,7 +39,7 @@ class RoleMiddleware
                 case 'officer':
                     return redirect()->route('intake');
                 case 'staff':
-                    return redirect()->route('staff.tasks');
+                    return redirect()->route('tasks.index');
                 default:
                     return redirect('/');
             }

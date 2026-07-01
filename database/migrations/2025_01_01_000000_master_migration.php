@@ -126,7 +126,6 @@ return new class extends Migration
             $table->string('district')->nullable();
             $table->string('department')->nullable();
             $table->foreignId('purpose_id')->constrained()->onDelete('cascade');
-            $table->tinyInteger('rating')->unsigned()->nullable();
             $table->text('decline_reason')->nullable();
             $table->timestamp('declined_at')->nullable();
             $table->string('status')->default('pending');

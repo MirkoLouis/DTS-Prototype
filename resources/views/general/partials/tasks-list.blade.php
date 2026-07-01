@@ -45,7 +45,7 @@
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         @if ($document->can_process)
-                            <form method="POST" action="{{ Auth::user()->role === 'officer' ? route('officer.tasks.complete', $document->tracking_code) : route('staff.tasks.complete', $document->tracking_code) }}" onsubmit="return handleTaskSigning(event, this, '{{ $document->tracking_code }}')">
+                            <form method="POST" action="{{ route('tasks.complete', $document->tracking_code) }}" onsubmit="return handleTaskSigning(event, this, '{{ $document->tracking_code }}')">
                                 @csrf
                                 <input type="hidden" name="pin" value="">
                                 <button type="submit" class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-500 active:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150">
@@ -95,7 +95,7 @@
             </div>
 
             <div class="mt-4">
-                <form method="POST" action="{{ Auth::user()->role === 'officer' ? route('officer.tasks.complete', $document->tracking_code) : route('staff.tasks.complete', $document->tracking_code) }}" onsubmit="return handleTaskSigning(event, this, '{{ $document->tracking_code }}')">
+                <form method="POST" action="{{ route('tasks.complete', $document->tracking_code) }}" onsubmit="return handleTaskSigning(event, this, '{{ $document->tracking_code }}')">
                     @csrf
                     <input type="hidden" name="pin" value="">
                     <button type="submit" class="w-full inline-flex items-center justify-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-green-500 active:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition ease-in-out duration-150">
