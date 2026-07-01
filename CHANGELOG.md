@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.11.0-Beta+202607011146] - 2026-07-01
+
+### FIXED
+- **Navigation Visual Bug:** Fixed an issue where the Staff role showed both Dashboard and Tasks as active simultaneously. 
+- **Code Duplication:** Consolidated Officer and Staff task routes, controllers, and views into a unified codebase following the DRY principle.
+
+### ADDED
+- **Security Key Modal:** Added a "Confirm Secret Signing PIN" field to the Digital Signature Initialization modal to prevent user typos.
+
 ## [1.10.2-Beta+202603232140] - 2026-03-23
 
 ### FIXED

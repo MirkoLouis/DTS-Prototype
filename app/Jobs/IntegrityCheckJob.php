@@ -115,8 +115,10 @@ class IntegrityCheckJob implements ShouldQueue
                     $this->integrityCheck->refresh();
                     if ($this->integrityCheck->status === 'cancelled') throw new \Exception("Job cancelled by user.");
 
+                    $documents->load('latestLog');
+
                     foreach ($documents as $document) {
-                        $latestLog = $document->logs()->orderBy('id', 'desc')->first();
+                        $latestLog = $document->latestLog;
                         if ($latestLog) {
                             $currentStateHash = DocumentLog::calculateStateHash($document);
                             if ($currentStateHash !== $latestLog->document_state_hash) {

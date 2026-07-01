@@ -24,14 +24,14 @@
                     <label for="modal-signing-pin" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Security PIN
                     </label>
-                    <input type="password" id="modal-signing-pin" class="block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Enter PIN..." autocomplete="off">
+                    <input type="password" id="modal-signing-pin" onkeydown="window.SigningModal.handleKeydown(event)" class="block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Enter PIN..." autocomplete="off">
                 </div>
 
                 <div class="flex justify-end space-x-3">
-                    <button type="button" id="cancel-signing-btn" class="inline-flex items-center px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-25 transition ease-in-out duration-150">
+                    <button type="button" id="cancel-signing-btn" onclick="window.SigningModal.hide()" class="inline-flex items-center px-4 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest shadow-sm hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-25 transition ease-in-out duration-150">
                         Cancel
                     </button>
-                    <button type="button" id="confirm-signing-btn" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 active:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
+                    <button type="button" id="confirm-signing-btn" onclick="window.SigningModal.confirm()" class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 active:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
                         Sign & Confirm
                     </button>
                 </div>
@@ -41,45 +41,45 @@
 </div>
 
 <script>
-    window.SigningModal = {
-        callback: null,
-        
-        show: function(message, callback) {
-            this.callback = callback;
-            document.getElementById('signing-modal-message').textContent = message;
-            document.getElementById('modal-signing-pin').value = '';
-            document.getElementById('signing-modal').style.display = 'block';
-            setTimeout(() => document.getElementById('modal-signing-pin').focus(), 100);
-        },
-        
-        hide: function() {
-            document.getElementById('signing-modal').style.display = 'none';
-            this.callback = null;
-        },
-        
-        confirm: function() {
-            const pin = document.getElementById('modal-signing-pin').value;
-            if (pin.trim() === '') {
-                alert('Security PIN is required.');
-                return;
-            }
+    if (!window.SigningModal) {
+        window.SigningModal = {
+            callback: null,
             
-            if (this.callback) {
-                this.callback(pin);
+            show: function(message, callback) {
+                this.callback = callback;
+                document.getElementById('signing-modal-message').textContent = message;
+                document.getElementById('modal-signing-pin').value = '';
+                document.getElementById('signing-modal').style.display = 'block';
+                setTimeout(() => document.getElementById('modal-signing-pin').focus(), 100);
+            },
+            
+            hide: function() {
+                document.getElementById('signing-modal').style.display = 'none';
+                this.callback = null;
+            },
+            
+            confirm: function() {
+                const pin = document.getElementById('modal-signing-pin').value;
+                if (pin.trim() === '') {
+                    alert('Security PIN is required.');
+                    return;
+                }
+                
+                if (this.callback) {
+                    this.callback(pin);
+                }
+                this.hide();
+            },
+            
+            handleKeydown: function(e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    this.confirm();
+                }
+                if (e.key === 'Escape') {
+                    this.hide();
+                }
             }
-            this.hide();
-        }
-    };
-
-    document.getElementById('cancel-signing-btn').addEventListener('click', () => window.SigningModal.hide());
-    document.getElementById('confirm-signing-btn').addEventListener('click', () => window.SigningModal.confirm());
-    document.getElementById('modal-signing-pin').addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            window.SigningModal.confirm();
-        }
-        if (e.key === 'Escape') {
-            window.SigningModal.hide();
-        }
-    });
+        };
+    }
 </script>

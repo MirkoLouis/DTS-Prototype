@@ -39,7 +39,17 @@ class SecurityKeyController extends Controller
         $nonce = random_bytes(SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
         $encryptedPrivateKey = sodium_crypto_secretbox($privateKey, $nonce, $encryptionKey);
         
-        // Store as Base64 for database compatibility
+        // 4. Archive existing key to history (if it exists) to preserve historical integrity
+        if ($user->public_key && $user->security_key_set_at) {
+            \App\Models\PublicKeyHistory::create([
+                'user_id' => $user->id,
+                'public_key' => $user->public_key,
+                'activated_at' => $user->security_key_set_at,
+                'deactivated_at' => now(),
+            ]);
+        }
+
+        // 5. Store the new key as Base64 for database compatibility
         $user->public_key = base64_encode($publicKey);
         $user->private_key = base64_encode($nonce . $encryptedPrivateKey);
         $user->security_key_set_at = now();

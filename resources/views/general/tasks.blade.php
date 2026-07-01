@@ -128,7 +128,7 @@
                     const submitter = submitterFilter.value;
                     const date = dateFilter.value;
                     
-                    const url = new URL('{{ route("staff.tasks") }}');
+                    const url = new URL('{{ request()->url() }}');
                     if (searchTerm) url.searchParams.set('search', searchTerm);
                     if (status && status !== 'all') url.searchParams.set('status', status);
                     if (purpose && purpose !== 'all') url.searchParams.set('purpose', purpose);

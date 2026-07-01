@@ -26,11 +26,18 @@
                     </p>
                 </div>
 
-                <div class="mb-6">
+                <div class="mb-4">
                     <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                         Create your Secret Signing PIN (4-16 characters)
                     </label>
                     <input type="password" id="signing-pin" class="block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Enter a secure PIN..." minlength="4" maxlength="16">
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Confirm Secret Signing PIN
+                    </label>
+                    <input type="password" id="confirm-signing-pin" class="block w-full rounded-md border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" placeholder="Confirm your secure PIN..." minlength="4" maxlength="16">
                     <p class="mt-2 text-xs text-gray-500">This PIN will be required whenever you receive or release a document.</p>
                 </div>
 
@@ -48,6 +55,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         const modal = document.getElementById('security-key-modal');
         const pinInput = document.getElementById('signing-pin');
+        const confirmPinInput = document.getElementById('confirm-signing-pin');
         const initBtn = document.getElementById('initialize-key-btn');
 
         @auth
@@ -57,18 +65,27 @@
             @endif
         @endauth
 
-        pinInput.addEventListener('keydown', function(e) {
+        function handleEnter(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 initBtn.click();
             }
-        });
+        }
+
+        pinInput.addEventListener('keydown', handleEnter);
+        confirmPinInput.addEventListener('keydown', handleEnter);
 
         initBtn.addEventListener('click', async function() {
             const pin = pinInput.value;
+            const confirmPin = confirmPinInput.value;
 
             if (pin.length < 4) {
                 alert('PIN must be at least 4 characters long.');
+                return;
+            }
+
+            if (pin !== confirmPin) {
+                alert('PINs do not match. Please try again.');
                 return;
             }
             

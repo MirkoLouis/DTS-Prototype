@@ -108,7 +108,7 @@ Refer to the `documentation/` directory for in-depth technical guides:
 | **Administrator** | `admin@dts.com` |
 | **Records Officer** | `records@dts.com` |
 | **Staff: Cash Unit** | `cash.unit@dts.com` |
-| **Staff: Admin Unit** | `administrative.unit@dts.com`
+| **Staff: Admin Unit** | `administrative.unit@dts.com` |
 | **Staff: Personnel** | `personnel.unit@dts.com` |
 | **Staff: Supply Unit** | `supply.unit@dts.com` |
 | **Staff: Budget Unit** | `budget.unit@dts.com` |

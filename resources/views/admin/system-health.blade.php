@@ -324,13 +324,6 @@
                                         Create, download, and manage database backups.
                                     </p>
                                 </a>
-                                <!-- Ratings Link -->
-                                <a href="{{ route('system.ratings') }}" class="block p-6 bg-white dark:bg-gray-800 rounded-lg shadow-inner hover:bg-gray-100 dark:hover:bg-gray-700">
-                                    <h4 class="text-lg font-bold mb-2 text-indigo-600 dark:text-indigo-400">View Client Ratings &rarr;</h4>
-                                    <p class="text-sm text-gray-600 dark:text-gray-300">
-                                        View the 1-5 star ratings submitted for completed documents.
-                                    </p>
-                                </a>
                             </div>
                         </div>
                     </div>

@@ -143,6 +143,14 @@ class Document extends Model
     }
 
     /**
+     * Get the most recent log for the document.
+     */
+    public function latestLog()
+    {
+        return $this->hasOne(DocumentLog::class)->latestOfMany();
+    }
+
+    /**
      * Get the full route as an array of objects, including Intake and Releasing steps.
      * This is a dynamic attribute, designed to be used by view components.
      *

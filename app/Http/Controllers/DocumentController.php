@@ -415,33 +415,6 @@ class DocumentController extends Controller
     }
 
     /**
-     * Store a rating for the specified document.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @param  \App\Models\Document  $document
-     * @return \Illuminate\Http\JsonResponse
-     */
-    public function rate(Request $request, Document $document)
-    {
-        $validated = $request->validate([
-            'rating' => 'required|integer|min:1|max:5',
-        ]);
-
-        if ($document->status !== 'completed') {
-            return response()->json(['message' => 'This document cannot be rated yet.'], 422);
-        }
-
-        if ($document->rating !== null) {
-            return response()->json(['message' => 'This document has already been rated.'], 422);
-        }
-
-        $document->rating = $validated['rating'];
-        $document->save();
-
-        return response()->json(['status' => 'success', 'message' => 'Thank you for your feedback!']);
-    }
-
-    /**
      * Generate a printable PDF tracking form for the specified document.
      *
      * @param  \App\Models\Document  $document
