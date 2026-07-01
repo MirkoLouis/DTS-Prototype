@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.11.1-Beta+202607011311] - 2026-07-01
+
+### ADDED
+- **Repository Structure:** Created `backup-laravel` and `working-php` directories to prepare for the pure PHP rebuild of the DTS system.
+
+### CHANGED
+- **Project Relocation:** Moved all existing Laravel project files (excluding the `.git` repository) into the `backup-laravel` directory to serve as a functional reference application.
+
 ## [1.11.0-Beta+202607011146] - 2026-07-01
 
 ### FIXED
