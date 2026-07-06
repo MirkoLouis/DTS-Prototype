@@ -1,0 +1,67 @@
+<?php ob_start(); ?>
+<h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+    Create User
+</h2>
+<?php $header = ob_get_clean(); ?>
+
+<?php ob_start(); ?>
+<div class="py-0">
+    <div class="mx-[20vh] sm:px-6 lg:px-8 space-y-6">
+        
+        <?php if (isset($_SESSION['error'])): ?>
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                <span class="block sm:inline"><?= htmlspecialchars($_SESSION['error']) ?></span>
+                <?php unset($_SESSION['error']); ?>
+            </div>
+        <?php endif; ?>
+
+        <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
+            <div class="p-6 text-gray-900 dark:text-gray-100">
+                <form action="/users" method="POST">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        
+                        <div>
+                            <label for="name" class="block text-sm font-medium text-gray-700">Full Name *</label>
+                            <input type="text" name="name" id="name" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm sm:text-sm p-2 border">
+                        </div>
+
+                        <div>
+                            <label for="email" class="block text-sm font-medium text-gray-700">Email Address *</label>
+                            <input type="email" name="email" id="email" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm sm:text-sm p-2 border">
+                        </div>
+
+                        <div>
+                            <label for="password" class="block text-sm font-medium text-gray-700">Password *</label>
+                            <input type="password" name="password" id="password" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm sm:text-sm p-2 border">
+                        </div>
+
+                        <div>
+                            <label for="password_confirmation" class="block text-sm font-medium text-gray-700">Confirm Password *</label>
+                            <input type="password" name="password_confirmation" id="password_confirmation" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm sm:text-sm p-2 border">
+                        </div>
+
+                        <div>
+                            <label for="role" class="block text-sm font-medium text-gray-700">System Role *</label>
+                            <select name="role" id="role" required class="mt-1 block w-full border-gray-300 rounded-md shadow-sm sm:text-sm p-2 border">
+                                <option value="staff">Staff (Department Account)</option>
+                                <option value="officer">Records Officer (Creates and releases documents)</option>
+                                <option value="admin">Admin (System Configuration)</option>
+                            </select>
+                        </div>
+
+                    </div>
+                    
+                    <div class="mt-6 flex items-center justify-end">
+                        <a href="/users" class="mr-4 text-sm text-gray-600 hover:text-gray-900">Cancel</a>
+                        <button type="submit" class="inline-flex items-center px-4 py-2 bg-accent-1 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-1-hover focus:outline-none focus:border-accent-1-border-active focus:ring focus:ring-accent-1-light transition">
+                            Create User
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<?php $content = ob_get_clean(); ?>
+
+<?php require BASE_PATH . '/src/Views/layouts/app.php'; ?>

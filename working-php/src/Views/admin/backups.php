@@ -1,0 +1,102 @@
+<?php ob_start(); ?>
+<h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+    Backup Manager
+</h2>
+<?php $header = ob_get_clean(); ?>
+
+<?php ob_start(); ?>
+<div class="py-2">
+    <div class="mx-[20vh] sm:px-6 lg:px-8">
+        <!-- Action Buttons -->
+        <div class="flex justify-end mb-6">
+            <form id="create-backup-form" action="/system/backups/create" method="POST">
+                <button id="create-backup-button" type="submit" class="inline-flex items-center px-4 py-2 bg-accent-1 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-1-hover transition">
+                    Create Database Backup Now
+                </button>
+            </form>
+        </div>
+
+        <?php if (isset($_SESSION['success'])): ?>
+            <div id="success-message" class="mb-4 p-4 bg-success-light text-success-active rounded-lg">
+                <?= htmlspecialchars($_SESSION['success']) ?>
+                <?php unset($_SESSION['success']); ?>
+            </div>
+        <?php endif; ?>
+
+        <?php if (isset($_SESSION['error'])): ?>
+            <div class="mb-4 p-4 bg-red-100 text-red-800 rounded-lg">
+                <?= htmlspecialchars($_SESSION['error']) ?>
+                <?php unset($_SESSION['error']); ?>
+            </div>
+        <?php endif; ?>
+
+        <!-- Backup List -->
+        <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
+            <div class="p-6 text-gray-900">
+                <h3 class="text-lg font-semibold mb-4">Available Backups</h3>
+                <form action="/system/backups" method="GET" class="mb-4">
+                    <div class="flex items-center space-x-4">
+                        <input type="text" name="search" placeholder="Search by file name or date" class="border-gray-300 focus:border-accent-1 rounded-md shadow-sm" value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
+                        <a href="/system/backups" class="text-gray-500 hover:text-gray-700">Clear</a>
+                    </div>
+                </form>
+                <?php
+                    foreach ($backups as &$backup) {
+                        $backup['date_html'] = htmlspecialchars(date('M d, Y, h:i A', $backup['last_modified']));
+                        $backup['file_name_html'] = sprintf('<span class="font-mono">%s</span>', htmlspecialchars($backup['file_name']));
+                        $backup['actions_html'] = sprintf('
+                            <div class="flex justify-end items-center space-x-4">
+                                <a href="/system/backups/download/%s" class="text-accent-1 hover:text-accent-1-active">Download</a>
+                                <button type="button" class="text-gray-500 hover:text-gray-700" onclick="openRestoreModal(\'%s\')">Restore</button>
+                                <form action="/system/backups/delete/%s" method="POST" onsubmit="return confirm(\'Delete this backup?\');">
+                                    <button type="submit" class="text-red-600 hover:text-red-900">Delete</button>
+                                </form>
+                            </div>
+                        ', urlencode($backup['file_name']), htmlspecialchars($backup['file_name'], ENT_QUOTES), urlencode($backup['file_name']));
+                    }
+                    unset($backup);
+
+                    $tableConfig = [
+                        'wrapper_classes' => 'overflow-x-auto',
+                        'columns' => [
+                            ['key' => 'date_html', 'label' => 'Date', 'width' => 'w-[25%]', 'type' => 'raw'],
+                            ['key' => 'file_name_html', 'label' => 'File Name', 'width' => 'w-[40%]', 'type' => 'raw'],
+                            ['key' => 'file_size', 'label' => 'Size', 'width' => 'w-[15%]'],
+                            ['key' => 'actions_html', 'label' => 'Actions', 'width' => 'w-[20%]', 'type' => 'raw']
+                        ],
+                        'data' => $backups,
+                        'empty_message' => 'No backups found.'
+                    ];
+                    require BASE_PATH . '/src/Views/components/table.php';
+                ?>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Restore Modal -->
+<div id="restore-modal" style="display:none;" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-75">
+    <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
+        <form id="restore-form" method="POST" onsubmit="return confirm('Restore database?');">
+            <h2 class="text-lg font-medium text-gray-900 text-red-500">FINAL WARNING: Restore Database?</h2>
+            <p class="mt-2 text-sm text-gray-600">
+                Restore <strong id="restore-file-name"></strong>?
+            </p>
+            <div class="mt-6 flex justify-end space-x-2">
+                <button type="button" onclick="document.getElementById('restore-modal').style.display='none'" class="px-4 py-2 bg-gray-200 rounded-md">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-md">Restore Now</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function openRestoreModal(fileName) {
+        document.getElementById('restore-file-name').textContent = fileName;
+        document.getElementById('restore-form').action = `/system/backups/restore/${fileName}`;
+        document.getElementById('restore-modal').style.display = 'flex';
+    }
+</script>
+
+<?php $content = ob_get_clean(); ?>
+<?php require BASE_PATH . '/src/Views/layouts/app.php'; ?>

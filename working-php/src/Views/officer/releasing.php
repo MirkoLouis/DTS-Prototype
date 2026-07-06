@@ -1,0 +1,92 @@
+<?php ob_start(); ?>
+<h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+    Document Releasing
+</h2>
+<?php $header = ob_get_clean(); ?>
+
+<?php ob_start(); ?>
+<div class="py-0">
+    <div class="mx-[20vh] sm:px-6 lg:px-8 space-y-6">
+
+        <!-- Receive Document Section -->
+        <?php
+            $finderTitle = 'Receive Document for Releasing';
+            $finderDescription = "Scan or enter the tracking code of a completed document to receive it at the Records Unit.";
+            $finderActionUrl = '/documents/scan';
+            $finderFormId = 'scan-form';
+            $finderButtonText = 'Receive';
+            require BASE_PATH . '/src/Views/components/qr-scanner.php';
+        ?>
+        
+        <?php 
+            $panelTitle = 'Documents Ready for Release';
+            
+            $purposeOptions = [];
+            foreach ($allPurposes as $p) {
+                $purposeOptions[$p['name']] = $p['name'];
+            }
+
+            $filterConfig = [
+                'date' => ['type' => 'date', 'label' => 'Date'],
+                'purpose' => [
+                    'type' => 'select',
+                    'label' => 'Purpose',
+                    'options' => array_merge(['all' => 'All Purposes'], $purposeOptions)
+                ],
+                'submitter' => ['type' => 'text', 'label' => 'Submitter Name', 'placeholder' => 'Search submitter...'],
+                'search' => ['type' => 'text', 'label' => 'Search Tracking # / Title', 'placeholder' => 'Search...']
+            ];
+
+            foreach ($documents as &$doc) {
+                $doc['status_html'] = '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-success-light text-success-active capitalize">Ready</span>';
+                $doc['action_html'] = sprintf('
+                    <form class="complete-form inline-block" action="/releasing/%s/complete" method="POST">
+                        <input type="hidden" name="pin" class="complete-pin-input">
+                        <button type="button" class="complete-btn px-4 py-2 bg-success text-white rounded hover:bg-success-hover transition font-semibold" data-tracking-code="%s">
+                            Release
+                        </button>
+                    </form>
+                ', $doc['id'], htmlspecialchars($doc['tracking_code']));
+            }
+            unset($doc);
+
+            $tableConfig = [
+                'wrapper_classes' => 'overflow-x-auto mt-4',
+                'columns' => [
+                    ['key' => 'tracking_code', 'label' => 'Tracking Code', 'width' => 'w-[20%]', 'type' => 'tracking_link'],
+                    ['key' => 'guest_name', 'label' => 'Submitter', 'width' => 'w-[20%]', 'wrap' => true],
+                    ['key' => 'purpose_name', 'label' => 'Purpose', 'width' => 'w-[35%]', 'wrap' => true],
+                    ['key' => 'status_html', 'label' => 'Status', 'width' => 'w-[10%]', 'type' => 'raw'],
+                    ['key' => 'action_html', 'label' => 'Action', 'width' => 'w-[15%]', 'type' => 'raw']
+                ],
+                'data' => $documents,
+                'empty_message' => 'No documents are currently ready for release.'
+            ];
+
+            require BASE_PATH . '/src/Views/components/data-panel.php';
+        ?>
+    </div>
+</div>
+
+<?php require BASE_PATH . '/src/Views/partials/scan-qr-modal.php'; ?>
+<?php require BASE_PATH . '/src/Views/partials/signing-modal.php'; ?>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const completeBtns = document.querySelectorAll('.complete-btn');
+    completeBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const form = this.closest('.complete-form');
+            const trackingCode = this.dataset.trackingCode;
+            window.SigningModal.show(`Enter your Security PIN to cryptographically sign the release of document: ${trackingCode}`, function(pin) {
+                form.querySelector('.complete-pin-input').value = pin;
+                form.submit();
+            });
+        });
+    });
+});
+</script>
+
+<?php $content = ob_get_clean(); ?>
+
+<?php require BASE_PATH . '/src/Views/layouts/app.php'; ?>
