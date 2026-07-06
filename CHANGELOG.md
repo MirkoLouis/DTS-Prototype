@@ -2,7 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
-## [1.11.1-Beta+202607011311] - 2026-07-01
+## [1.12.0-Alpha+202607062231] - 2026-07-06
+
+### ADDED
+- **Pure PHP Port:** Completely ported the Laravel backend to pure Vanilla PHP, eliminating framework overhead while maintaining MVC architecture and database integrity.
+- **Component UI Architecture:** Introduced highly reusable PHP view components (`table.php`, `pagination.php`, `data-panel.php`, `qr-scanner.php`) to mirror modern frontend framework paradigms.
+- **Global Typography:** Integrated and enforced the "DM Sans" font family across the entire application interface.
+- **Custom Branding:** Added a custom high-resolution logo image across all application headers and resolved missing browser favicons.
+
+### CHANGED
+- **Repository Structure:** Moved the `CHANGELOG.md` to the project root to serve as the unified timeline, and created a dedicated `README.md` for the `working-php` project.
+- **UI Personalization:** Refactored dashboard page headers and inner panels to dynamically render the logged-in user's department name instead of generic placeholder text.
+- **CSS Theming:** Extracted hardcoded Tailwind colors into centralized CSS variables to ensure seamless light/dark mode transitions across all tables, headers, and components.
+
+## [1.11.1-Alpha+202607011311] - 2026-07-01
 
 ### ADDED
 - **Repository Structure:** Created `backup-laravel` and `working-php` directories to prepare for the pure PHP rebuild of the DTS system.
@@ -10,7 +23,7 @@ All notable changes to this project will be documented in this file.
 ### CHANGED
 - **Project Relocation:** Moved all existing Laravel project files (excluding the `.git` repository) into the `backup-laravel` directory to serve as a functional reference application.
 
-## [1.11.0-Beta+202607011146] - 2026-07-01
+## [1.11.0-Alpha+202607011146] - 2026-07-01
 
 ### FIXED
 - **Navigation Visual Bug:** Fixed an issue where the Staff role showed both Dashboard and Tasks as active simultaneously. 
@@ -19,7 +32,7 @@ All notable changes to this project will be documented in this file.
 ### ADDED
 - **Security Key Modal:** Added a "Confirm Secret Signing PIN" field to the Digital Signature Initialization modal to prevent user typos.
 
-## [1.10.2-Beta+202603232140] - 2026-03-23
+## [1.10.2-Alpha+202603232140] - 2026-03-23
 
 ### FIXED
 - **Return Request Workflow:** Corrected the document status when a return request is processed, ensuring the document is set back to `in_transit` to the requesting department.
@@ -35,7 +48,7 @@ All notable changes to this project will be documented in this file.
 ### CHANGED
 - **Test Suite Modernization:** Relocated and refactored core integrity tests into the standard `tests/Feature` directory, replacing the legacy `tests/Integrity/IntegrityCheckTest.php` for better alignment with standard Laravel testing patterns.
 
-## [1.10.1-Beta+202603221000] - 2026-03-22
+## [1.10.1-Alpha+202603221000] - 2026-03-22
 
 ### FIXED
 - **Error Page Accessibility:** Completely overhauled the `403.blade.php` error page to resolve long-standing text visibility issues in both light and dark themes. Replaced redundant Bootstrap card structures with a clean, centered Tailwind design.
@@ -49,7 +62,7 @@ All notable changes to this project will be documented in this file.
 ### CHANGED
 - **Administrative UX:** Relocated the "Delete User" action behind a role-aware check in the Edit view, providing a safer and more centralized management workflow.
 
-## [1.10.0-Beta+202603202230] - 2026-03-20
+## [1.10.0-Alpha+202603202230] - 2026-03-20
 
 ### FIXED
 - **Critical Integrity Synchronization:** Standardized system-initiated signatures (Freeze/Unfreeze/System Actions) to utilize the `MOCK_SIG` format within the `DocumentLog` boot logic. This ensures administrative logs are cryptographically verifiable while remaining distinct from real PIN-signed actions.
