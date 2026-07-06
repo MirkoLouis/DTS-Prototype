@@ -1,0 +1,101 @@
+<?php
+
+namespace App\Core;
+
+class Router
+{
+    private array $routes = [];
+
+    /**
+     * Add a route to the routing table.
+     * 
+     * @param string $method HTTP method (GET, POST, etc.)
+     * @param string $uri The URI pattern (e.g., '/documents/{id}')
+     * @param array|callable $action The controller class and method [Controller::class, 'method'] or a closure
+     * @param array $middleware Array of middleware classes to run before the action
+     */
+    public function add(string $method, string $uri, $action, array $middleware = []): self
+    {
+        // Convert URI to regular expression for parameter matching
+        $pattern = preg_replace('/\{([a-zA-Z0-9_]+)\}/', '(?P<\1>[a-zA-Z0-9_-]+)', $uri);
+        $pattern = "#^" . $pattern . "$#";
+
+        $this->routes[] = [
+            'method' => strtoupper($method),
+            'uri' => $uri,
+            'pattern' => $pattern,
+            'action' => $action,
+            'middleware' => $middleware
+        ];
+
+        return $this;
+    }
+
+    public function get(string $uri, $action, array $middleware = []): self
+    {
+        return $this->add('GET', $uri, $action, $middleware);
+    }
+
+    public function post(string $uri, $action, array $middleware = []): self
+    {
+        return $this->add('POST', $uri, $action, $middleware);
+    }
+
+    /**
+     * Dispatch the current request to the appropriate route.
+     * 
+     * @param string $requestUri The requested URI path
+     * @param string $requestMethod The HTTP method used
+     */
+    public function dispatch(string $requestUri, string $requestMethod): void
+    {
+        // Strip query string if present
+        $path = parse_url($requestUri, PHP_URL_PATH) ?? '/';
+
+        foreach ($this->routes as $route) {
+            if ($route['method'] === strtoupper($requestMethod) && preg_match($route['pattern'], $path, $matches)) {
+                
+                // Extract named parameters from regex matches
+                $params = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
+
+                // Run Middleware (basic implementation)
+                foreach ($route['middleware'] as $middlewareConfig) {
+                    $parts = explode(':', $middlewareConfig);
+                    $middlewareClass = $parts[0];
+                    $args = isset($parts[1]) ? explode(',', $parts[1]) : [];
+                    
+                    $middleware = new $middlewareClass();
+                    $middleware->handle(...$args);
+                }
+
+                $action = $route['action'];
+
+                if (is_callable($action)) {
+                    call_user_func_array($action, $params);
+                    return;
+                }
+
+                if (is_array($action) && count($action) === 2) {
+                    [$class, $method] = $action;
+                    if (class_exists($class)) {
+                        $controller = new $class();
+                        if (method_exists($controller, $method)) {
+                            call_user_func_array([$controller, $method], $params);
+                            return;
+                        }
+                    }
+                }
+            }
+        }
+
+        // Route not found
+        $this->abort(404);
+    }
+
+    private function abort(int $code = 404): void
+    {
+        http_response_code($code);
+        echo "404 Not Found";
+        exit;
+    }
+}

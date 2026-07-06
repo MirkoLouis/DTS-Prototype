@@ -104,7 +104,7 @@ Refer to the `documentation/` directory for in-depth technical guides:
 ## 🔐 Default Accounts (Password: `password`)
 
 | Role | Email |
-|:---|:---|:---|
+|:---|:---|
 | **Administrator** | `admin@dts.com` |
 | **Records Officer** | `records@dts.com` |
 | **Staff: Cash Unit** | `cash.unit@dts.com` |

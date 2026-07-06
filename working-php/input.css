@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: 'DM Sans';
+  src: url('/fonts/DMSans-VariableFont_opsz,wght.ttf') format('truetype');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    /* accent-1 (Primary/Indigo) */
+    --color-accent-1: 79 70 229; /* 600 */
+    --color-accent-1-hover: 99 102 241; /* 500 */
+    --color-accent-1-active: 67 56 202; /* 700 */
+    --color-accent-1-light: 199 210 254; /* 200 */
+    --color-accent-1-border: 129 140 248; /* 400 */
+    --color-accent-1-border-active: 67 56 202; /* 700 */
+
+    /* accent-2 (Secondary/Gray) */
+    --color-accent-2: 75 85 99; /* 600 */
+    --color-accent-2-hover: 107 114 128; /* 500 */
+    --color-accent-2-active: 17 24 39; /* 900 */
+    --color-accent-2-light: 229 231 235; /* 200 */
+
+    /* success (Green) */
+    --color-success: 22 163 74; /* 600 */
+    --color-success-hover: 21 128 61; /* 700 */
+    --color-success-active: 20 83 45; /* 800 */
+    --color-success-light: 220 252 231; /* 100 */
+  }
+
+  .dark {
+    /* accent-1 (Primary/Indigo - Adjusted for dark mode contrast) */
+    --color-accent-1: 129 140 248; /* 400 (brighter for text/bg contrast) */
+    --color-accent-1-hover: 165 180 252; /* 300 */
+    --color-accent-1-active: 99 102 241; /* 500 */
+    --color-accent-1-light: 49 46 129; /* 900 (darker for subtle rings/bg) */
+    --color-accent-1-border: 99 102 241; /* 500 */
+    --color-accent-1-border-active: 129 140 248; /* 400 */
+
+    /* accent-2 (Secondary/Gray) */
+    --color-accent-2: 107 114 128; /* 500 */
+    --color-accent-2-hover: 156 163 175; /* 400 */
+    --color-accent-2-active: 75 85 99; /* 600 */
+    --color-accent-2-light: 55 65 81; /* 700 */
+
+    /* success (Green) */
+    --color-success: 34 197 94; /* 500 */
+    --color-success-hover: 74 222 128; /* 400 */
+    --color-success-active: 22 163 74; /* 600 */
+    --color-success-light: 20 83 45; /* 800 */
+  }
+}
