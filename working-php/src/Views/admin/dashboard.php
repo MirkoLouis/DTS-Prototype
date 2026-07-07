@@ -57,13 +57,8 @@
                                 <!-- Average Processing Time by Dept Chart -->
                                 <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-inner flex flex-col">
                                     <h4 class="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Average TAT by Department (hrs)</h4>
-                                    <div class="relative h-56 flex-grow">
+                                    <div class="relative h-64 flex-grow">
                                         <canvas id="avgStepTimeChart"></canvas>
-                                    </div>
-                                    <div class="text-right mt-2">
-                                        <button id="view-full-avg-step-time" class="text-sm text-accent-1 dark:text-accent-1-hover hover:underline focus:outline-none">
-                                            View Full Chart
-                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -161,21 +156,6 @@
         </div>
     </div>
 
-        <div id="chart-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-gray-900/75 transition-opacity">
-    <div class="relative z-10 w-full max-w-4xl p-4 bg-white dark:bg-gray-800 rounded-lg shadow-xl mx-4">
-        <div class="flex items-center justify-between mb-4 border-b dark:border-gray-700 pb-2">
-            <h3 id="chart-modal-title" class="text-lg font-bold text-gray-900 dark:text-gray-100">Chart Full View</h3>
-            <button id="chart-modal-close" class="text-gray-400 hover:text-gray-500">
-                <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-            </button>
-        </div>
-        <div class="relative h-[600px]">
-            <canvas id="modalChartCanvas"></canvas>
-        </div>
-    </div>
-</div>
     
         <!-- Confirmation Modal -->
         <div id="confirmation-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-gray-900/75 transition-opacity">

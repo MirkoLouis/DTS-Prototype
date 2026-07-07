@@ -3,6 +3,9 @@
 // Front Controller
 session_start();
 
+// Match Laravel's default timezone so hashes align properly
+date_default_timezone_set('Asia/Manila');
+
 // Setup Error Reporting (Development Mode)
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
@@ -192,9 +195,23 @@ $router->get('/documents/(?P<id>\d+)/manage', [App\Controllers\DocumentControlle
 $router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)', [App\Controllers\DocumentController::class, 'show']);
 $router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/hash-chain', [App\Controllers\DocumentController::class, 'showHashChain']);
 
+$router->post('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/freeze', [App\Controllers\SystemHealthController::class, 'freeze'], [
+    App\Middleware\AuthMiddleware::class,
+    App\Middleware\RoleMiddleware::class . ':admin'
+]);
+$router->post('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/unfreeze', [App\Controllers\SystemHealthController::class, 'unfreeze'], [
+    App\Middleware\AuthMiddleware::class,
+    App\Middleware\RoleMiddleware::class . ':admin'
+]);
+
 $router->post('/documents/(?P<id>\d+)/finalize', [App\Controllers\DocumentController::class, 'finalize'], [
     App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':officer'
+    App\Middleware\RoleMiddleware::class . ':admin,officer'
+]);
+
+$router->post('/documents/decline', [App\Controllers\DocumentController::class, 'decline'], [
+    App\Middleware\AuthMiddleware::class,
+    App\Middleware\RoleMiddleware::class . ':admin,officer'
 ]);
 
 $router->get('/tasks/completed', [App\Controllers\DashboardController::class, 'officerCompletedTasks'], [
@@ -272,6 +289,8 @@ $router->get('/documents', [App\Controllers\DocumentTestController::class, 'inde
 // Dispatch the Request
 $uri = $_SERVER['REQUEST_URI'] ?? '/';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+
+file_put_contents('/tmp/router.log', "URI: $uri, Method: $method, Path: " . (parse_url($uri, PHP_URL_PATH) ?? '/') . "\n", FILE_APPEND);
 
 // If running PHP built-in server and file exists, return false to serve it statically
 if (php_sapi_name() === 'cli-server' && is_file(__DIR__ . parse_url($uri, PHP_URL_PATH))) {

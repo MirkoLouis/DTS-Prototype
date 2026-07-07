@@ -13,11 +13,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const globalThroughputPeriodEl = document.getElementById('globalThroughputPeriod');
     const returnDeclinePeriodEl = document.getElementById('returnDeclinePeriod');
     const loadVsTimeTitle = document.getElementById('load-vs-time-title');
-    const chartModal = document.getElementById('chart-modal');
-    const closeChartModalBtn = document.getElementById('close-chart-modal');
-    const chartModalTitle = document.getElementById('chart-modal-title');
-    const modalChartCanvas = document.getElementById('modal-chart-canvas')?.getContext('2d');
-    const viewFullAvgStepTimeBtn = document.getElementById('view-full-avg-step-time');
+
     
     // Chart Canvases
     const statusDistributionCtx = document.getElementById('statusDistributionChart')?.getContext('2d');
@@ -44,25 +40,6 @@ document.addEventListener('DOMContentLoaded', function() {
         if (minutes > 0) return `${minutes}` + (minutes === 1 ? ' min' : ' mins');
         const seconds = Math.floor(totalSeconds);
         return `${seconds}` + (seconds === 1 ? ' sec' : ' secs');
-    }
-
-    function openChartModal(chartInstance, title, customOptions = null) {
-        if (!chartModal || !modalChartCanvas) return;
-        chartModalTitle.textContent = title;
-        chartModal.style.display = 'flex';
-        if (modalChart) modalChart.destroy();
-        const finalOptions = JSON.parse(JSON.stringify(chartInstance.config.options));
-        if (customOptions?.scales?.y) finalOptions.scales.y = Object.assign(finalOptions.scales.y || {}, customOptions.scales.y);
-        finalOptions.responsive = true;
-        finalOptions.maintainAspectRatio = true;
-        modalChart = new Chart(modalChartCanvas, { type: chartInstance.config.type, data: JSON.parse(JSON.stringify(chartInstance.data)), options: finalOptions });
-    }
-
-    function closeChartModal() {
-        if (chartModal) {
-            chartModal.style.display = 'none';
-            if (modalChart) { modalChart.destroy(); modalChart = null; }
-        }
     }
 
     // --- Chart Initializers ---
@@ -222,23 +199,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (globalThroughputPeriodEl) globalThroughputPeriodEl.addEventListener('change', () => fetchData(`${throughputUrl}?period=${globalThroughputPeriodEl.value}`, throughputChart));
     if (returnDeclinePeriodEl) returnDeclinePeriodEl.addEventListener('change', () => fetchData(`${returnDeclineUrl}?period=${returnDeclinePeriodEl.value}`, returnDeclineChart));
 
-    if (viewFullAvgStepTimeBtn) {
-        viewFullAvgStepTimeBtn.addEventListener('click', () => {
-            if (!avgStepTimeChart) return;
-            const fullDataUrl = new URL(avgStepTimeUrl, window.location.origin);
-            fullDataUrl.searchParams.append('full', 'true');
-            fetch(fullDataUrl)
-                .then(res => res.json())
-                .then(fullData => {
-                    const tempInstance = { config: avgStepTimeChart.config, data: fullData };
-                    const modalOptions = { scales: { y: { ticks: { callback: (v) => tempInstance.data.labels[v] } } } };
-                    openChartModal(tempInstance, 'Average TAT by Department (hrs) Overview', modalOptions);
-                })
-                .catch(err => console.error('Error fetching full chart data:', err));
-        });
-    }
-    if (closeChartModalBtn) closeChartModalBtn.addEventListener('click', closeChartModal);
-    window.addEventListener('click', (event) => { if (event.target == chartModal) closeChartModal(); });
+
 
     // --- Initial Load ---
     initializeCharts();

@@ -398,8 +398,27 @@ class AdminDashboardController
         $cacheKey = 'status_distribution_v2';
         
         $data = Cache::remember($cacheKey, 10, function() {
-            $db = Database::getInstance();
+            $db = \App\Core\Database::getInstance();
             $results = $db->query("SELECT status, COUNT(*) as count FROM documents GROUP BY status")->fetchAll();
+
+            $allStatuses = [
+                'pending' => 0,
+                'in_transit' => 0,
+                'processing' => 0,
+                'ready_for_release' => 0,
+                'completed' => 0,
+                'declined' => 0,
+                'frozen' => 0
+            ];
+
+            foreach ($results as $row) {
+                $status = $row['status'];
+                if (isset($allStatuses[$status])) {
+                    $allStatuses[$status] = (int)$row['count'];
+                } else {
+                    $allStatuses[$status] = (int)$row['count']; // Just in case an unknown status exists
+                }
+            }
 
             $colorMap = [
                 'pending' => '#f97316', 
@@ -415,10 +434,9 @@ class AdminDashboardController
             $datasetData = [];
             $backgroundColors = [];
 
-            foreach ($results as $row) {
-                $status = $row['status'];
+            foreach ($allStatuses as $status => $count) {
                 $labels[] = $status;
-                $datasetData[] = (int)$row['count'];
+                $datasetData[] = $count;
                 $backgroundColors[] = $colorMap[$status] ?? '#A9A9A9';
             }
 

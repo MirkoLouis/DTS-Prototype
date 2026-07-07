@@ -8,6 +8,9 @@
 
 require __DIR__ . '/vendor/autoload.php';
 
+// Match Laravel's default timezone so background hash generation aligns properly
+date_default_timezone_set('Asia/Manila');
+
 use App\Core\Database;
 
 define('BASE_PATH', __DIR__);

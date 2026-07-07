@@ -54,6 +54,23 @@
                             $roleColor = $user['role'] === 'admin' ? 'bg-red-100 text-red-800' : ($user['role'] === 'officer' ? 'bg-blue-100 text-blue-800' : 'bg-success-light text-success-active');
                             $user['role_html'] = sprintf('<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full %s uppercase">%s</span>', $roleColor, htmlspecialchars($user['role']));
                             
+                            $user['account_html'] = sprintf('
+                                <div class="flex items-center space-x-3">
+                                    <button onclick="const btn=this; btn.querySelector(\'.copy-icon\').style.display=\'none\'; btn.querySelector(\'.check-icon\').style.display=\'block\'; navigator.clipboard.writeText(\'%s\'); setTimeout(() => { btn.querySelector(\'.copy-icon\').style.display=\'block\'; btn.querySelector(\'.check-icon\').style.display=\'none\'; }, 2000);" class="text-gray-400 hover:text-accent-1 transition-colors focus:outline-none" title="Copy Email">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="copy-icon h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                        </svg>
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="check-icon h-4 w-4 text-green-500" style="display: none;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                        </svg>
+                                    </button>
+                                    <div class="flex flex-col">
+                                        <span class="font-medium text-gray-900 dark:text-gray-100">%s</span>
+                                        <span class="text-xs text-gray-500 dark:text-gray-400 break-all">%s</span>
+                                    </div>
+                                </div>
+                            ', htmlspecialchars(addslashes($user['email'])), htmlspecialchars($user['name']), htmlspecialchars($user['email']));
+                            
                             if (!empty($user['public_key'])) {
                                 $user['signature_html'] = sprintf('
                                     <div class="flex items-center text-green-600">
@@ -85,12 +102,11 @@
                         $tableConfig = [
                             'wrapper_classes' => 'overflow-x-auto mt-4',
                             'columns' => [
-                                ['key' => 'name', 'label' => 'Name', 'width' => 'w-[20%]', 'wrap' => true],
-                                ['key' => 'email', 'label' => 'Email', 'width' => 'w-[25%]', 'wrap' => true],
-                                ['key' => 'role_html', 'label' => 'Role', 'width' => 'w-[10%]', 'type' => 'raw'],
-                                ['key' => 'signature_html', 'label' => 'Signature', 'width' => 'w-[15%]', 'type' => 'raw'],
-                                ['key' => 'created_at', 'label' => 'Registered', 'width' => 'w-[15%]', 'type' => 'date'],
-                                ['key' => 'actions_html', 'label' => 'Actions', 'width' => 'w-[15%]', 'type' => 'raw']
+                                ['key' => 'account_html', 'label' => 'Account', 'width' => 'w-5/12', 'type' => 'raw'],
+                                ['key' => 'role_html', 'label' => 'Role', 'width' => 'w-1/12', 'type' => 'raw'],
+                                ['key' => 'signature_html', 'label' => 'Signature', 'width' => 'w-2/12', 'type' => 'raw'],
+                                ['key' => 'created_at', 'label' => 'Registered', 'width' => 'w-2/12', 'type' => 'date'],
+                                ['key' => 'actions_html', 'label' => 'Actions', 'width' => 'w-2/12', 'type' => 'raw']
                             ],
                             'data' => $users,
                             'empty_message' => 'No users match your criteria.'

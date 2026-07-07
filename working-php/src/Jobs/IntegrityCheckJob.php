@@ -115,6 +115,22 @@ class IntegrityCheckJob
                     if ($latestLog) {
                         $documentObj = \App\Models\Document::findById($documentData['id']);
                         $currentStateHash = \App\Core\IntegrityManager::calculateStateHash($documentData);
+                        
+                        if ($currentStateHash !== $latestLog['document_state_hash']) {
+                            // Fallback: Check if mismatch is just a JSON spacing artifact (Eloquent vs PDO raw strings)
+                            $altDocumentData = $documentData;
+                            if (is_string($altDocumentData['finalized_route'])) {
+                                $decoded = json_decode($altDocumentData['finalized_route'], true);
+                                if ($decoded !== null) {
+                                    $altDocumentData['finalized_route'] = json_encode($decoded); // enforce unspaced
+                                    $altStateHash = \App\Core\IntegrityManager::calculateStateHash($altDocumentData);
+                                    if ($altStateHash === $latestLog['document_state_hash']) {
+                                        $currentStateHash = $altStateHash; // It matches!
+                                    }
+                                }
+                            }
+                        }
+
                         if ($currentStateHash !== $latestLog['document_state_hash']) {
                             $liveStateErrorsCount++;
                             $mismatchedDocumentTrackingCodes[] = $documentData['tracking_code'];

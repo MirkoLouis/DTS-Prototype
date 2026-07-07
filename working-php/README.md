@@ -16,8 +16,9 @@ A comprehensive, production-ready prototype for a modern, web-based **Document T
 2.  **Universal Non-Repudiation (Ed25519):** A high-security enforcement layer where every action is signed using a user's unique digital signature.
 3.  **Physical Workflow (QR Codes):** Integrated QR code system for physical document tracking.
 4.  **Framework-Free Performance:** Zero overhead from large frameworks. Every route and view is strictly executed via raw PHP and optimized raw SQL queries.
-5.  **Component-Driven UI:** Highly reusable UI components (`table.php`, `data-panel.php`, `qr-scanner.php`) mirroring modern frameworks like Laravel and React, but rendered natively in PHP.
-6.  **High-Performance Analytics:** Utilizes MySQL 8.0 Window Functions and intelligent caching to provide real-time throughput metrics.
+5.  **Centralized DB Operations:** Deprecated fragmented MVC models in favor of a centralized `DocumentWorkflowService` utilizing `PDO` and `SELECT ... FOR UPDATE` row-level locking to handle all heavy database writes safely.
+6.  **Component-Driven UI:** Highly reusable UI components (`table.php`, `data-panel.php`, `qr-scanner.php`) mirroring modern frameworks like Laravel and React, but rendered natively in PHP.
+7.  **High-Performance Analytics:** Utilizes MySQL 8.0 Window Functions and intelligent caching to provide real-time throughput metrics.
 
 ---
 

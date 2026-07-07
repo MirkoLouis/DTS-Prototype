@@ -16,20 +16,37 @@ class ReturnRequestController
     {
         $db = Database::getInstance();
         $documentId = $_POST['document_id'] ?? null;
+        $trackingCode = $_POST['tracking_code'] ?? null;
         $reason = $_POST['reason'] ?? '';
+        $pin = $_POST['pin'] ?? ''; // Some frontend forms might not pass it, but IntegrityManager accepts it
+        
+        $document = null;
+        if ($documentId) {
+            $document = $db->query("SELECT * FROM documents WHERE id = :id", ['id' => $documentId])->fetch();
+        } elseif ($trackingCode) {
+            $document = $db->query("SELECT * FROM documents WHERE tracking_code = :tc", ['tc' => $trackingCode])->fetch();
+            if ($document) {
+                $documentId = $document['id'];
+            }
+        }
         
         if ($documentId && $reason) {
-            // Update document status or create a return request log
-            $db->query("UPDATE documents SET status = 'returned' WHERE id = :id", ['id' => $documentId]);
+            $currentUser = \App\Models\User::findById($_SESSION['user_id'] ?? 0);
             
-            // Add a log
-            \App\Core\IntegrityManager::createLog(
-                $documentId, 
-                $_SESSION['user_id'], 
-                'Document Returned', 
-                $reason, 
-                $db->query("SELECT * FROM documents WHERE id = :id", ['id' => $documentId])->fetch()
-            );
+            try {
+                $workflow = new \App\Services\DocumentWorkflowService();
+                $workflow->requestReturn((int)$documentId, $reason, $currentUser, $pin);
+                
+                $_SESSION['success'] = "Return requested successfully. The document will be rerouted back to you.";
+            } catch (\Exception $e) {
+                if (str_contains($e->getMessage(), 'Action Denied')) {
+                    $_SESSION['console_error'] = $e->getMessage();
+                } else {
+                    $_SESSION['error'] = $e->getMessage();
+                }
+            }
+        } else {
+            $_SESSION['error'] = "Missing document ID or reason.";
         }
 
         header('Location: ' . ($_SERVER['HTTP_REFERER'] ?? '/dashboard'));
