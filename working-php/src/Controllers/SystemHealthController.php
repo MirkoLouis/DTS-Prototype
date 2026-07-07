@@ -24,7 +24,9 @@ class SystemHealthController
 
         // Simplified for raw PHP port
         if (!empty($integrityCheckResult['mismatched_ids'])) {
-            $ids = implode(',', array_map('intval', $integrityCheckResult['mismatched_ids']));
+            // Prevent memory exhaustion on massive failures by limiting to first 100
+            $limitedIds = array_slice($integrityCheckResult['mismatched_ids'], 0, 100);
+            $ids = implode(',', array_map('intval', $limitedIds));
             $stmt = $db->query("SELECT dl.*, d.tracking_code, d.title as document_title, u.name as user_name FROM document_logs dl LEFT JOIN documents d ON dl.document_id = d.id LEFT JOIN users u ON dl.user_id = u.id WHERE dl.id IN ($ids)");
             $mismatchedLogs = $stmt->fetchAll();
             
@@ -42,7 +44,8 @@ class SystemHealthController
         }
 
         if (!empty($integrityCheckResult['mismatched_document_tracking_codes'])) {
-            $codes = array_map(function($c) { return "'".addslashes($c)."'"; }, $integrityCheckResult['mismatched_document_tracking_codes']);
+            $limitedCodes = array_slice($integrityCheckResult['mismatched_document_tracking_codes'], 0, 100);
+            $codes = array_map(function($c) { return "'".addslashes($c)."'"; }, $limitedCodes);
             $codesStr = implode(',', $codes);
             $stmt = $db->query("SELECT * FROM documents WHERE tracking_code IN ($codesStr)");
             $mismatchedDocuments = $stmt->fetchAll();
@@ -332,6 +335,48 @@ class SystemHealthController
             ]);
         }
         fclose($out);
+        exit;
+    }
+
+    public function freeze($trackingCode)
+    {
+        $currentUser = \App\Models\User::findById($_SESSION['user_id'] ?? 0);
+
+        try {
+            $workflow = new \App\Services\DocumentWorkflowService();
+            $workflow->freezeDocument($trackingCode, $currentUser);
+            
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'success', 'message' => 'Document has been frozen successfully.']);
+        } catch (\Exception $e) {
+            if (str_contains($e->getMessage(), 'Action Denied')) {
+                $_SESSION['console_error'] = $e->getMessage();
+            } else {
+                $_SESSION['error'] = $e->getMessage();
+            }
+            header('Location: /system-health');
+        }
+        exit;
+    }
+
+    public function unfreeze($trackingCode)
+    {
+        $currentUser = \App\Models\User::findById($_SESSION['user_id'] ?? 0);
+
+        try {
+            $workflow = new \App\Services\DocumentWorkflowService();
+            $previousStatus = $workflow->unfreezeDocument($trackingCode, $currentUser);
+            
+            header('Content-Type: application/json');
+            echo json_encode(['status' => 'success', 'message' => "Document has been unfrozen and restored to " . ucfirst($previousStatus) . "."]);
+        } catch (\Exception $e) {
+            if (str_contains($e->getMessage(), 'Action Denied')) {
+                $_SESSION['console_error'] = $e->getMessage();
+            } else {
+                $_SESSION['error'] = $e->getMessage();
+            }
+            header('Location: /system-health');
+        }
         exit;
     }
 }

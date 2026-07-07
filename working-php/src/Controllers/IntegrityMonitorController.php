@@ -22,8 +22,11 @@ class IntegrityMonitorController
         $params = [];
 
         if ($searchTerm) {
-            $where[] = "(d.tracking_code LIKE :search OR d.title LIKE :search OR json_unquote(json_extract(d.guest_info, '$.name')) LIKE :search OR p.name LIKE :search)";
-            $params[':search'] = "%{$searchTerm}%";
+            $where[] = "(d.tracking_code LIKE :search1 OR d.title LIKE :search2 OR json_unquote(json_extract(d.guest_info, '$.name')) LIKE :search3 OR p.name LIKE :search4)";
+            $params[':search1'] = "%{$searchTerm}%";
+            $params[':search2'] = "%{$searchTerm}%";
+            $params[':search3'] = "%{$searchTerm}%";
+            $params[':search4'] = "%{$searchTerm}%";
         }
         if ($filterStatus && $filterStatus !== 'all') {
             $where[] = "d.status = :status";

@@ -11,8 +11,13 @@
             "App\\": "src/"
         }
     },
+    "config": {
+        "process-timeout": 0
+    },
     "scripts": {
-        "dev": "php -S localhost:8000 -t public",
-        "proxy": "cloudflared tunnel --url http://localhost:8000"
+        "dev": "php scripts/dev.php",
+        "worker": "php console.php",
+        "proxy": "cloudflared tunnel --url http://localhost:8000",
+        "corrupt": "php scripts/corrupt.php"
     }
 }

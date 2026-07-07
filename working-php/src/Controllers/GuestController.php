@@ -46,75 +46,17 @@ class GuestController
             exit;
         }
 
-        $finalPurposeId = $purpose_id;
-
-        if ($purpose_id == '0') {
-            $otherPurposeText = "Others: " . $other_purpose_text;
+        try {
+            $workflow = new \App\Services\DocumentWorkflowService();
+            $result = $workflow->submitDocument($_POST);
             
-            // Check if exists
-            $stmt = $db->query("SELECT id FROM purposes WHERE name = :name AND is_official = 0", [':name' => $otherPurposeText]);
-            $existing = $stmt->fetch();
-
-            if ($existing) {
-                $finalPurposeId = $existing['id'];
-            } else {
-                // Mock AI prediction route based on department
-                $stmt = $db->query("SELECT id FROM users WHERE name = :name", [':name' => $department]);
-                $deptUser = $stmt->fetch();
-                
-                $suggestedRoute = [];
-                if ($deptUser) {
-                    $suggestedRoute = [
-                        ['id' => $deptUser['id'], 'name' => $department]
-                    ];
-                }
-
-                $db->query("INSERT INTO purposes (name, is_official, requirements, suggested_route) VALUES (:name, 0, '[]', :route)", [
-                    ':name' => $otherPurposeText,
-                    ':route' => json_encode($suggestedRoute)
-                ]);
-                $finalPurposeId = $db->getConnection()->lastInsertId();
-            }
+            $trackingCode = $result['tracking_code'];
+            $documentId = $result['document_id'];
+        } catch (\Exception $e) {
+            $_SESSION['error'] = "An error occurred during submission: " . $e->getMessage();
+            header("Location: /");
+            exit;
         }
-
-        $dataForHash = time() . $guest_name . $guest_email;
-        $trackingCode = 'DEPED-' . strtoupper(substr(sha1($dataForHash), 0, 10));
-
-        $guestInfo = json_encode([
-            'name' => $guest_name,
-            'email' => $guest_email,
-            'phone' => $guest_phone
-        ]);
-
-        $db->query("INSERT INTO documents (tracking_code, title, guest_info, district, department, purpose_id, status, current_step, created_at, updated_at) VALUES (:tracking_code, :title, :guest_info, :district, :department, :purpose_id, 'pending', 0, NOW(), NOW())", [
-            ':tracking_code' => $trackingCode,
-            ':title' => $title,
-            ':guest_info' => $guestInfo,
-            ':district' => $district,
-            ':department' => $department,
-            ':purpose_id' => $finalPurposeId
-        ]);
-        
-        $documentId = $db->getConnection()->lastInsertId();
-
-        // Use the centralized IntegrityManager to create the log and hash chain
-        $documentData = [
-            'tracking_code' => $trackingCode,
-            'title' => $title,
-            'guest_info' => $guestInfo,
-            'district' => $district,
-            'department' => $department,
-            'purpose_id' => $finalPurposeId,
-            'finalized_route' => ''
-        ];
-
-        IntegrityManager::createLog(
-            $documentId,
-            null, // user_id is null for guests
-            'Submitted',
-            'Document submitted by guest via the public portal.',
-            $documentData
-        );
 
         header("Location: /success?tracking_code={$trackingCode}&document_id={$documentId}");
         exit;

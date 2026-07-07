@@ -75,16 +75,17 @@ class IntegrityManager
      * @param string $remarks
      * @param array $documentData The current state of the document (used for state hash)
      * @param string $pin The user's PIN for signature (can be empty for system actions)
+     * @param string|null $overrideStateHash Optional state hash override for auto-freezing
      * @return int The ID of the newly created log entry
      */
-    public static function createLog(int $documentId, ?int $userId, string $action, string $remarks, array $documentData, string $pin = ''): int
+    public static function createLog(int $documentId, ?int $userId, string $action, string $remarks, array $documentData, string $pin = '', ?string $overrideStateHash = null): int
     {
         $db = Database::getInstance();
         $createdAt = date('Y-m-d H:i:s');
         $timestampForHashing = date('c', strtotime($createdAt));
 
         // 1. Calculate the state hash based on current document data
-        $documentStateHash = self::calculateStateHash($documentData);
+        $documentStateHash = $overrideStateHash ?? self::calculateStateHash($documentData);
 
         // 2. Generate the signature bonded to the action and state hash
         $signature = self::signAction($userId, $pin, $action, $documentStateHash);
@@ -128,5 +129,86 @@ class IntegrityManager
         );
 
         return (int) $db->getConnection()->lastInsertId();
+    }
+
+    /**
+     * Verify the current live state of a document against its last cryptographic log.
+     *
+     * @param array $document
+     * @return bool
+     */
+    public static function verifyCurrentState(array $document): bool
+    {
+        $db = Database::getInstance();
+        $stmt = $db->query(
+            "SELECT document_state_hash FROM document_logs WHERE document_id = :document_id ORDER BY id DESC LIMIT 1",
+            [':document_id' => $document['id']]
+        );
+        $lastLog = $stmt->fetch();
+
+        // If no logs exist yet, it's a new document, nothing to verify against.
+        if (!$lastLog) {
+            return true;
+        }
+
+        $currentStateHash = self::calculateStateHash($document);
+        
+        // Check for JSON spacing mismatch fallback (Eloquent vs PDO)
+        if ($currentStateHash !== $lastLog['document_state_hash']) {
+            if (isset($document['finalized_route']) && is_string($document['finalized_route'])) {
+                $decoded = json_decode($document['finalized_route'], true);
+                if ($decoded !== null) {
+                    $altDocument = $document;
+                    $altDocument['finalized_route'] = json_encode($decoded);
+                    if (self::calculateStateHash($altDocument) === $lastLog['document_state_hash']) {
+                        return true;
+                    }
+                }
+            }
+            return false; // Real tampering detected
+        }
+
+        return true;
+    }
+
+    /**
+     * Automatically freeze a document due to an integrity mismatch.
+     *
+     * @param array $document
+     * @param string $reason
+     * @return void
+     */
+    public static function autoFreeze(array $document, string $reason): void
+    {
+        if (($document['status'] ?? '') === 'frozen') {
+            return;
+        }
+
+        $db = Database::getInstance();
+        
+        // Update document status to frozen
+        $db->query("UPDATE documents SET status = 'frozen', updated_at = NOW() WHERE id = :id", [
+            ':id' => $document['id']
+        ]);
+
+        // Get the last valid document state hash so we propagate it, 
+        // ensuring the scanner continues to flag the live state mismatch.
+        $stmt = $db->query(
+            "SELECT document_state_hash FROM document_logs WHERE document_id = :id ORDER BY id DESC LIMIT 1",
+            [':id' => $document['id']]
+        );
+        $lastLog = $stmt->fetch();
+        $validStateHash = $lastLog ? $lastLog['document_state_hash'] : self::calculateStateHash($document);
+
+        // Create the system log entry for the auto-freeze
+        self::createLog(
+            $document['id'],
+            null, // System-initiated
+            'System Auto-Freeze',
+            "Document automatically frozen by the Trust Builder system due to an integrity mismatch detected during {$reason}.",
+            $document,
+            '', // No PIN
+            $validStateHash
+        );
     }
 }

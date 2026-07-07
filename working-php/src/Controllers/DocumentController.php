@@ -342,4 +342,35 @@ class DocumentController
         header("Location: {$redirectRoute}");
         exit;
     }
+
+    public function decline()
+    {
+        $db = \App\Core\Database::getInstance();
+        $documentId = $_POST['document_id'] ?? null;
+        $reason = $_POST['reason'] ?? '';
+        
+        if (!$documentId || !$reason) {
+            $_SESSION['error'] = 'Document ID and decline reason are required.';
+            header('Location: ' . ($_SERVER['HTTP_REFERER'] ?? '/intake'));
+            exit;
+        }
+
+        try {
+            $workflow = new \App\Services\DocumentWorkflowService();
+            $officer = \App\Models\User::findById($_SESSION['user_id']);
+            
+            $workflow->declineDocument((int)$documentId, $reason, $officer);
+            
+            $_SESSION['success'] = "Document successfully declined.";
+        } catch (\Exception $e) {
+            if (str_contains($e->getMessage(), 'Action Denied')) {
+                $_SESSION['console_error'] = $e->getMessage();
+            } else {
+                $_SESSION['error'] = $e->getMessage();
+            }
+        }
+        
+        header('Location: ' . ($_SERVER['HTTP_REFERER'] ?? '/intake'));
+        exit;
+    }
 }

@@ -54,8 +54,8 @@ $wrapperClasses = $tableConfig['wrapper_classes'] ?? 'overflow-x-auto';
                                 $type = $column['type'] ?? 'text';
                                 $isWrap = !empty($column['wrap']);
                             ?>
-                            <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-100 <?= $isWrap ? 'whitespace-normal break-words' : 'whitespace-nowrap' ?>">
-                                <?php if ($isWrap): ?><div class="line-clamp-2 overflow-hidden text-ellipsis break-words"><?php endif; ?>
+                            <td class="px-6 py-4 text-sm text-gray-900 dark:text-gray-100 <?= $isWrap ? 'whitespace-normal break-all' : 'whitespace-nowrap' ?>">
+                                <?php if ($isWrap): ?><div class="line-clamp-2 overflow-hidden text-ellipsis break-all"><?php endif; ?>
                                 
                                 <?php if ($type === 'tracking_link'): ?>
                                     <span class="font-mono font-bold text-accent-1">

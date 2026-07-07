@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "tailwindcss -i ./input.css -o ./public/css/tailwind.css --minify", "dev": "tailwindcss -i ./input.css -o ./public/css/tailwind.css --watch"
+    "build": "tailwindcss -i ./input.css -o ./public/css/tailwind.css --minify",
+    "dev": "tailwindcss -i ./input.css -o ./public/css/tailwind.css --watch"
   },
   "keywords": [],
   "author": "",
@@ -12,5 +13,9 @@
   "type": "commonjs",
   "devDependencies": {
     "tailwindcss": "^3.4.19"
+  },
+  "dependencies": {
+    "dotenv": "^17.4.2",
+    "mysql2": "^3.22.5"
   }
 }

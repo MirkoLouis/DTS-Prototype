@@ -224,5 +224,11 @@
             });
         }
     </script>
+    <?php if (isset($_SESSION['console_error'])): ?>
+        <script>
+            console.error(<?= json_encode($_SESSION['console_error']) ?>);
+        </script>
+        <?php unset($_SESSION['console_error']); ?>
+    <?php endif; ?>
 </body>
 </html>
