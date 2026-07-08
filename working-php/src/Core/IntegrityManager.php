@@ -50,19 +50,39 @@ class IntegrityManager
     }
 
     /**
-     * Generate an Ed25519 mock signature for the given action and document state.
+     * Generate an Ed25519 signature for the given action and document state using Sodium.
      *
      * @param int|null $userId
      * @param string $pin
      * @param string $actionText
      * @param string $stateHash
      * @return string
+     * @throws \Exception
      */
     public static function signAction(?int $userId, string $pin, string $actionText, string $stateHash): string
     {
-        // Note: Full Sodium Ed25519 cryptography requires user private keys in the database.
-        // For the prototype phase, we are generating a verifiable bonded mock signature.
-        return base64_encode("MOCK_SIG:{$actionText}|{$stateHash}");
+        if (!$userId) {
+            return base64_encode("SYSTEM_SIG:{$actionText}|{$stateHash}");
+        }
+
+        $db = Database::getInstance();
+        $user = $db->query("SELECT private_key FROM users WHERE id = :id", ['id' => $userId])->fetch();
+
+        if (!$user || !$user['private_key']) {
+            throw new \Exception("User does not have a digital signature set up.");
+        }
+
+        $encryptedPriv = base64_decode($user['private_key']);
+        $key = substr(hash('sha256', $pin), 0, 32);
+        $iv = str_repeat('0', 16);
+        $decryptedPriv = openssl_decrypt($encryptedPriv, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv);
+
+        if ($decryptedPriv === false || strlen($decryptedPriv) !== 64) {
+            throw new \Exception("Invalid Security PIN or corrupted key.");
+        }
+
+        $signature = sodium_crypto_sign_detached($actionText . '|' . $stateHash, $decryptedPriv);
+        return base64_encode($signature);
     }
 
     /**
@@ -112,9 +132,9 @@ class IntegrityManager
         // 5. Insert the log entry
         $db->query(
             "INSERT INTO document_logs 
-            (document_id, user_id, action, remarks, previous_hash, hash, signature, document_state_hash, created_at) 
+            (document_id, user_id, action, remarks, previous_hash, hash, signature, document_state_hash, document_snapshot, created_at) 
             VALUES 
-            (:document_id, :user_id, :action, :remarks, :previous_hash, :hash, :signature, :document_state_hash, :created_at)",
+            (:document_id, :user_id, :action, :remarks, :previous_hash, :hash, :signature, :document_state_hash, :document_snapshot, :created_at)",
             [
                 ':document_id' => $documentId,
                 ':user_id' => $userId,
@@ -124,6 +144,7 @@ class IntegrityManager
                 ':hash' => $hash,
                 ':signature' => $signature,
                 ':document_state_hash' => $documentStateHash,
+                ':document_snapshot' => json_encode($documentData),
                 ':created_at' => $createdAt
             ]
         );

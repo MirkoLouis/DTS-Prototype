@@ -78,7 +78,7 @@
                                             <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                                         </svg>
                                         <span>Active</span>
-                                        <form action="/users/%s/reset-signature" method="POST" class="inline-block ml-2" onsubmit="return confirm(\'Reset signature for %s?\');">
+                                        <form action="/users/%s/reset-signature" method="POST" class="inline-block ml-2 confirm-action" data-message="Reset signature for %s?">
                                             <button type="submit" class="text-xs text-red-500 hover:text-red-700 underline">Reset</button>
                                         </form>
                                     </div>
@@ -90,7 +90,7 @@
                             $actions = sprintf('<a href="/users/%s/edit" class="text-accent-1 hover:text-accent-1-active">Edit</a>', $user['id']);
                             if ($_SESSION['user_id'] != $user['id']) {
                                 $actions .= sprintf('
-                                    <form action="/users/%s/delete" method="POST" class="inline-block ml-2" onsubmit="return confirm(\'Are you sure you want to delete this user?\');">
+                                    <form action="/users/%s/delete" method="POST" class="inline-block ml-2 confirm-action" data-message="Are you sure you want to delete this user?">
                                         <button type="submit" class="text-red-600 hover:text-red-900">Delete</button>
                                     </form>
                                 ', $user['id']);

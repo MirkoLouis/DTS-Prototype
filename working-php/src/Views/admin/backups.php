@@ -48,7 +48,7 @@
                             <div class="flex justify-end items-center space-x-4">
                                 <a href="/system/backups/download/%s" class="text-accent-1 hover:text-accent-1-active">Download</a>
                                 <button type="button" class="text-gray-500 hover:text-gray-700" onclick="openRestoreModal(\'%s\')">Restore</button>
-                                <form action="/system/backups/delete/%s" method="POST" onsubmit="return confirm(\'Delete this backup?\');">
+                                <form action="/system/backups/delete/%s" method="POST" class="confirm-action" data-message="Delete this backup?">
                                     <button type="submit" class="text-red-600 hover:text-red-900">Delete</button>
                                 </form>
                             </div>
@@ -77,7 +77,7 @@
 <!-- Restore Modal -->
 <div id="restore-modal" style="display:none;" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-75">
     <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
-        <form id="restore-form" method="POST" onsubmit="return confirm('Restore database?');">
+        <form id="restore-form" method="POST" class="confirm-action" data-message="Restore database?">
             <h2 class="text-lg font-medium text-gray-900 text-red-500">FINAL WARNING: Restore Database?</h2>
             <p class="mt-2 text-sm text-gray-600">
                 Restore <strong id="restore-file-name"></strong>?

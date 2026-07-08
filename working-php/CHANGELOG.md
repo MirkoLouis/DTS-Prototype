@@ -1,5 +1,22 @@
 # Changelog
 
+## 2026-07-08 14:54
+
+**Version:** 1.12.4-Alpha+202607081454
+
+### ADDED
+- Introduced a reusable `modal.php` component for standardized dialogs across the application.
+- Added comprehensive security architecture documentation (`dts_security_architecture.md`).
+- Included initial `database.sql` and `scripts/setup-production-db.js` for production database setup.
+- Added document freeze and unfreeze capabilities in the document details view for administrators.
+- Added default test credentials helper in the login view for easier testing and demonstration.
+
+### FIXED
+- Updated various admin views and layout files to integrate with the new `modal.php` component and enhance the system health dashboard.
+- Modified `SystemHealthController`, `IntegrityManager`, and `DocumentWorkflowService` to support document freezing and manual overrides.
+- Updated `AuthMiddleware` and `seed.js` for enhanced security handling and database seeding.
+
+
 ## 2026-07-08 14:51
 
 **Version:** 1.12.3-Alpha+202607081451

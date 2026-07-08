@@ -156,67 +156,8 @@
         </div>
     </div>
 
-    
-        <!-- Confirmation Modal -->
-        <div id="confirmation-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-gray-900/75 transition-opacity">
-            <div class="relative z-10 w-full max-w-md p-4 bg-white dark:bg-gray-800 rounded-lg shadow-xl mx-4">
-                <div class="flex items-center justify-between mb-4 border-b dark:border-gray-700 pb-2">
-                    <h3 class="text-lg font-bold text-gray-900 dark:text-gray-100">Confirm Action</h3>
-                    <button id="cancel-btn-top" class="text-gray-400 hover:text-gray-500">
-                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-                <div class="mb-6">
-                    <p id="confirmation-message" class="text-sm text-gray-600 dark:text-gray-400"></p>
-                </div>
-                <div class="flex justify-end space-x-3">
-                    <button id="cancel-btn" class="inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 border border-transparent rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest hover:bg-gray-300 dark:hover:bg-accent-2 focus:outline-none transition">
-                        Cancel
-                    </button>
-                    <button id="confirm-btn" class="inline-flex items-center px-4 py-2 bg-accent-1 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-1-hover active:bg-accent-1-active focus:outline-none transition">
-                        Yes, Proceed
-                    </button>
-                </div>
-            </div>
-        </div>
-    
         
             <script src="/js/admin-dashboard.js"></script>
-            <script>
-                document.addEventListener('DOMContentLoaded', function () {
-                    const confirmForms = document.querySelectorAll('.confirm-action');
-                    const modal = document.getElementById('confirmation-modal');
-                    const modalMessage = document.getElementById('confirmation-message');
-                    const confirmBtn = document.getElementById('confirm-btn');
-                    const cancelBtn = document.getElementById('cancel-btn');
-                    const cancelBtnTop = document.getElementById('cancel-btn-top');
-                    let currentForm = null;
-    
-                    confirmForms.forEach(form => {
-                        form.addEventListener('submit', (e) => {
-                            e.preventDefault();
-                            currentForm = form;
-                            modalMessage.textContent = form.dataset.message || 'Are you sure?';
-                            modal.style.display = 'flex';
-                        });
-                    });
-    
-                    [cancelBtn, cancelBtnTop].forEach(btn => {
-                        if (btn) btn.addEventListener('click', () => {
-                            modal.style.display = 'none';
-                            currentForm = null;
-                        });
-                    });
-    
-                    if (confirmBtn) {
-                        confirmBtn.addEventListener('click', () => {
-                            if (currentForm) currentForm.submit();
-                        });
-                    }
-                });
-            </script>
         
     <?php $content = ob_get_clean(); require BASE_PATH . '/src/Views/layouts/app.php'; ?>
     
