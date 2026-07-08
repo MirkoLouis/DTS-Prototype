@@ -408,7 +408,13 @@ async function seed() {
 
         const [purposesDb] = await connection.query("SELECT id FROM purposes");
         const purposeIds = purposesDb.map(p => p.id);
-        const districts = ['North District', 'South District', 'East District', 'West District', 'Central District'];
+        const districts = [
+            'East I District', 'East II District', 
+            'South I District', 'South II District', 
+            'West I District', 'West II District', 
+            'North I District', 'North II District', 'North III District', 
+            'City Central District'
+        ];
 
         console.log(`🚀 Processing ${DOCS_TO_CREATE} documents...`);
 
@@ -453,6 +459,9 @@ async function seed() {
 
         console.log('\n'); // newline after progress
         await flushMetrics(connection);
+
+        console.log('📈 Backfilling daily departmental metrics...');
+        execSync('php scripts/backfill-metrics.php', { stdio: 'inherit' });
 
         console.log('🎉 Advanced Seeding completed successfully!');
         await connection.end();

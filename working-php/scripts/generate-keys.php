@@ -9,7 +9,7 @@ try {
     $users = $db->query('SELECT id FROM users WHERE private_key IS NULL')->fetchAll();
 
     foreach ($users as $user) {
-        $pin = '123456';
+        $pin = 'password'; // Default PIN for key generation; in a real scenario, this should be securely handled
         $keypair = sodium_crypto_sign_keypair();
         $secretKey = sodium_crypto_sign_secretkey($keypair);
         $publicKey = sodium_crypto_sign_publickey($keypair);

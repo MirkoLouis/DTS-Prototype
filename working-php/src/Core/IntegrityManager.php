@@ -59,9 +59,9 @@ class IntegrityManager
      * @return string
      * @throws \Exception
      */
-    public static function signAction(?int $userId, string $pin, string $actionText, string $stateHash): string
+    public static function signAction(?int $userId, ?string $pin, string $actionText, string $stateHash): string
     {
-        if (!$userId) {
+        if (!$userId || empty($pin)) {
             return base64_encode("SYSTEM_SIG:{$actionText}|{$stateHash}");
         }
 
