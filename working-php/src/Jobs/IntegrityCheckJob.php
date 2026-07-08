@@ -58,10 +58,10 @@ class IntegrityCheckJob
 
                     // 2. Verify Cryptographic Signature
                     if ($log['signature'] && strlen($log['signature']) > 10) {
-                        $isMockSignature = str_starts_with(base64_decode($log['signature']), 'MOCK_SIG:');
+                        $isMockSignature = str_starts_with(base64_decode($log['signature']), 'SYSTEM_SIG:');
                         if ($isMockSignature) {
                             $decodedMock = base64_decode($log['signature']);
-                            $expectedMock = "MOCK_SIG:{$log['action']}|{$log['document_state_hash']}";
+                            $expectedMock = "SYSTEM_SIG:{$log['action']}|{$log['document_state_hash']}";
                             if ($decodedMock !== $expectedMock) {
                                 $invalidSignaturesCount++;
                                 if (!in_array($log['id'], $mismatchedIds)) $mismatchedIds[] = $log['id'];
@@ -70,13 +70,18 @@ class IntegrityCheckJob
                             $pubKey = $this->getPublicKeyAtTime($db, $log['user_id'], $log['created_at'], $log['public_key'], $log['security_key_set_at']);
                             if ($pubKey) {
                                 $signedData = $log['action'] . '|' . $log['document_state_hash'];
-                                $keyResource = openssl_pkey_get_public($pubKey);
-                                if ($keyResource === false) {
+                                $rawPubKey = base64_decode($pubKey);
+                                
+                                if (strlen($rawPubKey) !== SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES) {
                                     $invalidSignaturesCount++;
                                     if (!in_array($log['id'], $mismatchedIds)) $mismatchedIds[] = $log['id'];
                                 } else {
-                                    $verified = openssl_verify($signedData, base64_decode($log['signature']), $keyResource, OPENSSL_ALGO_SHA256);
-                                    if ($verified !== 1) {
+                                    $verified = sodium_crypto_sign_verify_detached(
+                                        base64_decode($log['signature']),
+                                        $signedData,
+                                        $rawPubKey
+                                    );
+                                    if (!$verified) {
                                         $invalidSignaturesCount++;
                                         if (!in_array($log['id'], $mismatchedIds)) $mismatchedIds[] = $log['id'];
                                     }

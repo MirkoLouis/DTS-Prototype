@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-07-08 15:14
+
+**Version:** 1.12.5-Alpha+202607081514
+
+### ADDED
+- None
+
+### FIXED
+- Fixed a bug in `IntegrityCheckJob.php` where Ed25519 (Libsodium) signatures were incorrectly being verified using OpenSSL RSA functions.
+- Corrected the system signature validation prefix in `IntegrityCheckJob.php` from `MOCK_SIG:` to `SYSTEM_SIG:` to properly align with `IntegrityManager` defaults.
 ## 2026-07-08 14:54
 
 **Version:** 1.12.4-Alpha+202607081454
