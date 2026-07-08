@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-07-08 22:52
+
+**Version:** 1.12.7-Alpha+202607082252
+
+### ADDED
+- Implemented route adaptation allowing the system to update a purpose's generic route based on Records Officer actions, while carefully ignoring dynamically injected guest-specific departments.
+- Added a visual tag/badge to the `/manage-documents` UI to clearly distinguish guest-selected units from the default suggested route steps.
+- Ensured all relevant guest intake fields, specifically the Phone Number, are strictly required prior to submission.
+
+### FIXED
+- Fixed a major missing data issue where production seeders failed to insert document requirements and suggested routes into the `purposes` table.
+- Fixed a conflict where saving a dynamically injected guest department into a route would accidentally override the purpose's permanent template.
+
 ## 2026-07-08 21:22
 
 **Version:** 1.12.6-Alpha+202607082122
