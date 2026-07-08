@@ -176,6 +176,11 @@ $router->post('/users/(?P<id>\d+)/delete', [App\Controllers\UserController::clas
     App\Middleware\RoleMiddleware::class . ':admin'
 ]);
 
+$router->post('/users/(?P<id>\d+)/reset-signature', [App\Controllers\UserController::class, 'resetSignature'], [
+    App\Middleware\AuthMiddleware::class,
+    App\Middleware\RoleMiddleware::class . ':admin'
+]);
+
 // Officer Routes
 $router->get('/intake', [App\Controllers\IntakeController::class, 'index'], [
     App\Middleware\AuthMiddleware::class,

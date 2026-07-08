@@ -45,6 +45,12 @@ class SecurityKeyController
             'id' => $userId
         ]);
 
+        $db->query("UPDATE user_public_key_histories SET deactivated_at = :now, updated_at = :now2 WHERE user_id = :id AND deactivated_at IS NULL", [
+            'now' => $now,
+            'now2' => $now,
+            'id' => $userId
+        ]);
+
         $db->query("INSERT INTO user_public_key_histories (user_id, public_key, activated_at, created_at, updated_at) VALUES (:user_id, :pub, :now, :now2, :now3)", [
             'user_id' => $userId,
             'pub' => $pubB64,

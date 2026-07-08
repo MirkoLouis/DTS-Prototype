@@ -196,7 +196,7 @@ class UserController
 
         $db = Database::getInstance();
         
-        // In a real app we'd archive to public_key_history, but for the prototype:
+        $db->query("UPDATE user_public_key_histories SET deactivated_at = NOW(), updated_at = NOW() WHERE user_id = :id AND deactivated_at IS NULL", [':id' => $id]);
         $db->query("UPDATE users SET public_key = NULL, private_key = NULL, security_key_set_at = NULL WHERE id = :id", [':id' => $id]);
         
         $_SESSION['success'] = 'User digital signature reset successfully.';

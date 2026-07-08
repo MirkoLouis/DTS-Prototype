@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.12.6-Alpha+202607081546] - 2026-07-08
+
+### ADDED
+- **Digital Signatures:** Implemented a signature reset feature that securely archives old keys to `user_public_key_histories` ensuring older signed documents remain cryptographically verifiable.
+- **Verification Logic:** Updated `IntegrityCheckJob` with "time-travel" verification logic (`getPublicKeyAtTime()`) to use the exact active public key based on a document's `created_at` timestamp.
+
 ## [1.12.0-Alpha+202607062231] - 2026-07-06
 
 ### ADDED

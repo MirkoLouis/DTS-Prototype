@@ -8,7 +8,7 @@ const execPromise = util.promisify(exec);
 // --- SETTINGS ---
 const API_BASE = 'http://localhost:8000';
 const DEFAULT_PASSWORD = 'password';
-const DOCS_TO_CREATE = 50;
+const DOCS_TO_CREATE = 10000;
 const CHUNK_SIZE = 250;
 const CONCURRENCY = 50;
 
@@ -411,6 +411,10 @@ async function seed() {
         const districts = ['North District', 'South District', 'East District', 'West District', 'Central District'];
 
         console.log(`🚀 Processing ${DOCS_TO_CREATE} documents...`);
+
+        console.log('🔐 Generating digital signatures (Ed25519) for seeded users...');
+        const { execSync } = require('child_process');
+        execSync('php scripts/generate-keys.php', { stdio: 'inherit' });
 
         console.log('🔑 Initializing API Client Pools to bypass login overhead...');
         const deptPools = {};
