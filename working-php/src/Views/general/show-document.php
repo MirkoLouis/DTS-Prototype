@@ -118,7 +118,7 @@
                     <div class="flex justify-between items-center mb-4">
                         <h3 class="text-2xl font-bold">Document History</h3>
                         <div class="flex items-center space-x-2">
-                            <a href="/documents/<?php echo $document['tracking_code']; ?>/hash-chain" class="inline-flex items-center px-4 py-2 bg-accent-1 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-1-hover active:bg-accent-1-active focus:outline-none focus:ring-2 focus:ring-accent-1 transition ease-in-out duration-150">
+                            <a href="/documents/<?php echo htmlspecialchars($document['tracking_code']); ?>/hash-chain" class="inline-flex items-center px-4 py-2 bg-accent-1 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-1-hover active:bg-accent-1-active focus:outline-none focus:ring-2 focus:ring-accent-1 transition ease-in-out duration-150">
                                 View Hash Chain
                             </a>
                             <a href="javascript:history.back()" class="inline-flex items-center px-4 py-2 bg-accent-2 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-2-hover active:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent-2 transition ease-in-out duration-150">

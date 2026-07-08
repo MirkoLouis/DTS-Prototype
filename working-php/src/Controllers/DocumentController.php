@@ -4,6 +4,10 @@ namespace App\Controllers;
 
 use App\Core\Database;
 use App\Core\IntegrityManager;
+use Dompdf\Dompdf;
+use Dompdf\Options;
+use chillerlan\QRCode\QRCode;
+use chillerlan\QRCode\QROptions;
 
 class DocumentController
 {
@@ -372,5 +376,56 @@ class DocumentController
         
         header('Location: ' . ($_SERVER['HTTP_REFERER'] ?? '/intake'));
         exit;
+    }
+
+    /**
+     * Generate a printable PDF tracking form for the specified document.
+     *
+     * @param string $tracking_code
+     */
+    public function printTrackingForm($tracking_code)
+    {
+        $db = Database::getInstance();
+        
+        $stmt = $db->query("SELECT d.*, p.name as purpose_name 
+                            FROM documents d 
+                            LEFT JOIN purposes p ON d.purpose_id = p.id 
+                            WHERE d.tracking_code = :tracking_code", [':tracking_code' => $tracking_code]);
+        $document = $stmt->fetch();
+
+        if (!$document) {
+            header("HTTP/1.0 404 Not Found");
+            echo "Document not found.";
+            exit;
+        }
+
+        // Generate QR Code
+        $qrOptions = new QROptions([
+            'version'         => 5,
+            'outputInterface' => \chillerlan\QRCode\Output\QRGdImagePNG::class,
+            'eccLevel'        => \chillerlan\QRCode\Common\EccLevel::L,
+            'scale'           => 5,
+            'outputBase64'    => true,
+        ]);
+        
+        $qrCode = (new QRCode($qrOptions))->render($document['tracking_code']);
+        $qrCodeBase64 = preg_replace('#^data:image/[^;]+;base64,#', '', $qrCode);
+
+        // Capture HTML view
+        ob_start();
+        require BASE_PATH . '/src/Views/general/tracking-form-pdf.php';
+        $html = ob_get_clean();
+
+        // Generate PDF
+        $options = new Options();
+        $options->set('isHtml5ParserEnabled', true);
+        $options->set('isRemoteEnabled', true);
+        
+        $dompdf = new Dompdf($options);
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper('A4', 'portrait');
+        $dompdf->render();
+
+        $dompdf->stream('document-tracking-form-'.$document['tracking_code'].'.pdf', ["Attachment" => false]);
     }
 }
