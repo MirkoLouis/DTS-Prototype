@@ -230,5 +230,141 @@
         </script>
         <?php unset($_SESSION['console_error']); ?>
     <?php endif; ?>
+
+    <?php if (isset($_SESSION['needs_security_key']) && $_SESSION['needs_security_key']): ?>
+    <?php
+    $modalId = 'security-key-modal';
+    $modalTitle = 'Action Required: Setup Your Digital Signature';
+    $modalSize = 4; // max-w-lg
+    $hideCloseButton = true;
+    
+    $modalContent = '
+        <p class="mb-2 text-gray-600 dark:text-gray-400">
+            To interact with documents, you must generate a cryptographic Ed25519 digital signature. 
+            This ensures non-repudiation and secures the blockchain-like document ledger against tampering.
+        </p>
+        <form action="/security-key" method="POST" id="security-key-form">
+            <!-- Hidden submit to safely capture Enter key -->
+            <button type="submit" class="hidden" aria-hidden="true"></button>
+            <div class="mb-4">
+                <label for="pin" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Create a 6-digit Security PIN</label>
+                <input type="password" name="pin" id="pin" minlength="6" required class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-2 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1">
+            </div>
+            <div class="mb-4">
+                <label for="pin_confirm" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Confirm Security PIN</label>
+                <input type="password" name="pin_confirm" id="pin_confirm" minlength="6" required class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-2 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1">
+                <p class="mt-2 text-sm text-gray-500">This PIN will be used to encrypt your private key. You will need it every time you approve or process a document.</p>
+            </div>
+        </form>
+    ';
+    
+    $modalFooter = '
+        <form action="/logout" method="POST" class="inline-block m-0">
+            <button type="submit" class="inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 border border-transparent rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest hover:bg-gray-300 dark:hover:bg-gray-600 focus:outline-none transition">
+                Log Out
+            </button>
+        </form>
+        <button type="submit" form="security-key-form" class="inline-flex items-center px-4 py-2 bg-accent-1 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-1-hover active:bg-accent-1-active focus:outline-none focus:border-accent-1-border-active focus:ring focus:ring-accent-1-light transition">
+            Generate & Secure Key
+        </button>
+    ';
+    
+    require BASE_PATH . '/src/Views/components/modal.php';
+    ?>
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const secModal = document.getElementById("security-key-modal");
+            if (secModal) {
+                secModal.classList.remove("hidden");
+                document.body.style.overflow = "hidden";
+                
+                // Prevent closing on backdrop click by removing the triggering class
+                const backdrop = secModal.querySelector(".close-modal-backdrop");
+                if (backdrop) backdrop.classList.remove("close-modal-backdrop");
+            }
+        });
+    </script>
+    <?php endif; ?>
+
+    <!-- Global Confirmation Modal -->
+    <?php
+    $modalId = 'global-confirmation-modal';
+    $modalTitle = 'Confirm Action';
+    $modalSize = 3; // max-w-md
+    $hideCloseButton = false;
+    $modalContent = '<p id="global-confirmation-message" class="text-sm text-gray-600 dark:text-gray-400"></p>';
+    $modalFooter = '
+        <button type="button" class="close-modal-btn inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 border border-transparent rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest hover:bg-gray-300 dark:hover:bg-accent-2 focus:outline-none transition" data-modal="global-confirmation-modal">Cancel</button>
+        <button id="global-confirm-btn" class="inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-500 active:bg-red-700 focus:outline-none focus:border-red-700 focus:ring focus:ring-red-200 transition">Yes, Proceed</button>
+    ';
+    require BASE_PATH . '/src/Views/components/modal.php';
+    ?>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            let activeConfirmForm = null;
+            const globalConfirmModal = document.getElementById('global-confirmation-modal');
+            const globalConfirmMessage = document.getElementById('global-confirmation-message');
+            const globalConfirmBtn = document.getElementById('global-confirm-btn');
+
+            document.querySelectorAll('.confirm-action').forEach(form => {
+                form.addEventListener('submit', (e) => {
+                    if (form.dataset.confirmed === "true") {
+                        // It was confirmed by the modal, let it pass through to other listeners or native submit
+                        delete form.dataset.confirmed;
+                        return;
+                    }
+                    e.preventDefault();
+                    activeConfirmForm = form;
+                    globalConfirmMessage.textContent = form.dataset.message || 'Are you sure you want to proceed?';
+                    
+                    // Show modal logic
+                    globalConfirmModal.classList.remove('hidden');
+                    
+                    // Allow animation frame
+                    requestAnimationFrame(() => {
+                        globalConfirmModal.querySelector('.fixed.inset-0.bg-gray-900').classList.add('opacity-100');
+                        globalConfirmModal.querySelector('.relative.w-full').classList.add('scale-100', 'opacity-100');
+                    });
+                });
+            });
+
+            if (globalConfirmBtn) {
+                globalConfirmBtn.addEventListener('click', () => {
+                    if (activeConfirmForm) {
+                        globalConfirmModal.classList.add('hidden');
+                        activeConfirmForm.dataset.confirmed = "true";
+                        // Dispatch submit event so other JS listeners can intercept it, or it will submit natively
+                        const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+                        const cancelled = !activeConfirmForm.dispatchEvent(submitEvent);
+                        if (!cancelled) {
+                            activeConfirmForm.submit(); // Fallback if no listener prevented default
+                        }
+                    }
+                });
+            }
+
+            // Close modal logic for global confirmation is handled by close-modal-btn logic which we also need to include or assume exists.
+            // Let's add a generic close modal listener since it might not be defined globally yet.
+            document.querySelectorAll('.close-modal-btn, .close-modal-backdrop').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const modalId = btn.dataset.modal;
+                    if (!modalId) return;
+                    
+                    // If the click is on the backdrop, ensure we clicked the backdrop itself and not children
+                    if (btn.classList.contains('close-modal-backdrop') && e.target !== btn) {
+                        return;
+                    }
+
+                    const targetModal = document.getElementById(modalId);
+                    if (targetModal) {
+                        targetModal.classList.add('hidden');
+                        if (modalId === 'global-confirmation-modal') {
+                            activeConfirmForm = null;
+                        }
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html>
