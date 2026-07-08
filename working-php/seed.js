@@ -8,7 +8,7 @@ const execPromise = util.promisify(exec);
 // --- SETTINGS ---
 const API_BASE = 'http://localhost:8000';
 const DEFAULT_PASSWORD = 'password';
-const DOCS_TO_CREATE = 10000;
+const DOCS_TO_CREATE = 50;
 const CHUNK_SIZE = 250;
 const CONCURRENCY = 50;
 

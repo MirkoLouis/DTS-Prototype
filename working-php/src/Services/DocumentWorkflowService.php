@@ -386,9 +386,9 @@ class DocumentWorkflowService
         });
     }
 
-    public function unfreezeDocument(string $trackingCode, User $admin): void
+    public function unfreezeDocument(string $trackingCode, User $admin): string
     {
-        $this->executeWithLock('tracking_code', $trackingCode, $admin, 'unfreeze', function ($document, $db) use ($admin) {
+        return $this->executeWithLock('tracking_code', $trackingCode, $admin, 'unfreeze', function ($document, $db) use ($admin) {
             $lastValidLog = $db->query("SELECT action FROM document_logs WHERE document_id = :id AND action != 'ADMIN: Document frozen.' AND action != 'System Auto-Freeze' ORDER BY id DESC LIMIT 1", [':id' => $document['id']])->fetch();
             
             $previousStatus = $document['status'];
@@ -411,6 +411,61 @@ class DocumentWorkflowService
 
             $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
             IntegrityManager::createLog($document['id'], $admin->id, 'ADMIN: Document unfrozen.', "An administrator has unfrozen this document, restoring its status to " . ucfirst($previousStatus) . ".", $updatedDoc);
+            return $previousStatus;
+        });
+    }
+
+    public function autoResolveDocument(string $trackingCode, User $admin): void
+    {
+        $this->executeWithLock('tracking_code', $trackingCode, $admin, 'unfreeze', function ($document, $db) use ($admin) {
+            // Tampered documents might not be in 'frozen' status if they were just flagged by verification
+            // and haven't triggered the Active Guard yet.
+
+            $stmt = $db->query("SELECT * FROM document_logs WHERE document_id = :id AND action != 'ADMIN: Document frozen.' AND action != 'System Auto-Freeze' AND document_snapshot IS NOT NULL ORDER BY id DESC LIMIT 1", [':id' => $document['id']]);
+            $lastValidLog = $stmt->fetch();
+            
+            if (!$lastValidLog || !$lastValidLog['document_snapshot']) {
+                throw new Exception("No valid document snapshot found to recover from.");
+            }
+
+            $snapshot = json_decode($lastValidLog['document_snapshot'], true);
+            if (!$snapshot) {
+                throw new Exception("Document snapshot is corrupted or invalid.");
+            }
+
+            $previousStatus = match($lastValidLog['action']) {
+                'Submitted' => 'pending',
+                'Accepted and Document Routing finalized' => 'in_transit',
+                'Received' => 'processing',
+                'Processing Complete' => 'in_transit',
+                'Ready for Releasing' => 'ready_for_release',
+                'Document Released' => 'completed',
+                default => 'processing'
+            };
+
+            $db->query("UPDATE documents SET 
+                title = :title, 
+                guest_info = :guest_info, 
+                district = :district, 
+                department = :department, 
+                purpose_id = :purpose_id, 
+                finalized_route = :finalized_route, 
+                status = :status, 
+                updated_at = NOW() 
+                WHERE id = :id", [
+                ':title' => $snapshot['title'] ?? null,
+                ':guest_info' => $snapshot['guest_info'] ?? null,
+                ':district' => $snapshot['district'] ?? null,
+                ':department' => $snapshot['department'] ?? null,
+                ':purpose_id' => $snapshot['purpose_id'] ?? null,
+                ':finalized_route' => $snapshot['finalized_route'] ?? null,
+                ':status' => $previousStatus,
+                ':id' => $document['id']
+            ]);
+
+            $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
+            IntegrityManager::createLog($document['id'], $admin->id, 'ADMIN: Document Unfrozen & Restored', "An administrator has executed Auto-resolve, restoring the document from its last valid snapshot and returning status to " . ucfirst($previousStatus) . ".", $updatedDoc);
+            
             return $previousStatus;
         });
     }

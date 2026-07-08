@@ -254,55 +254,11 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Confirmation Modal Logic
-    const confirmForms = document.querySelectorAll('.confirm-action');
-    const modal = document.getElementById('confirmation-modal');
-    const modalMessage = document.getElementById('confirmation-message');
-    const confirmBtn = document.getElementById('confirm-btn');
-    const cancelBtn = document.querySelector('.close-modal-btn[data-modal="confirmation-modal"]');
-    let currentForm = null;
-
-    confirmForms.forEach(form => {
-        form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            currentForm = form;
-            if (modalMessage) modalMessage.textContent = form.dataset.message || 'Are you sure you want to perform this action?';
-            if (modal) modal.style.display = 'flex';
-        });
-    });
-
-    if (confirmBtn) {
-        confirmBtn.addEventListener('click', () => {
-            if (currentForm) currentForm.submit();
-        });
-    }
-
     // Handle form submissions for actions (AJAX version)
     document.querySelectorAll('.rebuild-form, .freeze-form, .unfreeze-form').forEach(form => {
         form.addEventListener('submit', function(event) {
             event.preventDefault();
-            
-            let confirmationMessage = 'Are you sure you want to proceed with this action?';
-            if (form.classList.contains('rebuild-form')) {
-                confirmationMessage = 'Are you sure you want to rebuild the hash chain from this point? This action cannot be undone and will create a log entry.';
-            } else if (form.classList.contains('freeze-form')) {
-                confirmationMessage = 'Are you sure you want to freeze this document? This will prevent any further actions on it.';
-            } else if (form.classList.contains('unfreeze-form')) {
-                confirmationMessage = 'Are you sure you want to unfreeze this document?';
-            }
-
-            // If it's a confirm-action, the modal already handles it.
-            // But if it's direct submit:
-            if (!form.classList.contains('confirm-action')) {
-                if (confirm(confirmationMessage)) {
-                    submitFormAjax(this);
-                }
-            } else {
-                 // For confirm-action, we intercept the normal submit if we want to do it via AJAX
-                 // Wait, the confirmation modal calls currentForm.submit(), which bypasses this listener if it's a native submit.
-                 // We will let them submit normally instead of AJAX, or we override the confirmBtn to call submitFormAjax.
-                 // Let's just do standard submit for confirm-actions unless specified.
-            }
+            submitFormAjax(this);
         });
     });
 

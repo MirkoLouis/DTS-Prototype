@@ -338,45 +338,62 @@ class SystemHealthController
         exit;
     }
 
-    public function freeze($trackingCode)
+    public function freeze($tracking_code)
     {
         $currentUser = \App\Models\User::findById($_SESSION['user_id'] ?? 0);
 
         try {
             $workflow = new \App\Services\DocumentWorkflowService();
-            $workflow->freezeDocument($trackingCode, $currentUser);
+            $workflow->freezeDocument($tracking_code, $currentUser);
             
-            header('Content-Type: application/json');
-            echo json_encode(['status' => 'success', 'message' => 'Document has been frozen successfully.']);
+            $_SESSION['success'] = 'Document has been frozen successfully.';
         } catch (\Exception $e) {
             if (str_contains($e->getMessage(), 'Action Denied')) {
                 $_SESSION['console_error'] = $e->getMessage();
             } else {
                 $_SESSION['error'] = $e->getMessage();
             }
-            header('Location: /system-health');
         }
+        
+        $referer = $_SERVER['HTTP_REFERER'] ?? "/documents/{$tracking_code}";
+        header("Location: $referer");
         exit;
     }
 
-    public function unfreeze($trackingCode)
+    public function unfreeze($tracking_code)
     {
         $currentUser = \App\Models\User::findById($_SESSION['user_id'] ?? 0);
 
         try {
             $workflow = new \App\Services\DocumentWorkflowService();
-            $previousStatus = $workflow->unfreezeDocument($trackingCode, $currentUser);
+            $previousStatus = $workflow->unfreezeDocument($tracking_code, $currentUser);
             
-            header('Content-Type: application/json');
-            echo json_encode(['status' => 'success', 'message' => "Document has been unfrozen and restored to " . ucfirst($previousStatus) . "."]);
+            $_SESSION['success'] = "Document has been unfrozen and restored to " . ucfirst($previousStatus) . ".";
         } catch (\Exception $e) {
             if (str_contains($e->getMessage(), 'Action Denied')) {
                 $_SESSION['console_error'] = $e->getMessage();
             } else {
                 $_SESSION['error'] = $e->getMessage();
             }
-            header('Location: /system-health');
         }
+        
+        $referer = $_SERVER['HTTP_REFERER'] ?? "/documents/{$tracking_code}";
+        header("Location: $referer");
+        exit;
+    }
+
+    public function autoResolve($tracking_code)
+    {
+        $currentUser = \App\Models\User::findById($_SESSION['user_id'] ?? 0);
+
+        try {
+            $workflow = new \App\Services\DocumentWorkflowService();
+            $previousStatus = $workflow->autoResolveDocument($tracking_code, $currentUser);
+            $_SESSION['success'] = "Document auto-resolved successfully. Restored from snapshot and unfrozen (Status: " . ucfirst($previousStatus) . ").";
+        } catch (\Exception $e) {
+            $_SESSION['error'] = $e->getMessage();
+        }
+        header('Location: /system-overview');
         exit;
     }
 }

@@ -157,6 +157,7 @@ return new class extends Migration
             $table->text('previous_hash')->nullable();
             $table->text('signature')->nullable();
             $table->string('document_state_hash', 64)->nullable();
+            $table->json('document_snapshot')->nullable();
             $table->timestamps();
 
             // Performance Indexes

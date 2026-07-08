@@ -191,6 +191,15 @@ ob_start(); ?>
                                     $issue['doc_html'] = sprintf('%s<br><span class="text-xs text-gray-500 dark:text-gray-400">%s</span>', htmlspecialchars($issue['tracking_code']), htmlspecialchars($issue['title']));
                                     
                                     $actions = sprintf('<a href="/documents/%s?back_to=system-overview" class="text-accent-1 hover:text-accent-1-active dark:text-accent-1-hover">View</a>', htmlspecialchars($issue['tracking_code']));
+                                    
+                                    if ($issue['type'] === 'Live State Tampering') {
+                                        $actions .= sprintf('
+                                            <form action="/documents/%s/autoresolve" method="POST" class="autoresolve-form confirm-action inline-block ml-3" data-message="Are you sure you want to Auto-resolve this document? This will overwrite the tampered live data with the last valid snapshot.">
+                                                <button type="submit" class="bg-green-100 text-green-700 px-3 py-1 rounded hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300 transition-colors font-bold text-xs">Auto-resolve</button>
+                                            </form>
+                                        ', htmlspecialchars($issue['tracking_code']));
+                                    }
+
                                     if ($issue['log_id']) {
                                         $actions .= sprintf('
                                             <button type="button" 
@@ -198,11 +207,7 @@ ob_start(); ?>
                                                     data-url="/system-health/debug-log/%s">
                                                 Debug
                                             </button>
-                                            <form action="/system-health/rebuild-chain/%s" method="POST" class="rebuild-form confirm-action inline-block ml-2" data-message="Are you sure you want to rebuild the hash chain from this point?">
-                                                <input type="hidden" name="logId" value="%s">
-                                                <button type="submit" class="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-200">Rebuild Chain</button>
-                                            </form>
-                                        ', $issue['log_id'], $issue['log_id'], $issue['log_id']);
+                                        ', $issue['log_id']);
                                     }
                                     $issue['actions_html'] = '<div class="flex items-center justify-end">' . $actions . '</div>';
                                 }
@@ -255,7 +260,7 @@ ob_start(); ?>
 // 1. Progress Modal
 $modalId = 'integrity-progress-modal';
 $modalTitle = 'Integrity Verification in Progress';
-$modalSize = 'max-w-xl';
+$modalSize = 5; // max-w-xl
 $hideCloseButton = true;
 $modalContent = '
     <div class="text-center py-4">
@@ -276,7 +281,7 @@ require BASE_PATH . '/src/Views/components/modal.php';
 // 2. Debug Modal
 $modalId = 'debug-hash-modal';
 $modalTitle = 'Hash Integrity Debugger';
-$modalSize = 'max-w-4xl';
+$modalSize = 8; // max-w-4xl
 $hideCloseButton = false;
 $modalContent = '
     <div class="space-y-6">
@@ -316,17 +321,7 @@ $modalContent = '
 $modalFooter = '';
 require BASE_PATH . '/src/Views/components/modal.php';
 
-// 3. Confirmation Modal
-$modalId = 'confirmation-modal';
-$modalTitle = 'Confirm Action';
-$modalSize = 'max-w-md';
-$hideCloseButton = false;
-$modalContent = '<p id="confirmation-message" class="text-sm text-gray-600 dark:text-gray-400"></p>';
-$modalFooter = '
-    <button type="button" class="close-modal-btn inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 border border-transparent rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest hover:bg-gray-300 dark:hover:bg-accent-2 focus:outline-none transition" data-modal="confirmation-modal">Cancel</button>
-    <button id="confirm-btn" class="inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-500 active:bg-red-700 focus:outline-none focus:border-red-700 focus:ring focus:ring-red-200 transition">Yes, Proceed</button>
-';
-require BASE_PATH . '/src/Views/components/modal.php';
+
 ?>
 
 <script src="/js/chart.min.js"></script>

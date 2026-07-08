@@ -18,6 +18,8 @@
         "dev": "php scripts/dev.php",
         "worker": "php console.php",
         "proxy": "cloudflared tunnel --url http://localhost:8000",
-        "corrupt": "php scripts/corrupt.php"
+        "corrupt": "php scripts/corrupt.php",
+        "seed:dev": "node seed.js",
+        "seed:prod": "node scripts/setup-production-db.js"
     }
 }

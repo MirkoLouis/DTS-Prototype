@@ -71,6 +71,17 @@
                         Log in
                     </button>
                 </div>
+                
+                <div class="mt-6 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-lg text-sm text-gray-600 dark:text-gray-300">
+                    <p class="font-bold mb-2">Default Test Credentials:</p>
+                    <ul class="list-disc list-inside space-y-1 text-xs">
+                        <li><strong>Administrator:</strong> admin@dts.com</li>
+                        <li><strong>Records Officer:</strong> records@dts.com</li>
+                        <li><strong>Cash Unit Staff:</strong> cash.unit@dts.com</li>
+                        <li><strong>Personnel Unit Staff:</strong> personnel.unit@dts.com</li>
+                        <li class="mt-2 pt-2 border-t border-gray-200 dark:border-gray-600"><strong>Password for all:</strong> password</li>
+                    </ul>
+                </div>
             </form>
         </div>
     </div>

@@ -203,6 +203,10 @@ $router->post('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/unfreeze', [App\Cont
     App\Middleware\AuthMiddleware::class,
     App\Middleware\RoleMiddleware::class . ':admin'
 ]);
+$router->post('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/autoresolve', [App\Controllers\SystemHealthController::class, 'autoResolve'], [
+    App\Middleware\AuthMiddleware::class,
+    App\Middleware\RoleMiddleware::class . ':admin'
+]);
 
 $router->post('/documents/(?P<id>\d+)/finalize', [App\Controllers\DocumentController::class, 'finalize'], [
     App\Middleware\AuthMiddleware::class,
