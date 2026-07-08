@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-07-08 14:51
+
+**Version:** 1.12.3-Alpha+202607081451
+
+### ADDED
+- Added a confirm password field to the security key setup modal and standalone view to ensure users type their PIN correctly.
+- Added server-side validation in `SecurityKeyController` to verify that the confirm PIN matches the main PIN before generating the security key.
+
+### FIXED
+- None
+
 ## 2026-07-07 21:10
 
 **Version:** 1.13.0-alpha+202607072110
