@@ -5,9 +5,9 @@
                 <div class="p-6 text-gray-900 dark:text-gray-100">
                     <div class="flex justify-between items-center mb-4">
                         <h2 class="text-2xl font-bold">Admin Dashboard</h2>
-                        <form action="/admin-dashboard/clear-cache" method="POST" class="confirm-action" data-message="Are you sure you want to clear the dashboard cache? This will force all charts to recalculate from the database.">
+                        <form action="/clear-personal-cache" method="POST" class="confirm-action" data-message="Are you sure you want to clear your dashboard cache? This will refresh your view but preserve others' caches.">
                             <button type="submit" class="inline-flex items-center px-3 py-1 bg-gray-200 dark:bg-gray-700 border border-transparent rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest hover:bg-gray-300 dark:hover:bg-accent-2 focus:outline-none transition">
-                                Clear Cache
+                                Clear My Cache
                             </button>
                         </form>
                     </div>

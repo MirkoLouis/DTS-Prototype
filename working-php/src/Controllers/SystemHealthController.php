@@ -396,4 +396,26 @@ class SystemHealthController
         header('Location: /system-overview');
         exit;
     }
+
+    public function clearPersonalCache()
+    {
+        $userId = $_SESSION['user_id'] ?? 'guest';
+        $prefix = "cache_" . ($userId === 'guest' ? 'guest' : "user_{$userId}");
+        
+        $cacheDir = BASE_PATH . '/cache/responses/';
+        if (is_dir($cacheDir)) {
+            $files = glob($cacheDir . $prefix . '_*.html');
+            foreach ($files as $file) {
+                if (is_file($file)) {
+                    unlink($file);
+                }
+            }
+        }
+        
+        $_SESSION['success'] = "Your personalized cache has been cleared successfully.";
+        
+        $referer = $_SERVER['HTTP_REFERER'] ?? '/';
+        header("Location: " . $referer);
+        exit;
+    }
 }

@@ -1,5 +1,20 @@
 # Changelog
 
+## 2026-07-08 21:22
+
+**Version:** 1.12.6-Alpha+202607082122
+
+### ADDED
+- Implemented `CacheMiddleware` to handle HTTP Response Caching for resource-heavy pages (`/admin-dashboard`, `/statistics`) and the guest welcome page (`/`), significantly reducing database load on high-traffic routes.
+- Added localized cache clearing via `clearPersonalCache()` in `SystemHealthController`, allowing users to refresh their own view's cache without triggering a global cache drop.
+- Added "Clear My Cache" buttons to the Admin Dashboard and Statistics pages.
+- Added PDF Document Tracking Form generation utilizing `dompdf` and dynamic QR codes (`chillerlan/php-qrcode` v6.x).
+- Linked the `/success` page to download the newly generated tracking form.
+
+### FIXED
+- Updated the "Print Document Tracking Form" button on the guest success page to correctly generate a downloadable PDF rather than attempting a raw HTML print.
+- Ensured caching middleware safely bypasses caching when active flash messages (errors/successes) are present in the session to avoid caching temporary states.
+
 ## 2026-07-08 15:14
 
 **Version:** 1.12.5-Alpha+202607081514

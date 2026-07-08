@@ -1,7 +1,14 @@
 <?php ob_start(); ?>
-<h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-    <?= htmlspecialchars($_SESSION['department_name'] ?? 'Department') ?> Statistics
-</h2>
+<div class="flex justify-between items-center w-full">
+    <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+        <?= htmlspecialchars($_SESSION['department_name'] ?? 'Department') ?> Statistics
+    </h2>
+    <form action="/clear-personal-cache" method="POST" class="confirm-action m-0" data-message="Are you sure you want to clear your dashboard cache? This will refresh your view but preserve others' caches.">
+        <button type="submit" class="inline-flex items-center px-3 py-1 bg-gray-200 dark:bg-gray-700 border border-transparent rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest hover:bg-gray-300 dark:hover:bg-accent-2 focus:outline-none transition">
+            Clear My Cache
+        </button>
+    </form>
+</div>
 <?php $header = ob_get_clean(); ?>
 
 <?php ob_start(); ?>

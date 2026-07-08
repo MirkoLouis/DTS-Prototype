@@ -32,12 +32,25 @@ $router->post('/login', [App\Controllers\AuthController::class, 'login']);
 $router->post('/logout', [App\Controllers\AuthController::class, 'logout']);
 
 // --- Guest / Public Routes ---
-$router->get('/', [App\Controllers\GuestController::class, 'welcome']);
+$router->get('/', [App\Controllers\GuestController::class, 'welcome'], [
+    App\Middleware\CacheMiddleware::class . ':55'
+]);
 $router->post('/submit-document', [App\Controllers\GuestController::class, 'store']);
 $router->get('/success', [App\Controllers\GuestController::class, 'success']);
 $router->get('/track', [App\Controllers\GuestController::class, 'track']);
-$router->get('/api/track-document/(?P<tracking_code>[\w-]+)', [App\Controllers\GuestController::class, 'getTrackedDocumentModule']);
-$router->get('/api/document-status', [App\Controllers\GuestController::class, 'getStatusUpdates']);
+$router->get('/api/track/module/(?P<tracking_code>[A-Za-z0-9\-]+)', [App\Controllers\GuestController::class, 'getTrackedDocumentModule']);
+$router->get('/api/track/status', [App\Controllers\GuestController::class, 'getStatusUpdates']);
+
+$router->get('/dashboard', [App\Controllers\OfficerController::class, 'dashboard'], [
+    App\Middleware\AuthMiddleware::class,
+    App\Middleware\RoleMiddleware::class . ':officer,staff'
+]);
+
+$router->get('/statistics', [App\Controllers\StatisticsController::class, 'index'], [
+    App\Middleware\AuthMiddleware::class,
+    App\Middleware\RoleMiddleware::class . ':admin,officer,staff',
+    App\Middleware\CacheMiddleware::class . ':55'
+]);
 
 // --- Protected Routes ---
 
@@ -130,9 +143,19 @@ $router->post('/security-key', [App\Controllers\SecurityKeyController::class, 's
     App\Middleware\AuthMiddleware::class
 ]);
 
-// Admin Routes
-$router->get('/admin-dashboard', [\App\Controllers\AdminDashboardController::class, 'index'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
-$router->post('/admin-dashboard/clear-cache', [\App\Controllers\AdminDashboardController::class, 'clearCache'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
+// Admin Dashboard Routes
+$router->get('/admin-dashboard', [\App\Controllers\AdminDashboardController::class, 'index'], [
+    App\Middleware\AuthMiddleware::class, 
+    App\Middleware\RoleMiddleware::class . ':admin',
+    App\Middleware\CacheMiddleware::class . ':55'
+]);
+$router->post('/admin-dashboard/clear-cache', [\App\Controllers\AdminDashboardController::class, 'clearCache'], [
+    App\Middleware\AuthMiddleware::class, 
+    App\Middleware\RoleMiddleware::class . ':admin'
+]);
+$router->post('/clear-personal-cache', [App\Controllers\SystemHealthController::class, 'clearPersonalCache'], [
+    App\Middleware\AuthMiddleware::class
+]);
 
 // Admin Dashboard API Routes
 $router->get('/api/admin-dashboard/current-load', [\App\Controllers\AdminDashboardController::class, 'getCurrentLoadData']);
@@ -199,6 +222,7 @@ $router->get('/documents/(?P<id>\d+)/manage', [App\Controllers\DocumentControlle
 
 $router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)', [App\Controllers\DocumentController::class, 'show']);
 $router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/hash-chain', [App\Controllers\DocumentController::class, 'showHashChain']);
+$router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/print-tracking-form', [App\Controllers\DocumentController::class, 'printTrackingForm']);
 
 $router->post('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/freeze', [App\Controllers\SystemHealthController::class, 'freeze'], [
     App\Middleware\AuthMiddleware::class,
@@ -249,7 +273,8 @@ $router->post('/return-requests', [App\Controllers\ReturnRequestController::clas
 
 $router->get('/statistics', [App\Controllers\StatisticsController::class, 'index'], [
     App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':officer,staff'
+    App\Middleware\RoleMiddleware::class . ':officer,staff',
+    App\Middleware\CacheMiddleware::class . ':55'
 ]);
 $router->post('/statistics/report', [App\Controllers\StatisticsController::class, 'generateReport'], [
     App\Middleware\AuthMiddleware::class,
