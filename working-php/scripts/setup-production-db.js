@@ -51,29 +51,127 @@ async function setupDatabase() {
         
         // 3. Seed Purposes
         const purposes = [
-            ['CAV Request (Certification, Authentication, and Verification)', true],
-            ['Request for Certified True Copy (CTC)', true],
-            ['Correction of School Entries', true],
-            ['Submission of Application Documents (Ranking)', true],
-            ['Request for Service Record', true],
-            ['Request for Certificate of Employment (COE)', true],
-            ['Request for Approval to Conduct Study/Survey', true],
-            ['Request for Data/Statistics', true],
-            ['Application for Government Permit/Recognition', true],
-            ['Filing of Administrative Complaint', true],
-            ['Proposal for Partnership (MOA/MOU)', true],
-            ['Processing of First Salary', true],
-            ['Retirement Claims', true],
-            ['Request for Use of Division Facilities/Vehicle', true],
-            ['Request for Office Supplies/Equipment (RIS)', true],
-            ['Submission of Bid Documents (Project Tender)', true],
-            ['Submission of Nutritional Status Report (SF13)', true],
-            ['Request for Learning Resources/Textbooks', true],
-            ['Submission of School Monitoring and Evaluation Report', true]
+            {
+                name: 'CAV Request (Certification, Authentication, and Verification)',
+                is_official: true,
+                requirements: ['Letter of Request', 'Certified True Copy of School Records', 'PSA Birth Certificate'],
+                suggested_route: ['Records Unit', 'Schools Division Superintendent Office'],
+            },
+            {
+                name: 'Request for Certified True Copy (CTC)',
+                is_official: true,
+                requirements: ['Letter of Request', 'Valid ID'],
+                suggested_route: ['Records Unit'],
+            },
+            {
+                name: 'Correction of School Entries',
+                is_official: true,
+                requirements: ['Affidavit of Discrepancy', 'PSA Birth Certificate', 'Original School Records'],
+                suggested_route: ['Records Unit', 'Legal Unit'],
+            },
+            {
+                name: 'Submission of Application Documents (Ranking)',
+                is_official: true,
+                requirements: ['Letter of Intent', 'Personal Data Sheet (PDS)', 'CSC Form 212', 'PRC License/ID', 'Transcript of Records'],
+                suggested_route: ['Personnel Unit', 'Records Unit'],
+            },
+            {
+                name: 'Request for Service Record',
+                is_official: true,
+                requirements: ['Letter of Request', 'Valid ID'],
+                suggested_route: ['Personnel Unit'],
+            },
+            {
+                name: 'Request for Certificate of Employment (COE)',
+                is_official: true,
+                requirements: ['Letter of Request', 'Valid ID'],
+                suggested_route: ['Personnel Unit'],
+            },
+            {
+                name: 'Request for Approval to Conduct Study/Survey',
+                is_official: true,
+                requirements: ['Letter of Intent to Conduct Study', 'Research Proposal', 'Survey Questionnaire'],
+                suggested_route: ['Records Unit', 'Schools Division Superintendent Office'],
+            },
+            {
+                name: 'Request for Data/Statistics',
+                is_official: true,
+                requirements: ['Letter of Request specifying data needed', 'Valid ID'],
+                suggested_route: ['Records Unit'],
+            },
+            {
+                name: 'Application for Government Permit/Recognition',
+                is_official: true,
+                requirements: ['Application Letter', 'Feasibility Study', 'School Site and Building Plans', 'List of Faculty and Staff'],
+                suggested_route: ['Records Unit', 'Schools Division Superintendent Office'],
+            },
+            {
+                name: 'Filing of Administrative Complaint',
+                is_official: true,
+                requirements: ['Formal Complaint-Affidavit', 'Supporting Evidence/Documents'],
+                suggested_route: ['Legal Unit', 'Schools Division Superintendent Office'],
+            },
+            {
+                name: 'Proposal for Partnership (MOA/MOU)',
+                is_official: true,
+                requirements: ['Letter of Intent for Partnership', 'Draft Memorandum of Agreement/Understanding'],
+                suggested_route: ['Schools Division Superintendent Office'],
+            },
+            {
+                name: 'Processing of First Salary',
+                is_official: true,
+                requirements: ['Appointment Paper', 'PSIPOP', 'ATM Form'],
+                suggested_route: ['Personnel Unit', 'Budget Unit', 'Accounting Unit', 'Cash Unit']
+            },
+            {
+                name: 'Retirement Claims',
+                is_official: true,
+                requirements: ['Letter of Intent to Retire', 'Service Record'],
+                suggested_route: ['Personnel Unit', 'Accounting Unit', 'Schools Division Superintendent Office']
+            },
+            {
+                name: 'Request for Use of Division Facilities/Vehicle',
+                is_official: true,
+                requirements: ['Letter of Request', 'Approved Itinerary (if vehicle)'],
+                suggested_route: ['Administrative Unit', 'Assistant Schools Division Superintendent Office'],
+            },
+            {
+                name: 'Request for Office Supplies/Equipment (RIS)',
+                is_official: true,
+                requirements: ['Requisition and Issue Slip (RIS)', 'Inventory Custodian Slip (ICS)'],
+                suggested_route: ['Supply Unit', 'Administrative Unit'],
+            },
+            {
+                name: 'Submission of Bid Documents (Project Tender)',
+                is_official: true,
+                requirements: ['Bidding Documents', 'Technical Proposal', 'Financial Proposal'],
+                suggested_route: ['Bids and Awards Committee Unit', 'Legal Unit'],
+            },
+            {
+                name: 'Submission of Nutritional Status Report (SF13)',
+                is_official: true,
+                requirements: ['Nutritional Status Summary', 'School Health Profile'],
+                suggested_route: ['Health and Nutrition', 'Curriculum Implementation Division'],
+            },
+            {
+                name: 'Request for Learning Resources/Textbooks',
+                is_official: true,
+                requirements: ['Inventory of Books', 'Request Form'],
+                suggested_route: ['Curriculum Implementation Division'],
+            },
+            {
+                name: 'Submission of School Monitoring and Evaluation Report',
+                is_official: true,
+                requirements: ['Monitoring Tool Results', 'Analysis Report'],
+                suggested_route: ['School Governance and Operations Division', 'Assistant Schools Division Superintendent Office'],
+            }
         ];
 
-        for (const [name, isOfficial] of purposes) {
-            await connection.query('INSERT INTO purposes (name, is_official, created_at, updated_at) VALUES (?, ?, NOW(), NOW())', [name, isOfficial]);
+        for (const purpose of purposes) {
+            await connection.query(
+                'INSERT INTO purposes (name, is_official, requirements, suggested_route, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())', 
+                [purpose.name, purpose.is_official, JSON.stringify(purpose.requirements), JSON.stringify(purpose.suggested_route)]
+            );
         }
 
         // 4. Seed Users

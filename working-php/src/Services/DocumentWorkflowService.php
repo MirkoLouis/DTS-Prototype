@@ -84,7 +84,7 @@ class DocumentWorkflowService
                 } else {
                     $stmt = $this->db->query("SELECT id FROM users WHERE name = :name", [':name' => $data['department']]);
                     $deptUser = $stmt->fetch();
-                    $suggestedRoute = $deptUser ? [['id' => $deptUser['id'], 'name' => $data['department']]] : [];
+                    $suggestedRoute = $deptUser ? [$data['department']] : [];
 
                     $this->db->query("INSERT INTO purposes (name, is_official, requirements, suggested_route) VALUES (:name, 0, '[]', :route)", [
                         ':name' => $otherPurposeText,
@@ -160,10 +160,22 @@ class DocumentWorkflowService
             $purpose = $stmt->fetch();
 
             if ($purpose && $purpose['suggested_route'] !== json_encode($routeNames)) {
-                $db->query("UPDATE purposes SET suggested_route = :route WHERE id = :id", [
-                    ':route' => json_encode($routeNames),
-                    ':id' => $document['purpose_id']
-                ]);
+                $learnedRoute = $routeNames;
+                
+                // If it's an official purpose, strip out the guest department if it's the first step 
+                // so we don't permanently learn a specific guest's unit.
+                if ($purpose['is_official'] && !empty($document['department'])) {
+                    if (!empty($learnedRoute) && $learnedRoute[0] === $document['department']) {
+                        array_shift($learnedRoute);
+                    }
+                }
+                
+                if ($purpose['suggested_route'] !== json_encode($learnedRoute)) {
+                    $db->query("UPDATE purposes SET suggested_route = :route WHERE id = :id", [
+                        ':route' => json_encode($learnedRoute),
+                        ':id' => $document['purpose_id']
+                    ]);
+                }
             }
 
             $db->query("UPDATE documents SET status = 'in_transit', finalized_route = :route, current_step = 1, current_department_id = :dept_id, updated_at = NOW() WHERE id = :id", [

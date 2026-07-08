@@ -46,10 +46,17 @@
                                     <div id="route-list" class="flex space-x-4 min-h-[8rem] bg-gray-50 dark:bg-gray-900 p-2 rounded-md">
                                         <?php if (!empty($document['suggested_route'])): ?>
                                             <?php foreach ($document['suggested_route'] as $index => $step): ?>
-                                                <div class="route-step flex-shrink-0 w-40 p-4 bg-white dark:bg-gray-700 rounded-lg shadow-md cursor-move text-center relative mr-4 last:mr-0 select-none">
+                                                <?php 
+                                                    $stepName = is_array($step) ? ($step['name'] ?? 'Unknown') : $step; 
+                                                    $isInjected = is_array($step) && isset($step['is_injected']) && $step['is_injected'];
+                                                ?>
+                                                <div class="route-step flex-shrink-0 w-40 p-4 bg-white dark:bg-gray-700 rounded-lg shadow-md cursor-move text-center relative mr-4 last:mr-0 select-none border-2 <?php echo $isInjected ? 'border-primary' : 'border-transparent'; ?>">
                                                     <button type="button" class="delete-step-btn w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xl absolute -top-1 -right-1 hover:bg-red-600">&times;</button>
                                                     <div class="font-bold text-lg text-accent-1 dark:text-accent-1-hover step-number"><?php echo $index + 1; ?></div>
-                                                    <div class="step-name text-sm mt-1"><?php echo htmlspecialchars($step); ?></div>
+                                                    <div class="step-name text-sm mt-1"><?php echo htmlspecialchars($stepName); ?></div>
+                                                    <?php if ($isInjected): ?>
+                                                        <div class="mt-2 text-xs font-semibold text-primary dark:text-blue-400">Chosen by Guest</div>
+                                                    <?php endif; ?>
                                                 </div>
                                             <?php endforeach; ?>
                                         <?php endif; ?>
