@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.12.6-Alpha+202607081648] - 2026-07-08
+
+### FIXED
+- **Document Integrity:** Fixed a silent backend crash where scanning/receiving documents without a PIN failed to insert a "Received" log, leading to flat TAT metrics on the dashboard charts.
+- **Console Errors:** Removed a missing source map reference in `chart.min.js` which caused a 404 in the browser console.
+
+### CHANGED
+- **Seeding Precision:** Updated the Node.js Time-Travel seeder (`seed.js`) to generate documents using the specific sub-districts (e.g., North I, North II) rather than summarized names, fixing the "Submission Volume by District" chart summarization issue.
+
+
 ## [1.12.6-Alpha+202607081546] - 2026-07-08
 
 ### ADDED
