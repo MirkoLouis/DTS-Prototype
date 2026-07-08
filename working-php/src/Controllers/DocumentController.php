@@ -143,7 +143,28 @@ class DocumentController
             exit;
         }
 
-        $document['suggested_route'] = $document['suggested_route'] ? json_decode($document['suggested_route'], true) : [];
+        $suggestedRoute = $document['suggested_route'] ? json_decode($document['suggested_route'], true) : [];
+
+        $guestDept = $document['department'] ?? '';
+        $purposeName = $document['purpose_name'] ?? '';
+        
+        // For official purposes, dynamically prepend the guest-selected unit/department
+        if ($guestDept && !str_starts_with($purposeName, 'Others:')) {
+            if (empty($suggestedRoute)) {
+                $suggestedRoute = [['name' => $guestDept, 'is_injected' => true]];
+            } else {
+                // Ensure we handle legacy arrays and don't duplicate if it's already the first step
+                $firstStep = is_array($suggestedRoute[0]) ? ($suggestedRoute[0]['name'] ?? '') : $suggestedRoute[0];
+                if ($firstStep !== $guestDept) {
+                    array_unshift($suggestedRoute, ['name' => $guestDept, 'is_injected' => true]);
+                } else {
+                    // It's already the first step, let's just flag it
+                    $suggestedRoute[0] = ['name' => $guestDept, 'is_injected' => true];
+                }
+            }
+        }
+
+        $document['suggested_route'] = $suggestedRoute;
 
         // Fetch departments for the route building dropdown
         $stmt = $db->query("SELECT id, name FROM departments ORDER BY name ASC");
