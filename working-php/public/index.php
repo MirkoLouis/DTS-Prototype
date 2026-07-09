@@ -284,6 +284,14 @@ $router->get('/statistics/report/status', [App\Controllers\StatisticsController:
     App\Middleware\AuthMiddleware::class,
     App\Middleware\RoleMiddleware::class . ':officer,staff'
 ]);
+$router->post('/statistics/report/cancel', [App\Controllers\StatisticsController::class, 'cancelReport'], [
+    App\Middleware\AuthMiddleware::class,
+    App\Middleware\RoleMiddleware::class . ':officer,staff'
+]);
+$router->get('/statistics/report/download/(?P<jobId>[a-zA-Z0-9_-]+)', [App\Controllers\StatisticsController::class, 'downloadReport'], [
+    App\Middleware\AuthMiddleware::class,
+    App\Middleware\RoleMiddleware::class . ':officer,staff'
+]);
 
 // Chart API Routes
 $router->get('/api/statistics/current-load', [App\Controllers\StatisticsController::class, 'getCurrentLoadData'], [

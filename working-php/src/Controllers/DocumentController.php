@@ -173,15 +173,8 @@ class DocumentController
         require BASE_PATH . '/src/Views/officer/manage-documents.php';
     }
 
-    /**
-     * Finalize the document's route and put it into processing.
-     *
-     * @param string $id
-     */
     public function finalize($id)
     {
-        $db = Database::getInstance();
-        
         $finalRouteJson = $_POST['final_route'] ?? '';
         $pin = $_POST['pin'] ?? '';
 
@@ -199,61 +192,26 @@ class DocumentController
             exit;
         }
 
-        $userId = $_SESSION['user_id'] ?? null;
-        $firstDepartmentName = $routeNames[0];
-        
-        $stmt = $db->query("SELECT id FROM departments WHERE name = :name", [':name' => $firstDepartmentName]);
-        $firstDepartment = $stmt->fetch();
-        $firstDepartmentId = $firstDepartment ? $firstDepartment['id'] : null;
-
-        $finalizedRoute = array_map(function ($name) {
-            return ['name' => $name, 'type' => 'initial'];
-        }, $routeNames);
-
-        // We need to fetch the document's current full state to pass to IntegrityManager
-        $stmt = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $id]);
-        $documentData = $stmt->fetch();
-
-        if (!$documentData) {
-            $_SESSION['error'] = "Document not found.";
-            header("Location: /intake");
+        try {
+            $workflow = new \App\Services\DocumentWorkflowService();
+            $officer = \App\Models\User::findById($_SESSION['user_id']);
+            $workflow->finalizeIntake((int)$id, $routeNames, $officer, $pin);
+            
+            $_SESSION['success'] = "Document accepted and is now in transit!";
+        } catch (\Exception $e) {
+            if (str_contains($e->getMessage(), 'Action Denied')) {
+                $_SESSION['console_error'] = $e->getMessage();
+            } else {
+                $_SESSION['error'] = $e->getMessage();
+            }
+            header("Location: /documents/{$id}/manage");
             exit;
         }
 
-        // Apply updates to the state array so the hash reflects the NEW state
-        $documentData['status'] = 'in_transit';
-        $documentData['finalized_route'] = $finalizedRoute; // This will be json_encoded in the helper
-        $documentData['current_step'] = 1;
-        $documentData['current_department_id'] = $firstDepartmentId;
-
-        // Perform the DB update
-        $db->query("UPDATE documents SET 
-                    status = :status, 
-                    finalized_route = :finalized_route, 
-                    current_step = :current_step, 
-                    current_department_id = :current_dept_id,
-                    updated_at = NOW()
-                    WHERE id = :id", [
-            ':status' => 'in_transit',
-            ':finalized_route' => json_encode($finalizedRoute),
-            ':current_step' => 1,
-            ':current_dept_id' => $firstDepartmentId,
-            ':id' => $id
-        ]);
-
-        $action = 'Accepted and Document Routing finalized';
-        $remarks = "Route finalized. In transit to {$firstDepartmentName}.";
-
-        IntegrityManager::createLog($id, $userId, $action, $remarks, $documentData, $pin);
-
-        $_SESSION['success'] = "Document accepted and is now in transit!";
         header("Location: /intake");
         exit;
     }
 
-    /**
-     * Handle a document scan action (Global Receive).
-     */
     public function scan()
     {
         $trackingCode = $_POST['tracking_code'] ?? '';
@@ -264,107 +222,26 @@ class DocumentController
             exit;
         }
 
-        $db = Database::getInstance();
-        $stmt = $db->query("SELECT * FROM documents WHERE tracking_code = :tracking_code", [':tracking_code' => $trackingCode]);
-        $document = $stmt->fetch();
-
-        if (!$document) {
-            $_SESSION['error'] = "Document not found.";
-            header("Location: " . ($_SERVER['HTTP_REFERER'] ?? '/'));
-            exit;
-        }
-
-        $userRole = $_SESSION['role'] ?? '';
-        $userId = $_SESSION['user_id'] ?? null;
-        $departmentId = $_SESSION['department_id'] ?? null;
-        
-        $departmentName = '';
-        if ($departmentId) {
-            $deptStmt = $db->query("SELECT name FROM departments WHERE id = :id", [':id' => $departmentId]);
-            $deptRow = $deptStmt->fetch();
-            if ($deptRow) {
-                $departmentName = $deptRow['name'];
-            }
-        }
-        
-        $route = $document['finalized_route'] ? json_decode($document['finalized_route'], true) : [];
-        $currentStepIndex = $document['current_step'] - 1;
-
-        if ($document['status'] === 'in_transit') {
-            if ($currentStepIndex >= count($route)) {
-                // Wait for Records Unit (Officer)
-                if ($userRole === 'officer') {
-                    $this->receiveForRelease($document, $userId, $departmentId);
-                } else {
-                    $_SESSION['error'] = "This document is waiting to be received by the Records Unit.";
-                    header("Location: " . ($_SERVER['HTTP_REFERER'] ?? '/'));
-                    exit;
-                }
+        try {
+            $workflow = new \App\Services\DocumentWorkflowService();
+            $user = \App\Models\User::findById($_SESSION['user_id']);
+            $redirectRouteKey = $workflow->scanDocument($trackingCode, $user);
+            
+            if ($redirectRouteKey === 'releasing') {
+                $_SESSION['success'] = "Document {$trackingCode} is now ready for releasing.";
+                header("Location: /releasing");
             } else {
-                $responsibleDepartmentName = $route[$currentStepIndex]['name'];
-                if ($departmentName === $responsibleDepartmentName) {
-                    $this->receiveForProcessing($document, $userId, $departmentName, $userRole, $departmentId);
-                } else {
-                    $_SESSION['error'] = "This document is not for your department. It is waiting to be received by {$responsibleDepartmentName}.";
-                    header("Location: " . ($_SERVER['HTTP_REFERER'] ?? '/'));
-                    exit;
-                }
+                $_SESSION['success'] = "Document {$trackingCode} has been received and added to your tasks.";
+                header("Location: /tasks");
             }
-        } else {
-            $_SESSION['error'] = "This document cannot be received at this time. Its current status is: " . ucfirst($document['status']);
+        } catch (\Exception $e) {
+            if (str_contains($e->getMessage(), 'Action Denied')) {
+                $_SESSION['console_error'] = $e->getMessage();
+            } else {
+                $_SESSION['error'] = $e->getMessage();
+            }
             header("Location: " . ($_SERVER['HTTP_REFERER'] ?? '/'));
-            exit;
         }
-    }
-
-    private function receiveForRelease($document, $userId, $departmentId)
-    {
-        $db = Database::getInstance();
-        
-        $document['status'] = 'ready_for_release';
-        $document['current_department_id'] = $departmentId;
-
-        $db->query("UPDATE documents SET status = 'ready_for_release', current_department_id = :dept_id, updated_at = NOW() WHERE id = :id", [
-            ':dept_id' => $departmentId,
-            ':id' => $document['id']
-        ]);
-
-        IntegrityManager::createLog(
-            $document['id'], 
-            $userId, 
-            'Ready for Releasing', 
-            'All processing steps completed. Document received by Records Unit for final releasing.', 
-            $document
-        );
-
-        $_SESSION['success'] = "Document {$document['tracking_code']} is now ready for releasing.";
-        header("Location: /releasing");
-        exit;
-    }
-
-    private function receiveForProcessing($document, $userId, $departmentName, $userRole, $departmentId)
-    {
-        $db = Database::getInstance();
-        
-        $document['status'] = 'processing';
-        $document['current_department_id'] = $departmentId;
-
-        $db->query("UPDATE documents SET status = 'processing', current_department_id = :dept_id, updated_at = NOW() WHERE id = :id", [
-            ':dept_id' => $departmentId,
-            ':id' => $document['id']
-        ]);
-
-        IntegrityManager::createLog(
-            $document['id'], 
-            $userId, 
-            'Received', 
-            "Document received by {$departmentName}.", 
-            $document
-        );
-
-        $redirectRoute = ($userRole === 'officer') ? '/tasks' : '/tasks';
-        $_SESSION['success'] = "Document {$document['tracking_code']} has been received and added to your tasks.";
-        header("Location: {$redirectRoute}");
         exit;
     }
 

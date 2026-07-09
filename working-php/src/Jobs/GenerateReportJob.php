@@ -32,17 +32,40 @@ class GenerateReportJob
             $userDept = $db->query("SELECT department_id FROM users WHERE id = :uid", ['uid' => $this->userId])->fetch();
             $departmentId = $userDept['department_id'] ?? 0;
 
-            // Simple CSV generation query
+            $where = ["d.status = 'completed'", "d.released_by_user_id > 0"];
+            $params = [':dept_id' => $departmentId];
+            
+            $join = "INNER JOIN users u ON d.released_by_user_id = u.id AND u.department_id = :dept_id
+                     LEFT JOIN purposes p ON d.purpose_id = p.id";
+
+            if (!empty($this->filters['date'])) {
+                $where[] = "DATE(d.released_at) = :date";
+                $params[':date'] = $this->filters['date'];
+            }
+            if (!empty($this->filters['search'])) {
+                $where[] = "(d.tracking_code LIKE :search OR json_unquote(json_extract(d.guest_info, '$.name')) LIKE :search2)";
+                $params[':search'] = '%' . $this->filters['search'] . '%';
+                $params[':search2'] = '%' . $this->filters['search'] . '%';
+            }
+            if (!empty($this->filters['purpose']) && $this->filters['purpose'] !== 'all') {
+                $where[] = "p.name = :purpose";
+                $params[':purpose'] = $this->filters['purpose'];
+            }
+            if (!empty($this->filters['submitter'])) {
+                $where[] = "LOWER(json_unquote(json_extract(d.guest_info, '$.name'))) LIKE :submitter";
+                $params[':submitter'] = '%' . strtolower($this->filters['submitter']) . '%';
+            }
+
+            $whereSql = implode(' AND ', $where);
             $sql = "
                 SELECT d.tracking_code, d.title, p.name as purpose_name, d.district, d.guest_info, d.updated_at
                 FROM documents d
-                LEFT JOIN purposes p ON d.purpose_id = p.id
-                WHERE d.status = 'completed' AND d.released_by_user_id IN (
-                    SELECT id FROM users WHERE department_id = :deptId
-                )
+                {$join}
+                WHERE {$whereSql}
+                ORDER BY d.released_at DESC
             ";
 
-            $stmt = $db->query($sql, ['deptId' => $departmentId]);
+            $stmt = $db->query($sql, $params);
             $documents = $stmt->fetchAll();
 
             $totalCount = count($documents);

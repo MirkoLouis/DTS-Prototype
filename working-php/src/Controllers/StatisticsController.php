@@ -131,17 +131,23 @@ class StatisticsController
         $db = Database::getInstance();
         $job = $db->query("SELECT * FROM report_jobs WHERE id = :id", ['id' => $jobId])->fetch();
         
-        if ($job && $job['file_path'] && file_exists(BASE_PATH . '/' . $job['file_path'])) {
-            $filePath = BASE_PATH . '/' . $job['file_path'];
+        if ($job && $job['file_path']) {
+            $filePath = BASE_PATH . '/storage/app/' . $job['file_path'];
+            if (!file_exists($filePath)) {
+                // Fallback in case old jobs were saved directly to BASE_PATH (if any)
+                $filePath = BASE_PATH . '/' . $job['file_path'];
+            }
+            if (file_exists($filePath)) {
             header('Content-Description: File Transfer');
             header('Content-Type: application/csv');
             header('Content-Disposition: attachment; filename="'.basename($filePath).'"');
             header('Expires: 0');
             header('Cache-Control: must-revalidate');
             header('Pragma: public');
-            header('Content-Length: ' . filesize($filePath));
-            readfile($filePath);
-            exit;
+                header('Content-Length: ' . filesize($filePath));
+                readfile($filePath);
+                exit;
+            }
         }
         
         header('Location: /statistics');
