@@ -5,7 +5,8 @@
     "require": {
         "php": ">=8.0",
         "chillerlan/php-qrcode": "^6.0",
-        "dompdf/dompdf": "^3.0"
+        "dompdf/dompdf": "^3.0",
+        "phpmailer/phpmailer": "^7.1"
     },
     "autoload": {
         "psr-4": {

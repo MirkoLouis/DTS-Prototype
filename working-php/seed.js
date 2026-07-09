@@ -165,9 +165,10 @@ function calculateLogHash(docId, userId, action, timestampStr, prevHash, stateHa
     return crypto.createHash('sha256').update(data).digest('hex');
 }
 
-async function processDocumentAPI(i, deptPools, departmentNames, guestClient, purposeIds, districts) {
-    const randomPurpose = purposeIds[Math.floor(Math.random() * purposeIds.length)];
+async function processDocumentAPI(i, deptPools, departmentNames, guestClient, purposesDb, districts) {
+    const randomPurposeObj = purposesDb[Math.floor(Math.random() * purposesDb.length)];
     const randomDistrict = districts[Math.floor(Math.random() * districts.length)];
+    const randomGuestDept = departmentNames[Math.floor(Math.random() * departmentNames.length)];
 
     // 1. GUEST SUBMIT
     const res = await guestClient.postForm('/submit-document', {
@@ -175,9 +176,9 @@ async function processDocumentAPI(i, deptPools, departmentNames, guestClient, pu
         guest_email: `guest${i}@example.com`,
         guest_phone: '09123456789',
         district: randomDistrict,
-        department: 'Random School',
+        department: randomGuestDept,
         title: `Automated Test Document ${i}`,
-        purpose_id: randomPurpose
+        purpose_id: randomPurposeObj.id
     });
 
     const location = res.headers.get('location');
@@ -188,9 +189,28 @@ async function processDocumentAPI(i, deptPools, departmentNames, guestClient, pu
     const documentId = urlParams.get('document_id');
 
     // Generate Route
-    const routeCount = Math.floor(Math.random() * 3) + 2; // 2-4
-    const shuffledDepts = [...departmentNames].sort(() => 0.5 - Math.random());
-    const route = shuffledDepts.slice(0, routeCount);
+    let route = [];
+    if (randomPurposeObj.is_official && randomPurposeObj.suggested_route) {
+        try {
+            const parsed = JSON.parse(randomPurposeObj.suggested_route);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+                route = parsed.map(p => typeof p === 'string' ? p : p.name);
+            }
+            
+            // Replicate the UI logic: inject the guest's department at the front
+            if (route.length === 0) {
+                route = [randomGuestDept];
+            } else if (route[0] !== randomGuestDept) {
+                route.unshift(randomGuestDept);
+            }
+        } catch (e) {}
+    }
+
+    if (route.length === 0) {
+        const routeCount = Math.floor(Math.random() * 3) + 2; // 2-4
+        const shuffledDepts = [...departmentNames].sort(() => 0.5 - Math.random());
+        route = shuffledDepts.slice(0, routeCount);
+    }
 
     const fate = Math.random();
     const willBePending = fate < 0.10; // 10%
@@ -213,7 +233,7 @@ async function processDocumentAPI(i, deptPools, departmentNames, guestClient, pu
 
     await recordsClient.postForm(`/documents/${documentId}/finalize`, {
         final_route: JSON.stringify(route),
-        pin: '123456'
+        pin: DEFAULT_PASSWORD
     });
 
     const willHaveReturn = route.length > 2 && Math.random() < 0.10;
@@ -240,18 +260,18 @@ async function processDocumentAPI(i, deptPools, departmentNames, guestClient, pu
         if (step === returnTriggerStep) {
             const previousDept = route[Math.floor(Math.random() * step)];
             const prevDeptClient = deptPools[previousDept].getClient();
-            await prevDeptClient.postForm('/return-requests', { document_id: documentId, reason: 'Needs correction.', pin: '123456' });
+            await prevDeptClient.postForm('/return-requests', { document_id: documentId, reason: 'Needs correction.', pin: DEFAULT_PASSWORD });
             break; // Stop simulating further steps to leave it as returned/in transit backward
         }
 
-        await deptClient.postForm(`/tasks/${documentId}/complete`, { pin: '123456' });
+        await deptClient.postForm(`/tasks/${documentId}/complete`, { pin: DEFAULT_PASSWORD });
         actualStepsProcessed++;
     }
 
     // 4. RECORDS FINAL RELEASE
     if (actualStepsProcessed === route.length && aimForReleased) {
         await recordsClient.postForm('/documents/scan', { tracking_code: trackingCode });
-        await recordsClient.postForm(`/releasing/${documentId}/complete`, { pin: '123456' });
+        await recordsClient.postForm(`/releasing/${documentId}/complete`, { pin: DEFAULT_PASSWORD });
     }
 
     return { id: documentId };
@@ -406,8 +426,7 @@ async function seed() {
         users.forEach(u => deptMap[u.dept_name] = u.email);
         const departmentNames = Object.keys(deptMap).filter(name => name !== 'Records Unit');
 
-        const [purposesDb] = await connection.query("SELECT id FROM purposes");
-        const purposeIds = purposesDb.map(p => p.id);
+        const [purposesDb] = await connection.query("SELECT id, is_official, suggested_route FROM purposes");
         const districts = [
             'East I District', 'East II District', 
             'South I District', 'South II District', 
@@ -437,7 +456,7 @@ async function seed() {
 
             for (let i = 0; i < chunkAmount; i++) {
                 const guestClient = new ApiClient();
-                docPromises.push(processDocumentAPI(totalProcessed + i + 1, deptPools, departmentNames, guestClient, purposeIds, districts));
+                docPromises.push(processDocumentAPI(totalProcessed + i + 1, deptPools, departmentNames, guestClient, purposesDb, districts));
             }
 
             const chunkDocIds = [];

@@ -18,9 +18,18 @@
         <?php require BASE_PATH . '/src/Views/components/department-analytics.php'; ?>
 
         <?php if (($_SESSION['role'] ?? '') === 'officer'): ?>
+        <!-- Hidden form for report generation API -->
+        <form id="report-generation-form" action="/statistics/report" method="POST" style="display: none;">
+            <input type="hidden" name="date" id="form_date">
+            <input type="hidden" name="purpose" id="form_purpose">
+            <input type="hidden" name="submitter" id="form_submitter">
+            <input type="hidden" name="search" id="form_search">
+        </form>
+
         <div id="released-documents-section" data-fetch-url="/statistics">
             <?php
                 $panelTitle = 'Released Documents History';
+                $panelActionHtml = '<button type="button" id="generate-report-btn" class="inline-flex items-center px-4 py-2 bg-accent-1 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-1-hover focus:outline-none transition">Generate Report</button>';
                 
                 $purposeOptions = [];
                 foreach ($purposes as $p) {
@@ -60,6 +69,8 @@
                 require BASE_PATH . '/src/Views/components/data-panel.php';
             ?>
         </div>
+        
+        <?php require BASE_PATH . '/src/Views/components/report-progress-modal.php'; ?>
         <?php endif; ?>
 
     </div>

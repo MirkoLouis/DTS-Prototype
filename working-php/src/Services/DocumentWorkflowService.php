@@ -319,7 +319,8 @@ class DocumentWorkflowService
                 throw new Exception("This document is not ready for release.");
             }
 
-            $db->query("UPDATE documents SET status = 'completed', current_department_id = NULL, updated_at = NOW() WHERE id = :id", [
+            $db->query("UPDATE documents SET status = 'completed', current_department_id = NULL, released_at = NOW(), released_by_user_id = :uid, updated_at = NOW() WHERE id = :id", [
+                ':uid' => $officer->id,
                 ':id' => $document['id']
             ]);
 

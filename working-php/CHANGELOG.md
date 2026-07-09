@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-07-09 13:34
+
+**Version:** 1.12.8-alpha+202607091334
+
+### ADDED
+- Ported the "Generate Report" functionality for released documents from Laravel to raw PHP, including UI integration with progress modal and dynamic SQL filtering.
+
+### FIXED
+- Fixed file download path bug where generated reports were attempting to be downloaded from the root directory instead of the `storage/app/` folder.
+- Fixed an issue where the "Generate Report" button and progress bar were invisible in light mode due to using non-compiled Tailwind classes (`bg-blue-600`), replacing them with standard theme variables (`bg-accent-1`).
 ## 2026-07-08 22:52
 
 **Version:** 1.12.7-Alpha+202607082252

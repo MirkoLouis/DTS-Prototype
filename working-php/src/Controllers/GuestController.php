@@ -14,9 +14,14 @@ class GuestController
         $db = Database::getInstance();
         
         $purposes = $db->query("SELECT * FROM purposes WHERE is_official = 1 ORDER BY name")->fetchAll();
-        $departments = $db->query("SELECT * FROM users WHERE role = 'staff' ORDER BY name")->fetchAll();
+        $stmt = $db->query("SELECT id, name FROM departments ORDER BY name ASC");
+        $departments = $stmt->fetchAll();
 
-        // Pass structured data
+        // Pass this directly to the view instead of extracting
+        $viewData = [
+            'purposes' => $purposes,
+            'departments' => $departments
+        ]; // Pass structured data
         foreach ($purposes as &$purpose) {
             $purpose['requirements'] = $purpose['requirements'] ? json_decode($purpose['requirements'], true) : [];
         }
