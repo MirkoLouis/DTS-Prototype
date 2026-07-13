@@ -1,1 +1,4 @@
 working-php/storage/database.sqlite
+laravel_files.txt
+.gitignore
+php_files.txt
