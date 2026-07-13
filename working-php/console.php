@@ -19,7 +19,21 @@ echo "Starting async queue worker...\n";
 
 $db = Database::getInstance();
 
-while (true) {
+$stopWorker = false;
+
+if (extension_loaded('pcntl')) {
+    pcntl_async_signals(true);
+    $signalHandler = function ($signo) use (&$stopWorker) {
+        echo "\nReceived shutdown signal ($signo). Finishing current job and stopping...\n";
+        $stopWorker = true;
+    };
+    pcntl_signal(SIGINT, $signalHandler);
+    pcntl_signal(SIGTERM, $signalHandler);
+} else {
+    echo "Warning: PCNTL extension not loaded. Worker cannot shut down gracefully.\n";
+}
+
+while (!$stopWorker) {
     // Look for a pending job
     $sql = "SELECT * FROM jobs WHERE reserved_at IS NULL AND available_at <= UNIX_TIMESTAMP() ORDER BY id ASC LIMIT 1";
     $stmt = $db->query($sql);
