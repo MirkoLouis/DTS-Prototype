@@ -168,6 +168,11 @@ $router->get('/api/admin-dashboard/submission-districts', [\App\Controllers\Admi
 $router->get('/api/admin-dashboard/avg-step-time', [\App\Controllers\AdminDashboardController::class, 'getAvgStepTimeByDepartmentData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
 $router->get('/api/admin-dashboard/department-load-vs-time', [\App\Controllers\AdminDashboardController::class, 'getDepartmentalLoadVsTimeData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
 
+// Notifications
+$router->post('/api/notifications/mark-read', [App\Controllers\NotificationController::class, 'markAsRead'], [
+    App\Middleware\AuthMiddleware::class
+]);
+
 // Users Management
 $router->get('/users', [App\Controllers\UserController::class, 'index'], [
     App\Middleware\AuthMiddleware::class,

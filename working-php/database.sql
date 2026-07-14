@@ -33,3 +33,20 @@ CREATE TABLE report_jobs ( id CHAR(36) PRIMARY KEY, user_id BIGINT UNSIGNED, sta
 CREATE TABLE integrity_checks ( id CHAR(36) PRIMARY KEY, user_id BIGINT UNSIGNED, status VARCHAR(255) DEFAULT 'queued', progress INT UNSIGNED DEFAULT 0, results JSON NULL, error_message TEXT NULL, created_at TIMESTAMP NULL, updated_at TIMESTAMP NULL, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE );
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+-- 5. Notifications
+CREATE TABLE notifications (
+    id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    department_id BIGINT UNSIGNED NULL,
+    user_id BIGINT UNSIGNED NULL,
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    type ENUM('success', 'error', 'info', 'warning') DEFAULT 'info',
+    is_read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    INDEX idx_department (department_id),
+    INDEX idx_user (user_id),
+    INDEX idx_unread (is_read)
+);

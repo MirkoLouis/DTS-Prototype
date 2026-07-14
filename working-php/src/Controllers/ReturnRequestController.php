@@ -16,9 +16,11 @@ class ReturnRequestController
     {
         $db = Database::getInstance();
         $documentId = $_POST['document_id'] ?? null;
-        $trackingCode = $_POST['tracking_code'] ?? null;
+        $trackingCode = isset($_POST['tracking_code']) ? trim($_POST['tracking_code']) : null;
         $reason = $_POST['reason'] ?? '';
-        $pin = $_POST['pin'] ?? ''; // Some frontend forms might not pass it, but IntegrityManager accepts it
+        
+        $submittedPin = $_POST['pin'] ?? '';
+        $pin = \App\Core\SecurityHelper::resolvePin($submittedPin);
         
         $document = null;
         if ($documentId) {
@@ -37,8 +39,10 @@ class ReturnRequestController
                 $workflow = new \App\Services\DocumentWorkflowService();
                 $workflow->requestReturn((int)$documentId, $reason, $currentUser, $pin);
                 
+                \App\Core\SecurityHelper::cachePin($pin);
                 $_SESSION['success'] = "Return requested successfully. The document will be rerouted back to you.";
             } catch (\Exception $e) {
+                \App\Core\SecurityHelper::clearCachedPin();
                 if (str_contains($e->getMessage(), 'Action Denied')) {
                     $_SESSION['console_error'] = $e->getMessage();
                 } else {

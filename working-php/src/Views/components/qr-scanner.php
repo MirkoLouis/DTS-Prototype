@@ -21,7 +21,7 @@ $finderInputName = $finderInputName ?? 'tracking_code';
         <h3 class="text-2xl font-bold mb-4"><?= htmlspecialchars($finderTitle) ?></h3>
         <p class="mb-6 text-gray-600 dark:text-gray-400"><?= htmlspecialchars($finderDescription) ?></p>
 
-        <form id="<?= htmlspecialchars($finderFormId) ?>" action="<?= htmlspecialchars($finderActionUrl) ?>" method="POST">
+        <form id="<?= htmlspecialchars($finderFormId) ?>" action="<?= htmlspecialchars($finderActionUrl) ?>" method="POST" onsubmit="this.elements['<?= htmlspecialchars($finderInputName) ?>'].value = this.elements['<?= htmlspecialchars($finderInputName) ?>'].value.trim()">
             <div>
                 <label for="<?= htmlspecialchars($finderInputName) ?>" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tracking Code</label>
                 <div class="mt-1 flex rounded-md shadow-sm">
