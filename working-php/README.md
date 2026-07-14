@@ -54,10 +54,32 @@ A comprehensive, production-ready prototype for a modern, web-based **Document T
     - Import the provided SQL schema into your local MySQL database.
     - Update `config.php` or your environment variables to point to the correct database.
 
-3.  **Launch Local Server:**
+3.  **Launch Local Development Server:**
     ```bash
-    php -S localhost:8000 -t public
+    composer run dev
     ```
+
+4.  **Launch Background Worker:**
+    Open a separate terminal window and run the background job processor:
+    ```bash
+    composer run worker
+    ```
+
+5.  **Database Seeding (Optional):**
+    You can populate the database with realistic time-traveled data using the advanced API-driven seeder. It tracks real-time memory usage and elapsed execution time.
+
+```bash
+# Basic seed using defaults (10,000 docs, 100 chunk size, 50 concurrency)
+composer run seed:dev
+
+# Specify the total number of documents to create
+composer run seed:dev 1000
+
+# Specify documents, chunk size, and concurrency
+# Arguments: [docs] [chunk_size] [concurrency]
+composer run seed:dev 50000 250 50
+```
+*Note: The seeder performs complex "Time-Travel Retrofitting" directly in the database. Ensure your chunk size is always greater than or equal to your concurrency to prevent memory exhaustion.*
 
 ---
 

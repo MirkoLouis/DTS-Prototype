@@ -40,10 +40,11 @@ require BASE_PATH . '/src/Views/components/modal.php';
 <script>
     window.SigningModal = {
         callback: null,
-        hasCachedPin: <?php echo $hasCachedPin ? 'true' : 'false'; ?>,
         show: function(message, callback) {
-            if (this.hasCachedPin) {
-                callback('CACHED_PIN');
+            const cachedPin = sessionStorage.getItem('dts_security_pin');
+            if (cachedPin) {
+                // Pin is cached client-side in browser memory
+                callback(cachedPin);
                 return;
             }
             this.callback = callback;
@@ -72,10 +73,14 @@ require BASE_PATH . '/src/Views/components/modal.php';
                 pinInput.focus();
                 return;
             }
+            
+            // Store the PIN securely in client-side sessionStorage (cleared when tab closes)
+            sessionStorage.setItem('dts_security_pin', pin);
+            
             if (window.SigningModal.callback) {
                 const cb = window.SigningModal.callback;
                 window.SigningModal.hide();
-                cb(pin);
+                cb(pin); // Send the actual PIN to the server, not 'CACHED_PIN'
             }
         });
 

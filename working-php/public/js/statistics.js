@@ -170,10 +170,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 generateReportBtn.textContent = 'Preparing...';
 
                 const formData = new FormData(reportForm);
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
                 const response = await fetch(reportForm.action, {
                     method: 'POST',
                     body: formData,
-                    headers: { 'Accept': 'application/json' }
+                    headers: { 
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken
+                    }
                 });
 
                 generateReportBtn.disabled = false;
@@ -212,7 +216,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (currentJobId) {
                     const fd = new FormData();
                     fd.append('job_id', currentJobId);
-                    await fetch('/statistics/report/cancel', { method: 'POST', body: fd });
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                    await fetch('/statistics/report/cancel', { 
+                        method: 'POST', 
+                        body: fd,
+                        headers: { 'X-CSRF-TOKEN': csrfToken }
+                    });
                 }
                 finishJob(false, currentJobId, "Report cancelled.");
             } else {

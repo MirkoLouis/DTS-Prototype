@@ -1,5 +1,6 @@
 require('dotenv').config();
 const mysql = require('mysql2/promise');
+const path = require('path');
 const { exec } = require('child_process');
 const util = require('util');
 const crypto = require('crypto');
@@ -9,9 +10,17 @@ const execPromise = util.promisify(exec);
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
 const API_BASE = 'https://localhost:8000';
 const DEFAULT_PASSWORD = 'password';
-const DOCS_TO_CREATE = 500000;
-const CHUNK_SIZE = 250;
-const CONCURRENCY = 50;
+
+// Parse command line arguments
+// args: node seed.js [docs] [chunk_size] [concurrency]
+let args = process.argv.slice(2);
+if (args[0] === '--') {
+    args = args.slice(1);
+}
+
+const DOCS_TO_CREATE = args[0] && !isNaN(parseInt(args[0], 10)) ? parseInt(args[0], 10) : 10000;
+const CHUNK_SIZE = args[1] && !isNaN(parseInt(args[1], 10)) ? parseInt(args[1], 10) : 100;
+const CONCURRENCY = args[2] && !isNaN(parseInt(args[2], 10)) ? parseInt(args[2], 10) : 50;
 
 const delay = ms => new Promise(res => setTimeout(res, ms));
 
@@ -182,8 +191,8 @@ function generateMetrics(dates, isPeak = false) {
 
 function calculateLogHash(docId, userId, action, timestampStr, prevHash, stateHash, signature) {
     const uId = userId !== null ? userId : '';
-    const data = `${docId}|${uId}|${action}|${timestampStr}|${prevHash}|${stateHash}|${signature}`;
-    return crypto.createHash('sha256').update(data).digest('hex');
+    const data = [docId, uId, action, timestampStr, prevHash, stateHash, signature];
+    return crypto.createHash('sha256').update(JSON.stringify(data)).digest('hex');
 }
 
 async function processDocumentAPI(i, deptPools, departmentNames, guestClient, purposesDb, districts) {
@@ -422,6 +431,7 @@ async function flushMetrics(connection) {
 }
 
 async function seed() {
+    const startTime = Date.now();
     let connection;
     try {
         await waitForBackends();
@@ -462,7 +472,7 @@ async function seed() {
 
         console.log('🔐 Generating digital signatures (Ed25519) for seeded users...');
         const { execSync } = require('child_process');
-        execSync('php scripts/generate-keys.php', { stdio: 'inherit' });
+        execSync(`php "${path.join(__dirname, 'scripts/generate-keys.php')}"`, { stdio: 'inherit' });
 
         console.log('🔑 Initializing API Client Pools to bypass login overhead...');
         const deptPools = {};
@@ -509,15 +519,29 @@ async function seed() {
             }
             
             // Print progress cleanly
-            process.stdout.write(`\r   ⏳ Progress: ${totalProcessed} / ${DOCS_TO_CREATE} documents time-traveled.`);
+            const memoryUsage = process.memoryUsage();
+            const ramMB = Math.round(memoryUsage.rss / 1024 / 1024);
+            process.stdout.write(`\r   ⏳ Progress: ${totalProcessed} / ${DOCS_TO_CREATE} documents time-traveled. | 🧠 RAM: ${ramMB} MB   `);
         }
 
         console.log('\n'); // newline after progress
         await flushMetrics(connection);
 
         console.log('📈 Backfilling daily departmental metrics...');
-        execSync('php scripts/backfill-metrics.php', { stdio: 'inherit' });
+        execSync(`php "${path.join(__dirname, 'scripts/backfill-metrics.php')}"`, { stdio: 'inherit' });
 
+        const endTime = Date.now();
+        const elapsedSeconds = Math.floor((endTime - startTime) / 1000);
+        const hours = Math.floor(elapsedSeconds / 3600);
+        const minutes = Math.floor((elapsedSeconds % 3600) / 60);
+        const seconds = elapsedSeconds % 60;
+        
+        const finalMem = process.memoryUsage();
+        const finalRamMB = Math.round(finalMem.rss / 1024 / 1024);
+        
+        console.log('\n📊 --- SEEDING REPORT ---');
+        console.log(`⏱️ Total Time Elapsed: ${hours}h ${minutes}m ${seconds}s`);
+        console.log(`🧠 Final Memory (RSS): ${finalRamMB} MB`);
         console.log('🎉 Advanced Seeding completed successfully!');
         await connection.end();
         process.exit(0);

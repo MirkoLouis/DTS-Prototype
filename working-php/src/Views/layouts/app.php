@@ -19,6 +19,7 @@ if (isset($_SESSION['user_id'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="<?= $_SESSION['csrf_token'] ?? '' ?>">
     <title>Pure PHP DTS</title>
     
     <!-- Favicons -->
@@ -40,6 +41,14 @@ if (isset($_SESSION['user_id'])) {
                 document.documentElement.classList.remove('dark');
             }
         })();
+    </script>
+    <script src="/js/vendor/libsodium-wrappers.js"></script>
+    <script src="/js/vendor/libsodium.js"></script>
+    <script>
+        window.UserConfig = {
+            id: <?= json_encode($_SESSION['user_id'] ?? null) ?>,
+            encryptedPrivKey: <?= json_encode($_SESSION['private_key'] ?? '') ?>
+        };
     </script>
     <style>
         @keyframes slideInRight {
@@ -442,6 +451,7 @@ if (isset($_SESSION['user_id'])) {
 
         // Notification Toggle Logic
         document.addEventListener('DOMContentLoaded', () => {
+            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
             const notifBtn = document.getElementById('notification-menu-button');
             const notifDropdown = document.getElementById('notification-dropdown-menu');
 
@@ -468,7 +478,10 @@ if (isset($_SESSION['user_id'])) {
                     try {
                         const res = await fetch('/api/notifications/mark-read', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken
+                            },
                             body: JSON.stringify({ id: notifId })
                         });
                         const data = await res.json();
@@ -498,7 +511,10 @@ if (isset($_SESSION['user_id'])) {
                     try {
                         const res = await fetch('/api/notifications/mark-read', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': csrfToken
+                            },
                             body: JSON.stringify({})
                         });
                         const data = await res.json();
