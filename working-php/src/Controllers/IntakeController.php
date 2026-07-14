@@ -54,7 +54,7 @@ class IntakeController
 
     public function find()
     {
-        $trackingCode = $_POST['tracking_code'] ?? '';
+        $trackingCode = trim($_POST['tracking_code'] ?? '');
         if ($trackingCode) {
             $db = Database::getInstance();
             $doc = $db->query("SELECT id FROM documents WHERE tracking_code = :code", ['code' => $trackingCode])->fetch();

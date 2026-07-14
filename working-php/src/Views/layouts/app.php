@@ -1,3 +1,19 @@
+<?php
+$unreadNotifications = [];
+$returnRequestNotifs = [];
+$otherNotifs = [];
+if (isset($_SESSION['user_id'])) {
+    $notifService = new \App\Core\NotificationService();
+    $unreadNotifications = $notifService->getUnreadForCurrentUser();
+    foreach ($unreadNotifications as $n) {
+        if (stripos($n['title'], 'return') !== false) {
+            $returnRequestNotifs[] = $n;
+        } else {
+            $otherNotifs[] = $n;
+        }
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="en" class="light overflow-y-scroll">
 <head>
@@ -25,6 +41,15 @@
             }
         })();
     </script>
+    <style>
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .animate-slide-in-right {
+            animation: slideInRight 0.3s ease-out forwards;
+        }
+    </style>
     
     <!-- Local Chart.js for Admin dashboard -->
     <script src="/js/chart.min.js"></script>
@@ -112,6 +137,50 @@
                                 <!-- Moon icon for dark mode -->
                                 <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
                             </button>
+
+                            <!-- Notification Dropdown -->
+                            <div class="relative mr-4">
+                                <button type="button" id="notification-menu-button" class="relative p-2 bg-gray-100 dark:bg-gray-700 rounded-full shadow-md text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-accent-1-hover transition-colors">
+                                    <span class="sr-only"></span>
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                                    <?php if (count($unreadNotifications) > 0): ?>
+                                    <span class="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-red-600 rounded-full">
+                                        <?= count($unreadNotifications) ?>
+                                    </span>
+                                    <?php endif; ?>
+                                </button>
+                                <div id="notification-dropdown-menu" class="hidden absolute right-0 z-50 mt-2 w-80 sm:w-96 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none py-2 max-h-[80vh] overflow-y-auto">
+                                    <div class="px-4 py-2 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                                        <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100">Notifications</h3>
+                                        <?php if (count($unreadNotifications) > 0): ?>
+                                        <button id="mark-all-read" class="text-xs text-accent-1 hover:text-accent-1-hover dark:text-accent-2 dark:hover:text-accent-2-hover font-medium">Mark all as read</button>
+                                        <?php endif; ?>
+                                    </div>
+                                    <div class="p-2" id="notification-list">
+                                        <?php if (empty($unreadNotifications)): ?>
+                                            <p class="text-sm text-gray-500 dark:text-gray-400 p-4 text-center">No new notifications.</p>
+                                        <?php else: ?>
+                                            <?php if (count($returnRequestNotifs) > 0): ?>
+                                                <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 mt-1 px-1">Return Requests</h4>
+                                                <?php foreach ($returnRequestNotifs as $notification): ?>
+                                                    <?php require BASE_PATH . '/src/Views/components/notification-alert.php'; ?>
+                                                <?php endforeach; ?>
+                                            <?php endif; ?>
+
+                                            <?php if (count($otherNotifs) > 0): ?>
+                                                <?php if (count($returnRequestNotifs) > 0): ?>
+                                                    <div class="border-t border-gray-200 dark:border-gray-700 my-2"></div>
+                                                <?php endif; ?>
+                                                <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 mt-1 px-1">Other Notifications</h4>
+                                                <?php foreach ($otherNotifs as $notification): ?>
+                                                    <?php require BASE_PATH . '/src/Views/components/notification-alert.php'; ?>
+                                                <?php endforeach; ?>
+                                            <?php endif; ?>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                            </div>
+
                             <div class="relative">
                                 <button type="button" id="user-menu-button" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none transition ease-in-out duration-150">
                                     <div><?= htmlspecialchars($_SESSION['user_name'] ?? 'Guest') ?> (<?= htmlspecialchars(ucfirst($_SESSION['role'] ?? '')) ?>)</div>
@@ -136,7 +205,7 @@
 
         <!-- Page Heading -->
         <?php if (isset($header)): ?>
-            <header class="bg-white dark:bg-gray-800 shadow dark:shadow-none border-b border-gray-200 dark:border-gray-700">
+            <header class="bg-white dark:bg-gray-800 shadow dark:shadow-none border-b border-gray-200 dark:border-gray-700 relative z-10">
                 <div class="mx-[20vh] py-6 px-4 sm:px-6 lg:px-8">
                     <?= $header ?>
                 </div>
@@ -145,28 +214,30 @@
 
         <!-- Page Content -->
         <main>
-            <div class="mx-[20vh] sm:px-6 lg:px-8 mt-6">
-                <?php if (isset($_SESSION['success'])): ?>
-                    <div class="bg-success-light border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
-                        <span class="block sm:inline"><?= htmlspecialchars($_SESSION['success']) ?></span>
-                    </div>
-                    <?php unset($_SESSION['success']); ?>
-                <?php endif; ?>
+            <!-- Toast Notification Container -->
+            <div id="toast-container" class="flex flex-col gap-3 pointer-events-none" style="position: fixed; bottom: 1.25rem; right: 1.25rem; z-index: 9999;">
+                <?php
+                $sessionAlerts = [];
+                if (isset($_SESSION['success'])) {
+                    $sessionAlerts[] = ['type' => 'success', 'title' => 'Success', 'message' => $_SESSION['success'], 'is_toast' => true];
+                    unset($_SESSION['success']);
+                }
+                if (isset($_SESSION['error'])) {
+                    $sessionAlerts[] = ['type' => 'error', 'title' => 'Error', 'message' => $_SESSION['error'], 'is_toast' => true];
+                    unset($_SESSION['error']);
+                }
+                if (isset($_SESSION['info'])) {
+                    $sessionAlerts[] = ['type' => 'info', 'title' => 'Information', 'message' => $_SESSION['info'], 'is_toast' => true];
+                    unset($_SESSION['info']);
+                }
 
-                <?php if (isset($_SESSION['error'])): ?>
-                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
-                        <span class="block sm:inline"><?= htmlspecialchars($_SESSION['error']) ?></span>
-                    </div>
-                    <?php unset($_SESSION['error']); ?>
-                <?php endif; ?>
-
-                <?php if (isset($_SESSION['info'])): ?>
-                    <div class="bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded relative mb-4" role="alert">
-                        <span class="block sm:inline"><?= htmlspecialchars($_SESSION['info']) ?></span>
-                    </div>
-                    <?php unset($_SESSION['info']); ?>
-                <?php endif; ?>
+                foreach ($sessionAlerts as $alert) {
+                    $notification = $alert; // notification-alert.php uses $notification
+                    require BASE_PATH . '/src/Views/components/notification-alert.php';
+                }
+                ?>
             </div>
+
 
             <?= $content ?? '' ?>
         </main>
@@ -363,6 +434,105 @@
                         }
                     }
                 });
+            });
+        });
+
+        // Notification Toggle Logic
+        document.addEventListener('DOMContentLoaded', () => {
+            const notifBtn = document.getElementById('notification-menu-button');
+            const notifDropdown = document.getElementById('notification-dropdown-menu');
+
+            if (notifBtn && notifDropdown) {
+                notifBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    notifDropdown.classList.toggle('hidden');
+                });
+
+                document.addEventListener('click', (e) => {
+                    if (!notifBtn.contains(e.target) && !notifDropdown.contains(e.target)) {
+                        notifDropdown.classList.add('hidden');
+                    }
+                });
+            }
+
+            // Mark single notification read
+            document.querySelectorAll('.mark-notification-read').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const notifId = btn.dataset.id;
+                    if (!notifId) return;
+
+                    try {
+                        const res = await fetch('/api/notifications/mark-read', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ id: notifId })
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            btn.closest('[role="alert"]').remove();
+                            updateNotificationBadge();
+                        }
+                    } catch (err) {
+                        console.error('Error marking notification read', err);
+                    }
+                });
+            });
+
+            // Dismiss single session alert
+            document.querySelectorAll('.dismiss-alert').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    btn.closest('[role="alert"]').remove();
+                });
+            });
+
+            // Mark all read
+            const markAllBtn = document.getElementById('mark-all-read');
+            if (markAllBtn) {
+                markAllBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    try {
+                        const res = await fetch('/api/notifications/mark-read', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({})
+                        });
+                        const data = await res.json();
+                        if (data.success) {
+                            document.getElementById('notification-list').innerHTML = '<p class="text-sm text-gray-500 dark:text-gray-400 p-4 text-center">No new notifications.</p>';
+                            markAllBtn.remove();
+                            const badge = document.querySelector('#notification-menu-button span.bg-red-600');
+                            if (badge) badge.remove();
+                        }
+                    } catch (err) {
+                        console.error('Error marking all notifications read', err);
+                    }
+                });
+            }
+
+            function updateNotificationBadge() {
+                const badge = document.querySelector('#notification-menu-button span.bg-red-600');
+                if (badge) {
+                    let count = parseInt(badge.innerText, 10);
+                    count = isNaN(count) ? 0 : count - 1;
+                    if (count <= 0) {
+                        badge.remove();
+                    } else {
+                        badge.innerText = count;
+                    }
+                }
+            }
+
+            // Auto-dismiss session toasts after 5 seconds
+            document.querySelectorAll('.toast-message').forEach(toast => {
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.style.transition = 'opacity 0.5s ease-out';
+                        toast.style.opacity = '0';
+                        setTimeout(() => toast.remove(), 500);
+                    }
+                }, 5000);
             });
         });
     </script>

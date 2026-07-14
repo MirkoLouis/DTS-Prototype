@@ -273,7 +273,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 downloadBtnContainer.innerHTML = `
                     <div class="mt-4 flex justify-center">
                         <a href="/statistics/report/download/${jobId}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none transition">
-                            Download CSV Report
+                            Download CSV Report Again
                         </a>
                     </div>
                 `;

@@ -61,6 +61,54 @@ A comprehensive, production-ready prototype for a modern, web-based **Document T
 
 ---
 
+## 🌐 Mobile Testing & QR Scanning (HTTPS Requirement)
+
+Modern browsers require a secure context (HTTPS) to access camera APIs for QR scanning. If you want to test the QR scanner on multiple devices (like your phone) on your local network without tweaking browser settings on every device, you can use **Method 1: The Infrastructure Approach (Self-Signed SSL on Nginx)**.
+
+Operating within a Linux environment like Bazzite makes setting up a self-signed certificate straightforward.
+
+### Step 1: Generate a Self-Signed Certificate
+Open your terminal and use OpenSSL to generate a private key and a certificate.
+
+```bash
+sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/private/nginx-selfsigned.key -out /etc/ssl/certs/nginx-selfsigned.crt
+```
+*Note: It will prompt you for details like Country and State. You can just hit Enter to leave them blank or fill them in with dummy data.*
+
+### Step 2: Update Your Nginx Configuration
+Edit your project's Nginx server block to listen for SSL traffic on your designated port (or port 443).
+
+```nginx
+server {
+    # Listen on your custom port with SSL enabled
+    listen 8000 ssl;
+    server_name your_local_ip_address; # e.g., 192.168.1.5
+
+    # Point to the generated certs
+    ssl_certificate /etc/ssl/certs/nginx-selfsigned.crt;
+    ssl_certificate_key /etc/ssl/private/nginx-selfsigned.key;
+
+    root /var/www/your_project/public;
+    index index.php index.html index.htm;
+
+    # ... keep your existing PHP location blocks down here ...
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/var/run/php/php-fpm.sock;
+    }
+}
+```
+
+### Step 3: Restart Nginx
+
+```bash
+sudo systemctl restart nginx
+```
+
+When you access `https://<your-ip>:8000`, the browser will throw an `ERR_CERT_AUTHORITY_INVALID` warning because the certificate wasn't issued by a recognized authority. Click **Advanced > Proceed to [IP] (unsafe)**. The camera API will now function perfectly because the connection is encrypted.
+
+---
+
 ## 🔐 Default Accounts (Password: `password`)
 
 | Role | Email |
@@ -80,6 +128,17 @@ A comprehensive, production-ready prototype for a modern, web-based **Document T
 | **Staff: ASDS Office** | `assistant.schools.division.superintendent.office@dts.com` |
 | **Staff: CID** | `curriculum.implementation.division@dts.com` |
 | **Staff: SGOD** | `school.governance.and.operations.division@dts.com` |
+
+---
+
+## ⏰ Background Jobs (Cron)
+
+For production environments, ensure you set up the nightly metric rollup job to prevent the `database_metrics` table from growing infinitely. Add this to your server's crontab (`crontab -e`):
+
+```bash
+# Run the metric rollup script every night at midnight
+0 0 * * * php /path/to/your/project/working-php/scripts/rollup-metrics.php >> /var/log/dts-rollup.log 2>&1
+```
 
 ---
 

@@ -6,9 +6,10 @@ const crypto = require('crypto');
 const execPromise = util.promisify(exec);
 
 // --- SETTINGS ---
-const API_BASE = 'http://localhost:8000';
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+const API_BASE = 'https://localhost:8000';
 const DEFAULT_PASSWORD = 'password';
-const DOCS_TO_CREATE = 10000;
+const DOCS_TO_CREATE = 500000;
 const CHUNK_SIZE = 250;
 const CONCURRENCY = 50;
 

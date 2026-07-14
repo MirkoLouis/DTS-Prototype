@@ -15,7 +15,8 @@ class TaskController
     public function complete($id)
     {
         $db = Database::getInstance();
-        $pin = $_POST['pin'] ?? '';
+        $submittedPin = $_POST['pin'] ?? '';
+        $pin = \App\Core\SecurityHelper::resolvePin($submittedPin);
 
         if (empty($pin)) {
             $_SESSION['error'] = "Security PIN is required.";
@@ -29,8 +30,13 @@ class TaskController
             $workflow = new \App\Services\DocumentWorkflowService();
             $workflow->completeTask((int)$id, '', $currentUser, $pin);
             
-            $_SESSION['success'] = "Step completed. Document is now in transit.";
+            \App\Core\SecurityHelper::cachePin($pin);
+            
+            $doc = \App\Models\Document::findById((int)$id);
+            $trackingCode = $doc ? $doc->tracking_code : 'Unknown';
+            $_SESSION['success'] = "Document $trackingCode is now in transit.";
         } catch (\Exception $e) {
+            \App\Core\SecurityHelper::clearCachedPin();
             if (str_contains($e->getMessage(), 'Action Denied')) {
                 $_SESSION['console_error'] = $e->getMessage();
             } else {

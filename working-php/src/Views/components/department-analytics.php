@@ -7,7 +7,14 @@
 ?>
 <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
     <div class="p-6 text-gray-900 dark:text-gray-100">
-        <h3 class="text-2xl font-bold mb-4">Performance Analytics for <?= htmlspecialchars($_SESSION['department_name'] ?? 'Your Department') ?></h3>
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-2xl font-bold">Performance Analytics for <?= htmlspecialchars($_SESSION['department_name'] ?? 'Your Department') ?></h3>
+            <form action="/clear-personal-cache" method="POST" class="confirm-action m-0" data-message="Are you sure you want to clear your dashboard cache? This will refresh your view but preserve others' caches.">
+                <button type="submit" class="inline-flex items-center px-3 py-1 bg-gray-200 dark:bg-gray-700 border border-transparent rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest hover:bg-gray-300 dark:hover:bg-accent-2 focus:outline-none transition">
+                    Clear Cache
+                </button>
+            </form>
+        </div>
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6"
              data-current-load-url="/api/statistics/current-load"

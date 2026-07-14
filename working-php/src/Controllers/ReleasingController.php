@@ -15,7 +15,8 @@ class ReleasingController
     public function complete($id)
     {
         $db = Database::getInstance();
-        $pin = $_POST['pin'] ?? '';
+        $submittedPin = $_POST['pin'] ?? '';
+        $pin = \App\Core\SecurityHelper::resolvePin($submittedPin);
 
         if (empty($pin)) {
             $_SESSION['error'] = "Security PIN is required.";
@@ -29,8 +30,10 @@ class ReleasingController
             $workflow = new \App\Services\DocumentWorkflowService();
             $workflow->releaseDocument((int)$id, $currentUser, $pin);
             
+            \App\Core\SecurityHelper::cachePin($pin);
             $_SESSION['success'] = "Document marked as completed and released.";
         } catch (\Exception $e) {
+            \App\Core\SecurityHelper::clearCachedPin();
             if (str_contains($e->getMessage(), 'Action Denied')) {
                 $_SESSION['console_error'] = $e->getMessage();
             } else {

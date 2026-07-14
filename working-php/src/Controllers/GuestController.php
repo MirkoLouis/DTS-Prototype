@@ -69,7 +69,7 @@ class GuestController
 
     public function success()
     {
-        $tracking_code = $_GET['tracking_code'] ?? '';
+        $tracking_code = trim($_GET['tracking_code'] ?? '');
         if (!$tracking_code) {
             header('Location: /');
             exit;
@@ -127,6 +127,7 @@ class GuestController
 
     public function getTrackedDocumentModule($tracking_code)
     {
+        $tracking_code = trim($tracking_code);
         $db = Database::getInstance();
         
         $stmt = $db->query("SELECT d.*, p.name as purpose_name, p.suggested_route FROM documents d LEFT JOIN purposes p ON d.purpose_id = p.id WHERE d.tracking_code = :tracking_code", [':tracking_code' => $tracking_code]);

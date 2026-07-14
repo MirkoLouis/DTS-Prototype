@@ -5,7 +5,7 @@
 <?php $header = ob_get_clean(); ?>
 
 <?php ob_start(); ?>
-<div class="py-0">
+<div class="py-10">
     <div class="mx-[20vh] sm:px-6 lg:px-8 space-y-6">
 
         <!-- Receive Document Section -->
