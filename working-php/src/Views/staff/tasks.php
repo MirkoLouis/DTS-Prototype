@@ -55,6 +55,7 @@
             foreach ($documents as &$doc) {
                 $doc['action_html'] = sprintf('
                     <form class="complete-form inline-block" action="/tasks/%s/complete" method="POST">
+                        <input type="hidden" name="csrf_token" value="' . ($_SESSION['csrf_token'] ?? '') . '">
                         <input type="hidden" name="pin" class="complete-pin-input">
                         <button type="button" class="complete-btn px-4 py-2 bg-success text-white rounded hover:bg-success-hover transition font-semibold" data-tracking-code="%s">
                             Complete Task

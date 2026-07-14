@@ -49,6 +49,16 @@ class Router
      */
     public function dispatch(string $requestUri, string $requestMethod): void
     {
+        // Global CSRF Protection for all POST requests
+        if (strtoupper($requestMethod) === 'POST') {
+            $token = $_POST['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+            if (empty($token) || !hash_equals($_SESSION['csrf_token'] ?? '', $token)) {
+                http_response_code(419);
+                echo "419 Page Expired: CSRF token mismatch. Please refresh and try again.";
+                exit;
+            }
+        }
+
         // Strip query string if present
         $path = parse_url($requestUri, PHP_URL_PATH) ?? '/';
 

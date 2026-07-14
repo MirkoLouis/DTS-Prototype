@@ -41,6 +41,7 @@
                 $doc['status_html'] = '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-success-light text-success-active capitalize">Ready</span>';
                 $doc['action_html'] = sprintf('
                     <form class="complete-form inline-block" action="/releasing/%s/complete" method="POST">
+                        <input type="hidden" name="csrf_token" value="' . ($_SESSION['csrf_token'] ?? '') . '">
                         <input type="hidden" name="pin" class="complete-pin-input">
                         <button type="button" class="complete-btn px-4 py-2 bg-success text-white rounded hover:bg-success-hover transition font-semibold" data-tracking-code="%s">
                             Release

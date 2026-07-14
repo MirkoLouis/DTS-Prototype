@@ -10,6 +10,7 @@
         <div class="flex justify-between items-center mb-4">
             <h3 class="text-2xl font-bold">Performance Analytics for <?= htmlspecialchars($_SESSION['department_name'] ?? 'Your Department') ?></h3>
             <form action="/clear-personal-cache" method="POST" class="confirm-action m-0" data-message="Are you sure you want to clear your dashboard cache? This will refresh your view but preserve others' caches.">
+    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
                 <button type="submit" class="inline-flex items-center px-3 py-1 bg-gray-200 dark:bg-gray-700 border border-transparent rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest hover:bg-gray-300 dark:hover:bg-accent-2 focus:outline-none transition">
                     Clear Cache
                 </button>

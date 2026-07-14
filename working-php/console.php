@@ -21,6 +21,11 @@ $db = Database::getInstance();
 
 $stopWorker = false;
 
+// Memory leak prevention limits
+$maxMemory = 128 * 1024 * 1024; // 128 MB limit before restarting
+$maxJobs = 100; // Restart after 100 jobs to clear any accumulated state
+$jobsProcessed = 0;
+
 if (extension_loaded('pcntl')) {
     pcntl_async_signals(true);
     $signalHandler = function ($signo) use (&$stopWorker) {
@@ -34,6 +39,18 @@ if (extension_loaded('pcntl')) {
 }
 
 while (!$stopWorker) {
+    // 1. Memory Leak Prevention: Check if we exceeded our allowed memory
+    if (memory_get_usage(true) > $maxMemory) {
+        echo "Memory limit exceeded (" . round(memory_get_usage(true) / 1024 / 1024, 2) . " MB). Self-terminating to prevent memory leak...\n";
+        exit(0); // Assuming you use Supervisor or systemd, this will automatically restart the process
+    }
+    
+    // 2. Memory Leak Prevention: Check if we processed too many jobs in this single lifecycle
+    if ($jobsProcessed >= $maxJobs) {
+        echo "Max jobs limit reached ({$maxJobs}). Self-terminating for a fresh restart...\n";
+        exit(0);
+    }
+
     // Look for a pending job
     $sql = "SELECT * FROM jobs WHERE reserved_at IS NULL AND available_at <= UNIX_TIMESTAMP() ORDER BY id ASC LIMIT 1";
     $stmt = $db->query($sql);
@@ -89,6 +106,15 @@ while (!$stopWorker) {
                 // Delete from jobs table
                 $db->query("DELETE FROM jobs WHERE id = :id", ['id' => $jobId]);
             }
+            
+            // 3. Memory Leak Prevention: Explicitly unset objects and trigger Garbage Collection
+            $jobsProcessed++;
+            unset($instance);
+            unset($payload);
+            unset($jobData);
+            
+            // Force PHP to clean up cyclical references
+            gc_collect_cycles();
         }
     } else {
         // Sleep if no jobs

@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Core\Database;
+use App\Core\Validator;
 
 class AuthController
 {
@@ -24,14 +25,13 @@ class AuthController
      */
     public function login()
     {
-        $email = $_POST['email'] ?? '';
-        $password = $_POST['password'] ?? '';
+        $validated = Validator::validate($_POST, [
+            'email' => 'required|email',
+            'password' => 'required'
+        ], '/login');
 
-        if (empty($email) || empty($password)) {
-            $error = "Please enter both email and password.";
-            require BASE_PATH . '/src/Views/auth/login.php';
-            return;
-        }
+        $email = $validated['email'];
+        $password = $validated['password'];
 
         $db = Database::getInstance();
         $stmt = $db->query("SELECT * FROM users WHERE email = :email LIMIT 1", [':email' => $email]);
@@ -59,8 +59,9 @@ class AuthController
             $this->redirectBasedOnRole($user['role']);
         } else {
             // Failed login
-            $error = "These credentials do not match our records.";
-            require BASE_PATH . '/src/Views/auth/login.php';
+            $_SESSION['error'] = "These credentials do not match our records.";
+            header("Location: /login");
+            exit;
         }
     }
 

@@ -4,6 +4,7 @@
     </div>
     <div class="p-6">
         <form method="POST" action="/submit-document">
+    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
             
             <div class="mb-5">
                 <label for="guest_name" class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Your Full Name</label>
