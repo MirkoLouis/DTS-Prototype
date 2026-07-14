@@ -46,7 +46,7 @@ class IntegrityManager
             $finalizedRoute
         ];
 
-        return hash('sha256', implode('|', $stateData));
+        return hash('sha256', json_encode($stateData));
     }
 
     /**
@@ -72,9 +72,30 @@ class IntegrityManager
             throw new \Exception("User does not have a digital signature set up.");
         }
 
-        $encryptedPriv = base64_decode($user['private_key']);
-        $key = substr(hash('sha256', $pin), 0, 32);
-        $iv = str_repeat('0', 16);
+        $decoded = base64_decode($user['private_key']);
+        
+        // Handle legacy format (64 bytes of AES ciphertext) vs new format (16 bytes salt + 16 bytes IV + 64 bytes ciphertext = 96 bytes)
+        if (strlen($decoded) === 64) {
+            $key = substr(hash('sha256', $pin), 0, 32);
+            $iv = str_repeat('0', 16);
+            $encryptedPriv = $decoded;
+        } elseif (strlen($decoded) === 96) {
+            $salt = substr($decoded, 0, SODIUM_CRYPTO_PWHASH_SALTBYTES);
+            $iv = substr($decoded, SODIUM_CRYPTO_PWHASH_SALTBYTES, 16);
+            $encryptedPriv = substr($decoded, SODIUM_CRYPTO_PWHASH_SALTBYTES + 16);
+            
+            $key = sodium_crypto_pwhash(
+                32, 
+                $pin, 
+                $salt, 
+                SODIUM_CRYPTO_PWHASH_OPSLIMIT_INTERACTIVE, 
+                SODIUM_CRYPTO_PWHASH_MEMLIMIT_INTERACTIVE, 
+                SODIUM_CRYPTO_PWHASH_ALG_ARGON2ID13
+            );
+        } else {
+            throw new \Exception("Invalid private key format.");
+        }
+
         $decryptedPriv = openssl_decrypt($encryptedPriv, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv);
 
         if ($decryptedPriv === false || strlen($decryptedPriv) !== 64) {
@@ -119,15 +140,17 @@ class IntegrityManager
         $previousHash = $lastLog ? $lastLog['hash'] : 'genesis_hash';
 
         // 4. Calculate the block hash
-        $dataToHash = $documentId . '|' . 
-                      ($userId ?? '') . '|' . 
-                      $action . '|' . 
-                      $timestampForHashing . '|' . 
-                      $previousHash . '|' . 
-                      $documentStateHash . '|' . 
-                      $signature;
+        $dataToHash = [
+            $documentId,
+            ($userId ?? ''),
+            $action,
+            $timestampForHashing,
+            $previousHash,
+            $documentStateHash,
+            $signature
+        ];
 
-        $hash = hash('sha256', $dataToHash);
+        $hash = hash('sha256', json_encode($dataToHash));
 
         // 5. Insert the log entry
         $db->query(

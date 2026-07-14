@@ -42,6 +42,12 @@ class CacheMiddleware
                     '${1}' . $_SESSION['csrf_token'] . '${2}',
                     $cachedOutput
                 );
+                
+                $cachedOutput = preg_replace(
+                    '/(<meta\s+name="csrf-token"\s+content=")[^"]*("\s*\/?>)/i',
+                    '${1}' . $_SESSION['csrf_token'] . '${2}',
+                    $cachedOutput
+                );
             }
 
             echo $cachedOutput;

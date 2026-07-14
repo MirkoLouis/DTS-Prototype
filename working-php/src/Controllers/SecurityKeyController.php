@@ -29,12 +29,20 @@ class SecurityKeyController
         $publicKey = sodium_crypto_sign_publickey($keypair);
 
         // Encrypt the private key with the PIN using AES-256-CBC
-        $key = substr(hash('sha256', $pin), 0, 32);
-        $iv = str_repeat('0', 16);
+        $salt = random_bytes(SODIUM_CRYPTO_PWHASH_SALTBYTES);
+        $key = sodium_crypto_pwhash(
+            32, 
+            $pin, 
+            $salt, 
+            SODIUM_CRYPTO_PWHASH_OPSLIMIT_INTERACTIVE, 
+            SODIUM_CRYPTO_PWHASH_MEMLIMIT_INTERACTIVE, 
+            SODIUM_CRYPTO_PWHASH_ALG_ARGON2ID13
+        );
+        $iv = random_bytes(16);
         $encryptedPriv = openssl_encrypt($secretKey, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv);
 
         $pubB64 = base64_encode($publicKey);
-        $privB64 = base64_encode($encryptedPriv);
+        $privB64 = base64_encode($salt . $iv . $encryptedPriv);
         
         $now = date('Y-m-d H:i:s');
 

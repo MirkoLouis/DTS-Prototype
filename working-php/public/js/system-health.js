@@ -80,11 +80,13 @@ document.addEventListener('DOMContentLoaded', function () {
             try {
                 runCheckButton.disabled = true;
                 
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
                 const response = await fetch(runCheckButton.dataset.url, {
                     method: 'POST',
                     headers: { 
                         'X-Requested-With': 'XMLHttpRequest',
-                        'Accept': 'application/json'
+                        'Accept': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken
                     }
                 });
 
@@ -190,9 +192,13 @@ document.addEventListener('DOMContentLoaded', function () {
         closeIntegrityModalBtn.addEventListener('click', async () => {
             if (closeIntegrityModalBtn.textContent === 'Cancel Verification' && currentJobId) {
                 if (confirm('Are you sure you want to stop the integrity check?')) {
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
                     await fetch(`/api/system-health/integrity-cancel/${currentJobId}`, {
                         method: 'POST',
-                        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                        headers: { 
+                            'X-Requested-With': 'XMLHttpRequest',
+                            'X-CSRF-TOKEN': csrfToken
+                        }
                     });
                     finishIntegrityJob(false, currentJobId, "User cancelled the task.");
                 }

@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-07-14 22:35
+
+**Version:** 1.13.1-alpha+202607142235
+
+### FIXED
+- Fixed CSRF Misconfigurations by properly injecting `<meta name="csrf-token">` and patching `fetch` AJAX headers.
+- Fixed weak Database Encryption architecture by upgrading Ed25519 private key storage to use Argon2id KDF and AES-256-CBC random IVs.
+- Fixed insecure PIN caching vulnerability (Session Hijacking) by migrating the memory cache from the server into the browser's `sessionStorage`.
+- Fixed Application-Level DoS via Custom Purposes by normalizing custom inputs to a single "Others" database record and appending specific text to document titles.
+- Fixed Canonicalization / Hash Collision Injection attack in the tamper-evident chain by using strict `json_encode` instead of ambiguous pipe `|` delimiters.
+- Fixed seeder scripts (`seed.js`, `generate-keys.php`) to natively understand the upgraded block hash algorithms and Argon2id KDF without breaking the rate-limiting rules.
+
 ## 2026-07-09 13:34
 
 **Version:** 1.12.8-alpha+202607091334

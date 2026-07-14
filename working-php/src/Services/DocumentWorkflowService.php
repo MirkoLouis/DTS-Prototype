@@ -73,24 +73,25 @@ class DocumentWorkflowService
             
             $finalPurposeId = $data['purpose_id'];
 
-            // Handle custom purpose creation
+            // Handle custom purpose creation securely to prevent DB DoS
             if ($data['purpose_id'] == '0') {
-                $otherPurposeText = "Others: " . $data['other_purpose_text'];
+                $otherPurposeText = "Others";
                 $stmt = $this->db->query("SELECT id FROM purposes WHERE name = :name AND is_official = 0", [':name' => $otherPurposeText]);
                 $existing = $stmt->fetch();
 
                 if ($existing) {
                     $finalPurposeId = $existing['id'];
                 } else {
-                    $stmt = $this->db->query("SELECT id FROM users WHERE name = :name", [':name' => $data['department']]);
-                    $deptUser = $stmt->fetch();
-                    $suggestedRoute = $deptUser ? [$data['department']] : [];
-
-                    $this->db->query("INSERT INTO purposes (name, is_official, requirements, suggested_route) VALUES (:name, 0, '[]', :route)", [
-                        ':name' => $otherPurposeText,
-                        ':route' => json_encode($suggestedRoute)
+                    $this->db->query("INSERT INTO purposes (name, is_official, requirements, suggested_route) VALUES (:name, 0, '[]', '[]')", [
+                        ':name' => $otherPurposeText
                     ]);
                     $finalPurposeId = $conn->lastInsertId();
+                }
+
+                // Append the specific text to the document's title to preserve the guest's input without bloating the purposes table
+                $specificPurpose = trim($data['other_purpose_text'] ?? '');
+                if ($specificPurpose !== '') {
+                    $data['title'] = $data['title'] . " (Purpose: " . substr($specificPurpose, 0, 100) . ")";
                 }
             }
 
