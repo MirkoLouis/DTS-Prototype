@@ -19,6 +19,18 @@ const delay = ms => new Promise(res => setTimeout(res, ms));
 class ApiClient {
     constructor() {
         this.cookie = '';
+        this.csrfToken = '';
+    }
+
+    async initCsrf() {
+        if (!this.csrfToken) {
+            const res = await this.request('/');
+            const html = await res.text();
+            const match = html.match(/name="csrf_token" value="([^"]+)"/);
+            if (match) {
+                this.csrfToken = match[1];
+            }
+        }
     }
 
     async request(path, options = {}) {
@@ -51,10 +63,18 @@ class ApiClient {
     }
 
     async postForm(path, data) {
+        if (!this.csrfToken) await this.initCsrf();
+        
         const params = new URLSearchParams();
         for (const key in data) {
             params.append(key, data[key]);
         }
+        
+        // Inject CSRF Token
+        if (this.csrfToken) {
+            params.append('csrf_token', this.csrfToken);
+        }
+        
         return this.request(path, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -383,7 +403,9 @@ async function timeTravelRetrofit(connection, documentIds) {
 }
 
 async function flushMetrics(connection) {
-    console.log(`📊 Flushing database metrics...`);
+    if (Object.keys(hourlyMetricsBuffer).length === 0) return;
+    
+    console.log(`\n📊 Flushing database metrics to clear memory...`);
     const metricsToInsert = [];
     for (const hourKey in hourlyMetricsBuffer) {
         const data = hourlyMetricsBuffer[hourKey];
@@ -396,7 +418,7 @@ async function flushMetrics(connection) {
         const chunk = metricsToInsert.slice(i, i + 1000);
         await connection.query('INSERT INTO database_metrics (connections, avg_query_time_ms, slow_queries, created_at) VALUES ?', [chunk]);
     }
-    hourlyMetricsBuffer = {};
+    hourlyMetricsBuffer = {}; // Free memory!
 }
 
 async function seed() {
@@ -450,14 +472,20 @@ async function seed() {
         }
         console.log('✅ Client Pools initialized!');
 
+        // 1. REUSE A SINGLE GUEST CLIENT
+        // This prevents creating 500,000 individual PHP session files which causes
+        // the PHP session Garbage Collector to completely crash disk I/O.
+        const sharedGuestClient = new ApiClient();
+        await sharedGuestClient.initCsrf(); // Grab CSRF token once
+
         let totalProcessed = 0;
         while (totalProcessed < DOCS_TO_CREATE) {
             const chunkAmount = Math.min(CHUNK_SIZE, DOCS_TO_CREATE - totalProcessed);
             const docPromises = [];
 
             for (let i = 0; i < chunkAmount; i++) {
-                const guestClient = new ApiClient();
-                docPromises.push(processDocumentAPI(totalProcessed + i + 1, deptPools, departmentNames, guestClient, purposesDb, districts));
+                // Pass the shared guest client to prevent session exhaustion
+                docPromises.push(processDocumentAPI(totalProcessed + i + 1, deptPools, departmentNames, sharedGuestClient, purposesDb, districts));
             }
 
             const chunkDocIds = [];
@@ -472,6 +500,13 @@ async function seed() {
             await timeTravelRetrofit(connection, chunkDocIds);
 
             totalProcessed += chunkAmount;
+            
+            // 2. PERIODIC MEMORY FLUSHING
+            // Flush metrics to DB every 5,000 documents to prevent Node.js V8 
+            // array structures from leaking gigabytes of memory.
+            if (totalProcessed % 5000 === 0) {
+                await flushMetrics(connection);
+            }
             
             // Print progress cleanly
             process.stdout.write(`\r   ⏳ Progress: ${totalProcessed} / ${DOCS_TO_CREATE} documents time-traveled.`);

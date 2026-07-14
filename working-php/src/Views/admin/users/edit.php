@@ -18,6 +18,7 @@
         <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
             <div class="p-6 text-gray-900 dark:text-gray-100">
                 <form action="/users/<?= $user['id'] ?>/update" method="POST">
+                    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         
                         <div>

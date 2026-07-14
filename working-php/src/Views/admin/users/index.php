@@ -79,6 +79,7 @@
                                         </svg>
                                         <span>Active</span>
                                         <form action="/users/%s/reset-signature" method="POST" class="inline-block ml-2 confirm-action" data-message="Reset signature for %s?">
+                                            <input type="hidden" name="csrf_token" value="' . ($_SESSION['csrf_token'] ?? '') . '">
                                             <button type="submit" class="text-xs text-red-500 hover:text-red-700 underline">Reset</button>
                                         </form>
                                     </div>
@@ -91,6 +92,7 @@
                             if ($_SESSION['user_id'] != $user['id']) {
                                 $actions .= sprintf('
                                     <form action="/users/%s/delete" method="POST" class="inline-block ml-2 confirm-action" data-message="Are you sure you want to delete this user?">
+                                        <input type="hidden" name="csrf_token" value="' . ($_SESSION['csrf_token'] ?? '') . '">
                                         <button type="submit" class="text-red-600 hover:text-red-900">Delete</button>
                                     </form>
                                 ', $user['id']);

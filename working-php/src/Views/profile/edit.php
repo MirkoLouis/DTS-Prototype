@@ -31,6 +31,7 @@
                     </header>
 
                     <form method="post" action="/profile/update" class="mt-6 space-y-6">
+    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
                         <div>
                             <label class="block font-medium text-sm text-gray-700">Name</label>
                             <input type="text" name="name" value="<?= htmlspecialchars($user['name']) ?>" required class="border-gray-300 focus:border-accent-1 rounded-md shadow-sm mt-1 block w-full">
@@ -58,6 +59,7 @@
                     </header>
 
                     <form method="post" action="/security-key" class="mt-6 space-y-6">
+    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
                         <div>
                             <label class="block font-medium text-sm text-gray-700">New Security Key (Private Key)</label>
                             <textarea name="private_key" rows="4" class="border-gray-300 focus:border-accent-1 rounded-md shadow-sm mt-1 block w-full" placeholder="-----BEGIN PRIVATE KEY-----..."></textarea>

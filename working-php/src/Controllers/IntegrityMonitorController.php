@@ -22,11 +22,17 @@ class IntegrityMonitorController
         $params = [];
 
         if ($searchTerm) {
-            $where[] = "(d.tracking_code LIKE :search1 OR d.title LIKE :search2 OR json_unquote(json_extract(d.guest_info, '$.name')) LIKE :search3 OR p.name LIKE :search4)";
-            $params[':search1'] = "%{$searchTerm}%";
-            $params[':search2'] = "%{$searchTerm}%";
-            $params[':search3'] = "%{$searchTerm}%";
-            $params[':search4'] = "%{$searchTerm}%";
+            $searchTerm = trim($searchTerm);
+            if (preg_match('/^DEPED-/i', $searchTerm)) {
+                $where[] = "d.tracking_code LIKE :search1";
+                $params[':search1'] = $searchTerm . '%';
+            } else {
+                $where[] = "(d.tracking_code LIKE :search1 OR d.title LIKE :search2 OR json_unquote(json_extract(d.guest_info, '$.name')) LIKE :search3 OR p.name LIKE :search4)";
+                $params[':search1'] = "%{$searchTerm}%";
+                $params[':search2'] = "%{$searchTerm}%";
+                $params[':search3'] = "%{$searchTerm}%";
+                $params[':search4'] = "%{$searchTerm}%";
+            }
         }
         if ($filterStatus && $filterStatus !== 'all') {
             $where[] = "d.status = :status";
@@ -41,8 +47,9 @@ class IntegrityMonitorController
             $params[':submitter'] = '%' . strtolower($filterSubmitter) . '%';
         }
         if ($filterDate) {
-            $where[] = "DATE(d.created_at) = :date";
-            $params[':date'] = $filterDate;
+            $where[] = "d.created_at >= :date_start AND d.created_at <= :date_end";
+            $params[':date_start'] = $filterDate . ' 00:00:00';
+            $params[':date_end'] = $filterDate . ' 23:59:59';
         }
 
         $whereSql = !empty($where) ? "WHERE " . implode(' AND ', $where) : "";

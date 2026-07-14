@@ -3,6 +3,11 @@
 // Front Controller
 session_start();
 
+// CSRF Token Generation
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 // Match Laravel's default timezone so hashes align properly
 date_default_timezone_set('Asia/Manila');
 

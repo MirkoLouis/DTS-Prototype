@@ -30,7 +30,21 @@ class CacheMiddleware
 
         if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < $ttl) {
             // Serve cache and exit
-            echo file_get_contents($cacheFile);
+            $cachedOutput = file_get_contents($cacheFile);
+
+            // DYNAMIC CSRF INJECTION:
+            // Since we cache full HTML pages, the cached HTML contains the CSRF token of the user 
+            // who originally triggered the cache. We MUST replace it with the current user's token 
+            // before serving, otherwise their POST requests will fail with a 419 Page Expired.
+            if (!empty($_SESSION['csrf_token'])) {
+                $cachedOutput = preg_replace(
+                    '/(<input\s+type="hidden"\s+name="csrf_token"\s+value=")[^"]*("\s*\/?>)/i',
+                    '${1}' . $_SESSION['csrf_token'] . '${2}',
+                    $cachedOutput
+                );
+            }
+
+            echo $cachedOutput;
             echo "\n<!-- Served from Response Cache (TTL: {$ttl}s) -->";
             exit;
         }

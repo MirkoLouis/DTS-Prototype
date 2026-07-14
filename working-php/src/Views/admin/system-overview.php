@@ -55,6 +55,7 @@ ob_start(); ?>
                             <div class="flex justify-between items-center mb-4 border-b border-red-200 dark:border-red-800 pb-2">
                                 <h3 class="text-xl font-bold text-red-700 dark:text-red-400">Failed Jobs Details</h3>
                                 <form action="/system-health/failed-jobs/delete-all" method="POST" class="confirm-action" data-message="Are you sure you want to clear ALL failed jobs?">
+    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
                                     <button type="submit" class="text-xs text-red-600 dark:text-red-400 hover:underline">Clear All Jobs</button>
                                 </form>
                             </div>
@@ -72,6 +73,7 @@ ob_start(); ?>
                                     $job['error_html'] = sprintf('<div class="text-xs text-red-600 dark:text-red-400 line-clamp-3 break-words" title="%s">%s</div>', htmlspecialchars($job['exception']), htmlspecialchars($job['exception']));
                                     $job['action_html'] = sprintf('
                                         <form action="/system-health/failed-jobs/%s/delete" method="POST" class="confirm-action" data-message="Are you sure you want to resolve this failed job? This will remove it from the list.">
+                                            <input type="hidden" name="csrf_token" value="' . ($_SESSION['csrf_token'] ?? '') . '">
                                             <button type="submit" class="text-xs bg-red-100 text-red-700 px-3 py-1.5 rounded hover:bg-red-200 dark:bg-red-900/30 dark:text-red-300 transition-colors">Resolve</button>
                                         </form>
                                     ', $job['id']);
@@ -195,6 +197,7 @@ ob_start(); ?>
                                     if ($issue['type'] === 'Live State Tampering') {
                                         $actions .= sprintf('
                                             <form action="/documents/%s/autoresolve" method="POST" class="autoresolve-form confirm-action inline-block ml-3" data-message="Are you sure you want to Auto-resolve this document? This will overwrite the tampered live data with the last valid snapshot.">
+                                                <input type="hidden" name="csrf_token" value="' . ($_SESSION['csrf_token'] ?? '') . '">
                                                 <button type="submit" class="bg-green-100 text-green-700 px-3 py-1 rounded hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300 transition-colors font-bold text-xs">Auto-resolve</button>
                                             </form>
                                         ', htmlspecialchars($issue['tracking_code']));

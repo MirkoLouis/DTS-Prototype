@@ -45,13 +45,15 @@
 
         <div class="w-full sm:max-w-md mt-6 px-6 py-4 bg-white dark:bg-gray-800 shadow-md overflow-hidden sm:rounded-lg">
             
-            <?php if (isset($error)): ?>
-                <div class="mb-4 font-medium text-sm text-red-600 bg-red-100 p-3 rounded">
-                    <?= htmlspecialchars($error) ?>
+            <?php if (isset($_SESSION['error'])): ?>
+                <div class="mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative" role="alert">
+                    <span class="block sm:inline"><?= htmlspecialchars($_SESSION['error']) ?></span>
                 </div>
+                <?php unset($_SESSION['error']); ?>
             <?php endif; ?>
 
             <form method="POST" action="/login">
+    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
                 <!-- Email Address -->
                 <div>
                     <label for="email" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Email</label>

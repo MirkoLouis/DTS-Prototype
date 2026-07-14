@@ -8,12 +8,14 @@
         <div>
             <?php if (trim($document['status']) === 'frozen'): ?>
                 <form action="/documents/<?php echo htmlspecialchars($document['tracking_code']); ?>/unfreeze" method="POST" class="inline-block m-0 confirm-action" data-message="Are you sure you want to unfreeze this document?">
+                    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
                     <button type="submit" class="inline-flex items-center px-4 py-2 bg-green-600 border border-transparent rounded-md font-semibold text-xs uppercase tracking-widest hover:bg-green-700 active:bg-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 transition ease-in-out duration-150 shadow">
                         Unfreeze Document
                     </button>
                 </form>
             <?php else: ?>
                 <form action="/documents/<?php echo htmlspecialchars($document['tracking_code']); ?>/freeze" method="POST" class="inline-block m-0 confirm-action" data-message="Are you sure you want to manually freeze this document? This will halt all operations on it.">
+                    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
                     <button type="submit" class="inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs uppercase tracking-widest hover:bg-red-700 active:bg-red-800 focus:outline-none focus:ring-2 focus:ring-red-500 transition ease-in-out duration-150 shadow">
                         Freeze Document
                     </button>

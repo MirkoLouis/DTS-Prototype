@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Core\Database;
+use App\Core\Validator;
 
 class UserController
 {
@@ -48,17 +49,19 @@ class UserController
 
     public function store()
     {
-        $name = $_POST['name'] ?? '';
-        $email = $_POST['email'] ?? '';
-        $password = $_POST['password'] ?? '';
-        $password_confirmation = $_POST['password_confirmation'] ?? '';
-        $role = $_POST['role'] ?? 'staff';
+        $validated = Validator::validate($_POST, [
+            'name' => 'required',
+            'email' => 'required|email',
+            'password' => 'required|min:8',
+            'role' => 'required',
+            'password_confirmation' => 'required'
+        ], '/users/create');
 
-        if (empty($name) || empty($email) || empty($password)) {
-            $_SESSION['error'] = 'Name, email, and password are required.';
-            header('Location: /users/create');
-            exit;
-        }
+        $name = $validated['name'];
+        $email = $validated['email'];
+        $password = $validated['password'];
+        $password_confirmation = $validated['password_confirmation'];
+        $role = $validated['role'];
 
         if ($password !== $password_confirmation) {
             $_SESSION['error'] = 'Passwords do not match.';
@@ -110,17 +113,19 @@ class UserController
 
     public function update($id)
     {
-        $name = $_POST['name'] ?? '';
-        $email = $_POST['email'] ?? '';
-        $role = $_POST['role'] ?? 'staff';
-        $password = $_POST['password'] ?? '';
-        $password_confirmation = $_POST['password_confirmation'] ?? '';
+        $validated = Validator::validate($_POST, [
+            'name' => 'required',
+            'email' => 'required|email',
+            'role' => 'required',
+            'password' => '',
+            'password_confirmation' => ''
+        ], "/users/{$id}/edit");
 
-        if (empty($name) || empty($email)) {
-            $_SESSION['error'] = 'Name and email are required.';
-            header("Location: /users/{$id}/edit");
-            exit;
-        }
+        $name = $validated['name'];
+        $email = $validated['email'];
+        $role = $validated['role'];
+        $password = $validated['password'];
+        $password_confirmation = $validated['password_confirmation'];
 
         if (!empty($password) && $password !== $password_confirmation) {
             $_SESSION['error'] = 'Passwords do not match.';

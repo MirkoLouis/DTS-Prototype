@@ -4,6 +4,7 @@ namespace App\Controllers;
 
 use App\Core\Database;
 use App\Core\IntegrityManager;
+use App\Core\Validator;
 use chillerlan\QRCode\QRCode;
 use chillerlan\QRCode\QROptions;
 
@@ -36,24 +37,21 @@ class GuestController
     {
         $db = Database::getInstance();
 
-        $guest_name = $_POST['guest_name'] ?? '';
-        $guest_email = $_POST['guest_email'] ?? '';
-        $guest_phone = $_POST['guest_phone'] ?? '';
-        $district = $_POST['district'] ?? '';
-        $department = $_POST['department'] ?? '';
-        $title = $_POST['title'] ?? '';
-        $purpose_id = $_POST['purpose_id'] ?? '';
-        $other_purpose_text = $_POST['other_purpose_text'] ?? '';
-
-        if (empty($guest_name) || empty($district) || empty($department) || empty($title) || $purpose_id === '') {
-            $_SESSION['error'] = "Please fill in all required fields.";
-            header("Location: /");
-            exit;
-        }
+        $validated = Validator::validate($_POST, [
+            'guest_name' => 'required',
+            'guest_email' => 'required|email',
+            'guest_phone' => 'required',
+            'district' => 'required',
+            'department' => 'required',
+            'title' => 'required',
+            'purpose_id' => 'required',
+            'other_purpose_text' => ''
+        ], '/');
 
         try {
             $workflow = new \App\Services\DocumentWorkflowService();
-            $result = $workflow->submitDocument($_POST);
+            // Need to pass the validated data, but keep the exact array keys the service expects
+            $result = $workflow->submitDocument($validated);
             
             $trackingCode = $result['tracking_code'];
             $documentId = $result['document_id'];

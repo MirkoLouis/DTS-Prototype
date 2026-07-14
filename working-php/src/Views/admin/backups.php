@@ -10,6 +10,7 @@
         <!-- Action Buttons -->
         <div class="flex justify-end mb-6">
             <form id="create-backup-form" action="/system/backups/create" method="POST">
+    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
                 <button id="create-backup-button" type="submit" class="inline-flex items-center px-4 py-2 bg-accent-1 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-1-hover transition">
                     Create Database Backup Now
                 </button>
@@ -49,6 +50,7 @@
                                 <a href="/system/backups/download/%s" class="text-accent-1 hover:text-accent-1-active">Download</a>
                                 <button type="button" class="text-gray-500 hover:text-gray-700" onclick="openRestoreModal(\'%s\')">Restore</button>
                                 <form action="/system/backups/delete/%s" method="POST" class="confirm-action" data-message="Delete this backup?">
+                                    <input type="hidden" name="csrf_token" value="' . ($_SESSION['csrf_token'] ?? '') . '">
                                     <button type="submit" class="text-red-600 hover:text-red-900">Delete</button>
                                 </form>
                             </div>
@@ -78,6 +80,7 @@
 <div id="restore-modal" style="display:none;" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-75">
     <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
         <form id="restore-form" method="POST" class="confirm-action" data-message="Restore database?">
+    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
             <h2 class="text-lg font-medium text-gray-900 text-red-500">FINAL WARNING: Restore Database?</h2>
             <p class="mt-2 text-sm text-gray-600">
                 Restore <strong id="restore-file-name"></strong>?

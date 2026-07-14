@@ -12,6 +12,7 @@
         <?php if (($_SESSION['role'] ?? '') === 'officer'): ?>
         <!-- Hidden form for report generation API -->
         <form id="report-generation-form" action="/statistics/report" method="POST" style="display: none;">
+    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
             <input type="hidden" name="date" id="form_date">
             <input type="hidden" name="purpose" id="form_purpose">
             <input type="hidden" name="submitter" id="form_submitter">

@@ -13,6 +13,7 @@
                 <p class="mb-6 text-gray-600 dark:text-gray-400">If you need to make corrections to a document that has already passed your department, you can request for it to be rerouted. Your department will be added to the document's route immediately after its current step.</p>
                 
                 <form id="return-request-form" action="/return-requests" method="POST">
+    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
                     <div class="space-y-4">
                         <div>
                             <label for="tracking_code" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tracking Code</label>

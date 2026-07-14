@@ -29,13 +29,20 @@ class StatisticsController
             $params[':dept_id'] = $departmentId;
 
             if ($filterDate) {
-                $where[] = "DATE(d.released_at) = :date";
-                $params[':date'] = $filterDate;
+                $where[] = "d.released_at >= :date_start AND d.released_at <= :date_end";
+                $params[':date_start'] = $filterDate . ' 00:00:00';
+                $params[':date_end'] = $filterDate . ' 23:59:59';
             }
             if ($searchTerm) {
-                $where[] = "(d.tracking_code LIKE :search OR json_unquote(json_extract(d.guest_info, '$.name')) LIKE :search2)";
-                $params[':search'] = '%' . $searchTerm . '%';
-                $params[':search2'] = '%' . $searchTerm . '%';
+                $searchTerm = trim($searchTerm);
+                if (preg_match('/^DEPED-/i', $searchTerm)) {
+                    $where[] = "d.tracking_code LIKE :search";
+                    $params[':search'] = $searchTerm . '%';
+                } else {
+                    $where[] = "(d.tracking_code LIKE :search OR json_unquote(json_extract(d.guest_info, '$.name')) LIKE :search2)";
+                    $params[':search'] = '%' . $searchTerm . '%';
+                    $params[':search2'] = '%' . $searchTerm . '%';
+                }
             }
             if ($filterPurpose && $filterPurpose !== 'all') {
                 $where[] = "p.name = :purpose";

@@ -193,6 +193,7 @@ if (isset($_SESSION['user_id'])) {
 
                                 <div id="user-dropdown-menu" class="hidden absolute right-0 z-50 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none py-1">
                                     <form method="POST" action="/logout">
+    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
                                         <button type="submit" class="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition duration-150 ease-in-out">Log Out</button>
                                     </form>
                                 </div>
@@ -315,6 +316,7 @@ if (isset($_SESSION['user_id'])) {
             This ensures non-repudiation and secures the blockchain-like document ledger against tampering.
         </p>
         <form action="/security-key" method="POST" id="security-key-form">
+            <input type="hidden" name="csrf_token" value="' . ($_SESSION['csrf_token'] ?? '') . '">
             <!-- Hidden submit to safely capture Enter key -->
             <button type="submit" class="hidden" aria-hidden="true"></button>
             <div class="mb-4">
@@ -331,6 +333,7 @@ if (isset($_SESSION['user_id'])) {
     
     $modalFooter = '
         <form action="/logout" method="POST" class="inline-block m-0">
+            <input type="hidden" name="csrf_token" value="' . ($_SESSION['csrf_token'] ?? '') . '">
             <button type="submit" class="inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 border border-transparent rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest hover:bg-gray-300 dark:hover:bg-gray-600 focus:outline-none transition">
                 Log Out
             </button>
