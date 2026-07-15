@@ -487,11 +487,11 @@ class DocumentWorkflowService
                 version = version + 1
                 WHERE id = :id AND version = :version", [
                 ':title' => $snapshot['title'] ?? null,
-                ':guest_info' => $snapshot['guest_info'] ?? null,
+                ':guest_info' => empty($snapshot['guest_info']) ? null : (is_array($snapshot['guest_info']) ? json_encode($snapshot['guest_info']) : $snapshot['guest_info']),
                 ':district' => $snapshot['district'] ?? null,
                 ':department' => $snapshot['department'] ?? null,
                 ':purpose_id' => $snapshot['purpose_id'] ?? null,
-                ':finalized_route' => $snapshot['finalized_route'] ?? null,
+                ':finalized_route' => empty($snapshot['finalized_route']) ? null : (is_array($snapshot['finalized_route']) ? json_encode($snapshot['finalized_route']) : $snapshot['finalized_route']),
                 ':status' => $previousStatus,
                 ':id' => $document['id'],
                 ':version' => $document['version']

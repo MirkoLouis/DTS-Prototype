@@ -1,20 +1,28 @@
 <?php
-define('BASE_PATH', __DIR__);
 require 'vendor/autoload.php';
-$db = \App\Core\Database::getInstance();
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__);
+$dotenv->load();
 
-$trackingCode = 'DEPED-044BBD417D';
-$stmt = $db->query("SELECT * FROM documents WHERE tracking_code = :tc", [':tc' => $trackingCode]);
-$doc = $stmt->fetch();
-if (!$doc) {
-    echo "Document not found!\n";
-    exit;
-}
+$db = new PDO("mysql:host={$_ENV['DB_HOST']};port={$_ENV['DB_PORT']};dbname={$_ENV['DB_DATABASE']}", $_ENV['DB_USERNAME'], $_ENV['DB_PASSWORD']);
 
-$latestLog = $db->query("SELECT * FROM document_logs WHERE document_id = :id ORDER BY id DESC LIMIT 1", [':id' => $doc['id']])->fetch();
+$log = $db->query("SELECT * FROM document_logs ORDER BY id ASC LIMIT 1")->fetch(PDO::FETCH_ASSOC);
 
-$currentStateHash = \App\Core\IntegrityManager::calculateStateHash($doc);
-echo "Current Hash: $currentStateHash\n";
-echo "Latest Log Hash: {$latestLog['document_state_hash']}\n";
-echo "Latest Log Action: {$latestLog['action']}\n";
+$expectedPreviousHash = 'genesis_hash';
+$timestampForHashing = date('c', strtotime($log['created_at']));
 
+$dataToHash = [
+    (int) $log['document_id'],
+    $log['user_id'] ? (int) $log['user_id'] : '',
+    $log['action'],
+    $timestampForHashing,
+    $expectedPreviousHash,
+    $log['document_state_hash'],
+    $log['signature']
+];
+
+$recalculatedHash = hash('sha256', json_encode($dataToHash));
+
+echo "DB ID: " . $log['id'] . "\n";
+echo "DB Hash: " . $log['hash'] . "\n";
+echo "Recalculated Hash: " . $recalculatedHash . "\n";
+echo "JSON Encoded (PHP): " . json_encode($dataToHash) . "\n";

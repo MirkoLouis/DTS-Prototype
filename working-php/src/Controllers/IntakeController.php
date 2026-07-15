@@ -38,8 +38,9 @@ class IntakeController
         if ($cursor) {
             $parts = explode('_', $cursor);
             if (count($parts) == 2) {
-                $filters['sql'] .= " AND (max_logs.handled_at < :c_time OR (max_logs.handled_at = :c_time AND d.id < :c_id))";
-                $params[':c_time'] = $parts[0];
+                $filters['sql'] .= " AND (max_logs.handled_at < :c_time1 OR (max_logs.handled_at = :c_time2 AND d.id < :c_id))";
+                $params[':c_time1'] = $parts[0];
+                $params[':c_time2'] = $parts[0];
                 $params[':c_id'] = $parts[1];
             }
         }

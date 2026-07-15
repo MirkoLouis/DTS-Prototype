@@ -79,15 +79,7 @@ class SystemHealthController
     {
         $db = Database::getInstance();
         
-        // 1. Average Processing Time
-        $sql = "
-            SELECT AVG(TIMESTAMPDIFF(SECOND, start_logs.start_time, end_logs.end_time)) as avg_seconds
-            FROM documents
-            JOIN (SELECT document_id, MIN(created_at) as start_time FROM document_logs WHERE action = 'Accepted and Document Routing finalized' GROUP BY document_id) start_logs ON documents.id = start_logs.document_id
-            JOIN (SELECT document_id, MAX(created_at) as end_time FROM document_logs WHERE action = 'Document Released' GROUP BY document_id) end_logs ON documents.id = end_logs.document_id
-        ";
-        $stmt = $db->query($sql);
-        $avgSeconds = $stmt->fetch()['avg_seconds'] ?? 0;
+        // 1. Average Processing Time (Removed as requested)
 
         // 2. Failed Jobs
         $failedJobsCount = $db->query("SELECT COUNT(*) as count FROM failed_jobs")->fetch()['count'];
@@ -98,7 +90,6 @@ class SystemHealthController
         $failedJobs = $db->query("SELECT * FROM failed_jobs ORDER BY failed_at DESC LIMIT $limit OFFSET $offset")->fetchAll();
 
         return [
-            'average_processing_time' => (int) $avgSeconds,
             'failed_jobs_count' => $failedJobsCount,
             'failed_jobs' => $failedJobs,
             'failed_jobs_paginator' => $fjPaginator,
@@ -141,15 +132,16 @@ class SystemHealthController
         $previousHash = $lastLog ? $lastLog['hash'] : 'genesis_hash';
         $timestampForHashing = date('c', strtotime($log['created_at']));
         
-        $dataToHash = $log['document_id'] . '|' . 
-                     $log['user_id'] . '|' . 
-                     $log['action'] . '|' . 
-                     $timestampForHashing . '|' . 
-                     $previousHash . '|' . 
-                     $log['document_state_hash'] . '|' . 
-                     $log['signature'];
-
-        $recalculatedHash = hash('sha256', $dataToHash);
+        $dataToHash = [
+            (int) $log['document_id'],
+            $log['user_id'] ? (int) $log['user_id'] : '',
+            $log['action'],
+            $timestampForHashing,
+            $previousHash,
+            $log['document_state_hash'],
+            $log['signature']
+        ];
+        $recalculatedHash = hash('sha256', json_encode($dataToHash, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
         header('Content-Type: application/json');
         echo json_encode([
@@ -272,15 +264,16 @@ class SystemHealthController
         foreach ($logsToRebuild as $log) {
             $timestampForHashing = date('c', strtotime($log['created_at']));
             
-            $dataToHash = $log['document_id'] . '|' . 
-                          $log['user_id'] . '|' . 
-                          $log['action'] . '|' . 
-                          $timestampForHashing . '|' . 
-                          $previousHash . '|' . 
-                          $log['document_state_hash'] . '|' . 
-                          $log['signature'];
-            
-            $newHash = hash('sha256', $dataToHash);
+            $dataToHash = [
+                (int) $log['document_id'],
+                $log['user_id'] ? (int) $log['user_id'] : '',
+                $log['action'],
+                $timestampForHashing,
+                $previousHash,
+                $log['document_state_hash'],
+                $log['signature']
+            ];
+            $newHash = hash('sha256', json_encode($dataToHash, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
             $db->query("UPDATE document_logs SET previous_hash = :prev, hash = :hash WHERE id = :id", [
                 'prev' => $previousHash,
@@ -379,6 +372,55 @@ class SystemHealthController
         
         $referer = $_SERVER['HTTP_REFERER'] ?? "/documents/{$tracking_code}";
         header("Location: $referer");
+        exit;
+    }
+
+    public function freezeAll()
+    {
+        $currentUser = \App\Models\User::findById($_SESSION['user_id'] ?? 0);
+        $db = Database::getInstance();
+        $workflow = new \App\Services\DocumentWorkflowService();
+        
+        $integrityCheckResult = [];
+        if (file_exists(BASE_PATH . '/cache/integrity-check-result.json')) {
+            $integrityCheckResult = json_decode(file_get_contents(BASE_PATH . '/cache/integrity-check-result.json'), true);
+        }
+
+        $trackingCodesToFreeze = [];
+
+        // Collect documents from live state tampering
+        if (!empty($integrityCheckResult['mismatched_document_tracking_codes'])) {
+            foreach ($integrityCheckResult['mismatched_document_tracking_codes'] as $code) {
+                $trackingCodesToFreeze[$code] = true;
+            }
+        }
+
+        // Collect documents from hash chain corruption
+        if (!empty($integrityCheckResult['mismatched_ids'])) {
+            $limitedIds = array_slice($integrityCheckResult['mismatched_ids'], 0, 100);
+            $ids = implode(',', array_map('intval', $limitedIds));
+            if ($ids) {
+                $stmt = $db->query("SELECT d.tracking_code FROM document_logs dl JOIN documents d ON dl.document_id = d.id WHERE dl.id IN ($ids)");
+                while ($row = $stmt->fetch()) {
+                    if ($row['tracking_code']) {
+                        $trackingCodesToFreeze[$row['tracking_code']] = true;
+                    }
+                }
+            }
+        }
+
+        $frozenCount = 0;
+        foreach (array_keys($trackingCodesToFreeze) as $code) {
+            try {
+                $workflow->freezeDocument($code, $currentUser);
+                $frozenCount++;
+            } catch (\Exception $e) {
+                // Ignore if it's already frozen or if permission issues arise
+            }
+        }
+        
+        $_SESSION['success'] = "Successfully frozen $frozenCount documents with integrity issues.";
+        header("Location: /system-overview");
         exit;
     }
 

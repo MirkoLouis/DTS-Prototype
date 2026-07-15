@@ -1,5 +1,17 @@
 # Changelog
 
+## 2026-07-15 22:43
+
+**Version:** 1.14.2-alpha+202607152243
+
+### ADDED
+- Added a "Freeze All" button to the System Health Overview for administrators to batch-freeze all documents with flagged integrity issues.
+
+### FIXED
+- Fixed a bug where `DocumentWorkflowService::autoResolveDocument()` crashed with a MySQL 3140 Invalid JSON text error (`The document is empty`) by correctly mapping empty strings to `null` for the `guest_info` and `finalized_route` columns when restoring snapshots from the genesis block.
+- Removed unused and obsolete file `working-php/src/Views/profile/edit.php`.
+- Removed obsolete mass-migration scripts (`rewrite_dashboard.php`, `rewrite_intake.php`, `rewrite_integrity.php`, `rewrite_statistics.php`) from the `scripts/` directory as the offset-to-cursor pagination migration is complete.
+
 ## 2026-07-15 15:16
 
 **Version:** 1.14.0-alpha+202607151516

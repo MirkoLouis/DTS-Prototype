@@ -110,6 +110,10 @@ $router->post('/system-health/failed-jobs/delete-all', [App\Controllers\SystemHe
     App\Middleware\AuthMiddleware::class,
     App\Middleware\RoleMiddleware::class . ':admin'
 ]);
+$router->post('/system-health/freeze-all', [App\Controllers\SystemHealthController::class, 'freezeAll'], [
+    App\Middleware\AuthMiddleware::class,
+    App\Middleware\RoleMiddleware::class . ':admin'
+]);
 
 $router->get('/system/backups', [App\Controllers\BackupManagerController::class, 'index'], [
     App\Middleware\AuthMiddleware::class,
