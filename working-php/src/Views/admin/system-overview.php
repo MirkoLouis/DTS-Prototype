@@ -12,20 +12,7 @@ ob_start(); ?>
 
                 <div class="space-y-6">
                     <!-- Section: System Status Overview -->
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <?php
-                            $seconds = $appHealthMetrics['average_processing_time'] ?? 0;
-                            if ($seconds <= 0) {
-                                $formattedTime = 'N/A';
-                            } else {
-                                    $formattedTime = round($seconds / 3600, 2) . ' <span class="text-lg font-normal">hours</span>';
-                            }
-                        ?>
-                        <!-- Avg. Processing Time -->
-                        <div class="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg shadow">
-                            <h4 class="text-lg font-bold mb-2">Avg. Processing Time</h4>
-                            <p class="text-3xl font-semibold"><?= $formattedTime ?></p>
-                        </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <!-- Failed Jobs -->
                         <div class="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg shadow">
                             <h4 class="text-lg font-bold mb-2">Failed Jobs</h4>
@@ -182,7 +169,13 @@ ob_start(); ?>
                     <!-- Section: Integrity Issues -->
                     <?php if (!empty($paginatedIssues)): ?>
                         <div class="bg-red-50 dark:bg-red-900/20 pt-3 px-5 pb-5 rounded-lg shadow">
-                            <h3 class="text-xl font-bold mb-4 text-red-600 dark:text-red-400 border-b border-red-200 dark:border-red-700 pb-2">Integrity Issues Detected</h3>
+                            <div class="flex justify-between items-center mb-4 border-b border-red-200 dark:border-red-700 pb-2">
+                                <h3 class="text-xl font-bold text-red-600 dark:text-red-400">Integrity Issues Detected</h3>
+                                <form action="/system-health/freeze-all" method="POST" class="confirm-action" data-message="Are you sure you want to freeze ALL documents with integrity issues?">
+                                    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
+                                    <button type="submit" class="bg-red-600 text-white px-3 py-1.5 rounded hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 transition-colors font-bold text-xs shadow">Freeze All</button>
+                                </form>
+                            </div>
                             <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">
                                 The following records indicate database tampering or cryptographic chain corruption.
                             </p>

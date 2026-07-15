@@ -45,8 +45,7 @@ class IntegrityManager
             $purposeId,
             $finalizedRoute
         ];
-
-        return hash('sha256', json_encode($stateData));
+        return hash('sha256', json_encode($stateData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
     }
 
     /**
@@ -149,8 +148,7 @@ class IntegrityManager
             $documentStateHash,
             $signature
         ];
-
-        $hash = hash('sha256', json_encode($dataToHash));
+        $hash = hash('sha256', json_encode($dataToHash, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
         // 5. Insert the log entry
         $db->query(

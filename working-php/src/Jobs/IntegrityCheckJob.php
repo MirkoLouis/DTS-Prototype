@@ -41,15 +41,16 @@ class IntegrityCheckJob
                     $expectedPreviousHash = $lastHashesByDocument[$log['document_id']] ?? 'genesis_hash';
                     $timestampForHashing = date('c', strtotime($log['created_at']));
                     
-                    $dataToHash = $log['document_id'] . '|' . 
-                                 $log['user_id'] . '|' . 
-                                 $log['action'] . '|' . 
-                                 $timestampForHashing . '|' . 
-                                 $expectedPreviousHash . '|' . 
-                                 $log['document_state_hash'] . '|' . 
-                                 $log['signature'];
-
-                    $recalculatedHash = hash('sha256', $dataToHash);
+                    $dataToHash = [
+                        (int) $log['document_id'],
+                        $log['user_id'] ? (int) $log['user_id'] : '',
+                        $log['action'],
+                        $timestampForHashing,
+                        $expectedPreviousHash,
+                        $log['document_state_hash'],
+                        $log['signature']
+                    ];
+                    $recalculatedHash = hash('sha256', json_encode($dataToHash, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
 
                     if ($recalculatedHash !== $log['hash']) {
                         $invalidLogsCount++;

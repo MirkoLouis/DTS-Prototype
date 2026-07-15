@@ -1,18 +1,25 @@
-<?php $title = 'Admin Dashboard'; ob_start(); ?>
+<?php $title = 'Admin Dashboard'; ?>
+
+<?php ob_start(); ?>
+<h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+    Admin Dashboard
+</h2>
+<?php $header = ob_get_clean(); ?>
+
+<?php ob_start(); ?>
 <div class="py-2">
         <div class="mx-[20vh] sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-6 text-gray-900 dark:text-gray-100">
-                    <div class="flex justify-between items-center mb-4">
-                        <h2 class="text-2xl font-bold">Admin Dashboard</h2>
-                        <form action="/clear-personal-cache" method="POST" class="confirm-action" data-message="Are you sure you want to clear your dashboard cache? This will refresh your view but preserve others' caches.">
-    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-xl font-bold">Global Analytics</h3>
+                        <form action="/clear-personal-cache" method="POST" class="confirm-action m-0" data-message="Are you sure you want to clear your dashboard cache? This will refresh your view but preserve others' caches.">
+                            <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
                             <button type="submit" class="inline-flex items-center px-3 py-1 bg-gray-200 dark:bg-gray-700 border border-transparent rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest hover:bg-gray-300 dark:hover:bg-accent-2 focus:outline-none transition">
-                                Clear My Cache
+                                Clear Cache
                             </button>
                         </form>
                     </div>
-
                     <div class="space-y-6"
                          data-current-load-url="/api/admin-dashboard/current-load"
                          data-throughput-url="/api/admin-dashboard/throughput"
