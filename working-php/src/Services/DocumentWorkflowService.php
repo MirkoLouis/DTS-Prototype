@@ -29,8 +29,7 @@ class DocumentWorkflowService
         try {
             $conn->beginTransaction();
             
-            // 1. Pessimistic Lock (FOR UPDATE)
-            $stmt = $this->db->query("SELECT * FROM documents WHERE $idField = :id FOR UPDATE", [':id' => $idValue]);
+            $stmt = $this->db->query("SELECT * FROM documents WHERE $idField = :id", [':id' => $idValue]);
             $document = $stmt->fetch();
             
             if (!$document) {
@@ -179,11 +178,15 @@ class DocumentWorkflowService
                 }
             }
 
-            $db->query("UPDATE documents SET status = 'in_transit', finalized_route = :route, current_step = 1, current_department_id = :dept_id, updated_at = NOW() WHERE id = :id", [
+            $stmt = $db->query("UPDATE documents SET status = 'in_transit', finalized_route = :route, current_step = 1, current_department_id = :dept_id, updated_at = NOW(), version = version + 1 WHERE id = :id AND version = :version", [
                 ':route' => $finalizedRouteJson,
                 ':dept_id' => $firstDepartment ? $firstDepartment['id'] : null,
-                ':id' => $document['id']
+                ':id' => $document['id'],
+                ':version' => $document['version']
             ]);
+            if ($stmt->rowCount() === 0) {
+                throw new Exception("This document was just modified by another user. Please refresh.");
+            }
 
             // Re-fetch document for hashing
             $updatedDocument = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
@@ -214,10 +217,12 @@ class DocumentWorkflowService
                     $stmt = $db->query("SELECT name FROM departments WHERE id = :id", [':id' => $user->department_id]);
                     $dept = $stmt->fetch();
                     if ($dept && $dept['name'] === 'Records Unit') {
-                        $db->query("UPDATE documents SET status = 'ready_for_release', current_department_id = :dept_id, updated_at = NOW() WHERE id = :id", [
+                        $stmt = $db->query("UPDATE documents SET status = 'ready_for_release', current_department_id = :dept_id, updated_at = NOW(), version = version + 1 WHERE id = :id AND version = :version", [
                             ':dept_id' => $user->department_id,
-                            ':id' => $document['id']
+                            ':id' => $document['id'],
+                            ':version' => $document['version']
                         ]);
+                        if ($stmt->rowCount() === 0) throw new Exception("This document was just modified by another user. Please refresh.");
                         $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
                         IntegrityManager::createLog($document['id'], $user->id, 'Ready for Releasing', 'All processing steps completed. Document received by Records Unit for final releasing.', $updatedDoc);
                         return 'releasing';
@@ -228,10 +233,12 @@ class DocumentWorkflowService
                     $dept = $stmt->fetch();
                     
                     if ($dept && $dept['name'] === $responsibleDepartmentName) {
-                        $db->query("UPDATE documents SET status = 'processing', current_department_id = :dept_id, updated_at = NOW() WHERE id = :id", [
+                        $stmt = $db->query("UPDATE documents SET status = 'processing', current_department_id = :dept_id, updated_at = NOW(), version = version + 1 WHERE id = :id AND version = :version", [
                             ':dept_id' => $user->department_id,
-                            ':id' => $document['id']
+                            ':id' => $document['id'],
+                            ':version' => $document['version']
                         ]);
+                        if ($stmt->rowCount() === 0) throw new Exception("This document was just modified by another user. Please refresh.");
                         $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
                         IntegrityManager::createLog($document['id'], $user->id, 'Received', "Document received by {$dept['name']}.", $updatedDoc);
                         return ($user->role === 'officer') ? 'officer.tasks' : 'staff.tasks';
@@ -290,11 +297,13 @@ class DocumentWorkflowService
                 }
             }
 
-            $db->query("UPDATE documents SET status = 'in_transit', current_step = :step, current_department_id = :dept_id, updated_at = NOW() WHERE id = :id", [
+            $stmt = $db->query("UPDATE documents SET status = 'in_transit', current_step = :step, current_department_id = :dept_id, updated_at = NOW(), version = version + 1 WHERE id = :id AND version = :version", [
                 ':step' => $newStep,
                 ':dept_id' => $nextDepartmentId,
-                ':id' => $document['id']
+                ':id' => $document['id'],
+                ':version' => $document['version']
             ]);
+            if ($stmt->rowCount() === 0) throw new Exception("This document was just modified by another user. Please refresh.");
 
             $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
 
@@ -320,10 +329,12 @@ class DocumentWorkflowService
                 throw new Exception("This document is not ready for release.");
             }
 
-            $db->query("UPDATE documents SET status = 'completed', current_department_id = NULL, released_at = NOW(), released_by_user_id = :uid, updated_at = NOW() WHERE id = :id", [
+            $stmt = $db->query("UPDATE documents SET status = 'completed', current_department_id = NULL, released_at = NOW(), released_by_user_id = :uid, updated_at = NOW(), version = version + 1 WHERE id = :id AND version = :version", [
                 ':uid' => $officer->id,
-                ':id' => $document['id']
+                ':id' => $document['id'],
+                ':version' => $document['version']
             ]);
+            if ($stmt->rowCount() === 0) throw new Exception("This document was just modified by another user. Please refresh.");
 
             $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
 
@@ -341,10 +352,12 @@ class DocumentWorkflowService
                 throw new Exception("This document cannot be declined as it is already being processed.");
             }
 
-            $db->query("UPDATE documents SET status = 'declined', decline_reason = :reason, declined_at = NOW(), updated_at = NOW() WHERE id = :id", [
+            $stmt = $db->query("UPDATE documents SET status = 'declined', decline_reason = :reason, declined_at = NOW(), updated_at = NOW(), version = version + 1 WHERE id = :id AND version = :version", [
                 ':reason' => $reason,
-                ':id' => $document['id']
+                ':id' => $document['id'],
+                ':version' => $document['version']
             ]);
+            if ($stmt->rowCount() === 0) throw new Exception("This document was just modified by another user. Please refresh.");
 
             $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
 
@@ -370,10 +383,12 @@ class DocumentWorkflowService
                 
                 $newRouteJson = json_encode($route);
                 
-                $db->query("UPDATE documents SET finalized_route = :route WHERE id = :id", [
+                $stmt = $db->query("UPDATE documents SET finalized_route = :route, version = version + 1 WHERE id = :id AND version = :version", [
                     ':route' => $newRouteJson,
-                    ':id' => $document['id']
+                    ':id' => $document['id'],
+                    ':version' => $document['version']
                 ]);
+                if ($stmt->rowCount() === 0) throw new Exception("This document was just modified by another user. Please refresh.");
 
                 $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
 
@@ -394,7 +409,8 @@ class DocumentWorkflowService
     public function freezeDocument(string $trackingCode, User $admin): void
     {
         $this->executeWithLock('tracking_code', $trackingCode, $admin, 'freeze', function ($document, $db) use ($admin) {
-            $db->query("UPDATE documents SET status = 'frozen', updated_at = NOW() WHERE id = :id", [':id' => $document['id']]);
+            $stmt = $db->query("UPDATE documents SET status = 'frozen', updated_at = NOW(), version = version + 1 WHERE id = :id AND version = :version", [':id' => $document['id'], ':version' => $document['version']]);
+            if ($stmt->rowCount() === 0) throw new Exception("This document was just modified by another user. Please refresh.");
             $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
             IntegrityManager::createLog($document['id'], $admin->id, 'ADMIN: Document frozen.', 'An administrator has frozen this document, likely pending an integrity investigation.', $updatedDoc);
         });
@@ -418,10 +434,12 @@ class DocumentWorkflowService
                 };
             }
 
-            $db->query("UPDATE documents SET status = :status, updated_at = NOW() WHERE id = :id", [
+            $stmt = $db->query("UPDATE documents SET status = :status, updated_at = NOW(), version = version + 1 WHERE id = :id AND version = :version", [
                 ':status' => $previousStatus,
-                ':id' => $document['id']
+                ':id' => $document['id'],
+                ':version' => $document['version']
             ]);
+            if ($stmt->rowCount() === 0) throw new Exception("This document was just modified by another user. Please refresh.");
 
             $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
             IntegrityManager::createLog($document['id'], $admin->id, 'ADMIN: Document unfrozen.', "An administrator has unfrozen this document, restoring its status to " . ucfirst($previousStatus) . ".", $updatedDoc);
@@ -457,7 +475,7 @@ class DocumentWorkflowService
                 default => 'processing'
             };
 
-            $db->query("UPDATE documents SET 
+            $stmt = $db->query("UPDATE documents SET 
                 title = :title, 
                 guest_info = :guest_info, 
                 district = :district, 
@@ -465,8 +483,9 @@ class DocumentWorkflowService
                 purpose_id = :purpose_id, 
                 finalized_route = :finalized_route, 
                 status = :status, 
-                updated_at = NOW() 
-                WHERE id = :id", [
+                updated_at = NOW(),
+                version = version + 1
+                WHERE id = :id AND version = :version", [
                 ':title' => $snapshot['title'] ?? null,
                 ':guest_info' => $snapshot['guest_info'] ?? null,
                 ':district' => $snapshot['district'] ?? null,
@@ -474,8 +493,10 @@ class DocumentWorkflowService
                 ':purpose_id' => $snapshot['purpose_id'] ?? null,
                 ':finalized_route' => $snapshot['finalized_route'] ?? null,
                 ':status' => $previousStatus,
-                ':id' => $document['id']
+                ':id' => $document['id'],
+                ':version' => $document['version']
             ]);
+            if ($stmt->rowCount() === 0) throw new Exception("This document was just modified by another user. Please refresh.");
 
             $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
             IntegrityManager::createLog($document['id'], $admin->id, 'ADMIN: Document Unfrozen & Restored', "An administrator has executed Auto-resolve, restoring the document from its last valid snapshot and returning status to " . ucfirst($previousStatus) . ".", $updatedDoc);
