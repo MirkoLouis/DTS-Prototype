@@ -21,5 +21,11 @@
 ?>
 
 <div class="mt-4">
-    <?php require BASE_PATH . '/src/Views/components/pagination.php'; ?>
+    <?php 
+        if ($paginator instanceof \App\Utils\CursorPaginator) {
+            require BASE_PATH . '/src/Views/components/cursor-pagination.php';
+        } else {
+            require BASE_PATH . '/src/Views/components/pagination.php';
+        }
+    ?>
 </div>

@@ -79,7 +79,7 @@ class IntegrityManager
             $key = substr(hash('sha256', $pin), 0, 32);
             $iv = str_repeat('0', 16);
             $encryptedPriv = $decoded;
-        } elseif (strlen($decoded) === 96) {
+        } elseif (strlen($decoded) === 112) {
             $salt = substr($decoded, 0, SODIUM_CRYPTO_PWHASH_SALTBYTES);
             $iv = substr($decoded, SODIUM_CRYPTO_PWHASH_SALTBYTES, 16);
             $encryptedPriv = substr($decoded, SODIUM_CRYPTO_PWHASH_SALTBYTES + 16);

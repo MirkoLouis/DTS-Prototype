@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-07-15 15:16
+
+**Version:** 1.14.0-alpha+202607151516
+
+### ADDED
+- Implemented Cursor-Based Pagination and 5-minute table count caching to significantly improve loading times for massive document tables.
+- Added Optimistic Locking with a `version` column to handle concurrent modifications properly with UI toast alerts instead of database row locks.
+
+### FIXED
+- Fixed a bug where `IntegrityManager` wrongly flagged valid private keys as corrupted due to AES PKCS7 padding length mismatches.
+- Added `notifications` table drop statement to `database.sql` to prevent production seeding from failing.
+- Fixed UI components that crashed because they were hardcoded to use offset-based pagination instead of supporting `CursorPaginator`.
+
 ## 2026-07-14 22:35
 
 **Version:** 1.13.1-alpha+202607142235
