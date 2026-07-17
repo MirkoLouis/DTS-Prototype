@@ -13,7 +13,7 @@ class IntakeController
         $db = Database::getInstance();
         
         
-        $filters = $this->buildFilterQuery(['date', 'status', 'purpose', 'submitter', 'search'], 'max_logs.handled_at');
+        $filters = $this->buildFilterQuery(['date', 'status', 'purpose', 'submitter', 'search'], 'max_logs.created_at');
         $params = array_merge([':officer_id' => $officerId], $filters['params']);
         
         $cursor = $_GET['cursor'] ?? null;
@@ -21,16 +21,19 @@ class IntakeController
         $cacheKey = 'count_intake_controller_' . md5(json_encode(array_merge($params, $filters)));
         $totalItems = Cache::remember($cacheKey, 300, function() use ($db, $params, $filters) {
             $countSql = "SELECT COUNT(d.id) as total 
-                         FROM documents d 
+                         FROM document_logs max_logs USE INDEX (idx_log_category)
+                         INNER JOIN documents d ON d.id = max_logs.document_id 
                          LEFT JOIN purposes p ON d.purpose_id = p.id
-                         INNER JOIN (
-                             SELECT document_id, MAX(created_at) as handled_at
-                             FROM document_logs
-                             WHERE user_id = :officer_id 
-                               AND action = 'Accepted and Document Routing finalized'
-                             GROUP BY document_id
-                         ) max_logs ON d.id = max_logs.document_id 
-                         WHERE 1=1 " . $filters['sql'];
+                         WHERE max_logs.user_id = :officer_id 
+                           AND max_logs.action_category = 1
+                           AND max_logs.created_at >= DATE_SUB(NOW(), INTERVAL 4 WEEK)
+                           AND NOT EXISTS (
+                               SELECT 1 FROM document_logs l2
+                               WHERE l2.document_id = max_logs.document_id
+                                 AND l2.user_id = max_logs.user_id
+                                 AND l2.action_category = 1
+                                 AND l2.created_at > max_logs.created_at
+                           ) " . $filters['sql'];
             $countStmt = $db->query($countSql, $params);
             return $countStmt->fetch()['total'] ?? 0;
         });
@@ -38,7 +41,7 @@ class IntakeController
         if ($cursor) {
             $parts = explode('_', $cursor);
             if (count($parts) == 2) {
-                $filters['sql'] .= " AND (max_logs.handled_at < :c_time1 OR (max_logs.handled_at = :c_time2 AND d.id < :c_id))";
+                $filters['sql'] .= " AND (max_logs.created_at < :c_time1 OR (max_logs.created_at = :c_time2 AND max_logs.document_id < :c_id))";
                 $params[':c_time1'] = $parts[0];
                 $params[':c_time2'] = $parts[0];
                 $params[':c_id'] = $parts[1];
@@ -48,18 +51,21 @@ class IntakeController
         $perPage = 15;
         $limit = $perPage + 1;
 
-        $sql = "SELECT d.id, d.tracking_code, d.title, d.status, d.created_at, d.guest_info, p.name as purpose_name, max_logs.handled_at 
-                FROM documents d 
+        $sql = "SELECT d.id, d.tracking_code, d.title, d.status, d.created_at, d.guest_info, p.name as purpose_name, max_logs.created_at as handled_at 
+                FROM document_logs max_logs
+                INNER JOIN documents d ON d.id = max_logs.document_id 
                 LEFT JOIN purposes p ON d.purpose_id = p.id 
-                INNER JOIN (
-                    SELECT document_id, MAX(created_at) as handled_at
-                    FROM document_logs
-                    WHERE user_id = :officer_id 
-                      AND action = 'Accepted and Document Routing finalized'
-                    GROUP BY document_id
-                ) max_logs ON d.id = max_logs.document_id 
-                WHERE 1=1 " . $filters['sql'] . "
-                ORDER BY max_logs.handled_at DESC, d.id DESC
+                WHERE max_logs.user_id = :officer_id 
+                  AND max_logs.action_category = 1
+                  AND max_logs.created_at >= DATE_SUB(NOW(), INTERVAL 4 WEEK)
+                  AND NOT EXISTS (
+                      SELECT 1 FROM document_logs l2
+                      WHERE l2.document_id = max_logs.document_id
+                        AND l2.user_id = max_logs.user_id
+                        AND l2.action_category = 1
+                        AND l2.created_at > max_logs.created_at
+                  ) " . $filters['sql'] . "
+                ORDER BY max_logs.created_at DESC, max_logs.document_id DESC
                 LIMIT {$limit}";
                 
         $stmt = $db->query($sql, $params);

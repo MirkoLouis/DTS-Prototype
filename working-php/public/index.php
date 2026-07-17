@@ -1,5 +1,7 @@
 <?php
 
+$appStartTime = microtime(true);
+
 // Front Controller
 session_start();
 
@@ -354,3 +356,17 @@ if (php_sapi_name() === 'cli-server' && is_file(__DIR__ . parse_url($uri, PHP_UR
 }
 
 $router->dispatch($uri, $method);
+
+// Log Navigation Performance
+$appEndTime = microtime(true);
+$durationMs = round(($appEndTime - $appStartTime) * 1000);
+$referer = $_SERVER['HTTP_REFERER'] ?? 'direct';
+$refererPath = $referer !== 'direct' ? (parse_url($referer, PHP_URL_PATH) ?? '/') : 'direct';
+$currentPath = parse_url($uri, PHP_URL_PATH) ?? '/';
+
+$logDir = BASE_PATH . '/storage/logs';
+if (!is_dir($logDir)) {
+    mkdir($logDir, 0777, true);
+}
+$logMessage = sprintf("[%s] %s to %s - %dms\n", date('Y-m-d H:i:s'), $refererPath, $currentPath, $durationMs);
+file_put_contents($logDir . '/navigation.log', $logMessage, FILE_APPEND);
