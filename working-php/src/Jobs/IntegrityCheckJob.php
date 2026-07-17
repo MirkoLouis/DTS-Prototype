@@ -15,6 +15,8 @@ class IntegrityCheckJob
         $this->integrityCheckId = $integrityCheckId;
     }
 
+    // Executes a full cryptographic audit of the system. Verifies the SHA-256 hash chain, 
+    // Ed25519 signatures against historical public keys, and live document states.
     public function handle(): void
     {
         $db = Database::getInstance();
@@ -24,7 +26,7 @@ class IntegrityCheckJob
         ]);
 
         try {
-            // Step 1: Historical Log Hash Chain Integrity
+            // Step 1: Traverse the entire log history to ensure the unbroken continuity of the hash chain
             $totalLogs = $db->query("SELECT COUNT(*) as c FROM document_logs")->fetch()['c'] ?? 0;
             $invalidLogsCount = 0;
             $invalidSignaturesCount = 0;
@@ -57,7 +59,7 @@ class IntegrityCheckJob
                         $mismatchedIds[] = $log['id'];
                     }
 
-                    // 2. Verify Cryptographic Signature
+                    // 2. Verify Cryptographic Signature: Ensure the action was genuinely authorized by the user's private key at that exact point in time
                     if ($log['signature'] && strlen($log['signature']) > 10) {
                         $isMockSignature = str_starts_with(base64_decode($log['signature']), 'SYSTEM_SIG:');
                         if ($isMockSignature) {
@@ -107,7 +109,7 @@ class IntegrityCheckJob
                 }
             }
 
-            // Step 2: Live Document State Integrity
+            // Step 3: Compare the current live state of every document against its last cryptographically sealed state
             $totalDocuments = $db->query("SELECT COUNT(*) as c FROM documents")->fetch()['c'] ?? 0;
             $liveStateErrorsCount = 0;
             $mismatchedDocumentTrackingCodes = [];

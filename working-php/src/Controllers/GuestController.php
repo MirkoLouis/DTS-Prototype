@@ -33,6 +33,7 @@ class GuestController
         require __DIR__ . '/../Views/layouts/guest.php';
     }
 
+    // Processes the public submission form and delegates creation to the secure workflow service.
     public function store()
     {
         $db = Database::getInstance();
@@ -51,7 +52,7 @@ class GuestController
 
         try {
             $workflow = new \App\Services\DocumentWorkflowService();
-            // Need to pass the validated data, but keep the exact array keys the service expects
+            // Pass the validated data directly; the service depends on exact array keys to construct the initial state hash
             $result = $workflow->submitDocument($validated);
             
             $trackingCode = $result['tracking_code'];
@@ -66,6 +67,7 @@ class GuestController
         exit;
     }
 
+    // Generates a trackable QR code for the newly submitted document to facilitate physical scanning by officers.
     public function success()
     {
         $tracking_code = trim($_GET['tracking_code'] ?? '');
@@ -90,6 +92,7 @@ class GuestController
         require __DIR__ . '/../Views/layouts/guest.php';
     }
 
+    // Aggregates tracking data and full audit logs for one or more documents requested by a guest.
     public function track()
     {
         $codesParam = $_GET['codes'] ?? '';

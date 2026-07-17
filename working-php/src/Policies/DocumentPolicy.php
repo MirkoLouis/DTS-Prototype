@@ -10,6 +10,8 @@ class DocumentPolicy
 {
     /**
      * Determine whether the user can view the document.
+     * 
+     * Grant unconditional access to admins and officers; restrict staff to documents that route through their specific department.
      */
     public function view(User $user, array $document): bool
     {
@@ -38,6 +40,10 @@ class DocumentPolicy
 
     /**
      * Determine whether the user can process the document.
+     * 
+     * Determines if a user can actively process (e.g., receive, complete task) a document. 
+     * Critically, this acts as the "Active Guard" by enforcing real-time cryptographic integrity checks 
+     * before allowing state changes.
      */
     public function process(User $user, array $document): bool
     {
@@ -57,6 +63,7 @@ class DocumentPolicy
             $dept = $stmt->fetch();
             $departmentName = $dept ? $dept['name'] : '';
             
+            // Only allow staff to process if the document is currently routed to their department's specific step.
             $route = $document['finalized_route'] ? json_decode($document['finalized_route'], true) : [];
             $currentStepIndex = ((int)($document['current_step'] ?? 1)) - 1;
 
@@ -70,6 +77,9 @@ class DocumentPolicy
 
     /**
      * Determine whether the user can manage (finalize) the document.
+     * 
+     * Controls access to finalization actions like declining or accepting intake. 
+     * Enforces integrity checks if logs already exist.
      */
     public function manage(User $user, array $document): bool
     {

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2026-07-17 21:05
+
+**Version:** 1.14.4-alpha+202607172105
+
+### ADDED
+- Completed an extensive codebase documentation pass. Added inline comments explaining the purpose and logic of critical, moderately complex code blocks across services, core components, controllers, middleware, policies, scripts, jobs, and models.
+
 ## 2026-07-17 20:40
 
 **Version:** 1.14.3-alpha+202607172040

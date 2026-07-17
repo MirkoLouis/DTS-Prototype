@@ -150,6 +150,7 @@
         const requirementsSection = document.getElementById('requirements-section');
         const requirementsList = document.getElementById('requirements-list');
 
+        // Dynamically reveal or hide the "Requirements" section based on the user's selected purpose dropdown.
         function updatePurposeFields() {
             const selectedOptionValue = purposeSelect.value;
             const selectedOption = purposeSelect.options[purposeSelect.selectedIndex];
