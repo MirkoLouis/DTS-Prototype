@@ -20,9 +20,9 @@ class DocumentWorkflowService
     }
 
     /**
-     * Safely executes an action within a DB Transaction using Pessimistic Locking.
+     * Safely executes an action within a DB Transaction using Optimistic Locking (via version increment).
      */
-    private function executeWithLock(string $idField, $idValue, ?User $user, ?string $policyMethod, callable $action)
+    private function executeInTransaction(string $idField, $idValue, ?User $user, ?string $policyMethod, callable $action)
     {
         $conn = $this->db->getConnection();
         
@@ -140,7 +140,7 @@ class DocumentWorkflowService
      */
     public function finalizeIntake(int $documentId, array $routeNames, User $officer, string $pin): void
     {
-        $this->executeWithLock('id', $documentId, $officer, 'manage', function ($document, $db) use ($routeNames, $officer, $pin) {
+        $this->executeInTransaction('id', $documentId, $officer, 'manage', function ($document, $db) use ($routeNames, $officer, $pin) {
             if ($document['status'] !== 'pending') {
                 throw new Exception("This document is already being processed.");
             }
@@ -207,7 +207,7 @@ class DocumentWorkflowService
      */
     public function scanDocument(string $trackingCode, User $user): string
     {
-        return $this->executeWithLock('tracking_code', $trackingCode, $user, 'process', function ($document, $db) use ($user) {
+        return $this->executeInTransaction('tracking_code', $trackingCode, $user, 'process', function ($document, $db) use ($user) {
             $route = $document['finalized_route'] ? json_decode($document['finalized_route'], true) : [];
             $currentStepIndex = ((int)$document['current_step']) - 1;
 
@@ -276,7 +276,7 @@ class DocumentWorkflowService
      */
     public function completeTask(int $documentId, string $remarks, User $user, string $pin): void
     {
-        $this->executeWithLock('id', $documentId, $user, 'process', function ($document, $db) use ($remarks, $user, $pin) {
+        $this->executeInTransaction('id', $documentId, $user, 'process', function ($document, $db) use ($remarks, $user, $pin) {
             if ($document['status'] !== 'processing') {
                 throw new Exception("This document is not currently being processed.");
             }
@@ -324,7 +324,7 @@ class DocumentWorkflowService
      */
     public function releaseDocument(int $documentId, User $officer, string $pin): void
     {
-        $this->executeWithLock('id', $documentId, $officer, 'manage', function ($document, $db) use ($officer, $pin) {
+        $this->executeInTransaction('id', $documentId, $officer, 'manage', function ($document, $db) use ($officer, $pin) {
             if ($document['status'] !== 'ready_for_release') {
                 throw new Exception("This document is not ready for release.");
             }
@@ -347,7 +347,7 @@ class DocumentWorkflowService
      */
     public function declineDocument(int $documentId, string $reason, User $officer): void
     {
-        $this->executeWithLock('id', $documentId, $officer, 'manage', function ($document, $db) use ($reason, $officer) {
+        $this->executeInTransaction('id', $documentId, $officer, 'manage', function ($document, $db) use ($reason, $officer) {
             if ($document['status'] !== 'pending') {
                 throw new Exception("This document cannot be declined as it is already being processed.");
             }
@@ -370,7 +370,7 @@ class DocumentWorkflowService
      */
     public function requestReturn(int $documentId, string $reason, User $user, string $pin): void
     {
-        $this->executeWithLock('id', $documentId, $user, 'process', function ($document, $db) use ($reason, $user, $pin) {
+        $this->executeInTransaction('id', $documentId, $user, 'process', function ($document, $db) use ($reason, $user, $pin) {
             $stmt = $db->query("SELECT name FROM departments WHERE id = :id", [':id' => $user->department_id]);
             $dept = $stmt->fetch();
             $deptName = $dept ? $dept['name'] : 'Unknown Department';
@@ -408,7 +408,7 @@ class DocumentWorkflowService
 
     public function freezeDocument(string $trackingCode, User $admin): void
     {
-        $this->executeWithLock('tracking_code', $trackingCode, $admin, 'freeze', function ($document, $db) use ($admin) {
+        $this->executeInTransaction('tracking_code', $trackingCode, $admin, 'freeze', function ($document, $db) use ($admin) {
             $stmt = $db->query("UPDATE documents SET status = 'frozen', updated_at = NOW(), version = version + 1 WHERE id = :id AND version = :version", [':id' => $document['id'], ':version' => $document['version']]);
             if ($stmt->rowCount() === 0) throw new Exception("This document was just modified by another user. Please refresh.");
             $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
@@ -418,7 +418,7 @@ class DocumentWorkflowService
 
     public function unfreezeDocument(string $trackingCode, User $admin): string
     {
-        return $this->executeWithLock('tracking_code', $trackingCode, $admin, 'unfreeze', function ($document, $db) use ($admin) {
+        return $this->executeInTransaction('tracking_code', $trackingCode, $admin, 'unfreeze', function ($document, $db) use ($admin) {
             $lastValidLog = $db->query("SELECT action FROM document_logs WHERE document_id = :id AND action != 'ADMIN: Document frozen.' AND action != 'System Auto-Freeze' ORDER BY id DESC LIMIT 1", [':id' => $document['id']])->fetch();
             
             $previousStatus = $document['status'];
@@ -449,7 +449,7 @@ class DocumentWorkflowService
 
     public function autoResolveDocument(string $trackingCode, User $admin): void
     {
-        $this->executeWithLock('tracking_code', $trackingCode, $admin, 'unfreeze', function ($document, $db) use ($admin) {
+        $this->executeInTransaction('tracking_code', $trackingCode, $admin, 'unfreeze', function ($document, $db) use ($admin) {
             // Tampered documents might not be in 'frozen' status if they were just flagged by verification
             // and haven't triggered the Active Guard yet.
 

@@ -48,19 +48,6 @@ class GuestController
             'other_purpose_text' => ''
         ], '/');
 
-        // Simple Rate Limiting (1 submission per 30 seconds per session)
-        // Bypass rate limiting for localhost to allow the Node.js API seeder to function
-        $isLocalhost = in_array($_SERVER['REMOTE_ADDR'] ?? '', ['127.0.0.1', '::1']);
-        
-        if (!$isLocalhost && isset($_SESSION['last_submission_time'])) {
-            $timeSinceLast = time() - $_SESSION['last_submission_time'];
-            if ($timeSinceLast < 30) {
-                $_SESSION['error'] = "You are submitting documents too quickly. Please wait " . (30 - $timeSinceLast) . " seconds.";
-                header("Location: /");
-                exit;
-            }
-        }
-        $_SESSION['last_submission_time'] = time();
 
         try {
             $workflow = new \App\Services\DocumentWorkflowService();
