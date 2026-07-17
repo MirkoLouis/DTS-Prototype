@@ -2,6 +2,7 @@
 $unreadNotifications = [];
 $returnRequestNotifs = [];
 $otherNotifs = [];
+// Fetch and categorize notifications to display return requests separately from generic system alerts.
 if (isset($_SESSION['user_id'])) {
     $notifService = new \App\Core\NotificationService();
     $unreadNotifications = $notifService->getUnreadForCurrentUser();
@@ -391,6 +392,8 @@ if (isset($_SESSION['user_id'])) {
 
             document.querySelectorAll('.confirm-action').forEach(form => {
                 form.addEventListener('submit', (e) => {
+                    // Global confirmation interceptor. Pauses form submission, displays a customizable modal, 
+                    // and safely resumes the native submit flow if the user approves.
                     if (form.dataset.confirmed === "true") {
                         // It was confirmed by the modal, let it pass through to other listeners or native submit
                         delete form.dataset.confirmed;

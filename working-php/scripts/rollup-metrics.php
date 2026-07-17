@@ -21,6 +21,8 @@ $stmt = $db->query(
 $rollups = $stmt->fetchAll();
 
 foreach ($rollups as $row) {
+    // Wrap each hour's rollup in a transaction to ensure we don't accidentally 
+    // delete raw 5-minute data if the aggregate insert fails.
     $conn->beginTransaction();
     try {
         // 1. Delete the raw 5-minute data for this specific hour

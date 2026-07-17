@@ -44,12 +44,16 @@ class Router
     /**
      * Dispatch the current request to the appropriate route.
      * 
+     * Core request dispatcher. Handles URI pattern matching, named parameter extraction, 
+     * middleware execution, and global CSRF protection.
+     * 
      * @param string $requestUri The requested URI path
      * @param string $requestMethod The HTTP method used
      */
     public function dispatch(string $requestUri, string $requestMethod): void
     {
         // Global CSRF Protection for all POST requests
+        // Enforce global CSRF protection on all state-mutating requests to prevent cross-site request forgery.
         if (strtoupper($requestMethod) === 'POST') {
             $token = $_POST['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
             if (empty($token) || !hash_equals($_SESSION['csrf_token'] ?? '', $token)) {
@@ -65,7 +69,7 @@ class Router
         foreach ($this->routes as $route) {
             if ($route['method'] === strtoupper($requestMethod) && preg_match($route['pattern'], $path, $matches)) {
                 
-                // Extract named parameters from regex matches
+                // Extract named parameters from regex matches (e.g., (?P<id>\d+) captures into 'id')
                 $params = array_filter($matches, 'is_string', ARRAY_FILTER_USE_KEY);
 
                 // Run Middleware (basic implementation)
@@ -87,6 +91,7 @@ class Router
 
                 if (is_array($action) && count($action) === 2) {
                     [$class, $method] = $action;
+                    // Instantiate the matched controller and invoke the target method, passing the extracted URL parameters.
                     if (class_exists($class)) {
                         $controller = new $class();
                         if (method_exists($controller, $method)) {

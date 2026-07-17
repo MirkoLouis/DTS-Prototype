@@ -26,6 +26,8 @@ $maxMemory = 128 * 1024 * 1024; // 128 MB limit before restarting
 $maxJobs = 100; // Restart after 100 jobs to clear any accumulated state
 $jobsProcessed = 0;
 
+// Intercepts system termination signals to allow the worker to finish its current job 
+// before shutting down gracefully, preventing data corruption mid-task.
 if (extension_loaded('pcntl')) {
     pcntl_async_signals(true);
     $signalHandler = function ($signo) use (&$stopWorker) {
@@ -59,7 +61,8 @@ while (!$stopWorker) {
     if ($job) {
         $jobId = $job['id'];
         
-        // Reserve the job (pessimistic lock equivalent for simple worker)
+        // Claim the job atomically. Using UPDATE ensures that if multiple worker processes 
+        // are running concurrently, only one will successfully claim this specific row.
         $db->query("UPDATE jobs SET reserved_at = UNIX_TIMESTAMP(), attempts = attempts + 1 WHERE id = :id AND reserved_at IS NULL", ['id' => $jobId]);
         
         // Ensure we actually reserved it (in case of multiple workers)
@@ -76,6 +79,7 @@ while (!$stopWorker) {
                 $jobData = $payload['data'] ?? [];
 
                 if (class_exists($jobClass)) {
+                    // Dynamically instantiate the job class and pass its stored payload as constructor arguments
                     $instance = new $jobClass(...array_values($jobData));
                     if (method_exists($instance, 'handle')) {
                         $instance->handle();

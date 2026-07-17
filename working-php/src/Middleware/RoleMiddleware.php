@@ -7,6 +7,8 @@ class RoleMiddleware
     /**
      * Handle the role verification.
      * 
+     * Protects routes by ensuring the authenticated user holds one of the required roles.
+     * 
      * @param string ...$roles The allowed roles (e.g., 'admin', 'officer')
      */
     public function handle(...$roles)

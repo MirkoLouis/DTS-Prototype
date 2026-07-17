@@ -1,5 +1,3 @@
-
-
 document.addEventListener('DOMContentLoaded', function() {
     const chartContainer = document.querySelector('[data-current-load-url]');
     if (!chartContainer) return;

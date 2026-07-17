@@ -94,6 +94,8 @@
 
         trackingCodeInput.addEventListener('input', clearError);
 
+        // Asynchronously fetches and injects the document tracking card HTML, 
+        // preventing duplicate queries for the same tracking code.
         async function trackDocument(trackingCode) {
             clearError();
             if (!trackingCode) {
@@ -197,6 +199,7 @@
     // Real-time Polling Logic
     const POLLING_INTERVAL = 60000; // 60 seconds
 
+    // Periodically polls the server to check if any tracked document has changed status, automatically refreshing the card if it has.
     async function pollForUpdates() {
         const documentCards = document.querySelectorAll('.document-card');
         if (documentCards.length === 0) return;

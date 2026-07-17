@@ -11,12 +11,18 @@ class IntegrityManager
      * @param array $document An associative array containing document data
      * @return string
      */
+    /**
+     * Calculate a SHA-256 hash representing the current state of a document.
+     * 
+     * Normalizes critical document fields into a consistent array structure to compute a tamper-evident SHA-256 state hash.
+     */
     public static function calculateStateHash(array $document): string
     {
-        // Use empty string as fallback for null values to mimic Laravel's (string) cast
+        // Normalize nulls to empty strings to maintain consistent hash outputs across DB dialects
         $trackingCode = $document['tracking_code'] ?? '';
         $title = $document['title'] ?? '';
         
+        // Parse JSON guest info deterministically, falling back to empty fields if corrupted
         $guestInfo = ['name' => '', 'email' => '', 'phone' => ''];
         if (!empty($document['guest_info'])) {
             $parsedInfo = json_decode($document['guest_info'], true);
@@ -50,6 +56,9 @@ class IntegrityManager
 
     /**
      * Generate an Ed25519 signature for the given action and document state using Sodium.
+     * 
+     * Retrieves and decrypts the user's private key using their PIN to generate a non-repudiable 
+     * signature over the combined action and state.
      *
      * @param int|null $userId
      * @param string $pin
@@ -60,6 +69,7 @@ class IntegrityManager
      */
     public static function signAction(?int $userId, ?string $pin, string $actionText, string $stateHash): string
     {
+        // Allow system-level actions (where userId is null) to bypass user PIN checks
         if (!$userId || empty($pin)) {
             return base64_encode("SYSTEM_SIG:{$actionText}|{$stateHash}");
         }
@@ -73,7 +83,7 @@ class IntegrityManager
 
         $decoded = base64_decode($user['private_key']);
         
-        // Handle legacy format (64 bytes of AES ciphertext) vs new format (16 bytes salt + 16 bytes IV + 64 bytes ciphertext = 96 bytes)
+        // Support both legacy AES-only format and the new Argon2-based key derivation format for backwards compatibility
         if (strlen($decoded) === 64) {
             $key = substr(hash('sha256', $pin), 0, 32);
             $iv = str_repeat('0', 16);
@@ -101,13 +111,16 @@ class IntegrityManager
             throw new \Exception("Invalid Security PIN or corrupted key.");
         }
 
+        // Generate a detached signature binding the action directly to the current state hash
         $signature = sodium_crypto_sign_detached($actionText . '|' . $stateHash, $decryptedPriv);
         return base64_encode($signature);
     }
 
     /**
      * Create a cryptographic log entry for a document action.
-     * This calculates the state hash, signature, and block hash, chaining it to the previous log.
+     * 
+     * Appends a new cryptographic block to the document's log chain, sealing the current state, 
+     * action, and signature together with the previous block's hash.
      *
      * @param int $documentId
      * @param int|null $userId
@@ -124,13 +137,13 @@ class IntegrityManager
         $createdAt = date('Y-m-d H:i:s');
         $timestampForHashing = date('c', strtotime($createdAt));
 
-        // 1. Calculate the state hash based on current document data
+        // 1. Determine state hash; allow override for auto-freeze scenarios to preserve the last valid state
         $documentStateHash = $overrideStateHash ?? self::calculateStateHash($documentData);
 
         // 2. Generate the signature bonded to the action and state hash
         $signature = self::signAction($userId, $pin, $action, $documentStateHash);
 
-        // 3. Find the previous hash in the chain
+        // 3. Fetch the last block's hash to maintain the unbreakable chain sequence
         $stmt = $db->query(
             "SELECT hash FROM document_logs WHERE document_id = :document_id ORDER BY id DESC LIMIT 1",
             [':document_id' => $documentId]
@@ -138,7 +151,7 @@ class IntegrityManager
         $lastLog = $stmt->fetch();
         $previousHash = $lastLog ? $lastLog['hash'] : 'genesis_hash';
 
-        // 4. Calculate the block hash
+        // 4. Compute the final block hash encompassing the entire payload and the parent hash
         $dataToHash = [
             $documentId,
             ($userId ?? ''),
@@ -175,6 +188,9 @@ class IntegrityManager
 
     /**
      * Verify the current live state of a document against its last cryptographic log.
+     * 
+     * Compares the live document row against the state sealed in its most recent cryptographic log 
+     * to detect unauthorized database tampering.
      *
      * @param array $document
      * @return bool
@@ -195,7 +211,7 @@ class IntegrityManager
 
         $currentStateHash = self::calculateStateHash($document);
         
-        // Check for JSON spacing mismatch fallback (Eloquent vs PDO)
+        // Attempt a fallback JSON re-encoding to handle minor spacing differences between raw PDO and ORM outputs before declaring tampering
         if ($currentStateHash !== $lastLog['document_state_hash']) {
             if (isset($document['finalized_route']) && is_string($document['finalized_route'])) {
                 $decoded = json_decode($document['finalized_route'], true);
@@ -215,6 +231,9 @@ class IntegrityManager
 
     /**
      * Automatically freeze a document due to an integrity mismatch.
+     * 
+     * Instantly halts workflow progression if a document fails the verifyCurrentState check, 
+     * sealing the tampered state for admin review.
      *
      * @param array $document
      * @param string $reason
@@ -233,8 +252,7 @@ class IntegrityManager
             ':id' => $document['id']
         ]);
 
-        // Get the last valid document state hash so we propagate it, 
-        // ensuring the scanner continues to flag the live state mismatch.
+        // Retrieve the last known good state hash to embed in the freeze log, ensuring the anomaly remains flagged
         $stmt = $db->query(
             "SELECT document_state_hash FROM document_logs WHERE document_id = :id ORDER BY id DESC LIMIT 1",
             [':id' => $document['id']]

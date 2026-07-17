@@ -13,6 +13,7 @@ class Cache
         return $dir;
     }
 
+    // Simple file-based caching mechanism to reduce database load for expensive queries.
     public static function remember($key, $minutes, callable $callback)
     {
         $file = self::getCacheDir() . md5($key) . '.cache';

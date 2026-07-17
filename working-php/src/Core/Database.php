@@ -32,6 +32,8 @@ class Database
         ];
 
         try {
+            // Establish the PDO connection. We wrap this in a try-catch to prevent leaking 
+            // raw database credentials directly to the user/logs on connection failure.
             $this->connection = new PDO($dsn, $dbConfig['user'], $dbConfig['password'], $options);
         } catch (PDOException $e) {
             // In a real production app, we would log this securely and show a generic error

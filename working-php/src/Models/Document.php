@@ -41,6 +41,7 @@ class Document
         return $data ? self::hydrate($data) : null;
     }
 
+    // Persists the current model state to the database, choosing either an INSERT or an UPDATE based on the presence of an ID.
     public function save(): bool
     {
         $db = Database::getInstance();
