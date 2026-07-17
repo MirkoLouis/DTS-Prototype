@@ -198,10 +198,8 @@ class DocumentController
             $officer = \App\Models\User::findById($_SESSION['user_id']);
             $workflow->finalizeIntake((int)$id, $routeNames, $officer, $pin);
             
-            \App\Core\SecurityHelper::cachePin($pin);
             $_SESSION['success'] = "Document accepted and is now in transit!";
         } catch (\Exception $e) {
-            \App\Core\SecurityHelper::clearCachedPin();
             if (str_contains($e->getMessage(), 'Action Denied')) {
                 $_SESSION['console_error'] = $e->getMessage();
             } else {

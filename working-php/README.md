@@ -52,7 +52,7 @@ A comprehensive, production-ready prototype for a modern, web-based **Document T
     ```
 2.  **Initialize Database:**
     - Import the provided SQL schema into your local MySQL database.
-    - Update `config.php` or your environment variables to point to the correct database.
+    - Copy `.env.example` to `.env` and update it to point to the correct database credentials.
 
 3.  **Launch Local Development Server:**
     ```bash

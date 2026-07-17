@@ -439,9 +439,9 @@ async function seed() {
 
         connection = await mysql.createConnection({
             host: process.env.DB_HOST || '127.0.0.1',
-            user: process.env.DB_USER || 'root',
-            password: process.env.DB_PASSWORD || 'One5zero03',
-            database: process.env.DB_NAME || 'deped_dts'
+            user: process.env.DB_USERNAME || 'root',
+            password: process.env.DB_PASSWORD || '',
+            database: process.env.DB_DATABASE || 'deped_dts'
         });
 
         console.log('🧹 Cleaning tables...');
@@ -452,7 +452,19 @@ async function seed() {
         await connection.query('TRUNCATE TABLE failed_jobs');
         await connection.query('TRUNCATE TABLE database_metrics');
         await connection.query('TRUNCATE TABLE integrity_checks');
+        await connection.query('TRUNCATE TABLE cache');
         await connection.query('SET FOREIGN_KEY_CHECKS = 1');
+
+        console.log('🧹 Cleaning file caches...');
+        const cacheDir = path.join(__dirname, 'cache');
+        if (fs.existsSync(cacheDir)) {
+            try {
+                const { execSync } = require('child_process');
+                execSync(`rm -rf "${cacheDir}/data"/* "${cacheDir}/responses"/* "${cacheDir}"/*.json`, { stdio: 'ignore' });
+            } catch (e) {
+                console.log('⚠️ Minor issue clearing file cache directory, proceeding anyway.');
+            }
+        }
 
         const [users] = await connection.query("SELECT u.email, d.name as dept_name FROM users u JOIN departments d ON u.department_id = d.id WHERE u.role IN ('staff', 'officer')");
         const deptMap = {};

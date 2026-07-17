@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-07-17 20:40
+
+**Version:** 1.14.3-alpha+202607172040
+
+### ADDED
+- Migrated database credentials out of `config.php` and into `.env` file for secure configuration.
+- Formally adopted Optimistic Locking for database transactions by renaming `executeWithLock` to `executeInTransaction` and clarifying service documentation.
+
+### FIXED
+- Removed rate limiting logic from the Guest portal, ensuring reliable operations inside LAN-only environments.
+- Removed deprecated memory-based PIN caching methods from `SecurityHelper` and cleaned up their lingering usages.
+- Updated `seed.js` database connection keys to dynamically map to the new `.env` schema.
+
 ## 2026-07-15 22:43
 
 **Version:** 1.14.2-alpha+202607152243
