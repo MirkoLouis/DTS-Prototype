@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!chartContainer) return;
 
     // URLs from the main data attribute container
-    const { returnDeclineUrl, statusDistributionUrl, returnRequestSourcesUrl, processingHotspotsUrl, avgStepTimeUrl, throughputUrl, loadVsTimeUrl, submissionDistrictsUrl } = chartContainer.dataset;
+    const { declineTrendsUrl, statusDistributionUrl, processingHotspotsUrl, avgStepTimeUrl, throughputUrl, loadVsTimeUrl, submissionDistrictsUrl } = chartContainer.dataset;
 
     // --- Element Selectors ---
     const departmentFilterEl = document.getElementById('department-filter');
@@ -18,13 +18,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const returnDeclineCtx = document.getElementById('returnDeclineChart')?.getContext('2d');
     const avgStepTimeCtx = document.getElementById('avgStepTimeChart')?.getContext('2d');
     const throughputCtx = document.getElementById('throughputChart')?.getContext('2d');
-    const returnRequestSourcesCtx = document.getElementById('returnRequestSourcesChart')?.getContext('2d');
     const processingHotspotsCtx = document.getElementById('processingHotspotsChart')?.getContext('2d');
     const submissionDistrictsCtx = document.getElementById('submissionDistrictsChart')?.getContext('2d');
     const loadVsTimeCtx = document.getElementById('loadVsTimeChart')?.getContext('2d'); // New Combo Chart
 
     // --- Chart Instances ---
-    let statusDistributionChart, returnDeclineChart, avgStepTimeChart, throughputChart, returnRequestSourcesChart, processingHotspotsChart, loadVsTimeChart, submissionDistrictsChart;
+    let statusDistributionChart, returnDeclineChart, avgStepTimeChart, throughputChart, processingHotspotsChart, loadVsTimeChart, submissionDistrictsChart;
     let modalChart = null;
 
     // --- Helper & Modal Functions ---
@@ -49,7 +48,6 @@ document.addEventListener('DOMContentLoaded', function() {
         statusDistributionChart = new Chart(statusDistributionCtx, { type: 'doughnut', data: { labels: [], datasets: [] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, title: { display: false } } } });
         returnDeclineChart = new Chart(returnDeclineCtx, { type: 'line', data: { labels: [], datasets: [] }, options: { ...lineChartOptions, scales: { y: { ...lineChartOptions.scales.y, title: { display: true, text: 'Number of Documents' } } } } });
         throughputChart = new Chart(throughputCtx, { type: 'line', data: { labels: [], datasets: [] }, options: { ...lineChartOptions, maintainAspectRatio: false } });
-        returnRequestSourcesChart = new Chart(returnRequestSourcesCtx, { type: 'bar', data: { labels: [], datasets: [] }, options: barChartOptions });
         processingHotspotsChart = new Chart(processingHotspotsCtx, {
             type: 'polarArea',
             data: { labels: [], datasets: [] },
@@ -195,7 +193,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (departmentFilterEl) departmentFilterEl.addEventListener('change', updateLoadVsTimeChart);
     if (departmentPeriodEl) departmentPeriodEl.addEventListener('change', updateLoadVsTimeChart);
     if (globalThroughputPeriodEl) globalThroughputPeriodEl.addEventListener('change', () => fetchData(`${throughputUrl}?period=${globalThroughputPeriodEl.value}`, throughputChart));
-    if (returnDeclinePeriodEl) returnDeclinePeriodEl.addEventListener('change', () => fetchData(`${returnDeclineUrl}?period=${returnDeclinePeriodEl.value}`, returnDeclineChart));
+    if (returnDeclinePeriodEl) returnDeclinePeriodEl.addEventListener('change', () => fetchData(`${declineTrendsUrl}?period=${returnDeclinePeriodEl.value}`, returnDeclineChart));
 
 
 
@@ -203,11 +201,10 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeCharts();
     const updateAllCharts = () => {
         fetchData(statusDistributionUrl, statusDistributionChart);
-        fetchData(returnRequestSourcesUrl, returnRequestSourcesChart);
         fetchData(processingHotspotsUrl, processingHotspotsChart);
         fetchData(submissionDistrictsUrl, submissionDistrictsChart);
         fetchData(avgStepTimeUrl, avgStepTimeChart);
-        fetchData(`${returnDeclineUrl}?period=${returnDeclinePeriodEl.value}`, returnDeclineChart);
+        fetchData(`${declineTrendsUrl}?period=${returnDeclinePeriodEl.value}`, returnDeclineChart);
         fetchData(`${throughputUrl}?period=${globalThroughputPeriodEl.value}`, throughputChart);
         updateLoadVsTimeChart();
     };

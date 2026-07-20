@@ -388,50 +388,7 @@ class DocumentWorkflowService
         });
     }
 
-    /**
-     * Return a document to a previous step.
-     * 
-     * Modifies the active route array dynamically by injecting a "rerouted" step, 
-     * effectively sending the document backward in the workflow.
-     */
-    public function requestReturn(int $documentId, string $reason, User $user, string $pin): void
-    {
-        $this->executeInTransaction('id', $documentId, $user, 'process', function ($document, $db) use ($reason, $user, $pin) {
-            $stmt = $db->query("SELECT name FROM departments WHERE id = :id", [':id' => $user->department_id]);
-            $dept = $stmt->fetch();
-            $deptName = $dept ? $dept['name'] : 'Unknown Department';
 
-            $route = $document['finalized_route'] ? json_decode($document['finalized_route'], true) : [];
-            $currentStep = (int) $document['current_step'];
-
-            if (is_array($route)) {
-                // Splice the current department back into the route immediately after the current step to force a return loop
-                array_splice($route, $currentStep, 0, [['name' => $deptName, 'type' => 'rerouted']]);
-                
-                $newRouteJson = json_encode($route);
-                
-                $stmt = $db->query("UPDATE documents SET finalized_route = :route, version = version + 1 WHERE id = :id AND version = :version", [
-                    ':route' => $newRouteJson,
-                    ':id' => $document['id'],
-                    ':version' => $document['version']
-                ]);
-                if ($stmt->rowCount() === 0) throw new Exception("This document was just modified by another user. Please refresh.");
-
-                $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
-
-                IntegrityManager::createLog(
-                    $document['id'], 
-                    $user->id, 
-                    'Return Requested & Rerouted', 
-                    "Return requested by {$deptName}. Reason: {$reason}. Document will be rerouted back to {$deptName} upon completion of current active task.", 
-                    $updatedDoc,
-                    $pin
-                );
-            } else {
-                throw new Exception("Document route cannot be parsed for returning.");
-            }
-        });
-    }
 
     /**
      * Halts all operations on a document. 

@@ -23,9 +23,8 @@
                     <div class="space-y-6"
                          data-current-load-url="/api/admin-dashboard/current-load"
                          data-throughput-url="/api/admin-dashboard/throughput"
-                         data-return-decline-url="/api/admin-dashboard/return-decline-trends"
+                         data-decline-trends-url="/api/admin-dashboard/decline-trends"
                          data-status-distribution-url="/api/admin-dashboard/status-distribution"
-                         data-return-request-sources-url="/api/admin-dashboard/return-request-sources"
                          data-processing-hotspots-url="/api/admin-dashboard/processing-hotspots"
                          data-avg-step-time-url="/api/admin-dashboard/avg-step-time"
                          data-load-vs-time-url="/api/admin-dashboard/department-load-vs-time"
@@ -74,12 +73,12 @@
 
                         <!-- Section: Returns & Declines Analysis -->
                         <div class="bg-gray-50 dark:bg-gray-700/50 pt-3 px-5 pb-5 rounded-lg shadow">
-                            <h3 class="text-xl font-bold mb-4">Returns & Declines Analysis</h3>
-                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <!-- Return & Decline Trends Chart -->
+                            <h3 class="text-xl font-bold mb-4">Declines Analysis</h3>
+                            <div class="grid grid-cols-1 gap-6">
+                                <!-- Decline Trends Chart -->
                                 <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-inner">
                                     <div class="mb-4 border-b border-gray-200 dark:border-gray-600 pb-4">
-                                        <h4 class="text-lg font-bold mb-3">Return & Decline Rate Trends</h4>
+                                        <h4 class="text-lg font-bold mb-3">Decline Rate Trends</h4>
                                         <div class="w-full">
                                             <select id="returnDeclinePeriod" class="filter-input block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-2 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1">
                                                 <option value="daily">Daily</option>
@@ -91,14 +90,6 @@
                                     </div>
                                     <div class="relative h-64">
                                         <canvas id="returnDeclineChart"></canvas>
-                                    </div>
-                                </div>
-
-                                <!-- Return Request Sources Chart -->
-                                <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-inner">
-                                    <h4 class="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Return Request Sources</h4>
-                                    <div class="relative h-64">
-                                        <canvas id="returnRequestSourcesChart"></canvas>
                                     </div>
                                 </div>
                             </div>

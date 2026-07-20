@@ -171,9 +171,8 @@ $router->post('/clear-personal-cache', [App\Controllers\SystemHealthController::
 // Admin Dashboard API Routes
 $router->get('/api/admin-dashboard/current-load', [\App\Controllers\AdminDashboardController::class, 'getCurrentLoadData']);
 $router->get('/api/admin-dashboard/throughput', [\App\Controllers\AdminDashboardController::class, 'getThroughputData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
-$router->get('/api/admin-dashboard/return-decline-trends', [\App\Controllers\AdminDashboardController::class, 'getReturnDeclineTrendData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
+$router->get('/api/admin-dashboard/decline-trends', [\App\Controllers\AdminDashboardController::class, 'getDeclineTrendData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
 $router->get('/api/admin-dashboard/status-distribution', [\App\Controllers\AdminDashboardController::class, 'getDocumentStatusDistributionData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
-$router->get('/api/admin-dashboard/return-request-sources', [\App\Controllers\AdminDashboardController::class, 'getReturnRequestSourcesData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
 $router->get('/api/admin-dashboard/processing-hotspots', [\App\Controllers\AdminDashboardController::class, 'getProcessingHotspotsData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
 $router->get('/api/admin-dashboard/submission-districts', [\App\Controllers\AdminDashboardController::class, 'getSubmissionDistrictsData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
 $router->get('/api/admin-dashboard/avg-step-time', [\App\Controllers\AdminDashboardController::class, 'getAvgStepTimeByDepartmentData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
@@ -278,14 +277,6 @@ $router->post('/releasing/(?P<id>\d+)/complete', [App\Controllers\ReleasingContr
     App\Middleware\RoleMiddleware::class . ':officer'
 ]);
 
-$router->get('/return-requests', [App\Controllers\ReturnRequestController::class, 'index'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':officer,staff'
-]);
-$router->post('/return-requests', [App\Controllers\ReturnRequestController::class, 'store'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':officer,staff'
-]);
 
 $router->get('/statistics', [App\Controllers\StatisticsController::class, 'index'], [
     App\Middleware\AuthMiddleware::class,

@@ -1,5 +1,16 @@
 # Changelog
 
+## 2026-07-20 17:45
+
+**Version:** 1.15.1-alpha+202607201745
+
+### Fixed
+- Completely removed the "return-requests" feature from the codebase (routes, controllers, views, layout notifications, JavaScript admin charts, service mutations, and database seeders) as it is highly unlikely to be used in a real-world workflow.
+
+### Added
+- None
+
+
 ## 2026-07-20 16:45
 
 **Version:** 1.15.0-alpha+202607201645

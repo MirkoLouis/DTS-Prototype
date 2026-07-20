@@ -326,10 +326,10 @@ class AdminDashboardController
         $this->jsonResponse($data);
     }
 
-    public function getReturnDeclineTrendData()
+    public function getDeclineTrendData()
     {
         $period = $_GET['period'] ?? 'daily';
-        $cacheKey = "return_decline_trends_v2_{$period}";
+        $cacheKey = "decline_trends_v2_{$period}";
 
         $data = Cache::remember($cacheKey, 10, function() use ($period) {
             $db = Database::getInstance();
@@ -338,7 +338,7 @@ class AdminDashboardController
             $periodMap = $this->generatePeriodMap($startDate, $endDate, $period);
             $finalData = [];
             foreach (array_keys($periodMap) as $label) {
-                $finalData[$label] = ['declined' => 0, 'returned' => 0];
+                $finalData[$label] = ['declined' => 0];
             }
 
             $sqlDeclined = "SELECT DATE_FORMAT(declined_at, '{$dateFormat}') as period_label, COUNT(*) as count 
@@ -354,19 +354,6 @@ class AdminDashboardController
                 }
             }
 
-            $sqlReturned = "SELECT DATE_FORMAT(created_at, '{$dateFormat}') as period_label, COUNT(*) as count 
-                            FROM document_logs 
-                            WHERE action LIKE '%Return Request%' AND created_at BETWEEN :start AND :end 
-                            GROUP BY period_label";
-            $returnedResults = $db->query($sqlReturned, [':start' => $startDate, ':end' => $endDate])->fetchAll();
-
-            foreach ($returnedResults as $row) {
-                $label = $row['period_label'];
-                if (isset($finalData[$label])) {
-                    $finalData[$label]['returned'] = (int)$row['count'];
-                }
-            }
-
             return [
                 'labels' => array_keys($finalData),
                 'datasets' => [
@@ -375,14 +362,6 @@ class AdminDashboardController
                         'data' => array_column($finalData, 'declined'),
                         'borderColor' => '#ef4444', 
                         'backgroundColor' => 'rgba(239, 68, 68, 0.2)',
-                        'tension' => 0.1,
-                        'fill' => true,
-                    ],
-                    [
-                        'label' => 'Return Requests',
-                        'data' => array_column($finalData, 'returned'),
-                        'borderColor' => '#f97316', 
-                        'backgroundColor' => 'rgba(249, 115, 22, 0.2)',
                         'tension' => 0.1,
                         'fill' => true,
                     ],
@@ -454,45 +433,6 @@ class AdminDashboardController
         $this->jsonResponse($data);
     }
 
-    public function getReturnRequestSourcesData()
-    {
-        $cacheKey = 'return_request_sources_v2';
-        
-        $data = Cache::remember($cacheKey, 10, function() {
-            $db = Database::getInstance();
-            $sql = "SELECT departments.name as department_name, COUNT(document_logs.id) as count 
-                    FROM document_logs 
-                    JOIN users ON document_logs.user_id = users.id 
-                    JOIN departments ON users.department_id = departments.id 
-                    WHERE document_logs.action LIKE '%Return Request%' 
-                    GROUP BY departments.name 
-                    ORDER BY count DESC";
-            
-            $results = $db->query($sql)->fetchAll();
-            $labels = [];
-            $dataArr = [];
-
-            foreach ($results as $row) {
-                $labels[] = $row['department_name'];
-                $dataArr[] = (int)$row['count'];
-            }
-
-            return [
-                'labels' => $labels,
-                'datasets' => [
-                    [
-                        'label' => 'Return Requests Issued',
-                        'data' => $dataArr,
-                        'backgroundColor' => 'rgba(168, 85, 247, 0.5)', 
-                        'borderColor' => 'rgba(168, 85, 247, 1)',
-                        'borderWidth' => 1,
-                    ],
-                ],
-            ];
-        });
-
-        $this->jsonResponse($data);
-    }
 
     public function getProcessingHotspotsData()
     {
