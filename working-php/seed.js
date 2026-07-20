@@ -1,6 +1,7 @@
 require('dotenv').config();
 const mysql = require('mysql2/promise');
 const path = require('path');
+const fs = require('fs');
 const { exec } = require('child_process');
 const util = require('util');
 const crypto = require('crypto');
@@ -19,7 +20,7 @@ if (args[0] === '--') {
 }
 
 const DOCS_TO_CREATE = args[0] && !isNaN(parseInt(args[0], 10)) ? parseInt(args[0], 10) : 10000;
-const CHUNK_SIZE = args[1] && !isNaN(parseInt(args[1], 10)) ? parseInt(args[1], 10) : 100;
+const CHUNK_SIZE = args[1] && !isNaN(parseInt(args[1], 10)) ? parseInt(args[1], 10) : 250;
 const CONCURRENCY = args[2] && !isNaN(parseInt(args[2], 10)) ? parseInt(args[2], 10) : 50;
 
 const delay = ms => new Promise(res => setTimeout(res, ms));
@@ -212,7 +213,11 @@ async function processDocumentAPI(i, deptPools, departmentNames, guestClient, pu
     });
 
     const location = res.headers.get('location');
-    if (!location) throw new Error('Failed to extract location header');
+    if (!location) {
+        const text = await res.text();
+        console.error('Submit failed. Status:', res.status, 'Body:', text);
+        throw new Error('Failed to extract location header');
+    }
 
     const urlParams = new URLSearchParams(location.split('?')[1]);
     const trackingCode = urlParams.get('tracking_code');
@@ -503,17 +508,23 @@ async function seed() {
         let totalProcessed = 0;
         while (totalProcessed < DOCS_TO_CREATE) {
             const chunkAmount = Math.min(CHUNK_SIZE, DOCS_TO_CREATE - totalProcessed);
-            const docPromises = [];
-
-            for (let i = 0; i < chunkAmount; i++) {
-                // Pass the shared guest client to prevent session exhaustion
-                docPromises.push(processDocumentAPI(totalProcessed + i + 1, deptPools, departmentNames, sharedGuestClient, purposesDb, districts));
-            }
-
             const chunkDocIds = [];
-            for (let i = 0; i < docPromises.length; i += CONCURRENCY) {
-                const slice = docPromises.slice(i, i + CONCURRENCY);
-                const results = await Promise.all(slice);
+            for (let i = 0; i < chunkAmount; i += CONCURRENCY) {
+                const currentBatchSize = Math.min(CONCURRENCY, chunkAmount - i);
+                const batchPromises = [];
+                
+                for (let j = 0; j < currentBatchSize; j++) {
+                     batchPromises.push(processDocumentAPI(
+                         totalProcessed + i + j + 1, 
+                         deptPools, 
+                         departmentNames, 
+                         sharedGuestClient, 
+                         purposesDb, 
+                         districts
+                     ));
+                }
+                
+                const results = await Promise.all(batchPromises);
                 chunkDocIds.push(...results.map(r => r.id));
             }
 
@@ -541,6 +552,10 @@ async function seed() {
 
         console.log('📈 Backfilling daily departmental metrics...');
         execSync(`php "${path.join(__dirname, 'scripts/backfill-metrics.php')}"`, { stdio: 'inherit' });
+
+        console.log('🔒 Resetting all digital signatures for first-time login...');
+        await connection.query("UPDATE user_public_key_histories SET deactivated_at = NOW(), updated_at = NOW() WHERE deactivated_at IS NULL");
+        await connection.query("UPDATE users SET public_key = NULL, private_key = NULL, security_key_set_at = NULL");
 
         const endTime = Date.now();
         const elapsedSeconds = Math.floor((endTime - startTime) / 1000);

@@ -80,11 +80,30 @@
                                         </div>
                                     </li>
 
+                                    <!-- Step 2: Records Unit (Intake) -->
+                                    <li class="flex items-center justify-between text-gray-700 dark:text-gray-300">
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-mono text-gray-500 w-5">2.</span>
+                                            <span>Records Unit (Intake)</span>
+                                        </div>
+                                        <div>
+                                            <?php $status = 'completed'; require BASE_PATH . '/src/Views/components/status-badge.php'; ?>
+                                        </div>
+                                    </li>
+
                                     <?php foreach ($route as $index => $step): ?>
                                         <li class="flex items-center justify-between <?php echo ($index + 1) === $currentStep ? 'font-bold text-gray-900 dark:text-gray-100' : 'text-gray-700 dark:text-gray-300'; ?>">
                                             <div class="flex items-center gap-2">
-                                                <span class="font-mono text-gray-500 font-normal w-5"><?= $index + 2 ?>.</span>
-                                                <span><?php echo htmlspecialchars($step['name']); ?></span>
+                                                <span class="font-mono text-gray-500 font-normal w-5"><?= $index + 3 ?>.</span>
+                                                <span>
+                                                    <?php 
+                                                    $displayName = $step['name'];
+                                                    if ($displayName === 'Records Unit') {
+                                                        $displayName .= ' (Processing)';
+                                                    }
+                                                    echo htmlspecialchars($displayName); 
+                                                    ?>
+                                                </span>
                                             </div>
                                             <div>
                                                 <?php if (($index + 1) < $currentStep): ?>
@@ -98,7 +117,7 @@
 
                                     <li class="flex items-center justify-between <?php echo $currentStep > count($route) ? 'font-bold text-gray-900 dark:text-gray-100' : 'text-gray-700 dark:text-gray-300'; ?>">
                                         <div class="flex items-center gap-2">
-                                            <span class="font-mono text-gray-500 font-normal w-5"><?= count($route) + 2 ?>.</span>
+                                            <span class="font-mono text-gray-500 font-normal w-5"><?= count($route) + 3 ?>.</span>
                                             <span>Records Unit (Releasing)</span>
                                         </div>
                                         <div>

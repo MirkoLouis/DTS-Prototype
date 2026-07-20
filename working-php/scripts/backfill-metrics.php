@@ -25,7 +25,7 @@ $db->query("
     FROM document_logs dl
     JOIN users u ON dl.user_id = u.id
     JOIN departments d ON u.department_id = d.id
-    WHERE dl.action LIKE '%Received%' OR dl.action LIKE '%Scanned%'
+    WHERE dl.action LIKE '%Received%' OR dl.action LIKE '%Scanned%' OR dl.action = 'Accepted and Document Routing finalized' OR dl.action = 'Ready for Releasing'
     GROUP BY d.id, DATE(dl.created_at)
     ON DUPLICATE KEY UPDATE received_count = VALUES(received_count), updated_at = NOW()
 ");

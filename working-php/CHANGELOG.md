@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-07-20 16:45
+
+**Version:** 1.15.0-alpha+202607201645
+
+### FIXED
+- Optimized large document count queries in `IntakeController` and `DashboardController` by replacing O(N^2) correlated `NOT EXISTS` subqueries with linearly scalable `ROW_NUMBER()` CTEs.
+- Fixed the Records Officer's "Documents Received" and "Average Processing Time" graphs by accurately attributing 'Intake' and 'Releasing' actions in `backfill-metrics.php`.
+- Clarified the document path UI in `show-document.php` to accurately map a 6-step lifecycle that includes both 'Records Unit (Intake)' and 'Records Unit (Processing)'.
+- Removed the default test credentials from the login page UI.
+
+### ADDED
+- Implemented automatic digital signature clearing at the end of both `seed.js` and `scripts/fast-seed.php`. Seeder-generated signatures remain valid, while forcing users to initialize their PIN on their first login.
+
 ## 2026-07-17 21:05
 
 **Version:** 1.14.4-alpha+202607172105
