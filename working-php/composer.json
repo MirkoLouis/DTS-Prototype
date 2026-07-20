@@ -22,6 +22,7 @@
         "proxy": "cloudflared tunnel --url http://localhost:8000",
         "corrupt": "php scripts/corrupt.php",
         "seed:dev": "node seed.js",
+        "seed:fast": "php scripts/fast-seed.php",
         "seed:prod": "node scripts/setup-production-db.js"
     }
 }

@@ -6,7 +6,8 @@ document.addEventListener('DOMContentLoaded', function () {
             const modalId = btn.getAttribute('data-modal');
             const modal = document.getElementById(modalId);
             if (modal) {
-                modal.style.display = 'none';
+                modal.classList.add('hidden');
+                modal.style.display = '';
             }
         });
     });
@@ -96,7 +97,10 @@ document.addEventListener('DOMContentLoaded', function () {
                 currentJobId = data.job_id;
 
                 // Show Modal
-                if (integrityModal) integrityModal.style.display = 'flex';
+                if (integrityModal) {
+                    integrityModal.classList.remove('hidden');
+                    integrityModal.style.display = '';
+                }
                 
                 integrityProgressBar.style.width = '0%';
                 integrityProgressBar.classList.remove('bg-green-500', 'bg-red-500');
@@ -203,7 +207,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     finishIntegrityJob(false, currentJobId, "User cancelled the task.");
                 }
             } else {
-                if (integrityModal) integrityModal.style.display = 'none';
+                if (integrityModal) {
+                    integrityModal.classList.add('hidden');
+                    integrityModal.style.display = '';
+                }
                 window.location.reload();
             }
         });
@@ -240,7 +247,10 @@ document.addEventListener('DOMContentLoaded', function () {
                     `;
                 }
 
-                if (debugModal) debugModal.style.display = 'flex';
+                if (debugModal) {
+                    debugModal.classList.remove('hidden');
+                    debugModal.style.display = '';
+                }
             } catch (error) {
                 console.error('Debug error:', error);
                 alert('Failed to fetch debug info.');

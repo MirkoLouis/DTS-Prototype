@@ -164,6 +164,24 @@ async function setupDatabase() {
                 is_official: true,
                 requirements: ['Monitoring Tool Results', 'Analysis Report'],
                 suggested_route: ['School Governance and Operations Division', 'Assistant Schools Division Superintendent Office'],
+            },
+            {
+                name: 'Request for Archived Document Retrieval',
+                is_official: true,
+                requirements: ['Letter of Request', 'Valid ID'],
+                suggested_route: ['Records Unit', 'Legal Unit', 'Schools Division Superintendent Office'],
+            },
+            {
+                name: 'Records Authentication and Verification (RAV)',
+                is_official: true,
+                requirements: ['Original Records', 'Valid ID'],
+                suggested_route: ['Records Unit', 'Personnel Unit', 'Administrative Unit'],
+            },
+            {
+                name: 'Disposal of Old Files/Records',
+                is_official: true,
+                requirements: ['Records Disposition Schedule', 'Inventory of Old Files'],
+                suggested_route: ['Records Unit', 'Supply Unit', 'Accounting Unit'],
             }
         ];
 

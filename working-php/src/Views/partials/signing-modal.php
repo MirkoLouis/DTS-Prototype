@@ -1,6 +1,5 @@
 <!-- Digital Signature Modal -->
 <?php
-$hasCachedPin = \App\Core\SecurityHelper::hasCachedPin();
 
 $modalId = 'signing-modal';
 $modalTitle = 'Digital Signature';
