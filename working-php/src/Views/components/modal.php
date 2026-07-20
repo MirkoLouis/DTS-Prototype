@@ -28,7 +28,7 @@ $modalFooter = $modalFooter ?? '';
         <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
         <!-- Modal Content -->
-        <div class="relative z-10 inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle <?php echo $modalSizeClass; ?> sm:w-full">
+        <div class="inline-block w-full align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle <?php echo $modalSizeClass; ?> sm:w-full">
             <div class="px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div class="flex justify-between items-center mb-4">
                     <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white">

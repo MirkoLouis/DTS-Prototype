@@ -1,18 +1,8 @@
 <?php
 $unreadNotifications = [];
-$returnRequestNotifs = [];
-$otherNotifs = [];
-// Fetch and categorize notifications to display return requests separately from generic system alerts.
 if (isset($_SESSION['user_id'])) {
     $notifService = new \App\Core\NotificationService();
     $unreadNotifications = $notifService->getUnreadForCurrentUser();
-    foreach ($unreadNotifications as $n) {
-        if (stripos($n['title'], 'return') !== false) {
-            $returnRequestNotifs[] = $n;
-        } else {
-            $otherNotifs[] = $n;
-        }
-    }
 }
 ?>
 <!DOCTYPE html>
@@ -113,9 +103,7 @@ if (isset($_SESSION['user_id'])) {
                                     <a href="/releasing" class="<?= $currentPath === '/releasing' ? $activeClass : $inactiveClass ?>">
                                         Releasing
                                     </a>
-                                    <a href="/return-requests" class="<?= $currentPath === '/return-requests' ? $activeClass : $inactiveClass ?>">
-                                        Return Requests
-                                    </a>
+
                                     <a href="/statistics" class="<?= $currentPath === '/statistics' ? $activeClass : $inactiveClass ?>">
                                         Statistics
                                     </a>
@@ -126,9 +114,7 @@ if (isset($_SESSION['user_id'])) {
                                     <a href="/tasks/completed" class="<?= $currentPath === '/tasks/completed' ? $activeClass : $inactiveClass ?>">
                                         Completed
                                     </a>
-                                    <a href="/return-requests" class="<?= $currentPath === '/return-requests' ? $activeClass : $inactiveClass ?>">
-                                        Return Requests
-                                    </a>
+
                                     <a href="/statistics" class="<?= $currentPath === '/statistics' ? $activeClass : $inactiveClass ?>">
                                         Statistics
                                     </a>
@@ -170,22 +156,9 @@ if (isset($_SESSION['user_id'])) {
                                         <?php if (empty($unreadNotifications)): ?>
                                             <p class="text-sm text-gray-500 dark:text-gray-400 p-4 text-center">No new notifications.</p>
                                         <?php else: ?>
-                                            <?php if (count($returnRequestNotifs) > 0): ?>
-                                                <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 mt-1 px-1">Return Requests</h4>
-                                                <?php foreach ($returnRequestNotifs as $notification): ?>
-                                                    <?php require BASE_PATH . '/src/Views/components/notification-alert.php'; ?>
-                                                <?php endforeach; ?>
-                                            <?php endif; ?>
-
-                                            <?php if (count($otherNotifs) > 0): ?>
-                                                <?php if (count($returnRequestNotifs) > 0): ?>
-                                                    <div class="border-t border-gray-200 dark:border-gray-700 my-2"></div>
-                                                <?php endif; ?>
-                                                <h4 class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 mt-1 px-1">Other Notifications</h4>
-                                                <?php foreach ($otherNotifs as $notification): ?>
-                                                    <?php require BASE_PATH . '/src/Views/components/notification-alert.php'; ?>
-                                                <?php endforeach; ?>
-                                            <?php endif; ?>
+                                            <?php foreach ($unreadNotifications as $notification): ?>
+                                                <?php require BASE_PATH . '/src/Views/components/notification-alert.php'; ?>
+                                            <?php endforeach; ?>
                                         <?php endif; ?>
                                     </div>
                                 </div>

@@ -271,8 +271,7 @@ async function processDocumentAPI(i, deptPools, departmentNames, guestClient, pu
         pin: DEFAULT_PASSWORD
     });
 
-    const willHaveReturn = route.length > 2 && Math.random() < 0.10;
-    const returnTriggerStep = willHaveReturn ? Math.floor(Math.random() * (route.length - 1)) + 1 : -1;
+
     let actualStepsProcessed = 0;
     let stepsToSimulate = aimForReleased ? route.length : Math.floor(Math.random() * route.length) + 1;
 
@@ -291,13 +290,7 @@ async function processDocumentAPI(i, deptPools, departmentNames, guestClient, pu
             break;
         }
 
-        // Return logic: A previous department can request return ONLY while it's in processing
-        if (step === returnTriggerStep) {
-            const previousDept = route[Math.floor(Math.random() * step)];
-            const prevDeptClient = deptPools[previousDept].getClient();
-            await prevDeptClient.postForm('/return-requests', { document_id: documentId, reason: 'Needs correction.', pin: DEFAULT_PASSWORD });
-            break; // Stop simulating further steps to leave it as returned/in transit backward
-        }
+
 
         await deptClient.postForm(`/tasks/${documentId}/complete`, { pin: DEFAULT_PASSWORD });
         actualStepsProcessed++;
@@ -360,8 +353,7 @@ async function timeTravelRetrofit(connection, documentIds) {
                     cTime.setUTCMinutes(cTime.getUTCMinutes() + Math.floor(Math.random() * 360) + 5);
                 } else if (log.action.includes('Complete')) {
                     cTime.setUTCMinutes(cTime.getUTCMinutes() + Math.floor(Math.random() * 720) + 5);
-                } else if (log.action.includes('Return')) {
-                    cTime.setUTCMinutes(cTime.getUTCMinutes() + Math.floor(Math.random() * 60) + 10);
+
                 } else if (log.action.includes('Ready for Releasing')) {
                     cTime.setUTCMinutes(cTime.getUTCMinutes() + Math.floor(Math.random() * 30) + 5);
                 } else if (log.action.includes('Released')) {
@@ -383,7 +375,7 @@ async function timeTravelRetrofit(connection, documentIds) {
 
             previousHash = newHash;
 
-            const isPeak = log.action.includes('Return') || log.action.includes('Declined');
+            const isPeak = log.action.includes('Declined');
             generateMetrics(dates, isPeak);
         }
 

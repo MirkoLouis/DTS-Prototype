@@ -410,13 +410,6 @@ class DashboardController
         require BASE_PATH . '/src/Views/officer/releasing.php';
     }
 
-    /**
-     * Officer Return Requests Dashboard.
-     */
-    public function officerReturnRequests()
-    {
-        require BASE_PATH . '/src/Views/officer/return-requests.php';
-    }
 
     /**
      * Unified Statistics Dashboard for Staff and Officers.
