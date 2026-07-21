@@ -1,5 +1,19 @@
 # Changelog
 
+## 2026-07-21 17:29
+
+**Version:** 1.15.2-alpha+202607211729
+
+### Fixed
+- Fixed the subway tracking design in the guest portal (`/track`) by restructuring the UI into a 4-column responsive grid with a snaking layout, isolating elements from colliding.
+- Added visual directional arrows (tails and heads) to the subway tracking map to clearly signify the start and end of document routes.
+- Resolved an issue in both `scripts/fast-seed.php` and `seed.js` where declined documents were not assigned a `declined_at` timestamp, causing the Decline Rate Trends chart on the Admin Dashboard to inaccurately appear empty.
+- Included the "Others" purpose into the default DB generation array inside `scripts/setup-production-db.js`, allowing seeders to properly distribute it across analytics hotspots.
+- Cleaned up obsolete `SecurityHelper::cachePin()` and `clearCachedPin()` calls left over in `TaskController` and `ReleasingController`.
+
+### Added
+- None
+
 ## 2026-07-20 17:45
 
 **Version:** 1.15.1-alpha+202607201745

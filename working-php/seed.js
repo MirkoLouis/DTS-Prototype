@@ -380,8 +380,14 @@ async function timeTravelRetrofit(connection, documentIds) {
         }
 
         if (firstSqlDate) {
-            queries.push(`UPDATE documents SET created_at = ?, updated_at = ? WHERE id = ?`);
-            updateParams.push(firstSqlDate, lastSqlDate, docId);
+            let hasDeclined = docLogs.some(l => l.action.includes('Declined'));
+            if (hasDeclined) {
+                queries.push(`UPDATE documents SET created_at = ?, updated_at = ?, declined_at = ? WHERE id = ?`);
+                updateParams.push(firstSqlDate, lastSqlDate, lastSqlDate, docId);
+            } else {
+                queries.push(`UPDATE documents SET created_at = ?, updated_at = ? WHERE id = ?`);
+                updateParams.push(firstSqlDate, lastSqlDate, docId);
+            }
         }
     }
 
@@ -394,6 +400,9 @@ async function timeTravelRetrofit(connection, documentIds) {
                 if (q.includes('document_logs')) {
                     promises.push(connection.query(q, [updateParams[qIdx], updateParams[qIdx+1], updateParams[qIdx+2], updateParams[qIdx+3], updateParams[qIdx+4]]));
                     qIdx += 5;
+                } else if (q.includes('declined_at')) {
+                    promises.push(connection.query(q, [updateParams[qIdx], updateParams[qIdx+1], updateParams[qIdx+2], updateParams[qIdx+3]]));
+                    qIdx += 4;
                 } else {
                     promises.push(connection.query(q, [updateParams[qIdx], updateParams[qIdx+1], updateParams[qIdx+2]]));
                     qIdx += 3;

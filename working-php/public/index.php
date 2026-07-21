@@ -235,9 +235,18 @@ $router->get('/documents/(?P<id>\d+)/manage', [App\Controllers\DocumentControlle
     App\Middleware\RoleMiddleware::class . ':officer'
 ]);
 
-$router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)', [App\Controllers\DocumentController::class, 'show']);
-$router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/hash-chain', [App\Controllers\DocumentController::class, 'showHashChain']);
-$router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/print-tracking-form', [App\Controllers\DocumentController::class, 'printTrackingForm']);
+$router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)', [App\Controllers\DocumentController::class, 'show'], [
+    App\Middleware\AuthMiddleware::class,
+    App\Middleware\RoleMiddleware::class . ':admin,officer,staff'
+]);
+$router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/hash-chain', [App\Controllers\DocumentController::class, 'showHashChain'], [
+    App\Middleware\AuthMiddleware::class,
+    App\Middleware\RoleMiddleware::class . ':admin,officer,staff'
+]);
+$router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/print-tracking-form', [App\Controllers\DocumentController::class, 'printTrackingForm'], [
+    App\Middleware\AuthMiddleware::class,
+    App\Middleware\RoleMiddleware::class . ':admin,officer,staff'
+]);
 
 $router->post('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/freeze', [App\Controllers\SystemHealthController::class, 'freeze'], [
     App\Middleware\AuthMiddleware::class,
@@ -328,8 +337,7 @@ $router->post('/documents/scan', [App\Controllers\DocumentController::class, 'sc
     App\Middleware\RoleMiddleware::class . ':staff,officer'
 ]);
 
-// Test route to check database connectivity
-$router->get('/documents', [App\Controllers\DocumentTestController::class, 'index']);
+// Test route to check database connectivity removed due to being a dead route
 
 // $router->get('/tasks', [App\Controllers\TaskController::class, 'index'], [App\Middleware\AuthMiddleware::class]);
 

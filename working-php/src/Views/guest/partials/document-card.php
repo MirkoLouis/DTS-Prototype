@@ -124,49 +124,147 @@ if ($status === 'pending') {
                 </div>
             <?php else: ?>
                 <!-- Tracker Map -->
-                <div class="relative">
-                    <div class="overflow-hidden">
-                        <div class="flex items-center flex-wrap gap-y-8">
-                            <?php foreach ($displayRoute as $index => $step): ?>
+                <div class="relative py-4 px-2">
+                    <?php
+                        // Group displayRoute into rows of 4 for snaking design
+                        $chunks = [];
+                        $slotsPerRow = 4;
+                        $totalSteps = count($displayRoute);
+
+                        for ($i = 0; $i < $totalSteps; $i += $slotsPerRow) {
+                            $chunk = array_slice($displayRoute, $i, $slotsPerRow);
+                            foreach ($chunk as $idx => &$step) {
+                                $step['original_index'] = $i + $idx;
+                            }
+                            unset($step);
+                            
+                            $isL2R = (($i / $slotsPerRow) % 2 === 0);
+                            
+                            if ($isL2R) {
+                                while (count($chunk) < $slotsPerRow) {
+                                    array_push($chunk, null);
+                                }
+                            } else {
+                                $chunk = array_reverse($chunk);
+                                while (count($chunk) < $slotsPerRow) {
+                                    array_unshift($chunk, null);
+                                }
+                            }
+                            $chunks[] = ['isL2R' => $isL2R, 'steps' => $chunk];
+                        }
+                    ?>
+
+                    <?php foreach ($chunks as $rowIndex => $chunkData): ?>
+                        <div class="relative mb-10 last:mb-0">
+                            <!-- Vertical connector to NEXT row -->
+                            <?php if ($rowIndex < count($chunks) - 1): ?>
                                 <?php 
-                                    $stepNum = $index + 1;
-                                    $isCompleted = $displayCurrentStep > $stepNum;
-                                    $isCurrent = $displayCurrentStep == $stepNum;
-                                    $isUpcoming = $displayCurrentStep < $stepNum;
-                                    
-                                    $dotColor = $isCompleted ? 'bg-green-500' : ($isCurrent ? 'bg-blue-500' : 'bg-gray-300 dark:bg-accent-2');
-                                    $textColor = $isCompleted ? 'text-green-600 dark:text-green-400' : ($isCurrent ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400');
+                                    $lastStep = $chunkData['steps'][$chunkData['isL2R'] ? 3 : 0];
+                                    $lastStepNum = $lastStep['original_index'] + 1;
+                                    $lineColorClass = ($displayCurrentStep > $lastStepNum) ? 'border-green-500' : 'border-gray-300 dark:border-gray-600';
                                 ?>
-                                <div class="flex flex-col items-center relative w-1/4 min-w-[120px]">
-                                    <!-- Connector Line -->
-                                    <?php if ($index !== count($displayRoute) - 1): ?>
-                                        <div class="absolute top-4 left-1/2 w-full h-1 <?= $isCompleted ? 'bg-green-500' : 'bg-gray-300 dark:bg-accent-2' ?>"></div>
-                                    <?php endif; ?>
-                                    
-                                    <!-- Node Circle -->
-                                    <div class="relative z-10 w-8 h-8 rounded-full flex items-center justify-center <?= $dotColor ?> text-white font-bold text-sm shadow">
-                                        <?php if ($isCompleted): ?>
-                                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-                                        <?php else: ?>
-                                            <?= $stepNum ?>
+                                <?php if ($chunkData['isL2R']): ?>
+                                    <div class="absolute border-solid border-t-4 border-r-4 border-b-4 rounded-r-xl <?= $lineColorClass ?> z-0" style="top: 22px; right: -1rem; width: calc(12.5% + 1rem); height: calc(100% + 2.5rem + 4px);"></div>
+                                <?php else: ?>
+                                    <div class="absolute border-solid border-t-4 border-l-4 border-b-4 rounded-l-xl <?= $lineColorClass ?> z-0" style="top: 22px; left: -1rem; width: calc(12.5% + 1rem); height: calc(100% + 2.5rem + 4px);"></div>
+                                <?php endif; ?>
+                            <?php endif; ?>
+
+                            <!-- The 4 Columns -->
+                            <div class="grid text-center relative z-10" style="grid-template-columns: repeat(4, minmax(0, 1fr));">
+                                <!-- Row 1: Nodes and Horizontal Lines -->
+                                <?php foreach ($chunkData['steps'] as $colIndex => $step): ?>
+                                    <div class="flex justify-center relative w-full h-8">
+                                        <?php if ($step): ?>
+                                            <?php 
+                                                $stepNum = $step['original_index'] + 1;
+                                                $isCompleted = $displayCurrentStep > $stepNum;
+                                                $isCurrent = $displayCurrentStep == $stepNum;
+                                                
+                                                $dotColor = $isCompleted ? 'bg-green-500' : ($isCurrent ? 'bg-blue-500' : 'bg-gray-300 dark:bg-accent-2');
+                                                
+                                                $drawHorizontalLine = false;
+                                                if ($chunkData['isL2R'] && $colIndex < 3 && isset($chunkData['steps'][$colIndex + 1])) {
+                                                    $drawHorizontalLine = true;
+                                                    $lineCompleted = $displayCurrentStep > $stepNum;
+                                                } elseif (!$chunkData['isL2R'] && $colIndex > 0 && isset($chunkData['steps'][$colIndex - 1])) {
+                                                    $drawHorizontalLine = true;
+                                                    $lineCompleted = $displayCurrentStep > $stepNum; 
+                                                }
+                                            ?>
+                                            
+                                            <?php if ($drawHorizontalLine): ?>
+                                                <?php if ($chunkData['isL2R']): ?>
+                                                    <div class="absolute left-1/2 w-full h-1 -translate-y-1/2 <?= $lineCompleted ? 'bg-green-500' : 'bg-gray-300 dark:bg-accent-2' ?> z-0" style="top: 75%;"></div>
+                                                <?php else: ?>
+                                                    <div class="absolute right-1/2 w-full h-1 -translate-y-1/2 <?= $lineCompleted ? 'bg-green-500' : 'bg-gray-300 dark:bg-accent-2' ?> z-0" style="top: 75%;"></div>
+                                                <?php endif; ?>
+                                            <?php endif; ?>
+
+                                            <!-- Tail for Step 1 -->
+                                            <?php if ($step['original_index'] === 0): ?>
+                                                <?php $tailColor = ($displayCurrentStep >= 1) ? 'bg-green-500' : 'bg-gray-300 dark:bg-accent-2'; ?>
+                                                <div class="absolute right-1/2 w-8 h-1 -translate-y-1/2 <?= $tailColor ?> z-0" style="top: 75%;"></div>
+                                            <?php endif; ?>
+
+                                            <!-- Head for Last Step -->
+                                            <?php if ($step['original_index'] === count($displayRoute) - 1): ?>
+                                                <?php 
+                                                    $headBgColor = ($displayCurrentStep > $stepNum) ? 'bg-green-500' : 'bg-gray-300 dark:bg-accent-2';
+                                                    $headBorderColor = ($displayCurrentStep > $stepNum) ? 'border-green-500' : 'border-gray-300 dark:border-gray-600';
+                                                ?>
+                                                <?php if ($chunkData['isL2R']): ?>
+                                                    <div class="absolute left-1/2 w-8 h-1 -translate-y-1/2 <?= $headBgColor ?> z-0 flex items-center justify-end" style="top: 75%;">
+                                                        <div class="border-solid border-t-2 border-r-2 <?= $headBorderColor ?> transform rotate-45" style="width: 10px; height: 10px; margin-right: -2px;"></div>
+                                                    </div>
+                                                <?php else: ?>
+                                                    <div class="absolute right-1/2 w-8 h-1 -translate-y-1/2 <?= $headBgColor ?> z-0 flex items-center justify-start" style="top: 75%;">
+                                                        <div class="border-solid border-t-2 border-l-2 <?= $headBorderColor ?> transform -rotate-45" style="width: 10px; height: 10px; margin-left: -2px;"></div>
+                                                    </div>
+                                                <?php endif; ?>
+                                            <?php endif; ?>
+
+                                            <div class="relative z-10 w-8 h-8 rounded-full flex items-center justify-center <?= $dotColor ?> text-white font-bold text-sm shadow">
+                                                <?php if ($isCompleted): ?>
+                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                                <?php else: ?>
+                                                    <?= $stepNum ?>
+                                                <?php endif; ?>
+                                            </div>
                                         <?php endif; ?>
                                     </div>
-                                    
-                                    <!-- Node Label -->
-                                    <div class="mt-3 text-center px-2">
-                                        <div class="text-sm font-semibold <?= $textColor ?> leading-tight">
-                                            <?= htmlspecialchars($step['name']) ?>
-                                        </div>
-                                        <?php if ($step['timestamp']): ?>
-                                            <div class="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                                <?php endforeach; ?>
+
+                                <!-- Row 2: Department Names -->
+                                <?php foreach ($chunkData['steps'] as $step): ?>
+                                    <div class="flex flex-col items-center pt-2">
+                                        <?php if ($step): ?>
+                                            <?php 
+                                                $stepNum = $step['original_index'] + 1;
+                                                $isCompleted = $displayCurrentStep > $stepNum;
+                                                $isCurrent = $displayCurrentStep == $stepNum;
+                                                $textColor = $isCompleted ? 'text-green-600 dark:text-green-400' : ($isCurrent ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400');
+                                            ?>
+                                            <div class="text-sm font-semibold <?= $textColor ?> leading-tight px-1 break-words">
+                                                <?= htmlspecialchars($step['name']) ?>
+                                            </div>
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endforeach; ?>
+
+                                <!-- Row 3: Timestamps -->
+                                <?php foreach ($chunkData['steps'] as $step): ?>
+                                    <div class="flex flex-col items-center">
+                                        <?php if ($step && $step['timestamp']): ?>
+                                            <div class="text-xs text-gray-400 dark:text-gray-500 mt-1 px-1 text-center">
                                                 <?= htmlspecialchars($step['timestamp']) ?>
                                             </div>
                                         <?php endif; ?>
                                     </div>
-                                </div>
-                            <?php endforeach; ?>
+                                <?php endforeach; ?>
+                            </div>
                         </div>
-                    </div>
+                    <?php endforeach; ?>
                 </div>
             <?php endif; ?>
         </div>

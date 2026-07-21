@@ -104,22 +104,8 @@ class GuestController
             exit;
         }
 
-        $db = Database::getInstance();
-        $placeholders = implode(',', array_fill(0, count($trackingCodes), '?'));
-        
-        $sql = "SELECT d.*, p.name as purpose_name, p.suggested_route 
-                FROM documents d 
-                LEFT JOIN purposes p ON d.purpose_id = p.id 
-                WHERE d.tracking_code IN ($placeholders)";
-        $stmt = $db->getConnection()->prepare($sql);
-        $stmt->execute(array_values($trackingCodes));
-        $documents = $stmt->fetchAll();
-
-        foreach ($documents as &$doc) {
-            $stmt = $db->query("SELECT l.*, u.name as user_name FROM document_logs l LEFT JOIN users u ON l.user_id = u.id WHERE l.document_id = :doc_id ORDER BY l.created_at DESC", [':doc_id' => $doc['id']]);
-            $doc['logs'] = $stmt->fetchAll();
-            $doc['suggested_route'] = $doc['suggested_route'] ? json_decode($doc['suggested_route'], true) : [];
-        }
+        $service = new \App\Services\DocumentQueryService();
+        $documents = $service->getMultipleWithLogs($trackingCodes);
 
         ob_start();
         require __DIR__ . '/../Views/guest/track.php';
@@ -130,20 +116,14 @@ class GuestController
     public function getTrackedDocumentModule($tracking_code)
     {
         $tracking_code = trim($tracking_code);
-        $db = Database::getInstance();
-        
-        $stmt = $db->query("SELECT d.*, p.name as purpose_name, p.suggested_route FROM documents d LEFT JOIN purposes p ON d.purpose_id = p.id WHERE d.tracking_code = :tracking_code", [':tracking_code' => $tracking_code]);
-        $document = $stmt->fetch();
+        $service = new \App\Services\DocumentQueryService();
+        $document = $service->findByTrackingCode($tracking_code, 'DESC');
 
         if (!$document) {
             http_response_code(404);
             echo "Not Found";
             return;
         }
-
-        $stmt = $db->query("SELECT l.*, u.name as user_name FROM document_logs l LEFT JOIN users u ON l.user_id = u.id WHERE l.document_id = :doc_id ORDER BY l.created_at DESC", [':doc_id' => $document['id']]);
-        $document['logs'] = $stmt->fetchAll();
-        $document['suggested_route'] = $document['suggested_route'] ? json_decode($document['suggested_route'], true) : [];
 
         ob_start();
         require __DIR__ . '/../Views/guest/partials/document-card.php';

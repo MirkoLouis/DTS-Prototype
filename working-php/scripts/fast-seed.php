@@ -127,7 +127,10 @@ while ($totalProcessed < $docsToCreate) {
         $dept = $departments[array_rand($departments)];
         
         // Emulate DocumentWorkflowService::submitDocument tracking code logic ('DEPED-' + 10 chars)
-        $trackingCode = 'DEPED-' . strtoupper(substr(sha1(uniqid('', true) . $globalDocIndex), 0, 10));
+        // Ensure absolute uniqueness by embedding the hex index to prevent birthday paradox collisions at 1M docs
+        $hexIndex = strtoupper(dechex($globalDocIndex));
+        $randomPad = strtoupper(substr(sha1(uniqid('', true)), 0, 10 - strlen($hexIndex)));
+        $trackingCode = 'DEPED-' . $randomPad . $hexIndex;
         $guestInfo = json_encode(['name' => "Fast Guest $globalDocIndex", 'email' => "fast$globalDocIndex@test.com", 'phone' => '0912']);
         
         $isRecent = (mt_rand()/mt_getrandmax()) < 0.4;
@@ -167,6 +170,8 @@ while ($totalProcessed < $docsToCreate) {
         $currentStep = 0;
         $releasedAt = null;
         $releasedByUserId = null;
+        $declinedAt = null;
+        $declineReason = null;
         
         if ($status == 'processing') {
             $randIdx = array_rand($routeNames);
@@ -180,6 +185,9 @@ while ($totalProcessed < $docsToCreate) {
             // Set fields required for Statistics page visibility
             $releasedAt = date('Y-m-d H:i:s', $ts + 3600); // Approximate
             $releasedByUserId = $recordsOfficer['id'];
+        } elseif ($status == 'declined') {
+            $declinedAt = date('Y-m-d H:i:s', $ts + rand(5, 30)*60);
+            $declineReason = 'Requirements not met.';
         }
         
         $docsToInsert[] = [
@@ -194,6 +202,8 @@ while ($totalProcessed < $docsToCreate) {
             'current_step' => $currentStep,
             'released_at' => $releasedAt,
             'released_by_user_id' => $releasedByUserId,
+            'declined_at' => $declinedAt,
+            'decline_reason' => $declineReason,
             'finalized_route' => $finalizedRoute,
             'created_at' => $createdAt,
             'updated_at' => $createdAt,
@@ -205,12 +215,12 @@ while ($totalProcessed < $docsToCreate) {
     }
     
     // BULK INSERT DOCUMENTS
-    $placeholders = implode(',', array_fill(0, count($docsToInsert), '(?,?,?,?,?,?,?,?,?,?,?,?,?,?)'));
-    $sql = "INSERT INTO documents (tracking_code, title, guest_info, district, department, purpose_id, status, current_department_id, current_step, released_at, released_by_user_id, finalized_route, created_at, updated_at) VALUES $placeholders";
+    $placeholders = implode(',', array_fill(0, count($docsToInsert), '(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'));
+    $sql = "INSERT INTO documents (tracking_code, title, guest_info, district, department, purpose_id, status, current_department_id, current_step, released_at, released_by_user_id, declined_at, decline_reason, finalized_route, created_at, updated_at) VALUES $placeholders";
     $stmt = $conn->prepare($sql);
     $flatParams = [];
     foreach ($docsToInsert as $d) {
-        array_push($flatParams, $d['tracking_code'], $d['title'], $d['guest_info'], $d['district'], $d['department'], $d['purpose_id'], $d['status'], $d['current_department_id'], $d['current_step'], $d['released_at'], $d['released_by_user_id'], $d['finalized_route'], $d['created_at'], $d['updated_at']);
+        array_push($flatParams, $d['tracking_code'], $d['title'], $d['guest_info'], $d['district'], $d['department'], $d['purpose_id'], $d['status'], $d['current_department_id'], $d['current_step'], $d['released_at'], $d['released_by_user_id'], $d['declined_at'], $d['decline_reason'], $d['finalized_route'], $d['created_at'], $d['updated_at']);
     }
     $stmt->execute($flatParams);
     

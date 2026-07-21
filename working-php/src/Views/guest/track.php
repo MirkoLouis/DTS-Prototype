@@ -116,7 +116,7 @@
             history.pushState(null, '', `?${urlParams.toString()}`);
 
             try {
-                const response = await fetch(`/api/track-document/${trackingCode}`);
+                const response = await fetch(`/api/track/module/${trackingCode}`);
                 if (!response.ok) {
                     if (response.status === 404) {
                         displayError(`Document with tracking code ${trackingCode} not found.`);
@@ -207,7 +207,7 @@
         const trackingCodes = Array.from(documentCards).map(card => card.dataset.trackingCode);
         
         try {
-            const response = await fetch(`/api/document-status?codes=${trackingCodes.join(',')}`);
+            const response = await fetch(`/api/track/status?codes=${trackingCodes.join(',')}`);
             if (!response.ok) return;
             
             const statuses = await response.json();
@@ -218,7 +218,7 @@
                     const isChanged = card.dataset.status !== update.status || card.dataset.currentStep != update.current_step;
 
                     if (isChanged) {
-                        const cardResponse = await fetch(`/api/track-document/${update.tracking_code}`);
+                        const cardResponse = await fetch(`/api/track/module/${update.tracking_code}`);
                         if (cardResponse.ok) {
                             const newCardHtml = await cardResponse.text();
                             card.outerHTML = newCardHtml;

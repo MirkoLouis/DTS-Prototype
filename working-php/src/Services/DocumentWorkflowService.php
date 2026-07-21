@@ -72,72 +72,92 @@ class DocumentWorkflowService
     {
         $conn = $this->db->getConnection();
         
-        try {
-            $conn->beginTransaction();
-            
-            $finalPurposeId = $data['purpose_id'];
+        $maxAttempts = 3;
+        $attempt = 0;
 
-            // Prevent DB bloating/DoS: map custom guest purposes to a generic 'Others' record instead of creating new rows indefinitely
-            if ($data['purpose_id'] == '0') {
-                $otherPurposeText = "Others";
-                $stmt = $this->db->query("SELECT id FROM purposes WHERE name = :name AND is_official = 0", [':name' => $otherPurposeText]);
-                $existing = $stmt->fetch();
+        while ($attempt < $maxAttempts) {
+            try {
+                $conn->beginTransaction();
+                
+                $finalPurposeId = $data['purpose_id'];
 
-                if ($existing) {
-                    $finalPurposeId = $existing['id'];
-                } else {
-                    $this->db->query("INSERT INTO purposes (name, is_official, requirements, suggested_route) VALUES (:name, 0, '[]', '[]')", [
-                        ':name' => $otherPurposeText
-                    ]);
-                    $finalPurposeId = $conn->lastInsertId();
+                // Prevent DB bloating/DoS: map custom guest purposes to a generic 'Others' record instead of creating new rows indefinitely
+                if ($data['purpose_id'] == '0') {
+                    $otherPurposeText = "Others";
+                    $stmt = $this->db->query("SELECT id FROM purposes WHERE name = :name AND is_official = 0", [':name' => $otherPurposeText]);
+                    $existing = $stmt->fetch();
+
+                    if ($existing) {
+                        $finalPurposeId = $existing['id'];
+                    } else {
+                        $this->db->query("INSERT INTO purposes (name, is_official, requirements, suggested_route) VALUES (:name, 0, '[]', '[]')", [
+                            ':name' => $otherPurposeText
+                        ]);
+                        $finalPurposeId = $conn->lastInsertId();
+                    }
+
+                    // Append the specific text to the document's title to preserve the guest's input without bloating the purposes table
+                    $specificPurpose = trim($data['other_purpose_text'] ?? '');
+                    if ($specificPurpose !== '') {
+                        $data['title'] = $data['title'] . " (Purpose: " . substr($specificPurpose, 0, 100) . ")";
+                    }
                 }
 
-                // Append the specific text to the document's title to preserve the guest's input without bloating the purposes table
-                $specificPurpose = trim($data['other_purpose_text'] ?? '');
-                if ($specificPurpose !== '') {
-                    $data['title'] = $data['title'] . " (Purpose: " . substr($specificPurpose, 0, 100) . ")";
+                // Generate a highly randomized 10-character tracking code
+                $trackingCode = 'DEPED-' . strtoupper(substr(sha1(uniqid('', true) . microtime()), 0, 10));
+
+                $guestInfo = json_encode([
+                    'name' => $data['guest_name'],
+                    'email' => $data['guest_email'],
+                    'phone' => $data['guest_phone']
+                ]);
+
+                $this->db->query("INSERT INTO documents (tracking_code, title, guest_info, district, department, purpose_id, status, current_step, created_at, updated_at) VALUES (:tracking_code, :title, :guest_info, :district, :department, :purpose_id, 'pending', 0, NOW(), NOW())", [
+                    ':tracking_code' => $trackingCode,
+                    ':title' => $data['title'],
+                    ':guest_info' => $guestInfo,
+                    ':district' => $data['district'],
+                    ':department' => $data['department'],
+                    ':purpose_id' => $finalPurposeId
+                ]);
+                
+                $documentId = $conn->lastInsertId();
+
+                $documentData = [
+                    'tracking_code' => $trackingCode,
+                    'title' => $data['title'],
+                    'guest_info' => $guestInfo,
+                    'district' => $data['district'],
+                    'department' => $data['department'],
+                    'purpose_id' => $finalPurposeId,
+                    'finalized_route' => ''
+                ];
+
+                // Initialize the cryptographic hash chain with the first 'Submitted' log entry
+                IntegrityManager::createLog($documentId, null, 'Submitted', 'Document submitted by guest via the public portal.', $documentData);
+
+                $conn->commit();
+                return ['tracking_code' => $trackingCode, 'document_id' => $documentId];
+                
+            } catch (\PDOException $e) {
+                if ($conn->inTransaction()) {
+                    $conn->rollBack();
                 }
+                
+                // SQLSTATE 23000 is an integrity constraint violation (e.g., Duplicate Entry)
+                if ($e->getCode() === '23000' && $attempt < $maxAttempts - 1) {
+                    $attempt++;
+                    continue; // Try again with a new random tracking code
+                }
+                
+                // If it's a different database error, or we ran out of attempts, throw it.
+                throw $e;
+            } catch (\Throwable $e) {
+                if ($conn->inTransaction()) {
+                    $conn->rollBack();
+                }
+                throw $e;
             }
-
-            // Generate a unique, deterministic 10-character tracking code derived from submission details
-            $dataForHash = time() . $data['guest_name'] . $data['guest_email'];
-            $trackingCode = 'DEPED-' . strtoupper(substr(sha1($dataForHash), 0, 10));
-
-            $guestInfo = json_encode([
-                'name' => $data['guest_name'],
-                'email' => $data['guest_email'],
-                'phone' => $data['guest_phone']
-            ]);
-
-            $this->db->query("INSERT INTO documents (tracking_code, title, guest_info, district, department, purpose_id, status, current_step, created_at, updated_at) VALUES (:tracking_code, :title, :guest_info, :district, :department, :purpose_id, 'pending', 0, NOW(), NOW())", [
-                ':tracking_code' => $trackingCode,
-                ':title' => $data['title'],
-                ':guest_info' => $guestInfo,
-                ':district' => $data['district'],
-                ':department' => $data['department'],
-                ':purpose_id' => $finalPurposeId
-            ]);
-            
-            $documentId = $conn->lastInsertId();
-
-            $documentData = [
-                'tracking_code' => $trackingCode,
-                'title' => $data['title'],
-                'guest_info' => $guestInfo,
-                'district' => $data['district'],
-                'department' => $data['department'],
-                'purpose_id' => $finalPurposeId,
-                'finalized_route' => ''
-            ];
-
-            // Initialize the cryptographic hash chain with the first 'Submitted' log entry
-            IntegrityManager::createLog($documentId, null, 'Submitted', 'Document submitted by guest via the public portal.', $documentData);
-
-            $conn->commit();
-            return ['tracking_code' => $trackingCode, 'document_id' => $documentId];
-        } catch (\Throwable $e) {
-            $conn->rollBack();
-            throw $e;
         }
     }
 

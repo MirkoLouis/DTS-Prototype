@@ -30,13 +30,10 @@ class TaskController
             $workflow = new \App\Services\DocumentWorkflowService();
             $workflow->completeTask((int)$id, '', $currentUser, $pin);
             
-            \App\Core\SecurityHelper::cachePin($pin);
-            
             $doc = \App\Models\Document::findById((int)$id);
             $trackingCode = $doc ? $doc->tracking_code : 'Unknown';
             $_SESSION['success'] = "Document $trackingCode is now in transit.";
         } catch (\Exception $e) {
-            \App\Core\SecurityHelper::clearCachedPin();
             if (str_contains($e->getMessage(), 'Action Denied')) {
                 $_SESSION['console_error'] = $e->getMessage();
             } else {
