@@ -182,6 +182,12 @@ async function setupDatabase() {
                 is_official: true,
                 requirements: ['Records Disposition Schedule', 'Inventory of Old Files'],
                 suggested_route: ['Records Unit', 'Supply Unit', 'Accounting Unit'],
+            },
+            {
+                name: 'Others',
+                is_official: false,
+                requirements: [],
+                suggested_route: [],
             }
         ];
 

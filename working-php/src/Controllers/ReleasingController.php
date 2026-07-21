@@ -30,10 +30,8 @@ class ReleasingController
             $workflow = new \App\Services\DocumentWorkflowService();
             $workflow->releaseDocument((int)$id, $currentUser, $pin);
             
-            \App\Core\SecurityHelper::cachePin($pin);
             $_SESSION['success'] = "Document marked as completed and released.";
         } catch (\Exception $e) {
-            \App\Core\SecurityHelper::clearCachedPin();
             if (str_contains($e->getMessage(), 'Action Denied')) {
                 $_SESSION['console_error'] = $e->getMessage();
             } else {

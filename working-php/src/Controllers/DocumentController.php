@@ -18,13 +18,8 @@ class DocumentController
      */
     public function show($tracking_code)
     {
-        $db = Database::getInstance();
-        
-        $stmt = $db->query("SELECT d.*, p.name as purpose_name 
-                            FROM documents d 
-                            LEFT JOIN purposes p ON d.purpose_id = p.id 
-                            WHERE d.tracking_code = :tracking_code", [':tracking_code' => $tracking_code]);
-        $document = $stmt->fetch();
+        $service = new \App\Services\DocumentQueryService();
+        $document = $service->findByTrackingCode($tracking_code, 'ASC');
 
         if (!$document) {
             header("HTTP/1.0 404 Not Found");
@@ -32,13 +27,7 @@ class DocumentController
             exit;
         }
 
-        // Fetch logs
-        $stmt = $db->query("SELECT l.*, u.name as user_name 
-                            FROM document_logs l 
-                            LEFT JOIN users u ON l.user_id = u.id 
-                            WHERE l.document_id = :document_id 
-                            ORDER BY l.created_at ASC", [':document_id' => $document['id']]);
-        $logs = $stmt->fetchAll();
+        $logs = $document['logs'];
 
         require BASE_PATH . '/src/Views/general/show-document.php';
     }
@@ -50,13 +39,8 @@ class DocumentController
      */
     public function showHashChain($tracking_code)
     {
-        $db = Database::getInstance();
-        
-        $stmt = $db->query("SELECT d.*, p.name as purpose_name 
-                            FROM documents d 
-                            LEFT JOIN purposes p ON d.purpose_id = p.id 
-                            WHERE d.tracking_code = :tracking_code", [':tracking_code' => $tracking_code]);
-        $document = $stmt->fetch();
+        $service = new \App\Services\DocumentQueryService();
+        $document = $service->findByTrackingCode($tracking_code, 'ASC');
 
         if (!$document) {
             header("HTTP/1.0 404 Not Found");
@@ -64,13 +48,7 @@ class DocumentController
             exit;
         }
 
-        // Fetch logs
-        $stmt = $db->query("SELECT l.*, u.name as user_name 
-                            FROM document_logs l 
-                            LEFT JOIN users u ON l.user_id = u.id 
-                            WHERE l.document_id = :document_id 
-                            ORDER BY l.created_at ASC", [':document_id' => $document['id']]);
-        $logs = $stmt->fetchAll();
+        $logs = $document['logs'];
 
         require BASE_PATH . '/src/Views/general/document-hash-chain.php';
     }

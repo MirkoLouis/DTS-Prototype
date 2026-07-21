@@ -37,7 +37,8 @@ class Database
             $this->connection = new PDO($dsn, $dbConfig['user'], $dbConfig['password'], $options);
         } catch (PDOException $e) {
             // In a real production app, we would log this securely and show a generic error
-            throw new Exception("Database Connection Failed: " . $e->getMessage());
+            error_log("Database Connection Failed: " . $e->getMessage());
+            throw new Exception("Database Connection Failed. Please check system logs.");
         }
     }
 
