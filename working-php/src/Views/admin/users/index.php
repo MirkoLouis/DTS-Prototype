@@ -88,6 +88,7 @@
                                 $user['signature_html'] = '<span class="text-gray-400 italic text-xs">Not set</span>';
                             }
 
+                            // Align action links to the left to maintain visual alignment with the column header
                             $actions = sprintf('<a href="/users/%s/edit" class="text-accent-1 hover:text-accent-1-active">Edit</a>', $user['id']);
                             if ($_SESSION['user_id'] != $user['id']) {
                                 $actions .= sprintf('
@@ -97,7 +98,7 @@
                                     </form>
                                 ', $user['id']);
                             }
-                            $user['actions_html'] = '<div class="space-x-2 text-right">' . $actions . '</div>';
+                            $user['actions_html'] = '<div class="space-x-2 text-left">' . $actions . '</div>';
                         }
                         unset($user);
 

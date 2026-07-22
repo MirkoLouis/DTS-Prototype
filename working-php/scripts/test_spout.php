@@ -1,18 +1,16 @@
 <?php
-require "vendor/autoload.php";
+require dirname(__DIR__) . "/vendor/autoload.php";
 use OpenSpout\Writer\XLSX\Writer;
-use OpenSpout\Writer\XLSX\Options;
-use OpenSpout\Common\Entity\Style\Style;
+
+use OpenSpout\Writer\Common\Creator\Style\StyleBuilder;
 use OpenSpout\Common\Entity\Row;
 use OpenSpout\Common\Entity\Cell;
 
-$options = new Options();
-$options->DEFAULT_COLUMN_WIDTH = 25;
-$writer = new Writer($options);
-$writer->openToFile('test_spout2.xlsx');
+$writer = new Writer();
+$writer->openToFile('test_spout.xlsx');
 
-$styleCant = (new Style())->withFontName('Canterbury')->withFontSize(14);
-$styleBold = (new Style())->withFontBold(true);
+$styleCant = (new StyleBuilder())->setFontName('Canterbury')->setFontSize(14)->build();
+$styleBold = (new StyleBuilder())->setFontBold()->build();
 
 $writer->addRow(Row::fromValues(['Republic of the Philippines'], $styleCant));
 $writer->addRow(Row::fromValues(['Department of Education'], $styleCant));

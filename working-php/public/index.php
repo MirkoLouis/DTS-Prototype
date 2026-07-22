@@ -358,11 +358,8 @@ $router->post('/documents/scan', [App\Controllers\DocumentController::class, 'sc
     App\Middleware\RoleMiddleware::class . ':staff,officer'
 ]);
 
-// Test route to check database connectivity removed due to being a dead route
-
-// $router->get('/tasks', [App\Controllers\TaskController::class, 'index'], [App\Middleware\AuthMiddleware::class]);
-
 // ---------------------------
+
 
 // Dispatch the Request
 $uri = $_SERVER['REQUEST_URI'] ?? '/';

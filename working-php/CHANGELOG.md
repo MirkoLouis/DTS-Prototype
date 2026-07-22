@@ -1,6 +1,16 @@
 # Changelog
 
-## 2026-07-22 15:57
+## 2026-07-22 16:11
+
+**Version:** 1.15.5-Alpha+202607221611
+
+### Fixed
+- Reorganized standalone scratch scripts (`test_cache.php`, `test_spout.php`, `test_spout2.php`, `test_spout.xlsx`, `seed_test.js`) by moving them into `working-php/scripts/` and updating autoload requirements.
+- Pruned dead commented-out route block (`/tasks` index test alias) in `public/index.php`.
+
+### Added
+- Added comprehensive inline documentation across core security and architectural files (`SecurityHelper.php`, `AuthMiddleware.php`, `RoleMiddleware.php`, `DocumentPolicy.php`, `Router.php`) following context-scaled commenting principles.
+
 
 **Version:** 1.15.4-Alpha+202607221557
 
