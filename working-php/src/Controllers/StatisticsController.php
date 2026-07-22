@@ -16,89 +16,10 @@ class StatisticsController
 
         if ($userRole === 'officer' || $userRole === 'staff') {
             $departmentId = $_SESSION['department_id'] ?? 0;
-            $filterPurpose = $_GET['purpose'] ?? null;
-            $filterSubmitter = $_GET['submitter'] ?? null;
-            $searchTerm = $_GET['search'] ?? null;
-            $filterDate = $_GET['date'] ?? null;
-            
+            $queryService = new \App\Services\DocumentQueryService();
 
-            $where = ["d.status = 'completed'", "d.released_by_user_id > 0"];
-            $params = [];
+            [$documents, $paginator] = $queryService->getPaginatedStatistics($departmentId, $_GET);
 
-            $join = "INNER JOIN users u ON d.released_by_user_id = u.id AND u.department_id = :dept_id
-                     LEFT JOIN purposes p ON d.purpose_id = p.id";
-            $params[':dept_id'] = $departmentId;
-
-            if ($filterDate) {
-                $where[] = "d.released_at >= :date_start AND d.released_at <= :date_end";
-                $params[':date_start'] = $filterDate . ' 00:00:00';
-                $params[':date_end'] = $filterDate . ' 23:59:59';
-            }
-            if ($searchTerm) {
-                $searchTerm = trim($searchTerm);
-                if (preg_match('/^DEPED-/i', $searchTerm)) {
-                    $where[] = "d.tracking_code LIKE :search";
-                    $params[':search'] = $searchTerm . '%';
-                } else {
-                    $where[] = "(d.tracking_code LIKE :search OR json_unquote(json_extract(d.guest_info, '$.name')) LIKE :search2)";
-                    $params[':search'] = '%' . $searchTerm . '%';
-                    $params[':search2'] = '%' . $searchTerm . '%';
-                }
-            }
-            if ($filterPurpose && $filterPurpose !== 'all') {
-                $where[] = "p.name = :purpose";
-                $params[':purpose'] = $filterPurpose;
-            }
-            if ($filterSubmitter) {
-                $where[] = "LOWER(json_unquote(json_extract(d.guest_info, '$.name'))) LIKE :submitter";
-                $params[':submitter'] = '%' . strtolower($filterSubmitter) . '%';
-            }
-
-            $whereSql = implode(' AND ', $where);
-
-            $cursor = $_GET['cursor'] ?? null;
-            
-            $cacheKey = 'count_stats_controller_' . md5(json_encode($params) . $whereSql);
-            $totalItems = Cache::remember($cacheKey, 300, function() use ($db, $join, $whereSql, $params) {
-                $countSql = "SELECT COUNT(*) as total FROM documents d {$join} WHERE {$whereSql}";
-                $countStmt = $db->query($countSql, $params);
-                return $countStmt->fetch()['total'] ?? 0;
-            });
-
-            if ($cursor) {
-                $parts = explode('_', $cursor);
-                if (count($parts) == 2) {
-                    $whereSql .= " AND (d.released_at < :c_time1 OR (d.released_at = :c_time2 AND d.id < :c_id))";
-                    $params[':c_time1'] = $parts[0];
-                    $params[':c_time2'] = $parts[0];
-                    $params[':c_id'] = $parts[1];
-                }
-            }
-
-            $perPage = 10;
-            $limit = $perPage + 1;
-
-            $sql = "SELECT d.*, p.name as purpose_name 
-                    FROM documents d 
-                    {$join} 
-                    WHERE {$whereSql} 
-                    ORDER BY d.released_at DESC, d.id DESC 
-                    LIMIT {$limit}";
-            
-            $stmt = $db->query($sql, $params);
-            $documents = $stmt->fetchAll();
-            
-            $nextCursor = null;
-            if (count($documents) > $perPage) {
-                $nextCursor = $documents[$perPage - 1]['released_at'] . '_' . $documents[$perPage - 1]['id'];
-            }
-            
-            $paginator = new \App\Utils\CursorPaginator($documents, $perPage, $nextCursor, $totalItems, '?' . http_build_query(array_diff_key($_GET, ['cursor' => ''])));
-            $documents = $paginator->getItems();
-            
-            foreach ($documents as &$doc) {
-                $doc['guest_info'] = $doc['guest_info'] ? json_decode($doc['guest_info'], true) : [];
-            }
             $viewData['releasedDocuments'] = $documents;
             $viewData['paginator'] = $paginator;
             $viewData['purposes'] = $this->getAllPurposes();
@@ -205,20 +126,41 @@ class StatisticsController
 
     public function getThroughputData()
     {
-        $controller = new DashboardController();
-        return $controller->getThroughputData();
+        $period = $_GET['period'] ?? 'daily';
+        $departmentId = $_SESSION['department_id'] ?? 0;
+        
+        $service = new \App\Services\DepartmentAnalyticsService();
+        $data = $service->getMetricTimeSeries($departmentId, $period, 'processed_count + released_count');
+
+        header('Content-Type: application/json');
+        echo json_encode($data);
+        exit;
     }
 
     public function getCurrentLoadData()
     {
-        $controller = new DashboardController();
-        return $controller->getCurrentLoadData();
+        $period = $_GET['period'] ?? 'daily';
+        $departmentId = $_SESSION['department_id'] ?? 0;
+        
+        $service = new \App\Services\DepartmentAnalyticsService();
+        $data = $service->getMetricTimeSeries($departmentId, $period, 'received_count');
+
+        header('Content-Type: application/json');
+        echo json_encode($data);
+        exit;
     }
 
     public function getAverageProcessingTimeData()
     {
-        $controller = new DashboardController();
-        return $controller->getAverageProcessingTimeData();
+        $period = $_GET['period'] ?? 'daily';
+        $departmentId = $_SESSION['department_id'] ?? 0;
+        
+        $service = new \App\Services\DepartmentAnalyticsService();
+        $data = $service->getAverageProcessingTime($departmentId, $period);
+
+        header('Content-Type: application/json');
+        echo json_encode($data);
+        exit;
     }
 
     private function getAllPurposes()

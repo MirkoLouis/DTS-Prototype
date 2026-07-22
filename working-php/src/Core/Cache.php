@@ -66,4 +66,13 @@ class Cache
         self::put($key, $value, $ttlSeconds);
         return $value;
     }
+
+    /**
+     * Remove all entries from the cache.
+     */
+    public static function clear()
+    {
+        $db = Database::getInstance();
+        $db->query("DELETE FROM cache");
+    }
 }

@@ -12,7 +12,7 @@ class Validator
      * @param string $redirectUrl URL to redirect to on failure
      * @return array Validated and sanitized data
      */
-    public static function validate(array $data, array $rules, string $redirectUrl): array
+    public static function validate(array $data, array $rules): array
     {
         $errors = [];
         $validatedData = [];
@@ -37,20 +37,13 @@ class Validator
                 }
             }
             
-            // Sanitize standard text inputs to prevent XSS (basic)
             if (is_string($value)) {
-                $validatedData[$field] = trim(htmlspecialchars($value, ENT_QUOTES, 'UTF-8'));
+                $validatedData[$field] = trim((string)$value);
             } else {
                 $validatedData[$field] = $value;
             }
         }
 
-        if (!empty($errors)) {
-            $_SESSION['error'] = implode("<br>", $errors);
-            header("Location: " . $redirectUrl);
-            exit;
-        }
-
-        return $validatedData;
+        return [$errors, $validatedData];
     }
 }

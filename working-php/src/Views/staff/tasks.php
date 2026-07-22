@@ -99,6 +99,31 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     });
+
+    const scanForm = document.getElementById('scan-form');
+    if (scanForm) {
+        scanForm.addEventListener('submit', function(e) {
+            if (!scanForm.querySelector('.scan-pin-input')) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'pin';
+                input.className = 'scan-pin-input';
+                scanForm.appendChild(input);
+            }
+            
+            const pinInput = scanForm.querySelector('.scan-pin-input');
+            if (!pinInput.value) {
+                e.preventDefault();
+                const trackingCode = scanForm.elements['tracking_code'].value.trim();
+                if (trackingCode) {
+                    window.SigningModal.show(`Enter your Security PIN to cryptographically sign the receipt of document: ${trackingCode}`, function(pin) {
+                        pinInput.value = pin;
+                        scanForm.submit();
+                    });
+                }
+            }
+        });
+    }
 });
 </script>
 

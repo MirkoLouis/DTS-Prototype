@@ -17,6 +17,7 @@ class Document
     public $decline_reason;
     public $declined_at;
     public $status;
+    public $version = 1;
     public $finalized_route; // JSON string
     public $current_step;
     public $current_department_id;
@@ -53,7 +54,7 @@ class Document
                 tracking_code = :tracking_code, title = :title, details = :details, 
                 guest_info = :guest_info, district = :district, department = :department, 
                 purpose_id = :purpose_id, decline_reason = :decline_reason, declined_at = :declined_at, 
-                status = :status, finalized_route = :finalized_route, current_step = :current_step, 
+                status = :status, version = :version, finalized_route = :finalized_route, current_step = :current_step, 
                 current_department_id = :current_department_id, released_at = :released_at, 
                 released_by_user_id = :released_by_user_id, updated_at = :updated_at 
                 WHERE id = :id";
@@ -69,6 +70,7 @@ class Document
                 'decline_reason' => $this->decline_reason,
                 'declined_at' => $this->declined_at,
                 'status' => $this->status,
+                'version' => $this->version,
                 'finalized_route' => $this->finalized_route,
                 'current_step' => $this->current_step,
                 'current_department_id' => $this->current_department_id,

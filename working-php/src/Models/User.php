@@ -9,12 +9,14 @@ class User
     public $id;
     public $name;
     public $email;
+    public $email_verified_at;
     public $password;
     public $public_key;
     public $private_key;
     public $security_key_set_at;
     public $department_id;
     public $role;
+    public $remember_token;
     public $created_at;
     public $updated_at;
 

@@ -38,7 +38,7 @@ class GuestController
     {
         $db = Database::getInstance();
 
-        $validated = Validator::validate($_POST, [
+        [$errors, $validated] = Validator::validate($_POST, [
             'guest_name' => 'required',
             'guest_email' => 'required|email',
             'guest_phone' => 'required',
@@ -47,7 +47,13 @@ class GuestController
             'title' => 'required',
             'purpose_id' => 'required',
             'other_purpose_text' => ''
-        ], '/');
+        ]);
+
+        if (!empty($errors)) {
+            $_SESSION['error'] = implode("<br>", $errors);
+            header("Location: /");
+            exit;
+        }
 
 
         try {

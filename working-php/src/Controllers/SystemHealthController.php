@@ -334,10 +334,18 @@ class SystemHealthController
     public function freeze($tracking_code)
     {
         $currentUser = \App\Models\User::findById($_SESSION['user_id'] ?? 0);
+        $submittedPin = $_POST['pin'] ?? '';
+        $pin = \App\Core\SecurityHelper::resolvePin($submittedPin);
+
+        if (empty($pin)) {
+            $_SESSION['error'] = "Security PIN is required.";
+            header("Location: " . ($_SERVER['HTTP_REFERER'] ?? "/documents/{$tracking_code}"));
+            exit;
+        }
 
         try {
             $workflow = new \App\Services\DocumentWorkflowService();
-            $workflow->freezeDocument($tracking_code, $currentUser);
+            $workflow->freezeDocument($tracking_code, $currentUser, $pin);
             
             $_SESSION['success'] = 'Document has been frozen successfully.';
         } catch (\Exception $e) {
@@ -356,10 +364,18 @@ class SystemHealthController
     public function unfreeze($tracking_code)
     {
         $currentUser = \App\Models\User::findById($_SESSION['user_id'] ?? 0);
+        $submittedPin = $_POST['pin'] ?? '';
+        $pin = \App\Core\SecurityHelper::resolvePin($submittedPin);
+
+        if (empty($pin)) {
+            $_SESSION['error'] = "Security PIN is required.";
+            header("Location: " . ($_SERVER['HTTP_REFERER'] ?? "/documents/{$tracking_code}"));
+            exit;
+        }
 
         try {
             $workflow = new \App\Services\DocumentWorkflowService();
-            $previousStatus = $workflow->unfreezeDocument($tracking_code, $currentUser);
+            $previousStatus = $workflow->unfreezeDocument($tracking_code, $currentUser, $pin);
             
             $_SESSION['success'] = "Document has been unfrozen and restored to " . ucfirst($previousStatus) . ".";
         } catch (\Exception $e) {
@@ -378,6 +394,15 @@ class SystemHealthController
     public function freezeAll()
     {
         $currentUser = \App\Models\User::findById($_SESSION['user_id'] ?? 0);
+        $submittedPin = $_POST['pin'] ?? '';
+        $pin = \App\Core\SecurityHelper::resolvePin($submittedPin);
+
+        if (empty($pin)) {
+            $_SESSION['error'] = "Security PIN is required.";
+            header("Location: /system-overview");
+            exit;
+        }
+
         $db = Database::getInstance();
         $workflow = new \App\Services\DocumentWorkflowService();
         
@@ -412,7 +437,7 @@ class SystemHealthController
         $frozenCount = 0;
         foreach (array_keys($trackingCodesToFreeze) as $code) {
             try {
-                $workflow->freezeDocument($code, $currentUser);
+                $workflow->freezeDocument($code, $currentUser, $pin);
                 $frozenCount++;
             } catch (\Exception $e) {
                 // Ignore if it's already frozen or if permission issues arise
@@ -427,10 +452,18 @@ class SystemHealthController
     public function autoResolve($tracking_code)
     {
         $currentUser = \App\Models\User::findById($_SESSION['user_id'] ?? 0);
+        $submittedPin = $_POST['pin'] ?? '';
+        $pin = \App\Core\SecurityHelper::resolvePin($submittedPin);
+
+        if (empty($pin)) {
+            $_SESSION['error'] = "Security PIN is required.";
+            header('Location: /system-overview');
+            exit;
+        }
 
         try {
             $workflow = new \App\Services\DocumentWorkflowService();
-            $previousStatus = $workflow->autoResolveDocument($tracking_code, $currentUser);
+            $previousStatus = $workflow->autoResolveDocument($tracking_code, $currentUser, $pin);
             $_SESSION['success'] = "Document auto-resolved successfully. Restored from snapshot and unfrozen (Status: " . ucfirst($previousStatus) . ").";
         } catch (\Exception $e) {
             $_SESSION['error'] = $e->getMessage();

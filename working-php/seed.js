@@ -261,7 +261,8 @@ async function processDocumentAPI(i, deptPools, departmentNames, guestClient, pu
     if (willBeDeclined) {
         await recordsClient.postForm(`/documents/decline`, {
             document_id: documentId,
-            reason: 'Incomplete requirements or incorrect form.'
+            reason: 'Incomplete requirements or incorrect form.',
+            pin: DEFAULT_PASSWORD
         });
         return { id: documentId };
     }
@@ -283,7 +284,10 @@ async function processDocumentAPI(i, deptPools, departmentNames, guestClient, pu
         const deptClient = deptPools[dept].getClient();
 
         // Scan the document to put it in processing
-        await deptClient.postForm('/documents/scan', { tracking_code: trackingCode });
+        await deptClient.postForm('/documents/scan', { 
+            tracking_code: trackingCode,
+            pin: DEFAULT_PASSWORD
+        });
 
         // If it's meant to be processing and we are at the last step, STOP before completing.
         if (willBeProcessing && step === stepsToSimulate - 1) {
@@ -298,7 +302,10 @@ async function processDocumentAPI(i, deptPools, departmentNames, guestClient, pu
 
     // 4. RECORDS FINAL RELEASE
     if (actualStepsProcessed === route.length && aimForReleased) {
-        await recordsClient.postForm('/documents/scan', { tracking_code: trackingCode });
+        await recordsClient.postForm('/documents/scan', { 
+            tracking_code: trackingCode,
+            pin: DEFAULT_PASSWORD
+        });
         await recordsClient.postForm(`/releasing/${documentId}/complete`, { pin: DEFAULT_PASSWORD });
     }
 
