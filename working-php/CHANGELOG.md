@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-07-22 16:17
+
+**Version:** 1.15.6-Alpha+202607221617
+
+### Fixed
+- Verified XLSX report generation in `GenerateReportJob.php` and removed unused `phpoffice/phpspreadsheet` dependency from `composer.json` in favor of high-performance streaming library `openspout/openspout`.
+
+### Added
+- None
+
 ## 2026-07-22 16:11
 
 **Version:** 1.15.5-Alpha+202607221611
