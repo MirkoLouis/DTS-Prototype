@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.12.8-Alpha+202607221612] - 2026-07-22 16:12
+
+### FIXED
+- **Script Organization & Dead Code Pruning:** Moved scratch test scripts (`test_cache.php`, `test_spout.php`, `test_spout2.php`, `test_spout.xlsx`, `seed_test.js`) into `working-php/scripts/` with updated autoloader paths, and pruned a dead commented-out route block in `public/index.php`.
+
+### ADDED
+- **Context-Scaled Code Documentation:** Added thorough inline documentation across core architectural and security files (`SecurityHelper.php`, `AuthMiddleware.php`, `RoleMiddleware.php`, `DocumentPolicy.php`, `Router.php`).
+
+
+
+### FIXED
+- **User Management Alignment:** Fixed action buttons alignment in `/users/index` (`working-php/src/Views/admin/users/index.php`), updating `text-right` to `text-left` so action controls align consistently with table headers.
+
+### ADDED
+- N/A
+
 ## [1.12.6-Alpha+202607081648] - 2026-07-08
 
 ### FIXED
