@@ -2,8 +2,13 @@
 
 $appStartTime = microtime(true);
 
-// Front Controller
-session_start();
+// Front Controller & Session Hardening
+session_start([
+    'cookie_httponly' => true,
+    'cookie_secure'   => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on',
+    'cookie_samesite' => 'Strict',
+    'use_strict_mode' => true,
+]);
 
 // CSRF Token Generation
 if (empty($_SESSION['csrf_token'])) {
@@ -21,8 +26,9 @@ error_reporting(E_ALL);
 // Base Path Definition
 define('BASE_PATH', dirname(__DIR__));
 
-// Require Composer Autoloader
+// Require Composer Autoloader & Custom Helpers
 require BASE_PATH . '/vendor/autoload.php';
+require BASE_PATH . '/src/helpers.php';
 
 use App\Core\Router;
 
@@ -48,9 +54,18 @@ $router->get('/track', [App\Controllers\GuestController::class, 'track']);
 $router->get('/api/track/module/(?P<tracking_code>[A-Za-z0-9\-]+)', [App\Controllers\GuestController::class, 'getTrackedDocumentModule']);
 $router->get('/api/track/status', [App\Controllers\GuestController::class, 'getStatusUpdates']);
 
-$router->get('/dashboard', [App\Controllers\OfficerController::class, 'dashboard'], [
+// Role-based dashboard redirect — routes each role to its dedicated landing page.
+$router->get('/dashboard', function() {
+    $role = $_SESSION['role'] ?? 'staff';
+    $destinations = [
+        'admin'   => '/admin-dashboard',
+        'officer' => '/intake',
+        'staff'   => '/tasks',
+    ];
+    header('Location: ' . ($destinations[$role] ?? '/tasks'));
+    exit;
+}, [
     App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':officer,staff'
 ]);
 
 $router->get('/statistics', [App\Controllers\StatisticsController::class, 'index'], [
@@ -138,7 +153,11 @@ $router->get('/system/backups/download/(?P<fileName>.+)', [App\Controllers\Backu
     App\Middleware\RoleMiddleware::class . ':admin'
 ]);
 
-$router->get('/integrity-monitor', [App\Controllers\IntegrityMonitorController::class, 'index'], [
+// Legacy route alias redirecting to primary documents & integrity monitor view
+$router->get('/integrity-monitor', function() {
+    header('Location: /all-documents', true, 301);
+    exit;
+}, [
     App\Middleware\AuthMiddleware::class,
     App\Middleware\RoleMiddleware::class . ':admin'
 ]);
@@ -169,7 +188,7 @@ $router->post('/clear-personal-cache', [App\Controllers\SystemHealthController::
 ]);
 
 // Admin Dashboard API Routes
-$router->get('/api/admin-dashboard/current-load', [\App\Controllers\AdminDashboardController::class, 'getCurrentLoadData']);
+$router->get('/api/admin-dashboard/current-load', [\App\Controllers\AdminDashboardController::class, 'getCurrentLoadData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
 $router->get('/api/admin-dashboard/throughput', [\App\Controllers\AdminDashboardController::class, 'getThroughputData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
 $router->get('/api/admin-dashboard/decline-trends', [\App\Controllers\AdminDashboardController::class, 'getDeclineTrendData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
 $router->get('/api/admin-dashboard/status-distribution', [\App\Controllers\AdminDashboardController::class, 'getDocumentStatusDistributionData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
@@ -183,7 +202,7 @@ $router->post('/api/notifications/mark-read', [App\Controllers\NotificationContr
     App\Middleware\AuthMiddleware::class
 ]);
 
-// Users Management
+// Users Management (RESTful & Form POST aliases)
 $router->get('/users', [App\Controllers\UserController::class, 'index'], [
     App\Middleware\AuthMiddleware::class,
     App\Middleware\RoleMiddleware::class . ':admin'
@@ -209,7 +228,17 @@ $router->post('/users/(?P<id>\d+)/update', [App\Controllers\UserController::clas
     App\Middleware\RoleMiddleware::class . ':admin'
 ]);
 
+$router->add('PUT', '/users/(?P<id>\d+)', [App\Controllers\UserController::class, 'update'], [
+    App\Middleware\AuthMiddleware::class,
+    App\Middleware\RoleMiddleware::class . ':admin'
+]);
+
 $router->post('/users/(?P<id>\d+)/delete', [App\Controllers\UserController::class, 'destroy'], [
+    App\Middleware\AuthMiddleware::class,
+    App\Middleware\RoleMiddleware::class . ':admin'
+]);
+
+$router->add('DELETE', '/users/(?P<id>\d+)', [App\Controllers\UserController::class, 'destroy'], [
     App\Middleware\AuthMiddleware::class,
     App\Middleware\RoleMiddleware::class . ':admin'
 ]);
@@ -284,11 +313,6 @@ $router->post('/releasing/(?P<id>\d+)/complete', [App\Controllers\ReleasingContr
 ]);
 
 
-$router->get('/statistics', [App\Controllers\StatisticsController::class, 'index'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':officer,staff',
-    App\Middleware\CacheMiddleware::class . ':55'
-]);
 $router->post('/statistics/report', [App\Controllers\StatisticsController::class, 'generateReport'], [
     App\Middleware\AuthMiddleware::class,
     App\Middleware\RoleMiddleware::class . ':officer,staff'

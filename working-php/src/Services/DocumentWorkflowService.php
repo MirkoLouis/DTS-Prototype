@@ -144,8 +144,11 @@ class DocumentWorkflowService
                     $conn->rollBack();
                 }
                 
-                // SQLSTATE 23000 is an integrity constraint violation (e.g., Duplicate Entry)
-                if ($e->getCode() === '23000' && $attempt < $maxAttempts - 1) {
+                // Check for MySQL Duplicate Entry Error (1062) instead of generic 23000
+                // This prevents infinite loops on Foreign Key violations (like an invalid purpose_id).
+                $isDuplicateEntry = isset($e->errorInfo[1]) && $e->errorInfo[1] == 1062;
+                
+                if ($isDuplicateEntry && $attempt < $maxAttempts - 1) {
                     $attempt++;
                     continue; // Try again with a new random tracking code
                 }
@@ -239,9 +242,9 @@ class DocumentWorkflowService
      * Handles the physical receipt of a document via QR code scan. Verifies that the scanning user's
      * department matches the expected next hop in the finalized route.
      */
-    public function scanDocument(string $trackingCode, User $user): string
+    public function scanDocument(string $trackingCode, User $user, string $pin): string
     {
-        return $this->executeInTransaction('tracking_code', $trackingCode, $user, 'process', function ($document, $db) use ($user) {
+        return $this->executeInTransaction('tracking_code', $trackingCode, $user, 'process', function ($document, $db) use ($user, $pin) {
             $route = $document['finalized_route'] ? json_decode($document['finalized_route'], true) : [];
             $currentStepIndex = ((int)$document['current_step']) - 1;
 
@@ -258,7 +261,7 @@ class DocumentWorkflowService
                         ]);
                         if ($stmt->rowCount() === 0) throw new Exception("This document was just modified by another user. Please refresh.");
                         $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
-                        IntegrityManager::createLog($document['id'], $user->id, 'Ready for Releasing', 'All processing steps completed. Document received by Records Unit for final releasing.', $updatedDoc);
+                        IntegrityManager::createLog($document['id'], $user->id, 'Ready for Releasing', 'All processing steps completed. Document received by Records Unit for final releasing.', $updatedDoc, $pin);
                         return 'releasing';
                     }
                 } else {
@@ -275,7 +278,7 @@ class DocumentWorkflowService
                         ]);
                         if ($stmt->rowCount() === 0) throw new Exception("This document was just modified by another user. Please refresh.");
                         $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
-                        IntegrityManager::createLog($document['id'], $user->id, 'Received', "Document received by {$dept['name']}.", $updatedDoc);
+                        IntegrityManager::createLog($document['id'], $user->id, 'Received', "Document received by {$dept['name']}.", $updatedDoc, $pin);
                         return ($user->role === 'officer') ? 'officer.tasks' : 'staff.tasks';
                     }
                 }
@@ -388,9 +391,9 @@ class DocumentWorkflowService
      * 
      * Rejects a pending document before routing begins, permanently halting its progression.
      */
-    public function declineDocument(int $documentId, string $reason, User $officer): void
+    public function declineDocument(int $documentId, string $reason, User $officer, string $pin): void
     {
-        $this->executeInTransaction('id', $documentId, $officer, 'manage', function ($document, $db) use ($reason, $officer) {
+        $this->executeInTransaction('id', $documentId, $officer, 'manage', function ($document, $db) use ($reason, $officer, $pin) {
             if ($document['status'] !== 'pending') {
                 throw new Exception("This document cannot be declined as it is already being processed.");
             }
@@ -404,7 +407,7 @@ class DocumentWorkflowService
 
             $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
 
-            IntegrityManager::createLog($document['id'], $officer->id, 'Document Declined', $reason, $updatedDoc);
+            IntegrityManager::createLog($document['id'], $officer->id, 'Document Declined', $reason, $updatedDoc, $pin);
         });
     }
 
@@ -414,22 +417,22 @@ class DocumentWorkflowService
      * Halts all operations on a document. 
      * Typically triggered automatically by the Active Guard when tampering is detected, or manually by an admin.
      */
-    public function freezeDocument(string $trackingCode, User $admin): void
+    public function freezeDocument(string $trackingCode, User $admin, string $pin): void
     {
-        $this->executeInTransaction('tracking_code', $trackingCode, $admin, 'freeze', function ($document, $db) use ($admin) {
+        $this->executeInTransaction('tracking_code', $trackingCode, $admin, 'freeze', function ($document, $db) use ($admin, $pin) {
             $stmt = $db->query("UPDATE documents SET status = 'frozen', updated_at = NOW(), version = version + 1 WHERE id = :id AND version = :version", [':id' => $document['id'], ':version' => $document['version']]);
             if ($stmt->rowCount() === 0) throw new Exception("This document was just modified by another user. Please refresh.");
             $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
-            IntegrityManager::createLog($document['id'], $admin->id, 'ADMIN: Document frozen.', 'An administrator has frozen this document, likely pending an integrity investigation.', $updatedDoc);
+            IntegrityManager::createLog($document['id'], $admin->id, 'ADMIN: Document frozen.', 'An administrator has frozen this document, likely pending an integrity investigation.', $updatedDoc, $pin);
         });
     }
 
     /**
      * Restores a frozen document to its last logical status state based on the cryptographic log.
      */
-    public function unfreezeDocument(string $trackingCode, User $admin): string
+    public function unfreezeDocument(string $trackingCode, User $admin, string $pin): string
     {
-        return $this->executeInTransaction('tracking_code', $trackingCode, $admin, 'unfreeze', function ($document, $db) use ($admin) {
+        return $this->executeInTransaction('tracking_code', $trackingCode, $admin, 'unfreeze', function ($document, $db) use ($admin, $pin) {
             $lastValidLog = $db->query("SELECT action FROM document_logs WHERE document_id = :id AND action != 'ADMIN: Document frozen.' AND action != 'System Auto-Freeze' ORDER BY id DESC LIMIT 1", [':id' => $document['id']])->fetch();
             
             $previousStatus = $document['status'];
@@ -453,7 +456,7 @@ class DocumentWorkflowService
             if ($stmt->rowCount() === 0) throw new Exception("This document was just modified by another user. Please refresh.");
 
             $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
-            IntegrityManager::createLog($document['id'], $admin->id, 'ADMIN: Document unfrozen.', "An administrator has unfrozen this document, restoring its status to " . ucfirst($previousStatus) . ".", $updatedDoc);
+            IntegrityManager::createLog($document['id'], $admin->id, 'ADMIN: Document unfrozen.', "An administrator has unfrozen this document, restoring its status to " . ucfirst($previousStatus) . ".", $updatedDoc, $pin);
             return $previousStatus;
         });
     }
@@ -461,9 +464,9 @@ class DocumentWorkflowService
     /**
      * Fully recovers a tampered document by applying the last known-good data snapshot from the hash chain.
      */
-    public function autoResolveDocument(string $trackingCode, User $admin): void
+    public function autoResolveDocument(string $trackingCode, User $admin, string $pin): string
     {
-        $this->executeInTransaction('tracking_code', $trackingCode, $admin, 'unfreeze', function ($document, $db) use ($admin) {
+        return $this->executeInTransaction('tracking_code', $trackingCode, $admin, 'unfreeze', function ($document, $db) use ($admin, $pin) {
             // Tampered documents might not be in 'frozen' status if they were just flagged by verification
             // and haven't triggered the Active Guard yet.
 
@@ -515,7 +518,7 @@ class DocumentWorkflowService
             if ($stmt->rowCount() === 0) throw new Exception("This document was just modified by another user. Please refresh.");
 
             $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
-            IntegrityManager::createLog($document['id'], $admin->id, 'ADMIN: Document Unfrozen & Restored', "An administrator has executed Auto-resolve, restoring the document from its last valid snapshot and returning status to " . ucfirst($previousStatus) . ".", $updatedDoc);
+            IntegrityManager::createLog($document['id'], $admin->id, 'ADMIN: Document Unfrozen & Restored', "An administrator has executed Auto-resolve, restoring the document from its last valid snapshot and returning status to " . ucfirst($previousStatus) . ".", $updatedDoc, $pin);
             
             return $previousStatus;
         });

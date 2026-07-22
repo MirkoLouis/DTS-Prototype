@@ -194,6 +194,8 @@ class DocumentController
     public function scan()
     {
         $trackingCode = trim($_POST['tracking_code'] ?? '');
+        $submittedPin = $_POST['pin'] ?? '';
+        $pin = \App\Core\SecurityHelper::resolvePin($submittedPin);
 
         if (empty($trackingCode)) {
             $_SESSION['error'] = "Tracking code is required.";
@@ -201,10 +203,16 @@ class DocumentController
             exit;
         }
 
+        if (empty($pin)) {
+            $_SESSION['error'] = "Security PIN is required.";
+            header("Location: " . ($_SERVER['HTTP_REFERER'] ?? '/'));
+            exit;
+        }
+
         try {
             $workflow = new \App\Services\DocumentWorkflowService();
             $user = \App\Models\User::findById($_SESSION['user_id']);
-            $redirectRouteKey = $workflow->scanDocument($trackingCode, $user);
+            $redirectRouteKey = $workflow->scanDocument($trackingCode, $user, $pin);
             
             if ($redirectRouteKey === 'releasing') {
                 $_SESSION['success'] = "Document {$trackingCode} is now ready for releasing.";
@@ -229,6 +237,8 @@ class DocumentController
         $db = \App\Core\Database::getInstance();
         $documentId = $_POST['document_id'] ?? null;
         $reason = $_POST['reason'] ?? '';
+        $submittedPin = $_POST['pin'] ?? '';
+        $pin = \App\Core\SecurityHelper::resolvePin($submittedPin);
         
         if (!$documentId || !$reason) {
             $_SESSION['error'] = 'Document ID and decline reason are required.';
@@ -236,11 +246,17 @@ class DocumentController
             exit;
         }
 
+        if (empty($pin)) {
+            $_SESSION['error'] = "Security PIN is required.";
+            header("Location: " . ($_SERVER['HTTP_REFERER'] ?? '/'));
+            exit;
+        }
+
         try {
             $workflow = new \App\Services\DocumentWorkflowService();
             $officer = \App\Models\User::findById($_SESSION['user_id']);
             
-            $workflow->declineDocument((int)$documentId, $reason, $officer);
+            $workflow->declineDocument((int)$documentId, $reason, $officer, $pin);
             
             $_SESSION['success'] = "Document successfully declined.";
         } catch (\Exception $e) {

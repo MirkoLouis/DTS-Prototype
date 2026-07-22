@@ -25,10 +25,16 @@ class AuthController
      */
     public function login()
     {
-        $validated = Validator::validate($_POST, [
+        [$errors, $validated] = Validator::validate($_POST, [
             'email' => 'required|email',
             'password' => 'required'
-        ], '/login');
+        ]);
+
+        if (!empty($errors)) {
+            $_SESSION['error'] = implode("<br>", $errors);
+            header("Location: /login");
+            exit;
+        }
 
         $email = $validated['email'];
         $password = $validated['password'];

@@ -1,5 +1,27 @@
 # Changelog
 
+## 2026-07-22 15:57
+
+**Version:** 1.15.4-Alpha+202607221557
+
+### Fixed
+- Fixed broken `/dashboard` route by replacing missing `OfficerController` reference with a role-based redirect closure (`officer` → `/intake`, `staff` → `/tasks`, `admin` → `/admin-dashboard`).
+- Resolved duplicate cache implementations by unifying `AdminDashboardController` onto `App\Core\Cache`, adding `clear()` method, and removing unused `src/Utils/Cache.php`.
+- Added missing `AuthMiddleware` and `RoleMiddleware:admin` protection to `/api/admin-dashboard/current-load`.
+- Extracted monolithic inline SQL from `AdminDashboardController`, `DashboardController`, and `StatisticsController` into dedicated service classes `AdminAnalyticsService` and `DepartmentAnalyticsService`.
+- Fixed `StatisticsController::index` query duplication by delegating to `DocumentQueryService::getPaginatedStatistics`.
+- Hardened PHP session settings (`cookie_httponly`, `cookie_secure`, `cookie_samesite=Strict`, `use_strict_mode`) in `public/index.php`.
+- Resolved duplicate `/statistics` route definition in `public/index.php`.
+- Converted `/integrity-monitor` into a 301 permanent redirect pointing to canonical `/all-documents`.
+- Added `version` property to `Document` model and `email_verified_at`/`remember_token` properties to `User` model for 100% schema parity.
+- Cleaned up obsolete TF-IDF prediction files (`RoutePredictionService.php`, `UpdateKeywordWeights.php`).
+
+### Added
+- Created global HTML escaping helper `e()` in `src/helpers.php` (autoloaded via `composer.json` and `public/index.php`) for XSS mitigation.
+- Added `DocumentPolicyMiddleware.php` to allow declarative route-level policy middleware execution.
+- Added centralized exception handling in `Router::dispatch()` to catch unhandled errors, log details, and display user-friendly notices or JSON responses.
+- Added RESTful HTTP verb aliases (`PUT /users/{id}`, `DELETE /users/{id}`) in `public/index.php`.
+
 ## 2026-07-22 13:41
 
 **Version:** 1.15.3-alpha+202607221341

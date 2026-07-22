@@ -84,21 +84,41 @@ class Router
 
                 $action = $route['action'];
 
-                if (is_callable($action)) {
-                    call_user_func_array($action, $params);
-                    return;
-                }
+                try {
+                    if (is_callable($action)) {
+                        call_user_func_array($action, $params);
+                        return;
+                    }
 
-                if (is_array($action) && count($action) === 2) {
-                    [$class, $method] = $action;
-                    // Instantiate the matched controller and invoke the target method, passing the extracted URL parameters.
-                    if (class_exists($class)) {
-                        $controller = new $class();
-                        if (method_exists($controller, $method)) {
-                            call_user_func_array([$controller, $method], $params);
-                            return;
+                    if (is_array($action) && count($action) === 2) {
+                        [$class, $method] = $action;
+                        if (class_exists($class)) {
+                            $controller = new $class();
+                            if (method_exists($controller, $method)) {
+                                call_user_func_array([$controller, $method], $params);
+                                return;
+                            }
                         }
                     }
+                } catch (\Throwable $e) {
+                    error_log("Unhandled Exception in Router: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
+
+                    $isAjax = (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
+                        || (isset($_SERVER['HTTP_ACCEPT']) && str_contains($_SERVER['HTTP_ACCEPT'], 'application/json'));
+
+                    if ($isAjax) {
+                        http_response_code(500);
+                        header('Content-Type: application/json');
+                        echo json_encode([
+                            'status' => 'error',
+                            'message' => 'An internal server error occurred.'
+                        ]);
+                        exit;
+                    }
+
+                    $_SESSION['error'] = "An unexpected error occurred. Please try again or contact support.";
+                    header('Location: ' . ($_SERVER['HTTP_REFERER'] ?? '/'));
+                    exit;
                 }
             }
         }

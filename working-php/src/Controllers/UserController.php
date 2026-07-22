@@ -49,13 +49,19 @@ class UserController
 
     public function store()
     {
-        $validated = Validator::validate($_POST, [
+        [$errors, $validated] = Validator::validate($_POST, [
             'name' => 'required',
             'email' => 'required|email',
             'password' => 'required|min:8',
             'role' => 'required',
             'password_confirmation' => 'required'
-        ], '/users/create');
+        ]);
+
+        if (!empty($errors)) {
+            $_SESSION['error'] = implode("<br>", $errors);
+            header("Location: /users/create");
+            exit;
+        }
 
         $name = $validated['name'];
         $email = $validated['email'];
@@ -113,13 +119,19 @@ class UserController
 
     public function update($id)
     {
-        $validated = Validator::validate($_POST, [
+        [$errors, $validated] = Validator::validate($_POST, [
             'name' => 'required',
             'email' => 'required|email',
             'role' => 'required',
             'password' => '',
             'password_confirmation' => ''
-        ], "/users/{$id}/edit");
+        ]);
+
+        if (!empty($errors)) {
+            $_SESSION['error'] = implode("<br>", $errors);
+            header("Location: /users/{$id}/edit");
+            exit;
+        }
 
         $name = $validated['name'];
         $email = $validated['email'];

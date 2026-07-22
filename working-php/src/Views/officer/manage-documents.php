@@ -130,7 +130,8 @@
         <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75" aria-hidden="true" onclick="closeDeclineModal()"></div>
         <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
         <div class="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl dark:bg-gray-800 sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-            <form action="/documents/decline" method="POST">
+            <form action="/documents/decline" method="POST" id="decline-form">
+                <input type="hidden" name="pin" id="decline-pin-input">
     <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
                 <div class="px-4 pt-5 pb-4 bg-white dark:bg-gray-800 sm:p-6 sm:pb-4">
                     <div class="sm:flex sm:items-start">
@@ -240,6 +241,20 @@
                 window.SigningModal.show(`Enter your Security PIN to finalize the route for: <?php echo htmlspecialchars($document['tracking_code']); ?>`, function(pin) {
                     document.getElementById('finalize-pin-input').value = pin;
                     routeForm.submit();
+                });
+            });
+        }
+
+        const declineForm = document.getElementById('decline-form');
+        if (declineForm) {
+            declineForm.addEventListener('submit', function (e) {
+                if (document.getElementById('decline-pin-input').value !== '') {
+                    return true;
+                }
+                e.preventDefault();
+                window.SigningModal.show(`Enter your Security PIN to cryptographically sign declining this document.`, function(pin) {
+                    document.getElementById('decline-pin-input').value = pin;
+                    declineForm.submit();
                 });
             });
         }

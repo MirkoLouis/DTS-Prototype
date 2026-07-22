@@ -69,9 +69,13 @@ class IntegrityManager
      */
     public static function signAction(?int $userId, ?string $pin, string $actionText, string $stateHash): string
     {
-        // Allow system-level actions (where userId is null) to bypass user PIN checks
-        if (!$userId || empty($pin)) {
+        // Allow system-level actions (where userId is null) to bypass user PIN checks.
+        // If a user ID is present, a PIN MUST be provided.
+        if ($userId === null) {
             return base64_encode("SYSTEM_SIG:{$actionText}|{$stateHash}");
+        }
+        if (empty($pin)) {
+            throw new \Exception("Action Denied: Security PIN is required to digitally sign this action.");
         }
 
         $db = Database::getInstance();

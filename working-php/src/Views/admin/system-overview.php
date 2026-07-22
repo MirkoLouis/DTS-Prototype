@@ -171,8 +171,9 @@ ob_start(); ?>
                         <div class="bg-red-50 dark:bg-red-900/20 pt-3 px-5 pb-5 rounded-lg shadow">
                             <div class="flex justify-between items-center mb-4 border-b border-red-200 dark:border-red-700 pb-2">
                                 <h3 class="text-xl font-bold text-red-600 dark:text-red-400">Integrity Issues Detected</h3>
-                                <form action="/system-health/freeze-all" method="POST" class="confirm-action" data-message="Are you sure you want to freeze ALL documents with integrity issues?">
+                                <form action="/system-health/freeze-all" method="POST" class="sign-action" data-message="Enter your Security PIN to digitally sign and freeze ALL documents with integrity issues.">
                                     <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
+                                    <input type="hidden" name="pin" class="sign-pin-input">
                                     <button type="submit" class="bg-red-600 text-white px-3 py-1.5 rounded hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600 transition-colors font-bold text-xs shadow">Freeze All</button>
                                 </form>
                             </div>
@@ -189,8 +190,9 @@ ob_start(); ?>
                                     
                                     if ($issue['type'] === 'Live State Tampering') {
                                         $actions .= sprintf('
-                                            <form action="/documents/%s/autoresolve" method="POST" class="autoresolve-form confirm-action inline-block ml-3" data-message="Are you sure you want to Auto-resolve this document? This will overwrite the tampered live data with the last valid snapshot.">
+                                            <form action="/documents/%s/autoresolve" method="POST" class="autoresolve-form sign-action inline-block ml-3" data-message="Enter your Security PIN to digitally sign the Auto-resolve action for this document.">
                                                 <input type="hidden" name="csrf_token" value="' . ($_SESSION['csrf_token'] ?? '') . '">
+                                                <input type="hidden" name="pin" class="sign-pin-input">
                                                 <button type="submit" class="bg-green-100 text-green-700 px-3 py-1 rounded hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300 transition-colors font-bold text-xs">Auto-resolve</button>
                                             </form>
                                         ', htmlspecialchars($issue['tracking_code']));
@@ -322,6 +324,24 @@ require BASE_PATH . '/src/Views/components/modal.php';
 
 <script src="/js/chart.min.js"></script>
 <script src="/js/system-health.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('form.sign-action').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            const pinInput = this.querySelector('.sign-pin-input');
+            if (pinInput && !pinInput.value) {
+                e.preventDefault();
+                const msg = this.dataset.message || "Enter your Security PIN to sign this action.";
+                window.SigningModal.show(msg, function(pin) {
+                    pinInput.value = pin;
+                    form.submit();
+                });
+            }
+        });
+    });
+});
+</script>
+<?php require BASE_PATH . '/src/Views/partials/signing-modal.php'; ?>
 
 <?php $content = ob_get_clean(); ?>
 <?php require BASE_PATH . '/src/Views/layouts/app.php'; ?>
