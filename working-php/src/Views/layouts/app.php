@@ -1,7 +1,28 @@
 <?php
 $unreadNotifications = [];
+$sessionAlerts = [];
+
+if (isset($_SESSION['success'])) {
+    $sessionAlerts[] = ['type' => 'success', 'title' => 'Success', 'message' => $_SESSION['success'], 'is_toast' => true];
+    unset($_SESSION['success']);
+}
+if (isset($_SESSION['error'])) {
+    $sessionAlerts[] = ['type' => 'error', 'title' => 'Error', 'message' => $_SESSION['error'], 'is_toast' => true];
+    unset($_SESSION['error']);
+}
+if (isset($_SESSION['info'])) {
+    $sessionAlerts[] = ['type' => 'info', 'title' => 'Information', 'message' => $_SESSION['info'], 'is_toast' => true];
+    unset($_SESSION['info']);
+}
+
 if (isset($_SESSION['user_id'])) {
     $notifService = new \App\Core\NotificationService();
+    
+    // Convert flash alerts into persistent notifications for this user
+    foreach ($sessionAlerts as $alert) {
+        $notifService->notifyUser($_SESSION['user_id'], $alert['title'], $alert['message'], $alert['type']);
+    }
+    
     $unreadNotifications = $notifService->getUnreadForCurrentUser();
 }
 ?>
@@ -139,11 +160,7 @@ if (isset($_SESSION['user_id'])) {
                                 <button type="button" id="notification-menu-button" class="relative p-2 bg-gray-100 dark:bg-gray-700 rounded-full shadow-md text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-accent-1-hover transition-colors">
                                     <span class="sr-only"></span>
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
-                                    <?php if (count($unreadNotifications) > 0): ?>
-                                    <span class="absolute top-0 right-0 inline-flex items-center justify-center px-1.5 py-0.5 text-xs font-bold leading-none text-white transform translate-x-1/4 -translate-y-1/4 bg-red-600 rounded-full">
-                                        <?= count($unreadNotifications) ?>
-                                    </span>
-                                    <?php endif; ?>
+
                                 </button>
                                 <div id="notification-dropdown-menu" class="hidden absolute right-0 z-50 mt-2 w-80 sm:w-96 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none py-2 max-h-[80vh] overflow-y-auto">
                                     <div class="px-4 py-2 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
@@ -201,20 +218,6 @@ if (isset($_SESSION['user_id'])) {
             <!-- Toast Notification Container -->
             <div id="toast-container" class="flex flex-col gap-3 pointer-events-none" style="position: fixed; bottom: 1.25rem; right: 1.25rem; z-index: 9999;">
                 <?php
-                $sessionAlerts = [];
-                if (isset($_SESSION['success'])) {
-                    $sessionAlerts[] = ['type' => 'success', 'title' => 'Success', 'message' => $_SESSION['success'], 'is_toast' => true];
-                    unset($_SESSION['success']);
-                }
-                if (isset($_SESSION['error'])) {
-                    $sessionAlerts[] = ['type' => 'error', 'title' => 'Error', 'message' => $_SESSION['error'], 'is_toast' => true];
-                    unset($_SESSION['error']);
-                }
-                if (isset($_SESSION['info'])) {
-                    $sessionAlerts[] = ['type' => 'info', 'title' => 'Information', 'message' => $_SESSION['info'], 'is_toast' => true];
-                    unset($_SESSION['info']);
-                }
-
                 foreach ($sessionAlerts as $alert) {
                     $notification = $alert; // notification-alert.php uses $notification
                     require BASE_PATH . '/src/Views/components/notification-alert.php';
@@ -420,6 +423,19 @@ if (isset($_SESSION['user_id'])) {
                         if (modalId === 'global-confirmation-modal') {
                             activeConfirmForm = null;
                         }
+                    }
+                });
+            });
+
+            // Generic open modal listener
+            document.querySelectorAll('.open-modal-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const modalId = btn.dataset.modal;
+                    if (!modalId) return;
+                    const targetModal = document.getElementById(modalId);
+                    if (targetModal) {
+                        targetModal.classList.remove('hidden');
                     }
                 });
             });

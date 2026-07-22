@@ -36,7 +36,18 @@
                     <div>
                         <h3 class="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Document Information</h3>
                         <div class="space-y-4">
-                            <p><strong>Tracking Code:</strong> <?php echo htmlspecialchars($document['tracking_code']); ?></p>
+                            <p class="flex items-center">
+                                <strong>Tracking Code:</strong> 
+                                <span class="ml-1"><?php echo htmlspecialchars($document['tracking_code']); ?></span>
+                                <button onclick="const btn=this; btn.querySelector('.copy-icon').style.display='none'; btn.querySelector('.check-icon').style.display='block'; navigator.clipboard.writeText('<?php echo htmlspecialchars(addslashes($document['tracking_code'])); ?>'); setTimeout(() => { btn.querySelector('.copy-icon').style.display='block'; btn.querySelector('.check-icon').style.display='none'; }, 2000);" class="text-gray-400 hover:text-accent-1 transition-colors focus:outline-none ml-2" title="Copy Tracking Code">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="copy-icon h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                    </svg>
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="check-icon h-4 w-4 text-green-500" style="display: none;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </button>
+                            </p>
                             <?php 
                             $guestInfo = json_decode($document['guest_info'], true);
                             ?>
@@ -156,8 +167,8 @@
                         $tableConfig = [
                             'wrapper_classes' => 'overflow-x-auto',
                             'columns' => [
-                                ['key' => 'created_at', 'label' => 'Timestamp', 'width' => 'w-[20%]', 'type' => 'date'],
-                                ['key' => 'action', 'label' => 'Action', 'width' => 'w-[25%]', 'wrap' => true],
+                                ['key' => 'created_at', 'label' => 'Timestamp', 'width' => 'w-[6%]', 'type' => 'date'],
+                                ['key' => 'action', 'label' => 'Action', 'width' => 'w-[39%]', 'wrap' => true],
                                 ['key' => 'user_name_text', 'label' => 'Performed By', 'width' => 'w-[20%]'],
                                 ['key' => 'remarks', 'label' => 'Remarks', 'width' => 'w-[35%]', 'wrap' => true]
                             ],

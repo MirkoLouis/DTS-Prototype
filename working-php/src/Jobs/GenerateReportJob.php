@@ -3,6 +3,9 @@
 namespace App\Jobs;
 
 use App\Core\Database;
+use OpenSpout\Writer\XLSX\Writer;
+use OpenSpout\Common\Entity\Style\Style;
+use OpenSpout\Common\Entity\Row;
 
 class GenerateReportJob
 {
@@ -19,16 +22,13 @@ class GenerateReportJob
 
     public function handle(): void
     {
-        ini_set('memory_limit', '2G');
+        ini_set('memory_limit', '-1');
         set_time_limit(1200);
 
         $db = Database::getInstance();
         $db->query("UPDATE report_jobs SET status = 'processing', progress = 5, updated_at = NOW() WHERE id = :id", ['id' => $this->reportJobId]);
 
         try {
-            // Simplified CSV generation for the raw PHP port since DomPDF/libmergepdf are large dependencies
-            $format = $this->filters['format'] ?? 'csv';
-            
             $userDept = $db->query("SELECT department_id FROM users WHERE id = :uid", ['uid' => $this->userId])->fetch();
             $departmentId = $userDept['department_id'] ?? 0;
 
@@ -66,9 +66,17 @@ class GenerateReportJob
             ";
 
             $stmt = $db->query($sql, $params);
-            $documents = $stmt->fetchAll();
 
-            $totalCount = count($documents);
+            // Count rows first to update progress without loading all into memory
+            $countSql = "
+                SELECT COUNT(*) as total
+                FROM documents d
+                {$join}
+                WHERE {$whereSql}
+            ";
+            $countStmt = $db->query($countSql, $params);
+            $totalCount = (int) $countStmt->fetch()['total'];
+
             if ($totalCount === 0) {
                 throw new \Exception("No documents found for the selected filters.");
             }
@@ -78,34 +86,59 @@ class GenerateReportJob
                 'id' => $this->reportJobId
             ]);
 
-            $filename = 'reports/released-documents-' . $this->reportJobId . '.csv';
+            $filename = 'reports/released-documents-' . $this->reportJobId . '.xlsx';
             $filePath = BASE_PATH . '/storage/app/' . $filename;
             
             if (!is_dir(dirname($filePath))) {
                 mkdir(dirname($filePath), 0777, true);
             }
 
-            $handle = fopen($filePath, 'w');
-            fprintf($handle, chr(0xEF).chr(0xBB).chr(0xBF));
-            fputcsv($handle, ['Tracking Code', 'Title', 'Purpose', 'District', 'Submitted By', 'Date Released']);
+            $writer = new Writer();
+            $writer->openToFile($filePath);
 
-            foreach ($documents as $doc) {
+            $styleCant = (new Style())->withFontName('Canterbury')->withFontSize(14);
+            $styleBold = (new Style())->withFontBold(true);
+
+            $writer->addRow(Row::fromValuesWithStyle(['Republic of the Philippines'], $styleCant));
+            $writer->addRow(Row::fromValuesWithStyle(['Department of Education'], $styleCant));
+            $writer->addRow(Row::fromValuesWithStyle(['Region X - Northern Mindanao'], $styleBold));
+            $writer->addRow(Row::fromValuesWithStyle(['SCHOOLS DIVISION OF ILIGAN CITY'], $styleBold));
+            $writer->addRow(Row::fromValues([]));
+
+            $writer->addRow(Row::fromValuesWithStyle(['Tracking Code', 'Title', 'Purpose', 'District', 'Submitted By', 'Date Released'], $styleBold));
+
+            $rowNum = 6;
+            
+            // Process row by row to conserve memory (OpenSpout naturally streams to disk with almost zero RAM usage)
+            while ($doc = $stmt->fetch(\PDO::FETCH_ASSOC)) {
                 $guestName = 'N/A';
                 if ($doc['guest_info']) {
                     $gi = json_decode($doc['guest_info'], true);
                     $guestName = $gi['name'] ?? 'N/A';
                 }
-                fputcsv($handle, [
+                
+                $writer->addRow(Row::fromValues([
                     $doc['tracking_code'],
                     $doc['title'],
                     $doc['purpose_name'],
                     $doc['district'],
                     $guestName,
                     $doc['updated_at']
-                ]);
+                ]));
+
+                $rowNum++;
+                
+                // Update progress every 1000 rows
+                if (($rowNum - 6) % 1000 === 0) {
+                    $progress = 10 + floor((($rowNum - 6) / $totalCount) * 80);
+                    $db->query("UPDATE report_jobs SET progress = :p, updated_at = NOW() WHERE id = :id", [
+                        'p' => $progress,
+                        'id' => $this->reportJobId
+                    ]);
+                }
             }
 
-            fclose($handle);
+            $writer->close();
 
             $db->query("UPDATE report_jobs SET status = 'completed', progress = 100, file_path = :fp, updated_at = NOW() WHERE id = :id", [
                 'fp' => $filename,

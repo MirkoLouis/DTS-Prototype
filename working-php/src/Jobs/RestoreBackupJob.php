@@ -23,10 +23,12 @@ class RestoreBackupJob
             return;
         }
 
-        $host = '127.0.0.1';
-        $user = 'root';
-        $pass = 'password';
-        $dbname = 'dts_prototype';
+        $config = require BASE_PATH . '/src/Config/config.php';
+        $dbConfig = $config['database'];
+        $host = escapeshellarg($dbConfig['host']);
+        $user = escapeshellarg($dbConfig['user']);
+        $pass = escapeshellarg($dbConfig['password']);
+        $dbname = escapeshellarg($dbConfig['dbname']);
 
         // Extract
         $zip = new \ZipArchive();
@@ -41,7 +43,8 @@ class RestoreBackupJob
             $filePath = $backupDir . '/' . $sqlFile;
             
             // Restore DB
-            $command = "mysql -h {$host} -u {$user} -p{$pass} {$dbname} < {$filePath}";
+            $passFlag = $dbConfig['password'] !== '' ? "-p{$pass}" : "";
+            $command = "mysql -h {$host} -u {$user} {$passFlag} {$dbname} < " . escapeshellarg($filePath);
             exec($command);
             
             // Cleanup extracted SQL file

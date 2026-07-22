@@ -1,5 +1,18 @@
 # Changelog
 
+## 2026-07-22 13:41
+
+**Version:** 1.15.3-alpha+202607221341
+
+### Fixed
+- Fixed an `Invalid parameter number` PDO exception in `NotificationService.php` by uniquely naming duplicate PDO parameter bindings.
+- Fixed a report generation crash in `GenerateReportJob.php` by updating `Row::fromValues` to `Row::fromValuesWithStyle` to align with the latest OpenSpout library requirements.
+- Standardized the text color of the "Submitter Name" column in the Released Documents History table to match the "Title" column in the dark theme.
+- Filtered out `in_transit` documents from the Staff Tasks table to ensure users only see documents that have been officially received.
+- Removed the "All Departments" option from the department drill-down chart on the admin dashboard to enforce a strict department-specific view.
+
+### Added
+- None
 ## 2026-07-21 17:29
 
 **Version:** 1.15.2-alpha+202607211729

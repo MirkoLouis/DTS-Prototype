@@ -27,11 +27,11 @@
                     $tableConfig = [
                         'wrapper_classes' => 'overflow-x-auto',
                         'columns' => [
-                            ['key' => 'created_at', 'label' => 'Timestamp', 'width' => 'w-[15%]', 'type' => 'date'],
-                            ['key' => 'action', 'label' => 'Action', 'width' => 'w-[15%]', 'wrap' => true],
+                            ['key' => 'created_at', 'label' => 'Timestamp', 'width' => 'w-[6%]', 'type' => 'date'],
+                            ['key' => 'action', 'label' => 'Action', 'width' => 'w-[39%]', 'wrap' => true],
                             ['key' => 'user_name_text', 'label' => 'Performed By', 'width' => 'w-[15%]'],
                             ['key' => 'prev_hash_html', 'label' => 'Previous Hash', 'width' => 'w-[25%]', 'type' => 'raw'],
-                            ['key' => 'curr_hash_html', 'label' => 'Current Hash', 'width' => 'w-[30%]', 'type' => 'raw']
+                            ['key' => 'curr_hash_html', 'label' => 'Current Hash', 'width' => 'w-[15%]', 'type' => 'raw']
                         ],
                         'data' => $logs,
                         'empty_message' => 'No hash chain history found for this document.'

@@ -104,10 +104,10 @@
                         $tableConfig = [
                             'wrapper_classes' => 'overflow-x-auto mt-4',
                             'columns' => [
-                                ['key' => 'account_html', 'label' => 'Account', 'width' => 'w-5/12', 'type' => 'raw'],
+                                ['key' => 'account_html', 'label' => 'Account', 'width' => 'w-[52%]', 'type' => 'raw'],
                                 ['key' => 'role_html', 'label' => 'Role', 'width' => 'w-1/12', 'type' => 'raw'],
                                 ['key' => 'signature_html', 'label' => 'Signature', 'width' => 'w-2/12', 'type' => 'raw'],
-                                ['key' => 'created_at', 'label' => 'Registered', 'width' => 'w-2/12', 'type' => 'date'],
+                                ['key' => 'created_at', 'label' => 'Registered', 'width' => 'w-[6%]', 'type' => 'date'],
                                 ['key' => 'actions_html', 'label' => 'Actions', 'width' => 'w-2/12', 'type' => 'raw']
                             ],
                             'data' => $users,

@@ -10,10 +10,12 @@ class CreateBackupJob
         set_time_limit(1200);
 
         // Simple mysqldump wrapper
-        $host = '127.0.0.1'; // Ideally from config
-        $user = 'root';
-        $pass = 'password';
-        $dbname = 'dts_prototype';
+        $config = require BASE_PATH . '/src/Config/config.php';
+        $dbConfig = $config['database'];
+        $host = escapeshellarg($dbConfig['host']);
+        $user = escapeshellarg($dbConfig['user']);
+        $pass = escapeshellarg($dbConfig['password']);
+        $dbname = escapeshellarg($dbConfig['dbname']);
 
         $backupDir = BASE_PATH . '/storage/app/backups';
         if (!is_dir($backupDir)) mkdir($backupDir, 0777, true);
@@ -23,7 +25,8 @@ class CreateBackupJob
         $zipPath = $backupDir . '/' . $filename . '.zip';
 
         // Dump DB
-        $command = "mysqldump -h {$host} -u {$user} -p{$pass} {$dbname} > {$filePath}";
+        $passFlag = $dbConfig['password'] !== '' ? "-p{$pass}" : "";
+        $command = "mysqldump -h {$host} -u {$user} {$passFlag} {$dbname} > " . escapeshellarg($filePath);
         exec($command);
 
         // Zip it

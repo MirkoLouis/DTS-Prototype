@@ -54,9 +54,9 @@
                 'columns' => [
                     ['key' => 'tracking_code', 'label' => 'Tracking Code', 'width' => 'w-[20%]', 'type' => 'tracking_link'],
                     ['key' => 'guest_name', 'label' => 'Submitter', 'width' => 'w-[20%]', 'wrap' => true],
-                    ['key' => 'purpose_name', 'label' => 'Purpose', 'width' => 'w-[35%]', 'wrap' => true],
+                    ['key' => 'purpose_name', 'label' => 'Purpose', 'width' => 'w-[44%]', 'wrap' => true],
                     ['key' => 'status', 'label' => 'Status', 'width' => 'w-[10%]', 'type' => 'status'],
-                    ['key' => 'handled_at', 'label' => 'Date Handled', 'width' => 'w-[15%]', 'type' => 'date']
+                    ['key' => 'handled_at', 'label' => 'Date Handled', 'width' => 'w-[6%]', 'type' => 'date']
                 ],
                 'data' => $documents,
                 'empty_message' => 'No recently added documents match your criteria.'

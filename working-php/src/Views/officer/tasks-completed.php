@@ -51,11 +51,11 @@
                     $tableConfig = [
                         'wrapper_classes' => 'overflow-x-auto mt-4',
                         'columns' => [
-                            ['key' => 'tracking_code', 'label' => 'Tracking Code', 'width' => 'w-[20%]', 'type' => 'tracking_link'],
+                            ['key' => 'tracking_code', 'label' => 'Tracking Code', 'width' => 'w-[15%]', 'type' => 'tracking_link'],
                             ['key' => 'guest_name', 'label' => 'Submitter', 'width' => 'w-[20%]', 'wrap' => true],
-                            ['key' => 'purpose_name', 'label' => 'Purpose', 'width' => 'w-[35%]', 'wrap' => true],
-                            ['key' => 'status', 'label' => 'Status', 'width' => 'w-[10%]', 'type' => 'status'],
-                            ['key' => 'handled_at', 'label' => 'Date Completed', 'width' => 'w-[15%]', 'type' => 'date']
+                            ['key' => 'title', 'label' => 'Title', 'width' => 'w-[29%]', 'wrap' => true],
+                            ['key' => 'purpose_name', 'label' => 'Purpose', 'width' => 'w-[30%]', 'wrap' => true],
+                            ['key' => 'handled_at', 'label' => 'Date Completed', 'width' => 'w-[6%]', 'type' => 'date']
                         ],
                         'data' => $documents,
                         'empty_message' => 'No completed tasks match your criteria.'

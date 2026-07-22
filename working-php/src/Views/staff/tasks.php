@@ -34,7 +34,6 @@
                     'options' => [
                         'all' => 'All Statuses',
                         'pending' => 'Pending',
-                        'in_transit' => 'In Transit',
                         'processing' => 'Processing',
                         'ready_for_release' => 'Ready For Release',
                         'completed' => 'Completed',
@@ -69,10 +68,10 @@
                 'wrapper_classes' => 'overflow-x-auto mt-4',
                 'columns' => [
                     ['key' => 'tracking_code', 'label' => 'Tracking Code', 'width' => 'w-[20%]', 'type' => 'tracking_link'],
-                    ['key' => 'title', 'label' => 'Title', 'width' => 'w-[35%]', 'wrap' => true],
-                    ['key' => 'purpose_name', 'label' => 'Purpose', 'width' => 'w-[20%]', 'wrap' => true],
+                    ['key' => 'title', 'label' => 'Title', 'width' => 'w-[29%]', 'wrap' => true],
+                    ['key' => 'purpose_name', 'label' => 'Purpose', 'width' => 'w-[25%]', 'wrap' => true],
                     ['key' => 'status', 'label' => 'Status', 'width' => 'w-[10%]', 'type' => 'status'],
-                    ['key' => 'created_at', 'label' => 'Received At', 'width' => 'w-[15%]', 'type' => 'date'],
+                    ['key' => 'created_at', 'label' => 'Received At', 'width' => 'w-[6%]', 'type' => 'date'],
                     ['key' => 'action_html', 'label' => 'Action', 'width' => 'w-[10%]', 'type' => 'raw']
                 ],
                 'data' => $documents,

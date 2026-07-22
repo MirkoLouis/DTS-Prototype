@@ -22,7 +22,7 @@ $db = Database::getInstance();
 $stopWorker = false;
 
 // Memory leak prevention limits
-$maxMemory = 128 * 1024 * 1024; // 128 MB limit before restarting
+$maxMemory = 8 * 1024 * 1024 * 1024; // 8 GB limit before restarting
 $maxJobs = 100; // Restart after 100 jobs to clear any accumulated state
 $jobsProcessed = 0;
 
@@ -43,13 +43,17 @@ if (extension_loaded('pcntl')) {
 while (!$stopWorker) {
     // 1. Memory Leak Prevention: Check if we exceeded our allowed memory
     if (memory_get_usage(true) > $maxMemory) {
-        echo "Memory limit exceeded (" . round(memory_get_usage(true) / 1024 / 1024, 2) . " MB). Self-terminating to prevent memory leak...\n";
-        exit(0); // Assuming you use Supervisor or systemd, this will automatically restart the process
+        echo "Memory limit exceeded (" . round(memory_get_usage(true) / 1024 / 1024, 2) . " MB). Restarting worker seamlessly...\n";
+        global $argv;
+        pcntl_exec(PHP_BINARY, $argv);
+        exit(0);
     }
     
-    // 2. Memory Leak Prevention: Check if we processed too many jobs in this single lifecycle
+    // 2. Job Count Limit: Check if we processed enough jobs
     if ($jobsProcessed >= $maxJobs) {
-        echo "Max jobs limit reached ({$maxJobs}). Self-terminating for a fresh restart...\n";
+        echo "Processed {$maxJobs} jobs. Restarting worker seamlessly...\n";
+        global $argv;
+        pcntl_exec(PHP_BINARY, $argv);
         exit(0);
     }
 

@@ -28,6 +28,23 @@ class NotificationService
             'message' => $message,
             'type' => $type
         ]);
+
+        // Enforce max limit of 10 per department
+        $this->db->prepare("
+            DELETE FROM notifications 
+            WHERE department_id = :dept_id1 
+            AND id NOT IN (
+                SELECT id FROM (
+                    SELECT id FROM notifications 
+                    WHERE department_id = :dept_id2 
+                    ORDER BY created_at DESC 
+                    LIMIT 10
+                ) as latest
+            )
+        ")->execute([
+            'dept_id1' => $departmentId,
+            'dept_id2' => $departmentId
+        ]);
     }
 
     /**
@@ -44,6 +61,23 @@ class NotificationService
             'title' => $title,
             'message' => $message,
             'type' => $type
+        ]);
+
+        // Enforce max limit of 10 per user
+        $this->db->prepare("
+            DELETE FROM notifications 
+            WHERE user_id = :user_id1 
+            AND id NOT IN (
+                SELECT id FROM (
+                    SELECT id FROM notifications 
+                    WHERE user_id = :user_id2 
+                    ORDER BY created_at DESC 
+                    LIMIT 10
+                ) as latest
+            )
+        ")->execute([
+            'user_id1' => $userId,
+            'user_id2' => $userId
         ]);
     }
 
@@ -64,7 +98,7 @@ class NotificationService
             WHERE is_read = 0 
             AND (user_id = :user_id " . ($departmentId ? "OR department_id = :dept_id" : "") . ")
             ORDER BY created_at DESC
-            LIMIT 50
+            LIMIT 10
         ";
 
         $stmt = $this->db->prepare($query);
