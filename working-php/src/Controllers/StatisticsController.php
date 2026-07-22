@@ -103,6 +103,9 @@ class StatisticsController
             $viewData['paginator'] = $paginator;
             $viewData['purposes'] = $this->getAllPurposes();
             $viewData['activeFilters'] = ['date', 'purpose', 'submitter', 'search'];
+            
+            $pastReports = $db->query("SELECT * FROM report_jobs WHERE user_id = :uid AND status = 'completed' ORDER BY created_at DESC", ['uid' => $_SESSION['user_id']])->fetchAll();
+            $viewData['pastReports'] = $pastReports;
         }
         
         if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
@@ -170,12 +173,17 @@ class StatisticsController
                 $filePath = BASE_PATH . '/' . $job['file_path'];
             }
             if (file_exists($filePath)) {
-            header('Content-Description: File Transfer');
-            header('Content-Type: application/csv');
-            header('Content-Disposition: attachment; filename="'.basename($filePath).'"');
-            header('Expires: 0');
-            header('Cache-Control: must-revalidate');
-            header('Pragma: public');
+                $ext = pathinfo($filePath, PATHINFO_EXTENSION);
+                header('Content-Description: File Transfer');
+                if ($ext === 'xlsx') {
+                    header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+                } else {
+                    header('Content-Type: application/csv');
+                }
+                header('Content-Disposition: attachment; filename="'.basename($filePath).'"');
+                header('Expires: 0');
+                header('Cache-Control: must-revalidate');
+                header('Pragma: public');
                 header('Content-Length: ' . filesize($filePath));
                 readfile($filePath);
                 exit;

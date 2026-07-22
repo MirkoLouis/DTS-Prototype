@@ -235,7 +235,7 @@ class DashboardController
         
         $cacheKey = 'count_staff_' . md5(json_encode(array_merge($params, $filters)));
         $totalItems = Cache::remember($cacheKey, 300, function() use ($db, $params, $filters) {
-            $countSql = "SELECT COUNT(*) as total FROM documents d LEFT JOIN purposes p ON d.purpose_id = p.id WHERE d.current_department_id = :dept_id" . $filters['sql'];
+            $countSql = "SELECT COUNT(*) as total FROM documents d LEFT JOIN purposes p ON d.purpose_id = p.id WHERE d.current_department_id = :dept_id AND d.status != 'in_transit'" . $filters['sql'];
             $countStmt = $db->query($countSql, $params);
             return $countStmt->fetch()['total'] ?? 0;
         });
@@ -251,7 +251,7 @@ class DashboardController
         $sql = "SELECT d.id, d.tracking_code, d.title, d.status, d.created_at, p.name as purpose_name 
                 FROM documents d 
                 LEFT JOIN purposes p ON d.purpose_id = p.id 
-                WHERE d.current_department_id = :dept_id" . $filters['sql'] . " 
+                WHERE d.current_department_id = :dept_id AND d.status != 'in_transit'" . $filters['sql'] . " 
                 ORDER BY d.id ASC
                 LIMIT {$limit}";
                 

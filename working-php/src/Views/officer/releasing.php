@@ -38,7 +38,7 @@
             ];
 
             foreach ($documents as &$doc) {
-                $doc['status_html'] = '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-success-light text-success-active capitalize">Ready</span>';
+                $doc['status_html'] = '<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-success-light text-success-active capitalize">Ready for Release</span>';
                 $doc['action_html'] = sprintf('
                     <form class="complete-form inline-block" action="/releasing/%s/complete" method="POST">
                         <input type="hidden" name="csrf_token" value="' . ($_SESSION['csrf_token'] ?? '') . '">

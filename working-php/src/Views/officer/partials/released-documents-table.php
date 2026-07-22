@@ -1,6 +1,6 @@
 <?php
     foreach ($releasedDocuments as &$document) {
-        $document['submitter_html'] = sprintf('<span class="submitter-name">%s</span>', htmlspecialchars($document['guest_info']['name'] ?? 'N/A'));
+        $document['submitter_html'] = sprintf('<span class="submitter-name text-gray-500 dark:text-gray-400">%s</span>', htmlspecialchars($document['guest_info']['name'] ?? 'N/A'));
         $document['district_text'] = htmlspecialchars($document['district'] ?? 'N/A');
     }
     unset($document);
@@ -8,11 +8,10 @@
     $tableConfig = [
         'wrapper_classes' => 'overflow-x-auto mt-4',
         'columns' => [
-            ['key' => 'tracking_code', 'label' => 'Tracking Code', 'width' => 'w-[25%]', 'type' => 'tracking_link'],
-            ['key' => 'submitter_html', 'label' => 'Submitter', 'width' => 'w-[20%]', 'type' => 'raw'],
-            ['key' => 'purpose_name', 'label' => 'Purpose', 'width' => 'w-[20%]', 'wrap' => true],
-            ['key' => 'district_text', 'label' => 'District', 'width' => 'w-[15%]', 'wrap' => true],
-            ['key' => 'released_at', 'label' => 'Date Released', 'width' => 'w-[20%]', 'type' => 'date']
+            ['key' => 'tracking_code', 'label' => 'Tracking Code', 'width' => 'w-[20%]', 'type' => 'tracking_link'],
+            ['key' => 'guest_name', 'label' => 'Submitter', 'width' => 'w-[25%]', 'wrap' => true],
+            ['key' => 'title', 'label' => 'Title', 'width' => 'w-[49%]', 'wrap' => true],
+            ['key' => 'released_at', 'label' => 'Date Released', 'width' => 'w-[6%]', 'type' => 'date']
         ],
         'data' => $releasedDocuments,
         'empty_message' => 'No released documents match your search.'

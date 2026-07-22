@@ -88,3 +88,6 @@ paper/ITE193/*
 
 /cache/
 /storage/app/reports/*.csv
+/storage/reports/*.xlsx
+/storage/cache/*.sqlite*
+*.xlsx

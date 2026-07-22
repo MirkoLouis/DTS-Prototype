@@ -243,10 +243,7 @@ $router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/hash-chain', [App\Con
     App\Middleware\AuthMiddleware::class,
     App\Middleware\RoleMiddleware::class . ':admin,officer,staff'
 ]);
-$router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/print-tracking-form', [App\Controllers\DocumentController::class, 'printTrackingForm'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin,officer,staff'
-]);
+$router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/print-tracking-form', [App\Controllers\DocumentController::class, 'printTrackingForm']);
 
 $router->post('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/freeze', [App\Controllers\SystemHealthController::class, 'freeze'], [
     App\Middleware\AuthMiddleware::class,

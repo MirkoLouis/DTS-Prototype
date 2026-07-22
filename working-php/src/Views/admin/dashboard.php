@@ -103,7 +103,6 @@
                                 <div class="flex-grow flex-shrink-0" style="flex-basis: auto; min-width: 150px;">
                                     <label for="department-filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Department</label>
                                     <select id="department-filter" class="filter-input block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-2 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1">
-                                        <option value="all">All Departments</option>
                                         <?php foreach($departments as $department): ?>
                                             <option value="<?= htmlspecialchars($department['id']) ?>"><?= htmlspecialchars($department['name']) ?></option>
                                         <?php endforeach; ?>

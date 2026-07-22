@@ -83,6 +83,28 @@ composer run seed:dev 50000 250 50
 
 ---
 
+## ⏰ Automated Cron Jobs (Production Setup)
+
+For production environments, the system relies on background cron jobs to perform routine maintenance and backups. 
+
+1. Ensure the `cron` daemon is installed and running on your system.
+2. Open your crontab editor:
+   ```bash
+   crontab -e
+   ```
+3. Add the following rules to automate daily database snapshots and metric rollups (which prevent the database metrics table from growing infinitely):
+
+```bash
+# Run daily database backups at 12:00 AM (Midnight)
+0 0 * * * php /path/to/working-php/scripts/daily-backup.php >> /path/to/working-php/storage/logs/cron.log 2>&1
+
+# Run database metric rollups at 1:00 AM to aggregate raw 5-minute telemetry into hourly chunks
+0 1 * * * php /path/to/working-php/scripts/rollup-metrics.php >> /path/to/working-php/storage/logs/cron.log 2>&1
+```
+*Note: Replace `/path/to/working-php` with the actual absolute path to your repository.*
+
+---
+
 ## 🌐 Mobile Testing & QR Scanning (HTTPS Requirement)
 
 Modern browsers require a secure context (HTTPS) to access camera APIs for QR scanning. If you want to test the QR scanner on multiple devices (like your phone) on your local network without tweaking browser settings on every device, you can use **Method 1: The Infrastructure Approach (Self-Signed SSL on Nginx)**.

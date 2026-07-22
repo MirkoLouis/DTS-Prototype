@@ -22,7 +22,10 @@
         <div id="released-documents-section" data-fetch-url="/statistics">
             <?php
                 $panelTitle = 'Released Documents History';
-                $panelActionHtml = '<button type="button" id="generate-report-btn" class="inline-flex items-center px-4 py-2 bg-accent-1 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-1-hover focus:outline-none transition">Generate Report</button>';
+                $panelActionHtml = '
+                    <button type="button" class="open-modal-btn inline-flex items-center px-4 py-2 bg-gray-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 focus:outline-none transition mr-2" data-modal="past-reports-modal">Past Reports</button>
+                    <button type="button" id="generate-report-btn" class="inline-flex items-center px-4 py-2 bg-accent-1 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-1-hover focus:outline-none transition">Generate Report</button>
+                ';
                 
                 $purposeOptions = [];
                 foreach ($purposes as $p) {
@@ -41,7 +44,7 @@
                 ];
 
                 foreach ($releasedDocuments as &$document) {
-                    $document['submitter_html'] = sprintf('<span class="submitter-name">%s</span>', htmlspecialchars($document['guest_info']['name'] ?? 'N/A'));
+                    $document['submitter_html'] = sprintf('<span class="submitter-name text-gray-500 dark:text-gray-400">%s</span>', htmlspecialchars($document['guest_info']['name'] ?? 'N/A'));
                     $document['district_text'] = htmlspecialchars($document['district'] ?? 'N/A');
                 }
                 unset($document);
@@ -49,11 +52,10 @@
                 $tableConfig = [
                     'wrapper_classes' => 'overflow-x-auto mt-4',
                     'columns' => [
-                        ['key' => 'tracking_code', 'label' => 'Tracking Code', 'width' => 'w-[25%]', 'type' => 'tracking_link'],
-                        ['key' => 'submitter_html', 'label' => 'Submitter', 'width' => 'w-[20%]', 'type' => 'raw'],
-                        ['key' => 'purpose_name', 'label' => 'Purpose', 'width' => 'w-[20%]', 'wrap' => true],
-                        ['key' => 'district_text', 'label' => 'District', 'width' => 'w-[15%]', 'wrap' => true],
-                        ['key' => 'released_at', 'label' => 'Date Released', 'width' => 'w-[20%]', 'type' => 'date']
+                        ['key' => 'tracking_code', 'label' => 'Tracking Code', 'width' => 'w-[20%]', 'type' => 'tracking_link'],
+                        ['key' => 'title', 'label' => 'Title', 'width' => 'w-[44%]', 'wrap' => true],
+                        ['key' => 'submitter_html', 'label' => 'Submitter', 'width' => 'w-[30%]', 'type' => 'raw'],
+                        ['key' => 'released_at', 'label' => 'Date Released', 'width' => 'w-[6%]', 'type' => 'date']
                     ],
                     'data' => $releasedDocuments,
                     'empty_message' => 'No released documents match your search.'
@@ -62,6 +64,36 @@
                 require BASE_PATH . '/src/Views/components/data-panel.php';
             ?>
         </div>
+        
+        <?php
+            $formattedReports = [];
+            if (!empty($pastReports)) {
+                $formattedReports = array_map(function($report) {
+                    $report['action'] = '<a href="/statistics/report/download/' . htmlspecialchars($report['id']) . '" class="text-accent-1 hover:underline font-semibold">Download Spreadsheet</a>';
+                    return $report;
+                }, $pastReports);
+            }
+
+            $tableConfig = [
+                'wrapper_classes' => 'overflow-x-auto mt-2 max-h-96',
+                'columns' => [
+                    ['key' => 'created_at', 'label' => 'Date Generated', 'width' => 'w-[40%]', 'type' => 'date'],
+                    ['key' => 'total_documents', 'label' => 'Total', 'width' => 'w-[20%]'],
+                    ['key' => 'action', 'label' => 'Action', 'width' => 'w-[40%]', 'type' => 'raw']
+                ],
+                'data' => $formattedReports,
+                'empty_message' => 'No past reports available.'
+            ];
+
+            ob_start();
+            require BASE_PATH . '/src/Views/components/table.php';
+            $modalContent = ob_get_clean();
+
+            $modalId = 'past-reports-modal';
+            $modalTitle = 'Past Generated Reports';
+            $modalSize = 6;
+            require BASE_PATH . '/src/Views/components/modal.php';
+        ?>
         
         <?php require BASE_PATH . '/src/Views/components/report-progress-modal.php'; ?>
         <?php endif; ?>

@@ -242,7 +242,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 let statusMsg = "Processing...";
                 if (job.progress <= 5) statusMsg = "Job queued...";
                 else if (job.progress <= 50) statusMsg = "Fetching documents...";
-                else if (job.progress < 100) statusMsg = "Saving CSV...";
+                else if (job.progress < 100) statusMsg = "Saving Spreadsheet...";
                 
                 progressText.textContent = `${statusMsg} (${job.progress || 0}%)`;
 
@@ -282,7 +282,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 downloadBtnContainer.innerHTML = `
                     <div class="mt-4 flex justify-center">
                         <a href="/statistics/report/download/${jobId}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none transition">
-                            Download CSV Report Again
+                            Download Spreadsheet Again
                         </a>
                     </div>
                 `;
