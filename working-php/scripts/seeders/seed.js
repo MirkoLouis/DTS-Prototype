@@ -509,11 +509,16 @@ async function seed() {
         await connection.query('SET FOREIGN_KEY_CHECKS = 0');
         await connection.query('TRUNCATE TABLE document_logs');
         await connection.query('TRUNCATE TABLE documents');
+        await connection.query('TRUNCATE TABLE daily_department_metrics');
+        await connection.query('TRUNCATE TABLE notifications');
+        await connection.query('TRUNCATE TABLE report_jobs');
         await connection.query('TRUNCATE TABLE jobs');
         await connection.query('TRUNCATE TABLE failed_jobs');
         await connection.query('TRUNCATE TABLE database_metrics');
         await connection.query('TRUNCATE TABLE integrity_checks');
         await connection.query('TRUNCATE TABLE cache');
+        await connection.query('TRUNCATE TABLE cache_locks');
+        await connection.query('TRUNCATE TABLE user_public_key_histories');
         await connection.query('SET FOREIGN_KEY_CHECKS = 1');
 
         console.log('🧹 Cleaning file caches...');

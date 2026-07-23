@@ -196,6 +196,7 @@ $router->get('/api/admin-dashboard/processing-hotspots', [\App\Controllers\Admin
 $router->get('/api/admin-dashboard/submission-districts', [\App\Controllers\AdminDashboardController::class, 'getSubmissionDistrictsData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
 $router->get('/api/admin-dashboard/avg-step-time', [\App\Controllers\AdminDashboardController::class, 'getAvgStepTimeByDepartmentData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
 $router->get('/api/admin-dashboard/department-load-vs-time', [\App\Controllers\AdminDashboardController::class, 'getDepartmentalLoadVsTimeData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
+$router->get('/api/admin-dashboard/peak-intake-hours', [\App\Controllers\AdminDashboardController::class, 'getPeakIntakeHoursData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
 
 // Notifications
 $router->post('/api/notifications/mark-read', [App\Controllers\NotificationController::class, 'markAsRead'], [

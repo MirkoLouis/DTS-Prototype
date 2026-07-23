@@ -2,15 +2,37 @@
 
 All notable changes to this project will be documented in this file.
 
-## 2026-07-23 10:20
+## 2026-07-23 16:38
 
-**Version:** 1.16.10-Alpha+202607231020
+**Version:** 1.16.13-Alpha+202607231638
 
 ### Fixed
-- Relocated all database seeders (`seed.js`, `fast-seed.php`, `setup-production-db.js`) into a dedicated `working-php/scripts/seeders/` subfolder and updated internal relative paths (`.env`, `cache`, `database.sql`, `generate-keys.php`, `backfill-metrics.php`) alongside `composer.json` script mappings (`seed:dev`, `seed:fast`, `seed:prod`).
+- Standardized document navigation back URL resolution in `DocumentController` (`$_SESSION['doc_return_url']`) and added smart `history.back()` behavior to the "Back to Document" header link in [document-hash-chain.php](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Views/general/document-hash-chain.php).
+- Capped duration calculations in `AdminAnalyticsService::getProcessingHotspotsData` to prevent overflow and negative time intervals.
+
+### Added
+- Added "Peak Intake Hours" bar chart telemetry on the Admin Dashboard (`/api/admin-dashboard/peak-intake-hours`) to visualize document submission distribution across 24-hour time slots.
+- Integrated one-click copy buttons for cryptographic hashes in [document-hash-chain.php](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Views/general/document-hash-chain.php) and exception stack traces in [system-overview.php](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Views/admin/system-overview.php).
+
+## 2026-07-23 14:28
+
+**Version:** 1.16.12-Alpha+202607231428
+
+### Fixed
+- Refactored [CRYPTOGRAPHIC_LOGS_EXPLAINED.md](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/documentation/CRYPTOGRAPHIC_LOGS_EXPLAINED.md) from dialogue format into a low-level → high-level → key-takeaways explanation; updated the root README documentation blurb to match.
 
 ### Added
 - None
+
+## 2026-07-23 14:23
+
+**Version:** 1.16.11-Alpha+202607231423
+
+### Fixed
+- None
+
+### Added
+- Added [CRYPTOGRAPHIC_LOGS_EXPLAINED.md](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/documentation/CRYPTOGRAPHIC_LOGS_EXPLAINED.md): IT debate covering hash-chain provenance (birth-certificate analogy), why cryptographic custody is not overengineering, and cryptography vs encryption; linked from root README System Documentation.
 
 ## 2026-07-23 09:58
 

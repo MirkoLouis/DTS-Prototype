@@ -60,6 +60,7 @@ Comprehensive user manuals are provided in [working-php/documentation/user_manua
 - 📘 **[Administrator Manual](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/documentation/user_manuals/admin_manual.md):** Account management, database performance, integrity checks, backups, and snapshot Auto-Resolve.
 - 📗 **[Records Officer Manual](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/documentation/user_manuals/officer_manual.md):** Document intake, route finalization, QR tracking form printing, camera scanning, and releasing.
 - 📙 **[Department Staff Manual](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/documentation/user_manuals/staff_manual.md):** Departmental task processing, physical folder receipt, action remarks, and digital signatures.
+- 🔐 **[Cryptographic Logs Explained](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/documentation/CRYPTOGRAPHIC_LOGS_EXPLAINED.md):** How hash-chain logs work (mechanics), why seals/signatures match administrative chain-of-custody needs, and cryptography vs encryption.
 
 ---
 
@@ -103,8 +104,8 @@ Comprehensive user manuals are provided in [working-php/documentation/user_manua
 ## 🌱 Database Seeding Commands (`working-php/scripts/seeders`)
 
 - **Production Setup (`composer run seed:prod` / `node scripts/seeders/setup-production-db.js`):** Builds database tables from `database.sql` and seeds 14 DepEd departments, baseline document purposes, and initial user accounts.
-- **High-Speed Direct Seeder (`composer run seed:fast [docs]` / `php scripts/seeders/fast-seed.php`):** Generates up to 50,000+ document logs directly in MySQL in seconds by pre-decrypting Ed25519 keys into RAM.
-- **API Traffic Simulator (`composer run seed:dev [docs] [chunk] [concurrency]` / `node scripts/seeders/seed.js`):** Dispatches live HTTP requests against the web server to simulate multi-user traffic and session handling.
+- **High-Speed Direct Database Seeder (`composer run seed:fast [docs]` / `php scripts/seeders/fast-seed.php`):** Generates up to 50,000+ document logs directly in MySQL in seconds by pre-decrypting Ed25519 keys into RAM.
+- **Slow-Speed API Seeder (`composer run seed:dev [docs] [chunk] [concurrency]` / `node scripts/seeders/seed.js`):** Dispatches live HTTP requests against the web server to simulate multi-user traffic and session handling, also functions as a concurrency test.
 
 ---
 
@@ -123,7 +124,7 @@ Comprehensive user manuals are provided in [working-php/documentation/user_manua
 
 ## 🔐 Default Test Accounts (Password: `password`)
 
-| Role | Username / Email |
+| Role | Username |
 |:---|:---|
 | **Administrator** | `admin` |
 | **Records Officer** | `records.unit` |

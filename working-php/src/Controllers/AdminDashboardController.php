@@ -131,4 +131,16 @@ class AdminDashboardController
 
         $this->jsonResponse($data);
     }
+
+    public function getPeakIntakeHoursData()
+    {
+        $cacheKey = 'peak_intake_hours_v2';
+
+        $data = Cache::remember($cacheKey, 600, function() {
+            $service = new AdminAnalyticsService();
+            return $service->getPeakIntakeHours();
+        });
+
+        $this->jsonResponse($data);
+    }
 }
