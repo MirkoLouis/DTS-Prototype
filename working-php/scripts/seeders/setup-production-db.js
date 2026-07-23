@@ -1,5 +1,5 @@
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '../.env') });
+require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 const mysql = require('mysql2/promise');
 const fs = require('fs');
 
@@ -16,7 +16,7 @@ async function setupDatabase() {
         });
 
         // 1. Load and execute database.sql
-        const sqlFilePath = path.join(__dirname, '../database.sql');
+        const sqlFilePath = path.join(__dirname, '../../database.sql');
         const sqlContent = fs.readFileSync(sqlFilePath, 'utf8');
         
         console.log('🧹 Dropping existing tables and rebuilding schema (including document_snapshot)...');

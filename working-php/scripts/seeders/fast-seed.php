@@ -1,6 +1,6 @@
 <?php
 
-define('BASE_PATH', dirname(__DIR__));
+define('BASE_PATH', dirname(dirname(__DIR__)));
 require BASE_PATH . '/vendor/autoload.php';
 
 use App\Core\Database;
@@ -32,7 +32,7 @@ $conn->exec('SET FOREIGN_KEY_CHECKS = 1');
 
 // --- Preload Data ---
 echo "🔐 Ensuring user digital keys exist...\n";
-require_once __DIR__ . '/generate-keys.php';
+require_once dirname(__DIR__) . '/generate-keys.php';
 
 $departments = $conn->query("SELECT id, name FROM departments")->fetchAll(PDO::FETCH_ASSOC);
 $purposes = $conn->query("SELECT id, is_official, suggested_route FROM purposes")->fetchAll(PDO::FETCH_ASSOC);

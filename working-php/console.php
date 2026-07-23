@@ -26,6 +26,50 @@ $maxMemory = 8 * 1024 * 1024 * 1024; // 8 GB limit before restarting
 $maxJobs = 100; // Restart after 100 jobs to clear any accumulated state
 $jobsProcessed = 0;
 
+// Timestamps for container-compatible internal worker task scheduler
+$lastSampleTime = 0;
+$lastBackfillTime = 0;
+$lastRollupTime = 0;
+
+/**
+ * Execute periodic system maintenance and telemetry tasks inside the worker loop.
+ * Eliminates reliance on host system cron daemons in containerized environments.
+ */
+function runScheduledTasks(int &$lastSampleTime, int &$lastBackfillTime, int &$lastRollupTime): void
+{
+    $now = time();
+
+    // 1. Sample database performance metrics every 5 minutes (300s)
+    if ($now - $lastSampleTime >= 300) {
+        $lastSampleTime = $now;
+        $scriptPath = BASE_PATH . '/scripts/sample-db-metrics.php';
+        if (file_exists($scriptPath)) {
+            echo "⏰ [Worker Scheduler] Sampling database performance metrics...\n";
+            passthru(PHP_BINARY . ' ' . escapeshellarg($scriptPath));
+        }
+    }
+
+    // 2. Departmental TAT & Volume Metrics Backfill every 30 minutes (1800s)
+    if ($now - $lastBackfillTime >= 1800) {
+        $lastBackfillTime = $now;
+        $scriptPath = BASE_PATH . '/scripts/backfill-metrics.php';
+        if (file_exists($scriptPath)) {
+            echo "⏰ [Worker Scheduler] Running departmental metrics backfill...\n";
+            passthru(PHP_BINARY . ' ' . escapeshellarg($scriptPath));
+        }
+    }
+
+    // 3. Roll up old database metrics (>24h) into hourly aggregates every 24 hours (86400s)
+    if ($now - $lastRollupTime >= 86400) {
+        $lastRollupTime = $now;
+        $scriptPath = BASE_PATH . '/scripts/rollup-metrics.php';
+        if (file_exists($scriptPath)) {
+            echo "⏰ [Worker Scheduler] Running historical database metrics rollup...\n";
+            passthru(PHP_BINARY . ' ' . escapeshellarg($scriptPath));
+        }
+    }
+}
+
 // Intercepts system termination signals to allow the worker to finish its current job 
 // before shutting down gracefully, preventing data corruption mid-task.
 if (extension_loaded('pcntl')) {
@@ -41,6 +85,9 @@ if (extension_loaded('pcntl')) {
 }
 
 while (!$stopWorker) {
+    // 0. Run scheduled maintenance & telemetry tasks
+    runScheduledTasks($lastSampleTime, $lastBackfillTime, $lastRollupTime);
+
     // 1. Memory Leak Prevention: Check if we exceeded our allowed memory
     if (memory_get_usage(true) > $maxMemory) {
         echo "Memory limit exceeded (" . round(memory_get_usage(true) / 1024 / 1024, 2) . " MB). Restarting worker seamlessly...\n";
