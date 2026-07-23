@@ -27,6 +27,10 @@ class DocumentController
             exit;
         }
 
+        if (!empty($_SERVER['HTTP_REFERER']) && !str_contains($_SERVER['HTTP_REFERER'], '/hash-chain') && !str_contains($_SERVER['HTTP_REFERER'], '/documents/')) {
+            $_SESSION['doc_return_url'] = $_SERVER['HTTP_REFERER'];
+        }
+
         $logs = $document['logs'];
 
         require BASE_PATH . '/src/Views/general/show-document.php';

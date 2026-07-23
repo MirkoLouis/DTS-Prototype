@@ -3,3 +3,4 @@ laravel_files.txt
 .gitignore
 php_files.txt
 working-php/storage/app/backups/*
+.cursor/

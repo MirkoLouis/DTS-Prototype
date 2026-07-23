@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!chartContainer) return;
 
     // URLs from the main data attribute container
-    const { declineTrendsUrl, statusDistributionUrl, processingHotspotsUrl, avgStepTimeUrl, throughputUrl, loadVsTimeUrl, submissionDistrictsUrl } = chartContainer.dataset;
+    const { declineTrendsUrl, peakIntakeHoursUrl, statusDistributionUrl, processingHotspotsUrl, avgStepTimeUrl, throughputUrl, loadVsTimeUrl, submissionDistrictsUrl } = chartContainer.dataset;
 
     // --- Element Selectors ---
     const departmentFilterEl = document.getElementById('department-filter');
@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Chart Canvases
     const statusDistributionCtx = document.getElementById('statusDistributionChart')?.getContext('2d');
     const returnDeclineCtx = document.getElementById('returnDeclineChart')?.getContext('2d');
+    const peakIntakeHoursCtx = document.getElementById('peakIntakeHoursChart')?.getContext('2d');
     const avgStepTimeCtx = document.getElementById('avgStepTimeChart')?.getContext('2d');
     const throughputCtx = document.getElementById('throughputChart')?.getContext('2d');
     const processingHotspotsCtx = document.getElementById('processingHotspotsChart')?.getContext('2d');
@@ -23,7 +24,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const loadVsTimeCtx = document.getElementById('loadVsTimeChart')?.getContext('2d'); // New Combo Chart
 
     // --- Chart Instances ---
-    let statusDistributionChart, returnDeclineChart, avgStepTimeChart, throughputChart, processingHotspotsChart, loadVsTimeChart, submissionDistrictsChart;
+    let statusDistributionChart, returnDeclineChart, peakIntakeHoursChart, avgStepTimeChart, throughputChart, processingHotspotsChart, loadVsTimeChart, submissionDistrictsChart;
     let modalChart = null;
 
     // --- Helper & Modal Functions ---
@@ -47,6 +48,17 @@ document.addEventListener('DOMContentLoaded', function() {
 
         statusDistributionChart = new Chart(statusDistributionCtx, { type: 'doughnut', data: { labels: [], datasets: [] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' }, title: { display: false } } } });
         returnDeclineChart = new Chart(returnDeclineCtx, { type: 'line', data: { labels: [], datasets: [] }, options: { ...lineChartOptions, scales: { y: { ...lineChartOptions.scales.y, title: { display: true, text: 'Number of Documents' } } } } });
+        peakIntakeHoursChart = new Chart(peakIntakeHoursCtx, {
+            type: 'bar',
+            data: { labels: [], datasets: [] },
+            options: {
+                ...barChartOptions,
+                scales: {
+                    x: { title: { display: true, text: 'Hour of Day' } },
+                    y: { beginAtZero: true, title: { display: true, text: 'Documents Submitted' } }
+                }
+            }
+        });
         throughputChart = new Chart(throughputCtx, { type: 'line', data: { labels: [], datasets: [] }, options: { ...lineChartOptions, maintainAspectRatio: false } });
         processingHotspotsChart = new Chart(processingHotspotsCtx, {
             type: 'polarArea',
@@ -205,6 +217,7 @@ document.addEventListener('DOMContentLoaded', function() {
         fetchData(submissionDistrictsUrl, submissionDistrictsChart);
         fetchData(avgStepTimeUrl, avgStepTimeChart);
         fetchData(`${declineTrendsUrl}?period=${returnDeclinePeriodEl.value}`, returnDeclineChart);
+        if (peakIntakeHoursUrl) fetchData(peakIntakeHoursUrl, peakIntakeHoursChart);
         fetchData(`${throughputUrl}?period=${globalThroughputPeriodEl.value}`, throughputChart);
         updateLoadVsTimeChart();
     };

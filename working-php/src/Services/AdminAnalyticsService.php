@@ -374,7 +374,7 @@ class AdminAnalyticsService
         $db = Database::getInstance();
         $sql = "SELECT purposes.name as purpose_name, 
                        COUNT(documents.id) as doc_count, 
-                       AVG(TIMESTAMPDIFF(SECOND, documents.created_at, IFNULL(documents.released_at, NOW()))) / 3600 as avg_duration_hours 
+                       AVG(LEAST(GREATEST(TIMESTAMPDIFF(SECOND, documents.created_at, IFNULL(documents.released_at, NOW())), 0), 604800)) / 3600 as avg_duration_hours 
                 FROM documents 
                 JOIN purposes ON documents.purpose_id = purposes.id 
                 GROUP BY purposes.name 
@@ -449,6 +449,47 @@ class AdminAnalyticsService
                     'label' => 'Documents Submitted',
                     'data' => $dataArr,
                     'backgroundColor' => 'rgba(99, 102, 241, 0.5)', 
+                    'borderColor' => 'rgba(99, 102, 241, 1)',
+                    'borderWidth' => 1,
+                ]
+            ]
+        ];
+    }
+
+    public function getPeakIntakeHours(): array
+    {
+        $db = Database::getInstance();
+        
+        // Bounded range query using idx_created_at index (last 30 days) to prevent table scan
+        $startDate = date('Y-m-d H:i:s', strtotime('-30 days'));
+        $sql = "SELECT HOUR(created_at) as hour_num, COUNT(*) as count 
+                FROM documents 
+                WHERE created_at >= :start 
+                GROUP BY hour_num 
+                ORDER BY hour_num";
+        $results = $db->query($sql, [':start' => $startDate])->fetchAll();
+
+        // Map hours 0-23 to 12-hour labels (e.g. 8 AM, 1 PM)
+        $hourMap = [];
+        for ($h = 0; $h < 24; $h++) {
+            $label = date("g A", strtotime("2026-01-01 {$h}:00:00"));
+            $hourMap[$h] = ['label' => $label, 'count' => 0];
+        }
+
+        foreach ($results as $row) {
+            $h = (int)$row['hour_num'];
+            if (isset($hourMap[$h])) {
+                $hourMap[$h]['count'] = (int)$row['count'];
+            }
+        }
+
+        return [
+            'labels' => array_column($hourMap, 'label'),
+            'datasets' => [
+                [
+                    'label' => 'Documents Submitted',
+                    'data' => array_column($hourMap, 'count'),
+                    'backgroundColor' => 'rgba(99, 102, 241, 0.5)',
                     'borderColor' => 'rgba(99, 102, 241, 1)',
                     'borderWidth' => 1,
                 ]

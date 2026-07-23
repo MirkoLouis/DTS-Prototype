@@ -64,7 +64,7 @@ $db->query("
         SELECT 
             u.department_id,
             DATE(dl_end.created_at) as log_date,
-            SUM(TIMESTAMPDIFF(SECOND, dl_start.created_at, dl_end.created_at)) as calc_seconds
+            SUM(LEAST(GREATEST(TIMESTAMPDIFF(SECOND, dl_start.created_at, dl_end.created_at), 0), 604800)) as calc_seconds
         FROM document_logs dl_end
         JOIN users u ON dl_end.user_id = u.id
         JOIN document_logs dl_start ON dl_start.document_id = dl_end.document_id 
@@ -76,7 +76,7 @@ $db->query("
         WHERE dl_end.action IN ('Processing Complete', 'Document Released', 'Declined')
         GROUP BY u.department_id, DATE(dl_end.created_at)
     ) calc ON m.department_id = calc.department_id AND m.date = calc.log_date
-    SET m.total_processing_seconds = GREATEST(calc.calc_seconds, 0)
+    SET m.total_processing_seconds = calc.calc_seconds
 ");
 
 // Fallback estimation for any records with processed or released counts but 0 processing seconds

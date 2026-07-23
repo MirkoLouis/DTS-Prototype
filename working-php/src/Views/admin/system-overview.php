@@ -57,7 +57,24 @@ ob_start(); ?>
                                     
                                     $job['payload_html'] = sprintf('<span class="font-mono text-xs bg-gray-100 dark:bg-gray-700 px-2 py-1 rounded" title="%s">%s</span>', htmlspecialchars($payloadData['displayName'] ?? 'Unknown Job'), htmlspecialchars($jobName));
                                     
-                                    $job['error_html'] = sprintf('<div class="text-xs text-red-600 dark:text-red-400 line-clamp-3 break-words" title="%s">%s</div>', htmlspecialchars($job['exception']), htmlspecialchars($job['exception']));
+                                    $exceptionEsc = htmlspecialchars($job['exception']);
+                                    $exceptionAddSlashes = htmlspecialchars(addslashes($job['exception']));
+                                    $job['error_html'] = sprintf(
+                                        '<div class="flex items-start justify-between gap-2 group">
+                                            <div class="text-xs text-red-600 dark:text-red-400 line-clamp-3 break-words" title="%s">%s</div>
+                                            <button onclick="const btn=this; btn.querySelector(\'.copy-icon\').style.display=\'none\'; btn.querySelector(\'.check-icon\').style.display=\'block\'; navigator.clipboard.writeText(\'%s\'); setTimeout(() => { btn.querySelector(\'.copy-icon\').style.display=\'block\'; btn.querySelector(\'.check-icon\').style.display=\'none\'; }, 2000);" class="text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors focus:outline-none shrink-0 mt-0.5" title="Copy Error Stack Trace">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="copy-icon h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                                </svg>
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="check-icon h-3.5 w-3.5 text-green-500" style="display: none;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                                </svg>
+                                            </button>
+                                        </div>',
+                                        $exceptionEsc,
+                                        $exceptionEsc,
+                                        $exceptionAddSlashes
+                                    );
                                     $job['action_html'] = sprintf('
                                         <form action="/system-health/failed-jobs/%s/delete" method="POST" class="confirm-action" data-message="Are you sure you want to resolve this failed job? This will remove it from the list.">
                                             <input type="hidden" name="csrf_token" value="' . ($_SESSION['csrf_token'] ?? '') . '">

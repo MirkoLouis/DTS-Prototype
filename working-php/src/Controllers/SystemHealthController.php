@@ -93,8 +93,20 @@ class SystemHealthController
             'failed_jobs_count' => $failedJobsCount,
             'failed_jobs' => $failedJobs,
             'failed_jobs_paginator' => $fjPaginator,
-            'cache_status' => true,
+            'cache_status' => $this->checkCacheHealth(),
         ];
+    }
+
+    private function checkCacheHealth(): bool
+    {
+        try {
+            \App\Core\Cache::put('system_health_check', 'ok', 10);
+            $val = \App\Core\Cache::get('system_health_check');
+            $isWritable = is_writable(BASE_PATH . '/cache');
+            return ($val === 'ok' && $isWritable);
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     public function deleteFailedJob($id)
