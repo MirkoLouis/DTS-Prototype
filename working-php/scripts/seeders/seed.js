@@ -1,5 +1,5 @@
 const path = require('path');
-require('dotenv').config({ path: path.join(__dirname, '.env') });
+require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 const mysql = require('mysql2/promise');
 const fs = require('fs');
 const { exec } = require('child_process');
@@ -517,7 +517,7 @@ async function seed() {
         await connection.query('SET FOREIGN_KEY_CHECKS = 1');
 
         console.log('🧹 Cleaning file caches...');
-        const cacheDir = path.join(__dirname, 'cache');
+        const cacheDir = path.join(__dirname, '../../cache');
         if (fs.existsSync(cacheDir)) {
             try {
                 const { execSync } = require('child_process');
@@ -545,7 +545,7 @@ async function seed() {
 
         console.log('🔐 Generating digital signatures (Ed25519) for seeded users...');
         const { execSync } = require('child_process');
-        execSync(`php "${path.join(__dirname, 'scripts/generate-keys.php')}"`, { stdio: 'inherit' });
+        execSync(`php "${path.join(__dirname, '../generate-keys.php')}"`, { stdio: 'inherit' });
 
         console.log('🔑 Initializing API Client Pools to bypass login overhead...');
         const deptPools = {};
@@ -607,7 +607,7 @@ async function seed() {
         await flushMetrics(connection);
 
         console.log('📈 Backfilling daily departmental metrics...');
-        execSync(`php "${path.join(__dirname, 'scripts/backfill-metrics.php')}"`, { stdio: 'inherit' });
+        execSync(`php "${path.join(__dirname, '../backfill-metrics.php')}"`, { stdio: 'inherit' });
 
         console.log('🔒 Resetting all digital signatures for first-time login...');
         await connection.query("UPDATE user_public_key_histories SET activated_at = '2020-01-01 00:00:00', deactivated_at = NOW(), updated_at = NOW() WHERE deactivated_at IS NULL");

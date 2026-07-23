@@ -26,8 +26,8 @@
         "worker": "php console.php",
         "proxy": "cloudflared tunnel --url http://localhost:8000",
         "corrupt": "php scripts/corrupt.php",
-        "seed:dev": "node seed.js",
-        "seed:fast": "php scripts/fast-seed.php",
-        "seed:prod": "node scripts/setup-production-db.js"
+        "seed:dev": "node scripts/seeders/seed.js",
+        "seed:fast": "php scripts/seeders/fast-seed.php",
+        "seed:prod": "node scripts/seeders/setup-production-db.js"
     }
 }
