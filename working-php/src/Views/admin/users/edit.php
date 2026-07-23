@@ -27,8 +27,8 @@
                         </div>
 
                         <div>
-                            <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Email Address *</label>
-                            <input type="email" name="email" id="email" value="<?= htmlspecialchars($user['email']) ?>" required class="mt-1 block w-full border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:border-accent-1 focus:ring-accent-1 sm:text-sm p-2 border">
+                            <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Username / Email *</label>
+                            <input type="text" name="email" id="email" value="<?= htmlspecialchars($user['email']) ?>" required class="mt-1 block w-full border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:border-accent-1 focus:ring-accent-1 sm:text-sm p-2 border">
                         </div>
 
                         <div>

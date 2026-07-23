@@ -155,32 +155,38 @@ When you access `https://<your-ip>:8000`, the browser will throw an `ERR_CERT_AU
 
 ## 🔐 Default Accounts (Password: `password`)
 
-| Role | Email |
+| Role | Username / Email |
 |:---|:---|
-| **Administrator** | `admin@dts.com` |
-| **Records Officer** | `records@dts.com` |
-| **Staff: Cash Unit** | `cash.unit@dts.com` |
-| **Staff: Admin Unit** | `administrative.unit@dts.com` |
-| **Staff: Personnel** | `personnel.unit@dts.com` |
-| **Staff: Supply Unit** | `supply.unit@dts.com` |
-| **Staff: Budget Unit** | `budget.unit@dts.com` |
-| **Staff: Accounting** | `accounting.unit@dts.com` |
-| **Staff: Legal Unit** | `legal.unit@dts.com` |
-| **Staff: Health & Nutrition** | `health.and.nutrition@dts.com` |
-| **Staff: BAC Unit** | `bids.and.awards.committee.unit@dts.com` |
-| **Staff: SDS Office** | `schools.division.superintendent.office@dts.com` |
-| **Staff: ASDS Office** | `assistant.schools.division.superintendent.office@dts.com` |
-| **Staff: CID** | `curriculum.implementation.division@dts.com` |
-| **Staff: SGOD** | `school.governance.and.operations.division@dts.com` |
+| **Administrator** | `admin` |
+| **Records Officer** | `records.unit` |
+| **Staff: Cash Unit** | `cash.unit` |
+| **Staff: Admin Unit** | `administrative.unit` |
+| **Staff: Personnel** | `personnel.unit` |
+| **Staff: Supply Unit** | `supply.unit` |
+| **Staff: Budget Unit** | `budget.unit` |
+| **Staff: Accounting** | `accounting.unit` |
+| **Staff: Legal Unit** | `legal.unit` |
+| **Staff: Health & Nutrition** | `health.and.nutrition` |
+| **Staff: BAC Unit** | `bids.and.awards.committee.unit` |
+| **Staff: SDS Office** | `schools.division.superintendent.office` |
+| **Staff: ASDS Office** | `assistant.schools.division.superintendent.office` |
+| **Staff: CID** | `curriculum.implementation.division` |
+| **Staff: SGOD** | `school.governance.and.operations.division` |
 
 ---
 
 ## ⏰ Background Jobs (Cron)
 
-For production environments, ensure you set up the nightly metric rollup job to prevent the `database_metrics` table from growing infinitely. Add this to your server's crontab (`crontab -e`):
+For production environments, set up the background cron jobs to sample live telemetry metrics, aggregate departmental TAT, and roll up historical database performance logs. Add these entries to your server's crontab (`crontab -e`):
 
 ```bash
-# Run the metric rollup script every night at midnight
+# 1. Sample live database performance telemetry every 5 minutes
+*/5 * * * * php /path/to/your/project/working-php/scripts/sample-db-metrics.php >> /var/log/dts-telemetry.log 2>&1
+
+# 2. Daily departmental TAT & volume metrics backfill (every night at 23:50)
+50 23 * * * php /path/to/your/project/working-php/scripts/backfill-metrics.php >> /var/log/dts-backfill.log 2>&1
+
+# 3. Roll up database metrics older than 24h into hourly aggregates (every night at midnight)
 0 0 * * * php /path/to/your/project/working-php/scripts/rollup-metrics.php >> /var/log/dts-rollup.log 2>&1
 ```
 

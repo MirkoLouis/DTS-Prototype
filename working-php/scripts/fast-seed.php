@@ -15,6 +15,10 @@ echo "Target: " . number_format($docsToCreate) . " documents.\n";
 
 $db = Database::getInstance();
 $conn = $db->getConnection();
+@$conn->exec("SET GLOBAL max_allowed_packet = 67108864");
+$conn->exec("SET SESSION wait_timeout = 28800");
+$conn->exec("SET SESSION net_write_timeout = 3600");
+$conn->exec("SET SESSION net_read_timeout = 3600");
 
 // --- Truncate ---
 echo "🧹 Cleaning tables...\n";
@@ -22,9 +26,14 @@ $conn->exec('SET FOREIGN_KEY_CHECKS = 0');
 $conn->exec('TRUNCATE TABLE document_logs');
 $conn->exec('TRUNCATE TABLE documents');
 $conn->exec('TRUNCATE TABLE database_metrics');
+$conn->exec('TRUNCATE TABLE user_public_key_histories');
+$conn->exec("UPDATE users SET public_key = NULL, private_key = NULL, security_key_set_at = NULL");
 $conn->exec('SET FOREIGN_KEY_CHECKS = 1');
 
 // --- Preload Data ---
+echo "🔐 Ensuring user digital keys exist...\n";
+require_once __DIR__ . '/generate-keys.php';
+
 $departments = $conn->query("SELECT id, name FROM departments")->fetchAll(PDO::FETCH_ASSOC);
 $purposes = $conn->query("SELECT id, is_official, suggested_route FROM purposes")->fetchAll(PDO::FETCH_ASSOC);
 $users = $conn->query("SELECT id, department_id, role, private_key FROM users WHERE private_key IS NOT NULL")->fetchAll(PDO::FETCH_ASSOC);
@@ -53,7 +62,7 @@ foreach ($users as $user) {
         $key = substr(hash('sha256', $pin), 0, 32);
         $iv = str_repeat('0', 16);
         $encryptedPriv = $decoded;
-    } elseif (strlen($decoded) === 112) {
+    } elseif (strlen($decoded) >= 112) {
         $salt = substr($decoded, 0, SODIUM_CRYPTO_PWHASH_SALTBYTES);
         $iv = substr($decoded, SODIUM_CRYPTO_PWHASH_SALTBYTES, 16);
         $encryptedPriv = substr($decoded, SODIUM_CRYPTO_PWHASH_SALTBYTES + 16);
@@ -70,36 +79,101 @@ echo "✅ Cached " . count($decryptedKeys) . " private keys.\n";
 
 $districts = ['East I District', 'East II District', 'South I District', 'South II District', 'West I District', 'North I District', 'North II District', 'North III District', 'City Central District'];
 
-// Set timezone to exactly match the web application so date('c') formatting aligns for hash validation
 date_default_timezone_set('Asia/Manila');
 
 $totalProcessed = 0;
 $startTime = microtime(true);
 
-// Metrics helper
+// Metrics helper using streaming O(1) memory aggregation
 $hourlyMetrics = [];
 function addMetric(&$hourlyMetrics, $timestamp, $isPeak) {
     $hourKey = date('Y-m-d H:00:00', $timestamp);
     if (!isset($hourlyMetrics[$hourKey])) {
-        $hourlyMetrics[$hourKey] = ['conns' => [], 'avg' => [], 'slow' => 0];
+        $hourlyMetrics[$hourKey] = ['conn_sum' => 0, 'conn_count' => 0, 'avg_sum' => 0, 'avg_count' => 0, 'slow' => 0];
     }
     $isBusiness = (date('H', $timestamp) >= 8 && date('H', $timestamp) < 17 && date('N', $timestamp) < 6);
     $base = $isBusiness ? rand(10, 50) : rand(2, 10);
     $conns = $isPeak ? $base + rand(20, 50) : $base;
     $avg = $isPeak ? rand(50, 200)/10 : rand(5, 50)/10;
     
-    $hourlyMetrics[$hourKey]['conns'][] = $conns;
-    $hourlyMetrics[$hourKey]['avg'][] = $avg;
+    $hourlyMetrics[$hourKey]['conn_sum'] += $conns;
+    $hourlyMetrics[$hourKey]['conn_count']++;
+    $hourlyMetrics[$hourKey]['avg_sum'] += $avg;
+    $hourlyMetrics[$hourKey]['avg_count']++;
     $hourlyMetrics[$hourKey]['slow'] += $isPeak ? rand(0, 3) : 0;
 }
 
-function skipWeekend(&$ts, $forward = true) {
-    $day = date('N', $ts);
-    if ($day >= 6) { 
+function flushMetricsToDb($conn, &$hourlyMetrics) {
+    if (empty($hourlyMetrics)) return;
+    
+    $metricValues = [];
+    $metricParams = [];
+    foreach ($hourlyMetrics as $hourKey => $data) {
+        $c = $data['conn_count'] > 0 ? $data['conn_sum'] / $data['conn_count'] : 0;
+        $a = $data['avg_count'] > 0 ? $data['avg_sum'] / $data['avg_count'] : 0;
+        $s = $data['slow'];
+        $metricValues[] = '(?,?,?,?)';
+        array_push($metricParams, $c, $a, $s, $hourKey);
+    }
+    
+    if (!empty($metricValues)) {
+        $mChunks = array_chunk($metricValues, 1000);
+        $pChunks = array_chunk($metricParams, 4000);
+        foreach ($mChunks as $idx => $vChunk) {
+            $sql = "INSERT INTO database_metrics (connections, avg_query_time_ms, slow_queries, created_at) VALUES " . implode(',', $vChunk) . " ON DUPLICATE KEY UPDATE connections = VALUES(connections), avg_query_time_ms = VALUES(avg_query_time_ms), slow_queries = slow_queries + VALUES(slow_queries)";
+            $stmt = $conn->prepare($sql);
+            $stmt->execute($pChunks[$idx]);
+        }
+    }
+    $hourlyMetrics = []; // Reset RAM to 0 bytes
+}
+
+function getWeightedPeakHour(): int {
+    $weightedHours = [
+        8 => 5,   // 8 AM (off-peak)
+        9 => 25,  // 9 AM (peak)
+        10 => 25, // 10 AM (peak)
+        11 => 5,  // 11 AM (off-peak)
+        12 => 5,  // 12 PM (off-peak)
+        13 => 20, // 1 PM (peak)
+        14 => 5,  // 2 PM (off-peak)
+        15 => 20, // 3 PM (peak)
+        16 => 15  // 4 PM (peak)
+    ];
+    $rand = rand(1, 125);
+    $current = 0;
+    foreach ($weightedHours as $hour => $weight) {
+        $current += $weight;
+        if ($rand <= $current) return $hour;
+    }
+    return 9;
+}
+
+function skipNonWorkingDays(&$ts, $forward = true) {
+    // 1 = Monday, 2 = Tuesday, 3 = Wednesday, 4 = Thursday, 5 = Friday, 6 = Saturday, 7 = Sunday
+    $day = (int)date('N', $ts);
+    if ($day >= 6) { // Saturday, Sunday
         if ($forward) {
-            $ts = strtotime("next Monday", $ts) + rand(8*3600, 10*3600);
+            $daysToAdd = (8 - $day); // Sat(6)->+2, Sun(7)->+1 => Monday
+            $ts = strtotime("+{$daysToAdd} days", $ts);
         } else {
-            $ts = strtotime("last Friday", $ts) + rand(15*3600, 17*3600);
+            $daysToSub = ($day - 5); // Sat(6)->-1, Sun(7)->-2 => Friday
+            $ts = strtotime("-{$daysToSub} days", $ts);
+        }
+        $ts = strtotime(date('Y-m-d', $ts) . ' ' . sprintf('%02d', getWeightedPeakHour()) . ':' . sprintf('%02d', rand(0, 59)) . ':' . sprintf('%02d', rand(0, 59)));
+    }
+    
+    $hour = (int)date('H', $ts);
+    if ($hour < 8) {
+        $ts = strtotime(date('Y-m-d', $ts) . ' ' . sprintf('%02d', getWeightedPeakHour()) . ':' . sprintf('%02d', rand(0, 59)) . ':' . sprintf('%02d', rand(0, 59)));
+    } elseif ($hour >= 17) {
+        $ts = strtotime("+1 day", $ts);
+        $ts = strtotime(date('Y-m-d', $ts) . ' ' . sprintf('%02d', getWeightedPeakHour()) . ':' . sprintf('%02d', rand(0, 59)) . ':' . sprintf('%02d', rand(0, 59)));
+        $day = (int)date('N', $ts);
+        if ($day >= 6) {
+            $daysToAdd = (8 - $day);
+            $ts = strtotime("+{$daysToAdd} days", $ts);
+            $ts = strtotime(date('Y-m-d', $ts) . ' ' . sprintf('%02d', getWeightedPeakHour()) . ':' . sprintf('%02d', rand(0, 59)) . ':' . sprintf('%02d', rand(0, 59)));
         }
     }
 }
@@ -109,25 +183,21 @@ $globalDocIndex = 0;
 while ($totalProcessed < $docsToCreate) {
     $currentChunk = min($chunkSize, $docsToCreate - $totalProcessed);
     
-    $docValues = [];
-    $docParams = [];
-    
     $logValues = [];
     $logParams = [];
     
     $docsToInsert = [];
+    $chunkLogTemplates = [];
     
     $conn->beginTransaction();
     
-    // 1. GENERATE DOCUMENTS IN MEMORY
+    // 1. GENERATE DOCUMENTS AND LOG TIMELINES IN MEMORY
     for ($i = 0; $i < $currentChunk; $i++) {
         $globalDocIndex++;
         $purpose = $purposes[array_rand($purposes)];
         $district = $districts[array_rand($districts)];
         $dept = $departments[array_rand($departments)];
         
-        // Emulate DocumentWorkflowService::submitDocument tracking code logic ('DEPED-' + 10 chars)
-        // Ensure absolute uniqueness by embedding the hex index to prevent birthday paradox collisions at 1M docs
         $hexIndex = strtoupper(dechex($globalDocIndex));
         $randomPad = strtoupper(substr(sha1(uniqid('', true)), 0, 10 - strlen($hexIndex)));
         $trackingCode = 'DEPED-' . $randomPad . $hexIndex;
@@ -136,12 +206,12 @@ while ($totalProcessed < $docsToCreate) {
         $isRecent = (mt_rand()/mt_getrandmax()) < 0.4;
         $ts = time();
         if ($isRecent) {
-            $ts -= rand(0, 30) * 86400;
+            $ts -= rand(1, 30) * 86400;
         } else {
-            $ts -= rand(0, 365 * 3) * 86400;
+            $ts -= rand(31, 365 * 3) * 86400;
         }
-        $ts += rand(8*3600, 16*3600); 
-        skipWeekend($ts, false);
+        $ts = strtotime(date('Y-m-d', $ts) . ' ' . sprintf('%02d', getWeightedPeakHour()) . ':' . sprintf('%02d', rand(0, 59)) . ':' . sprintf('%02d', rand(0, 59)));
+        skipNonWorkingDays($ts, false);
         $createdAt = date('Y-m-d H:i:s', $ts);
         
         $routeNames = [];
@@ -162,9 +232,22 @@ while ($totalProcessed < $docsToCreate) {
         $fate = mt_rand()/mt_getrandmax();
         $status = 'completed';
         $aimForReleased = true;
-        if ($fate < 0.1) { $status = 'pending'; $aimForReleased = false; }
-        elseif ($fate < 0.15) { $status = 'declined'; $aimForReleased = false; }
-        elseif ($fate < 0.35) { $status = 'processing'; $aimForReleased = false; }
+        $aimForReadyForRelease = false;
+        
+        if ($fate < 0.10) { 
+            $status = 'pending'; 
+            $aimForReleased = false; 
+        } elseif ($fate < 0.15) { 
+            $status = 'declined'; 
+            $aimForReleased = false; 
+        } elseif ($fate < 0.30) { 
+            $status = 'processing'; 
+            $aimForReleased = false; 
+        } elseif ($fate < 0.40) { 
+            $status = 'ready_for_release'; 
+            $aimForReleased = false; 
+            $aimForReadyForRelease = true; 
+        }
         
         $currentDeptId = null;
         $currentStep = 0;
@@ -178,16 +261,116 @@ while ($totalProcessed < $docsToCreate) {
             $deptName = $routeNames[$randIdx];
             foreach ($departments as $dep) { if ($dep['name'] === $deptName) { $currentDeptId = $dep['id']; break; } }
             $currentStep = $randIdx + 1; // 1-based index
+        } elseif ($status == 'ready_for_release') {
+            $currentStep = count($routeNames) + 1;
+            foreach ($departments as $dep) { if ($dep['name'] === 'Records Unit') { $currentDeptId = $dep['id']; break; } }
+            if (!$currentDeptId) $currentDeptId = $recordsOfficer['department_id'] ?? null;
         } elseif ($status == 'completed') {
             $currentStep = count($routeNames) + 1;
-            // Determine release timestamp (usually near the end of the timeline)
-            $tsEnd = $ts; // Will be advanced during log generation
-            // Set fields required for Statistics page visibility
-            $releasedAt = date('Y-m-d H:i:s', $ts + 3600); // Approximate
             $releasedByUserId = $recordsOfficer['id'];
         } elseif ($status == 'declined') {
-            $declinedAt = date('Y-m-d H:i:s', $ts + rand(5, 30)*60);
             $declineReason = 'Requirements not met.';
+        }
+        
+        // Generate Log Events & Advance Timestamp
+        $docLogTemplates = [];
+        $docDataForHash = [
+            'tracking_code' => $trackingCode,
+            'title' => "Fast Seeded Doc $globalDocIndex",
+            'guest_info' => $guestInfo,
+            'district' => $district,
+            'department' => $dept['name'],
+            'purpose_id' => $purpose['id'],
+            'finalized_route' => $finalizedRoute 
+        ];
+        
+        $prevHash = 'genesis_hash';
+        
+        $addLogTemplate = function($action, $remarks, $userId, $isPeak = false) use (&$docLogTemplates, &$prevHash, &$ts, $docDataForHash, &$hourlyMetrics, $decryptedKeys) {
+            $stateHash = IntegrityManager::calculateStateHash($docDataForHash);
+            $sqlDate = date('Y-m-d H:i:s', $ts);
+            $isoDate = date('c', strtotime($sqlDate));
+            
+            $signature = base64_encode("SYSTEM_SIG:{$action}|{$stateHash}");
+            if ($userId && isset($decryptedKeys[$userId])) {
+                $signatureBytes = sodium_crypto_sign_detached($action . '|' . $stateHash, $decryptedKeys[$userId]);
+                $signature = base64_encode($signatureBytes);
+            }
+            
+            $docLogTemplates[] = [
+                'user_id' => $userId,
+                'action' => $action,
+                'remarks' => $remarks,
+                'prev_hash' => $prevHash,
+                'state_hash' => $stateHash,
+                'signature' => $signature,
+                'sql_date' => $sqlDate,
+                'iso_date' => $isoDate
+            ];
+            
+            addMetric($hourlyMetrics, $ts, $isPeak);
+        };
+        
+        $addLogTemplate('Submitted', 'Document submitted by guest via the public portal.', null);
+        
+        if ($status === 'pending') {
+            $updatedAt = $createdAt;
+        } elseif ($status === 'declined') {
+            $ts += rand(5, 30) * 60;
+            skipNonWorkingDays($ts, true);
+            $addLogTemplate('Declined', 'Requirements not met.', $recordsOfficer['id'], true);
+            $declinedAt = date('Y-m-d H:i:s', $ts);
+            $updatedAt = $declinedAt;
+        } else { // processing, ready_for_release, or completed
+            $ts += rand(5, 60) * 60;
+            skipNonWorkingDays($ts, true);
+            $firstDepartmentName = $routeNames[0] ?? 'Unknown';
+            $addLogTemplate('Accepted and Document Routing finalized', "Route finalized. In transit to {$firstDepartmentName}.", $recordsOfficer['id']);
+            
+            $steps = ($aimForReleased || $aimForReadyForRelease) ? count($routeNames) : rand(1, count($routeNames));
+            
+            for ($s = 0; $s < $steps; $s++) {
+                $deptName = $routeNames[$s];
+                $deptId = null;
+                foreach ($departments as $dep) { if ($dep['name'] === $deptName) { $deptId = $dep['id']; break; } }
+                
+                $stepUser = null;
+                foreach ($users as $u) { if ($u['department_id'] == $deptId) { $stepUser = $u; break; } }
+                if (!$stepUser) $stepUser = $recordsOfficer;
+                
+                $ts += rand(10, 180) * 60;
+                skipNonWorkingDays($ts, true);
+                $addLogTemplate('Received', "Document received by {$deptName}.", $stepUser['id']);
+                
+                if ($status === 'processing' && $currentStep !== null && $s === ($currentStep - 1)) {
+                    break;
+                }
+                
+                $ts += rand(30, 360) * 60;
+                skipNonWorkingDays($ts, true);
+                if ($s + 1 < count($routeNames)) {
+                    $nextDeptName = $routeNames[$s + 1];
+                    $logRemarks = "Step processed by {$deptName}. In transit to {$nextDeptName}.";
+                } else {
+                    $logRemarks = "Step processed by {$deptName}. In transit to Records Unit for releasing.";
+                }
+                $addLogTemplate('Processing Complete', $logRemarks, $stepUser['id']);
+            }
+            
+            if (($aimForReleased || $aimForReadyForRelease) && $s === count($routeNames)) {
+                $ts += rand(10, 60) * 60;
+                skipNonWorkingDays($ts, true);
+                $addLogTemplate('Ready for Releasing', 'All processing steps completed. Document received by Records Unit for final releasing.', $recordsOfficer['id']);
+                
+                if ($aimForReleased) {
+                    $ts += rand(10, 60) * 60;
+                    skipNonWorkingDays($ts, true);
+                    $addLogTemplate('Document Released', 'The document has been released to the client.', $recordsOfficer['id']);
+                    $releasedAt = date('Y-m-d H:i:s', $ts);
+                }
+            }
+            
+            $updatedAt = date('Y-m-d H:i:s', $ts);
         }
         
         $docsToInsert[] = [
@@ -206,12 +389,10 @@ while ($totalProcessed < $docsToCreate) {
             'decline_reason' => $declineReason,
             'finalized_route' => $finalizedRoute,
             'created_at' => $createdAt,
-            'updated_at' => $createdAt,
-            '_ts' => $ts,
-            '_routeNames' => $routeNames,
-            '_aimForReleased' => $aimForReleased,
-            '_targetProcessingStep' => $status == 'processing' ? $currentStep : null
+            'updated_at' => $updatedAt
         ];
+        
+        $chunkLogTemplates[$i] = $docLogTemplates;
     }
     
     // BULK INSERT DOCUMENTS
@@ -226,97 +407,21 @@ while ($totalProcessed < $docsToCreate) {
     
     $firstInsertId = $conn->lastInsertId();
     
-    // 2. GENERATE LOGS IN MEMORY WITH REAL CRYPTO
+    // 2. BIND DOC IDS AND BUILD BULK INSERT LOGS
     for ($i = 0; $i < $currentChunk; $i++) {
-        $d = $docsToInsert[$i];
         $docId = $firstInsertId + $i;
-        $ts = $d['_ts'];
-        $routeNames = $d['_routeNames'];
-        
-        $docDataForHash = [
-            'tracking_code' => $d['tracking_code'],
-            'title' => $d['title'],
-            'guest_info' => $d['guest_info'],
-            'district' => $d['district'],
-            'department' => $d['department'],
-            'purpose_id' => $d['purpose_id'],
-            'finalized_route' => $d['finalized_route'] 
-        ];
-        
+        $templates = $chunkLogTemplates[$i];
         $prevHash = 'genesis_hash';
         
-        $addLog = function($action, $remarks, $userId, $isPeak = false) use (&$logValues, &$logParams, &$prevHash, &$ts, $docId, $docDataForHash, &$hourlyMetrics, $decryptedKeys) {
-            $stateHash = IntegrityManager::calculateStateHash($docDataForHash);
-            $sqlDate = date('Y-m-d H:i:s', $ts);
-            // Must strictly emulate IntegrityManager's exact method of deriving the ISO string from the SQL string
-            $isoDate = date('c', strtotime($sqlDate));
-            
-            $signature = base64_encode("SYSTEM_SIG:{$action}|{$stateHash}");
-            if ($userId && isset($decryptedKeys[$userId])) {
-                $signatureBytes = sodium_crypto_sign_detached($action . '|' . $stateHash, $decryptedKeys[$userId]);
-                $signature = base64_encode($signatureBytes);
-            }
-            
-            $uId = $userId !== null ? $userId : '';
-            $dataForLogHash = [$docId, $uId, $action, $isoDate, $prevHash, $stateHash, $signature];
+        foreach ($templates as $tmpl) {
+            $uId = $tmpl['user_id'] !== null ? (int)$tmpl['user_id'] : '';
+            $dataForLogHash = [$docId, $uId, $tmpl['action'], $tmpl['iso_date'], $prevHash, $tmpl['state_hash'], $tmpl['signature']];
             $newHash = hash('sha256', json_encode($dataForLogHash, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
             
             $logValues[] = '(?,?,?,?,?,?,?,?,?,?)';
-            array_push($logParams, $docId, $userId, $action, $remarks, $prevHash, $newHash, $stateHash, $signature, $sqlDate, $sqlDate);
+            array_push($logParams, $docId, $tmpl['user_id'], $tmpl['action'], $tmpl['remarks'], $prevHash, $newHash, $tmpl['state_hash'], $tmpl['signature'], $tmpl['sql_date'], $tmpl['sql_date']);
             
             $prevHash = $newHash;
-            addMetric($hourlyMetrics, $ts, $isPeak);
-        };
-        
-        $addLog('Submitted', 'Document submitted by guest via the public portal.', null);
-        
-        if ($d['status'] === 'pending') continue;
-        
-        if ($d['status'] === 'declined') {
-            $ts += rand(5, 30)*60; skipWeekend($ts);
-            $addLog('Declined', 'Requirements not met.', $recordsOfficer['id'], true);
-            continue;
-        }
-        
-        $ts += rand(5, 60)*60; skipWeekend($ts);
-        $firstDepartmentName = $routeNames[0] ?? 'Unknown';
-        $addLog('Accepted and Document Routing finalized', "Route finalized. In transit to {$firstDepartmentName}.", $recordsOfficer['id']);
-        
-        $steps = $d['_aimForReleased'] ? count($routeNames) : rand(1, count($routeNames));
-        
-        for ($s = 0; $s < $steps; $s++) {
-            $deptName = $routeNames[$s];
-            $deptId = null;
-            foreach ($departments as $dep) { if ($dep['name'] === $deptName) { $deptId = $dep['id']; break; } }
-            
-            $stepUser = null;
-            foreach ($users as $u) { if ($u['department_id'] == $deptId) { $stepUser = $u; break; } }
-            if (!$stepUser) $stepUser = $recordsOfficer;
-            
-            $ts += rand(10, 180)*60; skipWeekend($ts);
-            $addLog('Received', "Received by $deptName.", $stepUser['id']);
-            
-            if ($d['status'] === 'processing' && $d['_targetProcessingStep'] !== null && $s === ($d['_targetProcessingStep'] - 1)) {
-                // We reached the current processing step. Halt generation here so it appears currently at this department.
-                break;
-            }
-            
-            $ts += rand(30, 360)*60; skipWeekend($ts);
-            if ($s + 1 < count($routeNames)) {
-                $nextDeptName = $routeNames[$s + 1];
-                $logRemarks = "Step processed by {$deptName}. In transit to {$nextDeptName}.";
-            } else {
-                $logRemarks = "Step processed by {$deptName}. In transit to Records Unit for releasing.";
-            }
-            $addLog('Processing Complete', $logRemarks, $stepUser['id']);
-        }
-        
-        if ($d['_aimForReleased'] && $s === count($routeNames)) {
-            $ts += rand(10, 60)*60; skipWeekend($ts);
-            $addLog('Ready for Releasing', 'All processing steps completed. Document received by Records Unit for final releasing.', $recordsOfficer['id']);
-            
-            $ts += rand(10, 60)*60; skipWeekend($ts);
-            $addLog('Document Released', 'The document has been released to the client.', $recordsOfficer['id']);
         }
     }
     
@@ -336,35 +441,29 @@ while ($totalProcessed < $docsToCreate) {
     $conn->commit();
     
     $totalProcessed += $currentChunk;
+    
+    // Periodically flush metrics every 50,000 documents to keep RAM at O(1) constant footprint
+    if ($totalProcessed % 50000 === 0) {
+        $conn->beginTransaction();
+        flushMetricsToDb($conn, $hourlyMetrics);
+        $conn->commit();
+    }
+
     $mem = round(memory_get_usage() / 1024 / 1024);
     echo "\r   ⏳ Progress: " . number_format($totalProcessed) . " / " . number_format($docsToCreate) . " documents. | 🧠 RAM: {$mem} MB   ";
 }
 
 echo "\n📊 Flushing metrics...\n";
 $conn->beginTransaction();
-$metricValues = [];
-$metricParams = [];
-foreach ($hourlyMetrics as $hourKey => $data) {
-    $c = count($data['conns']) > 0 ? array_sum($data['conns'])/count($data['conns']) : 0;
-    $a = count($data['avg']) > 0 ? array_sum($data['avg'])/count($data['avg']) : 0;
-    $s = $data['slow'];
-    $metricValues[] = '(?,?,?,?)';
-    array_push($metricParams, $c, $a, $s, $hourKey);
-}
-if (!empty($metricValues)) {
-    $mChunks = array_chunk($metricValues, 1000);
-    $pChunks = array_chunk($metricParams, 4000);
-    foreach ($mChunks as $idx => $vChunk) {
-        $sql = "INSERT INTO database_metrics (connections, avg_query_time_ms, slow_queries, created_at) VALUES " . implode(',', $vChunk);
-        $stmt = $conn->prepare($sql);
-        $stmt->execute($pChunks[$idx]);
-    }
-}
+flushMetricsToDb($conn, $hourlyMetrics);
 $conn->commit();
 
 echo "\n🔒 Resetting all digital signatures for first-time login...\n";
-$conn->exec("UPDATE user_public_key_histories SET deactivated_at = NOW(), updated_at = NOW() WHERE deactivated_at IS NULL");
+$conn->exec("UPDATE user_public_key_histories SET activated_at = '2000-01-01 00:00:00', deactivated_at = '2038-01-01 00:00:00', updated_at = NOW() WHERE deactivated_at IS NULL OR deactivated_at > '2000-01-01 00:00:00'");
 $conn->exec("UPDATE users SET public_key = NULL, private_key = NULL, security_key_set_at = NULL");
+
+echo "\n📈 Backfilling daily departmental metrics...\n";
+passthru('php ' . escapeshellarg(BASE_PATH . '/scripts/backfill-metrics.php'));
 
 $elapsed = round(microtime(true) - $startTime, 2);
 echo "🎉 Done! Seeded " . number_format($docsToCreate) . " documents in {$elapsed}s.\n";

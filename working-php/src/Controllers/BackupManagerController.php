@@ -58,6 +58,7 @@ class BackupManagerController
             'payload' => $payload
         ]);
 
+        $_SESSION['success'] = 'Backup has been queued and will be created in the background.';
         header('Location: /system/backups');
         exit;
     }
@@ -105,6 +106,7 @@ class BackupManagerController
             'payload' => $payload
         ]);
 
+        $_SESSION['success'] = 'Restore job has been queued and will be processed in the background.';
         header('Location: /system/backups');
         exit;
     }

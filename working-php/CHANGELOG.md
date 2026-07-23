@@ -1,5 +1,84 @@
 # Changelog
 
+## 2026-07-23 08:54
+
+**Version:** 1.16.3-Alpha+202607230854
+
+### Fixed
+- Updated production documentation in `README.md` to specify crontab schedules for metric sampling, departmental TAT backfilling, and metric rollups.
+
+### Added
+- Added production database telemetry sampler script `scripts/sample-db-metrics.php` to periodically log active MySQL connection threads (`Threads_connected`), query latency, and slow query counts into `database_metrics`.
+
+## 2026-07-23 08:43
+
+**Version:** 1.16.2-Alpha+202607230843
+
+### Fixed
+- Removed all `||`, `??`, and `?:` fallback operators from database connection setups across `seed.js`, `scripts/setup-production-db.js`, `scripts/tune-database.php`, and `src/Config/config.php` to strictly require environment variables supplied by `.env`.
+
+### Added
+- None
+
+## 2026-07-23 08:39
+
+**Version:** 1.16.1-Alpha+202607230839
+
+### Fixed
+- Fixed `.env` parsing across `seed.js` and `scripts/setup-production-db.js` by explicitly defining the target `.env` file path relative to script directory (`path.join(__dirname, '.env')` / `path.join(__dirname, '../.env')`), preventing `dotenv` from failing when commands are launched from different current working directories.
+- Removed all hardcoded database password fallback strings (`'One5zero03'`) from `seed.js`, `scripts/setup-production-db.js`, and `scripts/tune-database.php` to enforce secure environment variable resolution.
+- Refactored `tune-database.php` environment parser to handle unquoted key-value pairs without breaking on special characters.
+
+### Added
+- None
+
+## 2026-07-23 08:34
+
+**Version:** 1.16.0-Alpha+202607230834
+
+### Fixed
+- Fixed empty Departmental Average TAT, Average TAT by Department, and Department Drill-Down analytics by embedding the `backfill-metrics.php` execution and cache clearing directly into `scripts/fast-seed.php`.
+- Corrected non-working day calculation logic in `scripts/fast-seed.php` (`skipNonWorkingDays`) and `seed.js` (`skipWeekend`) to treat Friday as a valid working day instead of skipping it.
+- Improved processing time computation in `scripts/backfill-metrics.php` to calculate exact turnaround time (TAT) per step per department directly from `document_logs` timestamp intervals.
+
+### Added
+- Added fallback database credentials in `seed.js` to match project configuration defaults.
+
+## 2026-07-23 08:15
+
+**Version:** 1.15.9-Alpha+202607230815
+
+### Fixed
+- Filtered out `ready_for_release` documents from the `/tasks` table query (`DocumentQueryService::getPaginatedStaffTasks`) so that finished documents ready for release are only shown in the `/releasing` view rather than appearing in active department task queues where completing them would trigger workflow errors.
+- Updated `/tasks` view filter options in `src/Views/staff/tasks.php` to remove the obsolete `ready_for_release` status dropdown selection.
+
+### Added
+- Added a `Document Title` column to the "Documents Ready for Release" table in `src/Views/officer/releasing.php`.
+
+## 2026-07-22 17:20
+
+**Version:** 1.15.8-Alpha+202607221720
+
+### Fixed
+- Changed default user account email format in `scripts/setup-production-db.js` to clean department usernames (e.g. `admin`, `records.unit`, `cash.unit`).
+- Removed strict `email` format validation rule from `AuthController::login` and `UserController::store`/`update` so non-email department usernames (e.g. `cash.unit`) pass backend validation.
+- Updated `src/Views/auth/login.php`, `create.php`, and `edit.php` input controls from `type="email"` to `type="text"` and updated label to "Username / Email".
+- Updated default credentials reference table in `README.md`.
+
+### Added
+- None
+
+## 2026-07-22 16:44
+
+**Version:** 1.15.7-Alpha+202607221644
+
+### Fixed
+- Removed unused `storage/database.sqlite` placeholder file.
+- Replaced corrupted favicon generator output files with direct PNG favicon reference pointing to `/images/logoipsum-411.png` across layout templates (`login.php`, `app.php`, `guest.php`).
+
+### Added
+- None
+
 ## 2026-07-22 16:17
 
 **Version:** 1.15.6-Alpha+202607221617

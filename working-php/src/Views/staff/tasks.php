@@ -35,7 +35,6 @@
                         'all' => 'All Statuses',
                         'pending' => 'Pending',
                         'processing' => 'Processing',
-                        'ready_for_release' => 'Ready For Release',
                         'completed' => 'Completed',
                         'declined' => 'Declined',
                         'frozen' => 'Frozen'

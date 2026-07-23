@@ -54,11 +54,12 @@
             $tableConfig = [
                 'wrapper_classes' => 'overflow-x-auto mt-4',
                 'columns' => [
-                    ['key' => 'tracking_code', 'label' => 'Tracking Code', 'width' => 'w-[20%]', 'type' => 'tracking_link'],
-                    ['key' => 'guest_name', 'label' => 'Submitter', 'width' => 'w-[20%]', 'wrap' => true],
-                    ['key' => 'purpose_name', 'label' => 'Purpose', 'width' => 'w-[35%]', 'wrap' => true],
-                    ['key' => 'status_html', 'label' => 'Status', 'width' => 'w-[10%]', 'type' => 'raw'],
-                    ['key' => 'action_html', 'label' => 'Action', 'width' => 'w-[15%]', 'type' => 'raw']
+                    ['key' => 'tracking_code', 'label' => 'Tracking Code', 'width' => 'w-[15%]', 'type' => 'tracking_link'],
+                    ['key' => 'title', 'label' => 'Document Title', 'width' => 'w-[25%]', 'wrap' => true],
+                    ['key' => 'guest_name', 'label' => 'Submitter', 'width' => 'w-[15%]', 'wrap' => true],
+                    ['key' => 'purpose_name', 'label' => 'Purpose', 'width' => 'w-[20%]', 'wrap' => true],
+                    ['key' => 'status_html', 'label' => 'Status', 'width' => 'w-[12%]', 'type' => 'raw'],
+                    ['key' => 'action_html', 'label' => 'Action', 'width' => 'w-[13%]', 'type' => 'raw']
                 ],
                 'data' => $documents,
                 'empty_message' => 'No documents are currently ready for release.'

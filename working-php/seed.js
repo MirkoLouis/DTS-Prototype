@@ -1,6 +1,6 @@
-require('dotenv').config();
-const mysql = require('mysql2/promise');
 const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '.env') });
+const mysql = require('mysql2/promise');
 const fs = require('fs');
 const { exec } = require('child_process');
 const util = require('util');
@@ -93,7 +93,11 @@ class ApiClient {
     }
 
     async login(email, password) {
-        await this.postForm('/login', { email, password });
+        const res = await this.postForm('/login', { email, password });
+        const location = res.headers.get('location');
+        if (!location || location === '/login') {
+            throw new Error(`Login failed for account "${email}". Received HTTP status ${res.status}, location: ${location || 'none'}`);
+        }
     }
 }
 
@@ -144,16 +148,39 @@ async function waitForBackends() {
     }
 }
 
+function getWeightedPeakHour() {
+    const weightedHours = [
+        { hour: 8, weight: 5 },
+        { hour: 9, weight: 25 },
+        { hour: 10, weight: 25 },
+        { hour: 11, weight: 5 },
+        { hour: 12, weight: 5 },
+        { hour: 13, weight: 20 },
+        { hour: 14, weight: 5 },
+        { hour: 15, weight: 20 },
+        { hour: 16, weight: 15 }
+    ];
+    const totalWeight = 125;
+    let rand = Math.floor(Math.random() * totalWeight) + 1;
+    let current = 0;
+    for (const item of weightedHours) {
+        current += item.weight;
+        if (rand <= current) return item.hour;
+    }
+    return 9;
+}
+
 function skipWeekend(dateObj, direction = 'forward') {
-    let day = dateObj.getUTCDay();
-    if (day === 0 || day === 6) { // Sunday=0, Saturday=6
+    let day = dateObj.getUTCDay(); // 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
+    if (day === 0 || day === 6) { // Sat (6), Sun (0) are non-working days
+        let daysToMove = 0;
         if (direction === 'forward') {
-            dateObj.setUTCDate(dateObj.getUTCDate() + (day === 0 ? 1 : 2));
-            dateObj.setUTCHours(Math.floor(Math.random() * 3) + 8); // 8-10 AM
+            daysToMove = (day === 6) ? 2 : 1;
         } else {
-            dateObj.setUTCDate(dateObj.getUTCDate() - (day === 0 ? 2 : 1));
-            dateObj.setUTCHours(Math.floor(Math.random() * 3) + 15); // 3-5 PM
+            daysToMove = (day === 6) ? -1 : -2;
         }
+        dateObj.setUTCDate(dateObj.getUTCDate() + daysToMove);
+        dateObj.setUTCHours(getWeightedPeakHour() - 8, Math.floor(Math.random() * 60), Math.floor(Math.random() * 60), 0);
     }
     return dateObj;
 }
@@ -250,8 +277,9 @@ async function processDocumentAPI(i, deptPools, departmentNames, guestClient, pu
     const fate = Math.random();
     const willBePending = fate < 0.10; // 10%
     const willBeDeclined = fate >= 0.10 && fate < 0.15; // 5%
-    const willBeProcessing = fate >= 0.15 && fate < 0.35; // 20%
-    const aimForReleased = fate >= 0.35; // 65%
+    const willBeProcessing = fate >= 0.15 && fate < 0.30; // 15%
+    const willBeReadyForRelease = fate >= 0.30 && fate < 0.40; // 10%
+    const aimForReleased = fate >= 0.40; // 60%
 
     if (willBePending) return { id: documentId };
 
@@ -259,22 +287,27 @@ async function processDocumentAPI(i, deptPools, departmentNames, guestClient, pu
     const recordsClient = deptPools['Records Unit'].getClient();
 
     if (willBeDeclined) {
-        await recordsClient.postForm(`/documents/decline`, {
+        const resDecline = await recordsClient.postForm(`/documents/decline`, {
             document_id: documentId,
             reason: 'Incomplete requirements or incorrect form.',
             pin: DEFAULT_PASSWORD
         });
+        if (!resDecline.headers.get('location')) {
+            throw new Error(`Decline failed for doc #${documentId}. Status: ${resDecline.status}`);
+        }
         return { id: documentId };
     }
 
-    await recordsClient.postForm(`/documents/${documentId}/finalize`, {
+    const resFinalize = await recordsClient.postForm(`/documents/${documentId}/finalize`, {
         final_route: JSON.stringify(route),
         pin: DEFAULT_PASSWORD
     });
-
+    if (!resFinalize.headers.get('location') || resFinalize.headers.get('location') === '/login') {
+        throw new Error(`Finalize failed for doc #${documentId}. Status: ${resFinalize.status}, Location: ${resFinalize.headers.get('location')}`);
+    }
 
     let actualStepsProcessed = 0;
-    let stepsToSimulate = aimForReleased ? route.length : Math.floor(Math.random() * route.length) + 1;
+    let stepsToSimulate = (aimForReleased || willBeReadyForRelease) ? route.length : Math.floor(Math.random() * route.length) + 1;
 
     // 3. DEPARTMENT PROCESSING
     for (let step = 0; step < route.length; step++) {
@@ -284,29 +317,42 @@ async function processDocumentAPI(i, deptPools, departmentNames, guestClient, pu
         const deptClient = deptPools[dept].getClient();
 
         // Scan the document to put it in processing
-        await deptClient.postForm('/documents/scan', { 
+        const resScan = await deptClient.postForm('/documents/scan', { 
             tracking_code: trackingCode,
             pin: DEFAULT_PASSWORD
         });
+        if (!resScan.headers.get('location') || resScan.headers.get('location') === '/login') {
+            throw new Error(`Scan failed for doc #${documentId} by ${dept}. Status: ${resScan.status}, Location: ${resScan.headers.get('location')}`);
+        }
 
         // If it's meant to be processing and we are at the last step, STOP before completing.
         if (willBeProcessing && step === stepsToSimulate - 1) {
             break;
         }
 
-
-
-        await deptClient.postForm(`/tasks/${documentId}/complete`, { pin: DEFAULT_PASSWORD });
+        const resComplete = await deptClient.postForm(`/tasks/${documentId}/complete`, { pin: DEFAULT_PASSWORD });
+        if (!resComplete.headers.get('location') || resComplete.headers.get('location') === '/login') {
+            throw new Error(`Task complete failed for doc #${documentId} by ${dept}. Status: ${resComplete.status}, Location: ${resComplete.headers.get('location')}`);
+        }
         actualStepsProcessed++;
     }
 
     // 4. RECORDS FINAL RELEASE
-    if (actualStepsProcessed === route.length && aimForReleased) {
-        await recordsClient.postForm('/documents/scan', { 
+    if (actualStepsProcessed === route.length && (aimForReleased || willBeReadyForRelease)) {
+        const resRecScan = await recordsClient.postForm('/documents/scan', { 
             tracking_code: trackingCode,
             pin: DEFAULT_PASSWORD
         });
-        await recordsClient.postForm(`/releasing/${documentId}/complete`, { pin: DEFAULT_PASSWORD });
+        if (!resRecScan.headers.get('location') || resRecScan.headers.get('location') === '/login') {
+            throw new Error(`Final release scan failed for doc #${documentId}. Status: ${resRecScan.status}`);
+        }
+
+        if (aimForReleased) {
+            const resRelComplete = await recordsClient.postForm(`/releasing/${documentId}/complete`, { pin: DEFAULT_PASSWORD });
+            if (!resRelComplete.headers.get('location') || resRelComplete.headers.get('location') === '/login') {
+                throw new Error(`Release complete failed for doc #${documentId}. Status: ${resRelComplete.status}`);
+            }
+        }
     }
 
     return { id: documentId };
@@ -326,8 +372,6 @@ async function timeTravelRetrofit(connection, documentIds) {
     const updateParams = [];
 
     const refDate = new Date();
-    let day = refDate.getUTCDay();
-    if (day !== 5) refDate.setUTCDate(refDate.getUTCDate() - ((day + 2) % 7));
     refDate.setUTCHours(17, 0, 0, 0);
 
     for (const docId of documentIds) {
@@ -337,7 +381,7 @@ async function timeTravelRetrofit(connection, documentIds) {
         const isRecent = Math.random() < 0.40;
         let cTime = new Date(refDate.getTime());
         if (isRecent) {
-            cTime.setUTCDate(cTime.getUTCDate() - Math.floor(Math.random() * 30));
+            cTime.setUTCDate(cTime.getUTCDate() - (Math.floor(Math.random() * 30) + 1));
         } else {
             cTime.setUTCFullYear(cTime.getUTCFullYear() - Math.floor(Math.random() * 5));
             cTime.setUTCDate(cTime.getUTCDate() - Math.floor(Math.random() * 365));
@@ -388,8 +432,12 @@ async function timeTravelRetrofit(connection, documentIds) {
 
         if (firstSqlDate) {
             let hasDeclined = docLogs.some(l => l.action.includes('Declined'));
+            let hasReleased = docLogs.some(l => l.action.includes('Released'));
             if (hasDeclined) {
                 queries.push(`UPDATE documents SET created_at = ?, updated_at = ?, declined_at = ? WHERE id = ?`);
+                updateParams.push(firstSqlDate, lastSqlDate, lastSqlDate, docId);
+            } else if (hasReleased) {
+                queries.push(`UPDATE documents SET created_at = ?, updated_at = ?, released_at = ? WHERE id = ?`);
                 updateParams.push(firstSqlDate, lastSqlDate, lastSqlDate, docId);
             } else {
                 queries.push(`UPDATE documents SET created_at = ?, updated_at = ? WHERE id = ?`);
@@ -407,7 +455,7 @@ async function timeTravelRetrofit(connection, documentIds) {
                 if (q.includes('document_logs')) {
                     promises.push(connection.query(q, [updateParams[qIdx], updateParams[qIdx+1], updateParams[qIdx+2], updateParams[qIdx+3], updateParams[qIdx+4]]));
                     qIdx += 5;
-                } else if (q.includes('declined_at')) {
+                } else if (q.includes('declined_at') || q.includes('released_at')) {
                     promises.push(connection.query(q, [updateParams[qIdx], updateParams[qIdx+1], updateParams[qIdx+2], updateParams[qIdx+3]]));
                     qIdx += 4;
                 } else {
@@ -451,10 +499,10 @@ async function seed() {
         console.log('🔄 Starting advanced API-driven Time-Travel seed process...');
 
         connection = await mysql.createConnection({
-            host: process.env.DB_HOST || '127.0.0.1',
-            user: process.env.DB_USERNAME || 'root',
-            password: process.env.DB_PASSWORD || '',
-            database: process.env.DB_DATABASE || 'deped_dts'
+            host: process.env.DB_HOST,
+            user: process.env.DB_USERNAME,
+            password: process.env.DB_PASSWORD,
+            database: process.env.DB_DATABASE
         });
 
         console.log('🧹 Cleaning tables...');
@@ -562,7 +610,7 @@ async function seed() {
         execSync(`php "${path.join(__dirname, 'scripts/backfill-metrics.php')}"`, { stdio: 'inherit' });
 
         console.log('🔒 Resetting all digital signatures for first-time login...');
-        await connection.query("UPDATE user_public_key_histories SET deactivated_at = NOW(), updated_at = NOW() WHERE deactivated_at IS NULL");
+        await connection.query("UPDATE user_public_key_histories SET activated_at = '2020-01-01 00:00:00', deactivated_at = NOW(), updated_at = NOW() WHERE deactivated_at IS NULL");
         await connection.query("UPDATE users SET public_key = NULL, private_key = NULL, security_key_set_at = NULL");
 
         const endTime = Date.now();

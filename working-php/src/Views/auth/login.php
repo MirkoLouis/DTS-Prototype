@@ -5,12 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - Pure PHP DTS</title>
 
-    <!-- Favicons -->
-    <link rel="icon" href="/favicon.ico" sizes="any">
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicons/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicons/favicon-16x16.png">
-    <link rel="apple-touch-icon" href="/favicons/apple-touch-icon.png">
-    <link rel="manifest" href="/favicons/site.webmanifest">
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/images/logoipsum-411.png">
+    <link rel="apple-touch-icon" href="/images/logoipsum-411.png">
 
     <!-- Local Tailwind CSS -->
     <link href="/css/tailwind.css" rel="stylesheet">
@@ -54,11 +51,11 @@
 
             <form method="POST" action="/login">
     <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
-                <!-- Email Address -->
+                <!-- Username / Email Address -->
                 <div>
-                    <label for="email" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Email</label>
+                    <label for="email" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Username</label>
                     <input id="email" class="block mt-1 w-full border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:border-accent-1 focus:ring-accent-1 p-2 border" 
-                           type="email" name="email" required autofocus value="<?= htmlspecialchars($_POST['email'] ?? '') ?>">
+                           type="text" name="email" required autofocus value="<?= htmlspecialchars($_POST['email'] ?? '') ?>">
                 </div>
 
                 <!-- Password -->
