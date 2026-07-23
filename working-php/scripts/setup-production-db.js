@@ -1,7 +1,7 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const mysql = require('mysql2/promise');
 const fs = require('fs');
-const path = require('path');
 
 async function setupDatabase() {
     let connection;
@@ -9,9 +9,9 @@ async function setupDatabase() {
         console.log('🔄 Starting Database Setup...');
 
         connection = await mysql.createConnection({
-            host: process.env.DB_HOST || '127.0.0.1',
-            user: process.env.DB_USER || 'root',
-            password: process.env.DB_PASSWORD || 'One5zero03',
+            host: process.env.DB_HOST,
+            user: process.env.DB_USERNAME,
+            password: process.env.DB_PASSWORD,
             multipleStatements: true // Required to run the full SQL file
         });
 
@@ -23,7 +23,7 @@ async function setupDatabase() {
         await connection.query(sqlContent);
         
         // Make sure we are using the new DB
-        await connection.query(`USE ${process.env.DB_NAME || 'deped_dts'}`);
+        await connection.query(`USE ${process.env.DB_DATABASE}`);
 
         console.log('🌱 Seeding foundational data...');
 
@@ -205,7 +205,7 @@ async function setupDatabase() {
         // Admin User
         await connection.query(
             "INSERT INTO users (name, email, password, role, created_at, updated_at) VALUES (?, ?, ?, 'admin', NOW(), NOW())",
-            ['Admin User', 'admin@dts.com', hashedPassword]
+            ['Admin User', 'admin', hashedPassword]
         );
 
         const [depts] = await connection.query('SELECT id, name FROM departments');
@@ -214,12 +214,12 @@ async function setupDatabase() {
             if (dept.name === 'Records Unit') {
                 await connection.query(
                     "INSERT INTO users (name, email, password, department_id, role, created_at, updated_at) VALUES (?, ?, ?, ?, 'officer', NOW(), NOW())",
-                    ['Records Officer', 'records@dts.com', hashedPassword, dept.id]
+                    ['Records Officer', 'records.unit', hashedPassword, dept.id]
                 );
             } else {
-                // Laravel creates email using Str::slug($department->name, '.') . '@dts.com'
+                // Generate clean department username slug (e.g., cash.unit, administrative.unit)
                 const slug = dept.name.toLowerCase().replace(/ and /g, '.and.').replace(/ /g, '.');
-                const email = `${slug}@dts.com`;
+                const email = slug;
                 
                 await connection.query(
                     "INSERT INTO users (name, email, password, department_id, role, created_at, updated_at) VALUES (?, ?, ?, ?, 'staff', NOW(), NOW())",

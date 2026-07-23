@@ -5,8 +5,8 @@
 <?php $header = ob_get_clean(); ?>
 
 <?php ob_start(); ?>
-<div class="py-2">
-    <div class="mx-[20vh] sm:px-6 lg:px-8">
+<div class="py-10">
+    <div class="mx-[20vh] sm:px-6 lg:px-8 space-y-6">
         <!-- Action Buttons -->
         <div class="flex justify-end mb-6">
             <form id="create-backup-form" action="/system/backups/create" method="POST">
@@ -43,7 +43,7 @@
                 </form>
                 <?php
                     foreach ($backups as &$backup) {
-                        $backup['date_html'] = htmlspecialchars(date('M d, Y, h:i A', $backup['last_modified']));
+                        $backup['date_html'] = htmlspecialchars(date('M d, Y, h:i A', $backup['last_modified_raw']));
                         $backup['file_name_html'] = sprintf('<span class="font-mono">%s</span>', htmlspecialchars($backup['file_name']));
                         $backup['actions_html'] = sprintf('
                             <div class="flex justify-end items-center space-x-4">

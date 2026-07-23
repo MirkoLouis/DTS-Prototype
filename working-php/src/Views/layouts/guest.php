@@ -6,12 +6,9 @@
     <meta name="csrf-token" content="<?= $_SESSION['csrf_token'] ?? '' ?>">
     <title>DepEd Iligan - Document Tracking System</title>
     
-    <!-- Favicons -->
-    <link rel="icon" href="/favicon.ico" sizes="any">
-    <link rel="icon" type="image/png" sizes="32x32" href="/favicons/favicon-32x32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/favicons/favicon-16x16.png">
-    <link rel="apple-touch-icon" href="/favicons/apple-touch-icon.png">
-    <link rel="manifest" href="/favicons/site.webmanifest">
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="/images/logoipsum-411.png">
+    <link rel="apple-touch-icon" href="/images/logoipsum-411.png">
 
     <link href="/css/tailwind.css" rel="stylesheet">
     <script>

@@ -20,6 +20,7 @@ class IntegrityCheckJob
     // Ed25519 signatures against historical public keys, and live document states.
     public function handle(): void
     {
+        date_default_timezone_set('Asia/Manila');
         $db = Database::getInstance();
         
         $db->query("UPDATE integrity_checks SET status = 'processing', progress = 5, updated_at = NOW() WHERE id = :id", [

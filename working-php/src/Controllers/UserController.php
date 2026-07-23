@@ -51,7 +51,7 @@ class UserController
     {
         [$errors, $validated] = Validator::validate($_POST, [
             'name' => 'required',
-            'email' => 'required|email',
+            'email' => 'required',
             'password' => 'required|min:8',
             'role' => 'required',
             'password_confirmation' => 'required'
@@ -121,7 +121,7 @@ class UserController
     {
         [$errors, $validated] = Validator::validate($_POST, [
             'name' => 'required',
-            'email' => 'required|email',
+            'email' => 'required',
             'role' => 'required',
             'password' => '',
             'password_confirmation' => ''

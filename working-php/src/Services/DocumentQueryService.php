@@ -258,15 +258,16 @@ class DocumentQueryService
         $filters = $this->buildFilterQuery(['date', 'status', 'purpose', 'submitter', 'search'], 'd.created_at', $requestParams);
         $params = array_merge([':dept_id' => $departmentId], $filters['params']);
         
-        $cursor = $requestParams['cursor'] ?? null;
-        
         $cacheKey = 'count_staff_' . md5(json_encode(array_merge($params, $filters)));
+        // Exclude both 'in_transit' (documents moving between departments) and 'ready_for_release' (documents awaiting final dispatch at releasing table)
+        // to ensure tasks table only contains active departmental work items.
         $totalItems = Cache::remember($cacheKey, 300, function() use ($params, $filters) {
-            $countSql = "SELECT COUNT(*) as total FROM documents d LEFT JOIN purposes p ON d.purpose_id = p.id WHERE d.current_department_id = :dept_id AND d.status != 'in_transit'" . $filters['sql'];
+            $countSql = "SELECT COUNT(*) as total FROM documents d LEFT JOIN purposes p ON d.purpose_id = p.id WHERE d.current_department_id = :dept_id AND d.status NOT IN ('in_transit', 'ready_for_release')" . $filters['sql'];
             $countStmt = $this->db->query($countSql, $params);
             return $countStmt->fetch()['total'] ?? 0;
         });
-        
+
+        $cursor = $requestParams['cursor'] ?? null;
         if ($cursor) {
             $filters['sql'] .= " AND d.id > :cursor";
             $params[':cursor'] = $cursor;
@@ -277,7 +278,7 @@ class DocumentQueryService
         $sql = "SELECT d.id, d.tracking_code, d.title, d.status, d.created_at, p.name as purpose_name 
                 FROM documents d 
                 LEFT JOIN purposes p ON d.purpose_id = p.id 
-                WHERE d.current_department_id = :dept_id AND d.status != 'in_transit'" . $filters['sql'] . " 
+                WHERE d.current_department_id = :dept_id AND d.status NOT IN ('in_transit', 'ready_for_release')" . $filters['sql'] . " 
                 ORDER BY d.id ASC
                 LIMIT {$limit}";
                 

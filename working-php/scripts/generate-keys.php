@@ -1,6 +1,8 @@
 <?php
-define('BASE_PATH', dirname(__DIR__));
-require __DIR__ . '/../vendor/autoload.php';
+if (!defined('BASE_PATH')) {
+    define('BASE_PATH', dirname(__DIR__));
+}
+require_once BASE_PATH . '/vendor/autoload.php';
 
 use App\Core\Database;
 
@@ -39,10 +41,9 @@ try {
             'id' => $user['id']
         ]);
 
-        $db->query("INSERT INTO user_public_key_histories (user_id, public_key, activated_at, created_at, updated_at) VALUES (:user_id, :pub, :now, :now2, :now3)", [
+        $db->query("INSERT INTO user_public_key_histories (user_id, public_key, activated_at, created_at, updated_at) VALUES (:user_id, :pub, '2000-01-01 00:00:00', :now2, :now3)", [
             'user_id' => $user['id'],
             'pub' => $pubB64,
-            'now' => $now,
             'now2' => $now,
             'now3' => $now
         ]);

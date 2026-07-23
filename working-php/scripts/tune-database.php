@@ -4,16 +4,20 @@ require __DIR__ . '/../vendor/autoload.php';
 
 // Load environment variables if needed
 if (file_exists(__DIR__ . '/../.env')) {
-    $env = parse_ini_file(__DIR__ . '/../.env');
-    foreach ($env as $key => $value) {
-        putenv("$key=$value");
+    $lines = file(__DIR__ . '/../.env', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    foreach ($lines as $line) {
+        if (str_starts_with(trim($line), '#')) continue;
+        if (strpos($line, '=') !== false) {
+            list($name, $value) = explode('=', $line, 2);
+            putenv(trim($name) . '=' . trim($value, " \t\n\r\0\x0B\"'"));
+        }
     }
 }
 
 // Connect to Database
-$host = getenv('DB_HOST') ?: '127.0.0.1';
-$user = getenv('DB_USER') ?: 'root';
-$pass = getenv('DB_PASSWORD') ?: 'One5zero03';
+$host = getenv('DB_HOST');
+$user = getenv('DB_USERNAME');
+$pass = getenv('DB_PASSWORD');
 
 echo "Tuning database for 1,000,000 document load...\n";
 

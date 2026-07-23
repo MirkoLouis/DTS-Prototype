@@ -56,12 +56,38 @@ $db->query("
     ON DUPLICATE KEY UPDATE released_count = VALUES(released_count), updated_at = NOW()
 ");
 
-// 4. Processing Time (Rough Estimate for seeded data)
-echo "Processing time estimations...\n";
+// 4. Processing Time calculation based on actual document_logs step durations
+echo "Calculating processing time from logs...\n";
 $db->query("
     UPDATE daily_department_metrics m
-    SET total_processing_seconds = processed_count * (FLOOR(RAND() * 3600) + 1800)
-    WHERE processed_count > 0
+    INNER JOIN (
+        SELECT 
+            u.department_id,
+            DATE(dl_end.created_at) as log_date,
+            SUM(TIMESTAMPDIFF(SECOND, dl_start.created_at, dl_end.created_at)) as calc_seconds
+        FROM document_logs dl_end
+        JOIN users u ON dl_end.user_id = u.id
+        JOIN document_logs dl_start ON dl_start.document_id = dl_end.document_id 
+            AND dl_start.id = (
+                SELECT MAX(id) 
+                FROM document_logs 
+                WHERE document_id = dl_end.document_id AND id < dl_end.id
+            )
+        WHERE dl_end.action IN ('Processing Complete', 'Document Released', 'Declined')
+        GROUP BY u.department_id, DATE(dl_end.created_at)
+    ) calc ON m.department_id = calc.department_id AND m.date = calc.log_date
+    SET m.total_processing_seconds = GREATEST(calc.calc_seconds, 0)
 ");
+
+// Fallback estimation for any records with processed or released counts but 0 processing seconds
+$db->query("
+    UPDATE daily_department_metrics
+    SET total_processing_seconds = (processed_count + released_count) * (FLOOR(RAND() * 3600) + 1800)
+    WHERE (processed_count + released_count) > 0 AND total_processing_seconds = 0
+");
+
+// Clear application cache so dashboard charts reflect newly backfilled metrics
+\App\Core\Cache::clear();
+echo "Cache cleared.\n";
 
 echo "Backfill complete.\n";

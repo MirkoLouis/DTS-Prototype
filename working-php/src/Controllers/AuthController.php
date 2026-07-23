@@ -26,7 +26,7 @@ class AuthController
     public function login()
     {
         [$errors, $validated] = Validator::validate($_POST, [
-            'email' => 'required|email',
+            'email' => 'required',
             'password' => 'required'
         ]);
 
