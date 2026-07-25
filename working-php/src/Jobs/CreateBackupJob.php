@@ -24,10 +24,14 @@ class CreateBackupJob
         $filePath = $backupDir . '/' . $filename;
         $zipPath = $backupDir . '/' . $filename . '.zip';
 
-        // Dump DB
-        $passFlag = $dbConfig['password'] !== '' ? "-p{$pass}" : "";
-        $command = "mysqldump -h {$host} -u {$user} {$passFlag} {$dbname} > " . escapeshellarg($filePath);
-        exec($command);
+        // Dump DB using MYSQL_PWD environment variable to prevent password disclosure warnings on stderr
+        $envPrefix = $dbConfig['password'] !== '' ? "MYSQL_PWD=" . escapeshellarg($dbConfig['password']) . " " : "";
+        $command = "{$envPrefix}mysqldump --single-transaction --quick -h {$host} -u {$user} {$dbname} > " . escapeshellarg($filePath) . " 2>&1";
+        exec($command, $output, $returnCode);
+
+        if ($returnCode !== 0) {
+            throw new \Exception("Database backup failed: " . implode("\n", $output));
+        }
 
         // Zip it
         $zip = new \ZipArchive();

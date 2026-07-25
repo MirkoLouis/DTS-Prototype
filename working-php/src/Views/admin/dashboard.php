@@ -64,7 +64,10 @@
                                 <!-- Average Processing Time by Dept Chart -->
                                 <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-inner flex flex-col justify-between">
                                     <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-600 pb-3 mb-4 h-[68px]">
-                                        <h4 class="text-lg font-bold">Average TAT by Department (hrs)</h4>
+                                        <h4 class="text-lg font-bold leading-tight pr-2">Average TAT by Department (hrs)</h4>
+                                        <button id="view-all-avg-tat-btn" type="button" class="flex-shrink-0 inline-flex items-center px-4 py-2 bg-accent-1 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-1-hover focus:bg-indigo-500 active:bg-indigo-900 focus:outline-none focus:ring-2 focus:ring-accent-1 focus:ring-offset-2 transition ease-in-out duration-150 shadow-sm h-[32px]">
+                                            View All
+                                        </button>
                                     </div>
                                     <div class="relative h-64 flex-grow">
                                         <canvas id="avgStepTimeChart"></canvas>
@@ -159,8 +162,42 @@
         </div>
     </div>
 
-        
-            <script src="/js/admin-dashboard.js"></script>
+        <!-- Modal: Average TAT by Department (All Departments) -->
+        <div id="avg-tat-modal" class="fixed inset-0 z-50 overflow-y-auto hidden" aria-labelledby="avg-tat-modal-title" role="dialog" aria-modal="true">
+            <div class="flex items-center justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
+                <!-- Backdrop -->
+                <div class="fixed inset-0 transition-opacity bg-gray-500/75 dark:bg-gray-900/75 close-modal-backdrop" data-modal="avg-tat-modal" aria-hidden="true"></div>
+
+                <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+
+                <!-- Modal Box -->
+                <div class="inline-block w-full align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
+                    <div class="px-6 pt-5 pb-4 sm:p-6">
+                        <!-- Header -->
+                        <div class="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-3 mb-4">
+                            <h3 id="avg-tat-modal-title" class="text-xl font-bold text-gray-900 dark:text-white">
+                                Average Turnaround Time (TAT) by Department
+                            </h3>
+                            <button type="button" class="close-modal-btn text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 focus:outline-none p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition" data-modal="avg-tat-modal">
+                                <span class="sr-only">Close</span>
+                                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </div>
+
+                        <!-- Modal Body: Full Chart Container -->
+                        <div class="bg-gray-50 dark:bg-gray-700/50 p-4 rounded-lg shadow-inner">
+                            <div class="relative w-full" style="height: 420px;">
+                                <canvas id="allAvgTatChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script src="/js/admin-dashboard.js"></script>
         
     <?php $content = ob_get_clean(); require BASE_PATH . '/src/Views/layouts/app.php'; ?>
     

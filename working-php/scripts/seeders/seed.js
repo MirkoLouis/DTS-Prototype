@@ -521,12 +521,12 @@ async function seed() {
         await connection.query('TRUNCATE TABLE user_public_key_histories');
         await connection.query('SET FOREIGN_KEY_CHECKS = 1');
 
-        console.log('🧹 Cleaning file caches...');
+        console.log('🧹 Cleaning file caches and active PHP session files...');
         const cacheDir = path.join(__dirname, '../../cache');
         if (fs.existsSync(cacheDir)) {
             try {
                 const { execSync } = require('child_process');
-                execSync(`rm -rf "${cacheDir}/data"/* "${cacheDir}/responses"/* "${cacheDir}"/*.json`, { stdio: 'ignore' });
+                execSync(`rm -rf "${cacheDir}/data"/* "${cacheDir}/responses"/* "${cacheDir}"/*.json /tmp/sess_*`, { stdio: 'ignore' });
             } catch (e) {
                 console.log('⚠️ Minor issue clearing file cache directory, proceeding anyway.');
             }

@@ -8,8 +8,6 @@ ob_start(); ?>
     <div class="mx-[20vh] sm:px-6 lg:px-8 space-y-6">
         <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
             <div class="p-6 text-gray-900 dark:text-gray-100">
-                <h3 class="text-2xl font-bold mb-4">System Health Overview</h3>
-
                 <div class="space-y-6">
                     <!-- Section: System Status Overview -->
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -107,22 +105,31 @@ ob_start(); ?>
 
                     <!-- Section: Database Performance -->
                     <div id="db-performance-chart-container" 
-                         class="bg-gray-50 dark:bg-gray-700/50 pt-3 px-5 pb-5 rounded-lg shadow"
+                         class="bg-gray-50 dark:bg-gray-700/50 pt-5 px-5 pb-5 rounded-lg shadow"
                          data-url="/api/system-health/db-performance">
-                        <div class="flex justify-between items-center mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">
-                            <h3 class="text-xl font-bold">Database Performance</h3>
-                            <div class="flex items-center space-x-2">
-                                <select id="db-performance-period" class="form-select rounded-md shadow-sm border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 focus:border-accent-1 focus:ring-accent-1 text-sm max-w-40">
-                                    <option value="hourly">Hourly (Last 24 Hours)</option>
-                                    <option value="daily">Daily (Last 30 Days)</option>
-                                    <option value="weekly">Weekly (Last 12 Weeks)</option>
-                                    <option value="monthly">Monthly (Last 12 Months)</option>
-                                </select>
-                                <a href="/admin/system-health/export-db-metrics" class="inline-flex items-center px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-500 rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent-1 focus:ring-offset-2 dark:focus:ring-offset-gray-800 disabled:opacity-25 transition ease-in-out duration-150">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-gray-200 dark:border-gray-700 w-full mb-6">
+                            <h3 class="text-2xl font-bold text-gray-900 dark:text-gray-100 whitespace-nowrap shrink-0">
+                                Database Performance
+                            </h3>
+
+                            <div class="flex flex-row flex-wrap sm:flex-nowrap items-end gap-3">
+                                <div class="w-full sm:w-auto">
+                                    <label for="db-performance-period" class="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
+                                        Time Period
+                                    </label>
+                                    <select id="db-performance-period" class="filter-input block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-xs p-2 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1 max-w-xs">
+                                        <option value="hourly">Hourly (Last 24 Hours)</option>
+                                        <option value="daily">Daily (Last 30 Days)</option>
+                                        <option value="weekly">Weekly (Last 12 Weeks)</option>
+                                        <option value="monthly">Monthly (Last 12 Months)</option>
+                                    </select>
+                                </div>
+                                <a href="/admin/system-health/export-db-metrics" class="flex-shrink-0 inline-flex items-center px-3 py-2 bg-accent-1 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-1-hover focus:bg-indigo-500 active:bg-indigo-900 focus:outline-none focus:ring-2 focus:ring-accent-1 focus:ring-offset-2 transition ease-in-out duration-150 shadow-sm h-[34px]">
                                     Export CSV
                                 </a>
                             </div>
                         </div>
+
                         <div class="relative h-96">
                             <canvas id="dbPerformanceChart"></canvas>
                         </div>

@@ -32,8 +32,12 @@ class GenerateReportJob
             $userDept = $db->query("SELECT department_id FROM users WHERE id = :uid", ['uid' => $this->userId])->fetch();
             $departmentId = $userDept['department_id'] ?? 0;
 
-            $where = ["d.status = 'completed'", "d.released_by_user_id > 0"];
-            $params = [':dept_id' => $departmentId];
+            // Retrieve report_job record to obtain exact created_at upper bound
+            $reportJob = $db->query("SELECT created_at FROM report_jobs WHERE id = :id", ['id' => $this->reportJobId])->fetch();
+            $jobCreatedAt = $reportJob['created_at'] ?? date('Y-m-d H:i:s');
+
+            $where = ["d.status = 'completed'", "d.released_by_user_id > 0", "d.updated_at <= :job_created_at"];
+            $params = [':dept_id' => $departmentId, ':job_created_at' => $jobCreatedAt];
             
             $join = "INNER JOIN users u ON d.released_by_user_id = u.id AND u.department_id = :dept_id
                      LEFT JOIN purposes p ON d.purpose_id = p.id";
@@ -57,17 +61,8 @@ class GenerateReportJob
             }
 
             $whereSql = implode(' AND ', $where);
-            $sql = "
-                SELECT d.tracking_code, d.title, p.name as purpose_name, d.district, d.guest_info, d.updated_at
-                FROM documents d
-                {$join}
-                WHERE {$whereSql}
-                ORDER BY d.released_at DESC
-            ";
 
-            $stmt = $db->query($sql, $params);
-
-            // Count rows first to update progress without loading all into memory
+            // Count total matching documents up to job creation timestamp
             $countSql = "
                 SELECT COUNT(*) as total
                 FROM documents d
@@ -81,75 +76,42 @@ class GenerateReportJob
                 throw new \Exception("No documents found for the selected filters.");
             }
 
-            $db->query("UPDATE report_jobs SET total_documents = :td, progress = 10, updated_at = NOW() WHERE id = :id", [
+            // Mark report job as completed with zero disk file footprint
+            $db->query("UPDATE report_jobs SET status = 'completed', progress = 100, total_documents = :td, file_path = NULL, updated_at = NOW() WHERE id = :id", [
                 'td' => $totalCount,
                 'id' => $this->reportJobId
             ]);
 
-            $filename = 'reports/released-documents-' . $this->reportJobId . '.xlsx';
-            $filePath = BASE_PATH . '/storage/app/' . $filename;
-            
-            if (!is_dir(dirname($filePath))) {
-                mkdir(dirname($filePath), 0777, true);
-            }
+            // Dispatch notification to user for header bell and toasts
+            $notifService = new \App\Core\NotificationService();
+            $notifService->notifyUser(
+                $this->userId,
+                'Report Ready',
+                "Your generated report containing {$totalCount} document(s) is ready for download in Past Reports.",
+                'success'
+            );
 
-            $writer = new Writer();
-            $writer->openToFile($filePath);
-
-            $styleCant = (new Style())->withFontName('Canterbury')->withFontSize(14);
-            $styleBold = (new Style())->withFontBold(true);
-
-            $writer->addRow(Row::fromValuesWithStyle(['Republic of the Philippines'], $styleCant));
-            $writer->addRow(Row::fromValuesWithStyle(['Department of Education'], $styleCant));
-            $writer->addRow(Row::fromValuesWithStyle(['Region X - Northern Mindanao'], $styleBold));
-            $writer->addRow(Row::fromValuesWithStyle(['SCHOOLS DIVISION OF ILIGAN CITY'], $styleBold));
-            $writer->addRow(Row::fromValues([]));
-
-            $writer->addRow(Row::fromValuesWithStyle(['Tracking Code', 'Title', 'Purpose', 'District', 'Submitted By', 'Date Released'], $styleBold));
-
-            $rowNum = 6;
-            
-            // Process row by row to conserve memory (OpenSpout naturally streams to disk with almost zero RAM usage)
-            while ($doc = $stmt->fetch(\PDO::FETCH_ASSOC)) {
-                $guestName = 'N/A';
-                if ($doc['guest_info']) {
-                    $gi = json_decode($doc['guest_info'], true);
-                    $guestName = $gi['name'] ?? 'N/A';
-                }
-                
-                $writer->addRow(Row::fromValues([
-                    $doc['tracking_code'],
-                    $doc['title'],
-                    $doc['purpose_name'],
-                    $doc['district'],
-                    $guestName,
-                    $doc['updated_at']
-                ]));
-
-                $rowNum++;
-                
-                // Update progress every 1000 rows
-                if (($rowNum - 6) % 1000 === 0) {
-                    $progress = 10 + floor((($rowNum - 6) / $totalCount) * 80);
-                    $db->query("UPDATE report_jobs SET progress = :p, updated_at = NOW() WHERE id = :id", [
-                        'p' => $progress,
-                        'id' => $this->reportJobId
-                    ]);
+            // Clear the user's response cache so subsequent page loads fetch fresh report listings
+            $cacheFiles = glob(BASE_PATH . "/cache/responses/cache_user_{$this->userId}_*.html");
+            if ($cacheFiles) {
+                foreach ($cacheFiles as $f) {
+                    @unlink($f);
                 }
             }
-
-            $writer->close();
-
-            $db->query("UPDATE report_jobs SET status = 'completed', progress = 100, file_path = :fp, updated_at = NOW() WHERE id = :id", [
-                'fp' => $filename,
-                'id' => $this->reportJobId
-            ]);
 
         } catch (\Throwable $e) {
             $db->query("UPDATE report_jobs SET status = 'failed', error_message = :err, updated_at = NOW() WHERE id = :id", [
                 'err' => $e->getMessage(),
                 'id' => $this->reportJobId
             ]);
+
+            $notifService = new \App\Core\NotificationService();
+            $notifService->notifyUser(
+                $this->userId,
+                'Report Generation Failed',
+                $e->getMessage(),
+                'error'
+            );
         }
     }
 }

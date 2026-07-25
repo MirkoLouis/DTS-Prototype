@@ -183,7 +183,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 generateReportBtn.disabled = false;
                 generateReportBtn.textContent = 'Generate Report';
 
-                if (!response.ok) throw new Error('Could not start report generation.');
+                if (!response.ok) {
+                    let errMsg = 'Could not start report generation.';
+                    try {
+                        const errJson = await response.json();
+                        if (errJson && errJson.message) errMsg = errJson.message;
+                    } catch (e) {}
+                    throw new Error(errMsg);
+                }
 
                 const data = await response.json();
                 currentJobId = data.job_id;
@@ -205,7 +212,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             } catch (error) {
                 console.error(error);
-                alert('An error occurred starting the report generation.');
+                alert(error.message || 'An error occurred starting the report generation.');
                 generateReportBtn.disabled = false;
                 generateReportBtn.textContent = 'Generate Report';
             }
@@ -265,6 +272,58 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
 
+        async function refreshPastReports() {
+            const modal = document.getElementById('past-reports-modal');
+            if (!modal) return;
+            const tbody = modal.querySelector('tbody');
+            if (!tbody) return;
+
+            try {
+                const res = await fetch('/api/statistics/past-reports');
+                if (!res.ok) return;
+                const reports = await res.json();
+
+                if (!reports || reports.length === 0) {
+                    tbody.innerHTML = `
+                        <tr>
+                            <td colspan="3" class="px-4 py-4 whitespace-nowrap text-center text-sm text-gray-500 dark:text-gray-400">
+                                No past reports available.
+                            </td>
+                        </tr>
+                    `;
+                    return;
+                }
+
+                tbody.innerHTML = reports.map(r => {
+                    const dateObj = new Date(r.created_at);
+                    const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
+                    const timeStr = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                    return `
+                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150">
+                            <td class="px-4 py-4 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                                <div class="flex flex-col text-gray-500 dark:text-gray-400">
+                                    <span>${dateStr}</span>
+                                    <span class="text-xs mt-0.5">${timeStr}</span>
+                                </div>
+                            </td>
+                            <td class="px-4 py-4 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                                <span class="text-gray-500 dark:text-gray-400">${r.total_documents}</span>
+                            </td>
+                            <td class="px-4 py-4 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                                <a href="/statistics/report/download/${r.id}" class="text-accent-1 hover:underline font-semibold">Download Spreadsheet</a>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error('Failed to refresh past reports:', e);
+            }
+        }
+
+        document.querySelectorAll('[data-modal="past-reports-modal"]').forEach(btn => {
+            btn.addEventListener('click', refreshPastReports);
+        });
+
         function finishJob(success, jobId, error = null) {
             clearInterval(pollingInterval);
             progressBar.style.width = '100%';
@@ -286,6 +345,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         </a>
                     </div>
                 `;
+                refreshPastReports();
                 window.location.href = `/statistics/report/download/${jobId}`;
             } else {
                 progressBar.classList.remove('bg-accent-1');

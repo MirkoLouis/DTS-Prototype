@@ -179,7 +179,9 @@ class AdminAnalyticsService
             $avg_hours = $count > 0 ? ($seconds / $count) / 3600 : 0;
             $processed[] = [
                 'name' => $row['name'],
-                'avg_hours' => $avg_hours
+                'avg_hours' => $avg_hours,
+                'total_count' => $count,
+                'total_seconds' => $seconds
             ];
         }
 
@@ -192,9 +194,16 @@ class AdminAnalyticsService
 
         $labels = [];
         $datasetData = [];
+        $details = [];
         foreach ($processed as $p) {
             $labels[] = $p['name'];
             $datasetData[] = round($p['avg_hours'], 2);
+            $details[] = [
+                'name' => $p['name'],
+                'avg_hours' => round($p['avg_hours'], 2),
+                'total_count' => $p['total_count'],
+                'total_seconds' => $p['total_seconds']
+            ];
         }
 
         return [
@@ -208,6 +217,7 @@ class AdminAnalyticsService
                     'borderWidth' => 1,
                 ],
             ],
+            'details' => $details
         ];
     }
 
