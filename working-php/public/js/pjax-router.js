@@ -70,26 +70,6 @@
         });
     }
 
-    // Updates the active nav link underline to match the new URL.
-    function updateNavLinks(url) {
-        const currentPath = new URL(url, window.location.origin).pathname;
-
-        document.querySelectorAll('nav a[href]').forEach(a => {
-            const href = a.getAttribute('href');
-            // Match exact path or sub-paths (e.g. /users matches /users/3/edit)
-            const isActive = href === currentPath || (href !== '/' && currentPath.startsWith(href));
-
-            // Toggle the active/inactive Tailwind classes used in app.php
-            if (isActive) {
-                a.classList.add('border-accent-1', 'text-gray-900', 'dark:text-gray-100');
-                a.classList.remove('border-transparent', 'text-gray-500', 'dark:text-gray-400');
-            } else {
-                a.classList.remove('border-accent-1', 'text-gray-900', 'dark:text-gray-100');
-                a.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
-            }
-        });
-    }
-
     // Core navigation function — fetches target URL, parses full HTML,
     // swaps #pjax-content, re-runs scripts, fires lifecycle event.
     async function navigateTo(url) {
@@ -168,8 +148,13 @@
                 }
             }
 
-            // Re-highlight the correct nav link
-            updateNavLinks(url);
+            // Swap the navigation links container so the server-rendered active states
+            // are perfectly replicated without buggy client-side string matching
+            const newNav = newDoc.getElementById('pjax-nav-links');
+            const currentNav = document.getElementById('pjax-nav-links');
+            if (newNav && currentNav) {
+                currentNav.innerHTML = newNav.innerHTML;
+            }
 
             // Re-run any <script> tags embedded in the new content (e.g. page-specific JS)
             reExecuteScripts(currentContent);

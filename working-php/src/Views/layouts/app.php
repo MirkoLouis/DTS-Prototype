@@ -87,7 +87,7 @@ if (isset($_SESSION['user_id'])) {
                         </div>
 
                         <!-- Navigation Links based on Role -->
-                        <div class="hidden space-x-8 sm:-my-px sm:ml-10 sm:flex">
+                        <div id="pjax-nav-links" class="hidden space-x-8 sm:-my-px sm:ml-10 sm:flex">
                             <?php 
                             if (isset($_SESSION['role'])): 
                                 $currentPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
