@@ -60,10 +60,14 @@ require BASE_PATH . '/src/Views/components/modal.php';
         }
     };
 
-    document.addEventListener('DOMContentLoaded', function() {
+    // Named so both DOMContentLoaded (hard load) and dts:page-loaded (PJAX swap)
+    // can trigger re-binding of confirm/cancel buttons inside the modal DOM.
+    function initSigningModal() {
         const confirmBtn = document.getElementById('signing-modal-confirm');
         const cancelBtn = document.getElementById('signing-modal-cancel');
         const pinInput = document.getElementById('signing-modal-pin');
+
+        if (!confirmBtn) return;
 
         confirmBtn.addEventListener('click', function() {
             const pin = pinInput.value;
@@ -93,5 +97,7 @@ require BASE_PATH . '/src/Views/components/modal.php';
                 confirmBtn.click();
             }
         });
-    });
+    }
+    document.addEventListener('DOMContentLoaded', initSigningModal);
+    document.addEventListener('dts:page-loaded', initSigningModal);
 </script>

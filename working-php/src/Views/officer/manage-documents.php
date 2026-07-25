@@ -171,8 +171,10 @@
     function closeDeclineModal() {
         document.getElementById('declineModal').classList.add('hidden');
     }
-    
-    document.addEventListener('DOMContentLoaded', function () {
+
+    // Named so both DOMContentLoaded (hard load) and dts:page-loaded (PJAX swap)
+    // can trigger re-binding of Sortable and form submit handlers.
+    function initManageDocumentsPage() {
         const routeList = document.getElementById('route-list');
         const routeForm = document.getElementById('route-form');
         const hiddenInput = document.getElementById('final_route');
@@ -216,7 +218,7 @@
                 departmentSelect.selectedIndex = 0;
             });
 
-            // Event delegation for delete buttons
+            // Event delegation for delete buttons (avoids re-binding on dynamically created items)
             routeList.addEventListener('click', function(e) {
                 if (e.target && e.target.classList.contains('delete-step-btn')) {
                     e.target.closest('.route-step').remove();
@@ -224,20 +226,17 @@
                 }
             });
 
-            routeForm.addEventListener('submit', function (e) {
+            routeForm.addEventListener('submit', function(e) {
                 if (document.getElementById('finalize-pin-input').value !== '') {
                     return true;
                 }
-
                 e.preventDefault();
-                
                 const finalRouteOrder = Array.from(routeList.querySelectorAll('.step-name')).map(el => el.textContent.trim());
                 if (finalRouteOrder.length === 0) {
                     alert("Please add at least one step to the route.");
                     return;
                 }
                 hiddenInput.value = JSON.stringify(finalRouteOrder);
-
                 window.SigningModal.show(`Enter your Security PIN to finalize the route for: <?php echo htmlspecialchars($document['tracking_code']); ?>`, function(pin) {
                     document.getElementById('finalize-pin-input').value = pin;
                     routeForm.submit();
@@ -247,7 +246,7 @@
 
         const declineForm = document.getElementById('decline-form');
         if (declineForm) {
-            declineForm.addEventListener('submit', function (e) {
+            declineForm.addEventListener('submit', function(e) {
                 if (document.getElementById('decline-pin-input').value !== '') {
                     return true;
                 }
@@ -258,7 +257,10 @@
                 });
             });
         }
-    });
+    }
+
+    document.addEventListener('DOMContentLoaded', initManageDocumentsPage);
+    document.addEventListener('dts:page-loaded', initManageDocumentsPage);
 </script>
 
 <?php require BASE_PATH . '/src/Views/partials/signing-modal.php'; ?>

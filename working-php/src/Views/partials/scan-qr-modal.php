@@ -18,7 +18,9 @@ require BASE_PATH . '/src/Views/components/modal.php';
 
 <script src="/js/html5-qrcode.min.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function () {
+    // Named so both DOMContentLoaded (hard load) and dts:page-loaded (PJAX swap)
+    // can trigger re-binding of the QR scanner modal buttons.
+    function initScanQrModal() {
         const qrModal = document.getElementById('qr-modal');
         const scanBtn = document.getElementById('scan-qr-btn');
         const closeBtn = document.getElementById('close-qr-modal-btn');
@@ -63,5 +65,7 @@ require BASE_PATH . '/src/Views/components/modal.php';
                 }
             });
         }
-    });
+    }
+    document.addEventListener('DOMContentLoaded', initScanQrModal);
+    document.addEventListener('dts:page-loaded', initScanQrModal);
 </script>
