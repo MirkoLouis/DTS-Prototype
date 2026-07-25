@@ -1,4 +1,10 @@
-document.addEventListener('DOMContentLoaded', function () {
+/**
+ * System Health Page — integrity checks, DB performance charts, modal logic.
+ *
+ * Listens to both `DOMContentLoaded` and `dts:page-loaded` (PJAX swap)
+ * so all elements re-bind correctly after client-side navigation.
+ */
+function initSystemHealth() {
     // Reusable Modal Logic
     const closeBtns = document.querySelectorAll('.close-modal-btn');
     closeBtns.forEach(btn => {
@@ -21,7 +27,9 @@ document.addEventListener('DOMContentLoaded', function () {
         let dbPerformanceChart;
 
         const fetchAndRenderDbPerformanceChart = (period) => {
-            fetch(`${dbPerformanceUrl}?period=${period}`)
+            // Wire to PJAX controller so this request is cancelled on navigation
+            const signal = window.__pjaxController?.signal;
+            fetch(`${dbPerformanceUrl}?period=${period}`, { signal })
                 .then(response => response.json())
                 .then(data => {
                     if (dbPerformanceChart) {
@@ -55,6 +63,9 @@ document.addEventListener('DOMContentLoaded', function () {
                             }
                         }
                     });
+                })
+                .catch(err => {
+                    if (err.name !== 'AbortError') console.error('DB chart fetch error:', err);
                 });
         };
 
@@ -278,4 +289,10 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
-});
+}
+
+// Run on initial hard page load
+document.addEventListener('DOMContentLoaded', initSystemHealth);
+
+// Run again after every PJAX navigation swap
+document.addEventListener('dts:page-loaded', initSystemHealth);

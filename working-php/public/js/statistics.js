@@ -1,4 +1,10 @@
-document.addEventListener('DOMContentLoaded', function() {
+/**
+ * Statistics Page — Chart initialization and report generation.
+ *
+ * Listens to both `DOMContentLoaded` and `dts:page-loaded` (PJAX swap)
+ * so charts re-initialize correctly after client-side navigation.
+ */
+function initStatistics() {
     const chartContainer = document.querySelector('.grid');
     if (!chartContainer) return;
 
@@ -90,15 +96,20 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!chart) return;
         const url = new URL(baseUrl, window.location.origin);
         url.searchParams.append('period', period);
-
-        fetch(url)
+        // Wire to PJAX controller so this request is cancelled on navigation
+        const signal = window.__pjaxController?.signal;
+        fetch(url, { signal })
             .then(response => response.json())
             .then(data => {
                 chart.data.labels = data.labels;
                 chart.data.datasets[0].data = data.data;
                 chart.update();
             })
-            .catch(error => console.error(`Error fetching ${chartName} data:`, error));
+            .catch(error => {
+                if (error.name !== 'AbortError') {
+                    console.error(`Error fetching ${chartName} data:`, error);
+                }
+            });
     }
 
     function initialize() {
@@ -357,4 +368,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     initialize();
-});
+}
+
+// Run on initial hard page load
+document.addEventListener('DOMContentLoaded', initStatistics);
+
+// Run again after every PJAX navigation swap
+document.addEventListener('dts:page-loaded', initStatistics);

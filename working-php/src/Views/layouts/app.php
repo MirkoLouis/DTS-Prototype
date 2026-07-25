@@ -211,6 +211,17 @@ if (isset($_SESSION['user_id'])) {
         <?php endif; ?>
 
         <!-- Page Content -->
+
+        <!-- PJAX top progress bar: a 3px gradient line that simulates loading
+             progress. Driven entirely by pjax-router.js via inline style tweens. -->
+        <div id="pjax-progress-bar" style="
+            position: fixed; top: 0; left: 0; z-index: 99999;
+            height: 3px; width: 0%; opacity: 0;
+            background: linear-gradient(90deg, #6366f1, #a855f7, #ec4899);
+            pointer-events: none;
+            border-radius: 0 2px 2px 0;
+        "></div>
+
         <main>
             <!-- Toast Notification Container -->
             <div id="toast-container" class="flex flex-col gap-3 pointer-events-none" style="position: fixed; bottom: 1.25rem; right: 1.25rem; z-index: 9999;">
@@ -222,8 +233,11 @@ if (isset($_SESSION['user_id'])) {
                 ?>
             </div>
 
-
-            <?= $content ?? '' ?>
+            <!-- PJAX content wrapper: pjax-router.js swaps innerHTML of this div
+                 on every navigation, leaving the nav, progress bar, and modals intact. -->
+            <div id="pjax-content">
+                <?= $content ?? '' ?>
+            </div>
         </main>
     </div>
 
@@ -544,5 +558,8 @@ if (isset($_SESSION['user_id'])) {
             });
         });
     </script>
+
+    <!-- PJAX Router: must be loaded last so all layout-level DOM is available -->
+    <script src="/js/pjax-router.js"></script>
 </body>
 </html>
