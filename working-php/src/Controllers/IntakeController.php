@@ -20,19 +20,19 @@ class IntakeController
 
         $cacheKey = 'count_intake_controller_' . md5(json_encode(array_merge($params, $filters)));
         $totalItems = Cache::remember($cacheKey, 300, function() use ($db, $params, $filters) {
-            $countSql = "WITH RankedLogs AS (
-                             SELECT document_id, created_at,
-                                    ROW_NUMBER() OVER(PARTITION BY document_id ORDER BY created_at DESC) as rn
+            $countSql = "WITH MaxLogs AS (
+                             SELECT document_id, MAX(created_at) as created_at
                              FROM document_logs
                              WHERE user_id = :officer_id 
                                AND action_category = 1
                                AND created_at >= DATE_SUB(NOW(), INTERVAL 4 WEEK)
+                             GROUP BY document_id
                          )
                          SELECT COUNT(d.id) as total 
-                         FROM RankedLogs max_logs
+                         FROM MaxLogs max_logs
                          INNER JOIN documents d ON d.id = max_logs.document_id 
                          LEFT JOIN purposes p ON d.purpose_id = p.id
-                         WHERE max_logs.rn = 1 " . $filters['sql'];
+                         WHERE 1=1 " . $filters['sql'];
             $countStmt = $db->query($countSql, $params);
             return $countStmt->fetch()['total'] ?? 0;
         });
@@ -50,19 +50,19 @@ class IntakeController
         $perPage = 15;
         $limit = $perPage + 1;
 
-        $sql = "WITH RankedLogs AS (
-                    SELECT document_id, created_at,
-                           ROW_NUMBER() OVER(PARTITION BY document_id ORDER BY created_at DESC) as rn
+        $sql = "WITH MaxLogs AS (
+                    SELECT document_id, MAX(created_at) as created_at
                     FROM document_logs
                     WHERE user_id = :officer_id 
                       AND action_category = 1
                       AND created_at >= DATE_SUB(NOW(), INTERVAL 4 WEEK)
+                    GROUP BY document_id
                 )
                 SELECT d.id, d.tracking_code, d.title, d.status, d.created_at, d.guest_info, p.name as purpose_name, max_logs.created_at as handled_at 
-                FROM RankedLogs max_logs
+                FROM MaxLogs max_logs
                 INNER JOIN documents d ON d.id = max_logs.document_id 
                 LEFT JOIN purposes p ON d.purpose_id = p.id 
-                WHERE max_logs.rn = 1 " . $filters['sql'] . "
+                WHERE 1=1 " . $filters['sql'] . "
                 ORDER BY max_logs.created_at DESC, max_logs.document_id DESC
                 LIMIT {$limit}";
                 
