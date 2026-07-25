@@ -125,7 +125,11 @@ function initStatistics() {
         updateAllStatisticsCharts();
 
         // Polling: Update all statistics charts every 60 seconds
-        setInterval(updateAllStatisticsCharts, 60000);
+        const pollInterval = setInterval(updateAllStatisticsCharts, 60000);
+        
+        window.__pjaxController?.signal.addEventListener('abort', () => {
+            clearInterval(pollInterval);
+        });
 
         // Add event listeners
         currentLoadPeriodEl?.addEventListener('change', (e) => fetchChartData(currentLoadChart, currentLoadUrl, e.target.value, 'documents received'));

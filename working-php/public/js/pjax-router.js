@@ -131,6 +131,14 @@
                 return;
             }
 
+            // Destroy all active Chart.js instances before swapping the DOM to prevent
+            // "Canvas is already in use" errors and memory/event-listener leaks.
+            if (typeof Chart !== 'undefined') {
+                for (let id in Chart.instances) {
+                    Chart.instances[id].destroy();
+                }
+            }
+
             currentContent.innerHTML = newContent.innerHTML;
 
             // Swap the page heading (the <header id="pjax-header"> above <main>).
