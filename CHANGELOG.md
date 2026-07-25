@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-07-25 20:25
+
+**Version:** 1.17.5-Alpha+202607252025
+
+### Fixed
+- Fixed a massive performance bottleneck on `/intake` and `/tasks/completed` pages that caused loading to consistently take ~600ms to over 2 seconds. The underlying SQL query utilized the `ROW_NUMBER() OVER()` window function to filter for the latest log entry per document, which forces MySQL to construct and sort large temporary tables. Refactored the queries in `IntakeController.php` and `DocumentQueryService.php` to use a much more efficient `MAX(created_at) ... GROUP BY document_id` approach. This optimization leverages the covering index and reduces the data query execution time from ~600ms down to 0.05ms, resulting in instantaneous page transitions.
+
+## 2026-07-25 20:10
+
+**Version:** 1.17.4-Alpha+202607252010
+
+### Fixed
+- Fixed a major race condition in `pjax-router.js` where page-specific scripts (like `statistics.js` and `system-health.js`) would fail to initialize on the very first PJAX visit to a page, but mysteriously work on the second visit. The router was dispatching the `dts:page-loaded` event synchronously, but the browser was fetching external `<script>` tags asynchronously. This caused the event to fire *before* the script had loaded and registered its listener. Removed all `dts:page-loaded` listeners across all 10 view JS files and replaced them with inline `document.readyState` checks, guaranteeing exactly-once, zero-latency execution on every navigation.
+
+## 2026-07-25 19:41
+
+**Version:** 1.17.3-Alpha+202607251941
+
+### Fixed
+- Fixed an issue where graphs on `statistics.php` and `system-overview.php` would randomly fail to render after PJAX navigation. Chart.js maintains an internal global registry (`Chart.instances`) of all created charts. When navigating back to these pages, new `<canvas>` elements were generated with identical IDs, but the old chart instances still existed in memory. This caused Chart.js to silently throw "Canvas is already in use" errors. Resolved by iterating through `Chart.instances` and forcefully destroying all charts in `pjax-router.js` immediately before executing the DOM swap.
+- Patched a memory and network leak in `statistics.js` where the 60-second `setInterval` data poller was never cleared upon PJAX navigation, causing multiple concurrent polling intervals to stack and spam the server with redundant requests. It is now properly wired to abort alongside the global PJAX controller.
+
 ## 2026-07-25 19:23
 
 **Version:** 1.17.2-Alpha+202607251923
