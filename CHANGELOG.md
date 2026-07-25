@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-07-25 19:23
+
+**Version:** 1.17.2-Alpha+202607251923
+
+### Fixed
+- Fixed a visual bug in `pjax-router.js` where the active navigation indicator would sometimes appear grey or duplicate (e.g. both "Tasks" and "Completed" highlighting simultaneously). This happened because the client-side router used a flawed string-matching algorithm (`startsWith`) and failed to perfectly mirror the complex Tailwind class permutations defined in PHP. The client-side logic has been removed entirely; `app.php` now wraps the navigation links in `<div id="pjax-nav-links">`, which the router swaps dynamically on every navigation to guarantee exact replication of the PHP server-rendered active states.
+
+## 2026-07-25 19:15
+
+**Version:** 1.17.1-Alpha+202607251915
+
+### Fixed
+- `pjax-router.js` + `app.php`: page heading (`<header id="pjax-header">`) was not being swapped after navigation because it sat outside `#pjax-content`. Added `id="pjax-header"` to the layout element (with an empty hidden placeholder for pages without a heading) and updated the router to swap both `#pjax-header` and `#pjax-content` on every navigation.
+- Converted all remaining inline `DOMContentLoaded` wrappers across officer, staff, admin, and shared partials to named functions that also listen to `dts:page-loaded`. Without this, navigating via PJAX to officer/staff pages left all action buttons (release, complete, sign, QR scan) completely unresponsive: `officer/releasing.php` → `initReleasingPage()`, `officer/manage-documents.php` → `initManageDocumentsPage()`, `admin/system-overview.php` → `initSystemOverviewPage()`, `staff/tasks.php` → `initStaffTasksPage()`, `partials/scan-qr-modal.php` → `initScanQrModal()`, `partials/signing-modal.php` → `initSigningModal()`, `general/show-document.php` → `initShowDocumentPage()`.
+
+## 2026-07-25 18:56
+
+**Version:** 1.17.0-Alpha+202607251856
+
+### Fixed
+- `AuthMiddleware.php`: added `session_write_close()` immediately after reading auth session data to release the PHP session file lock early, eliminating request head-of-line blocking where a slow `/admin-dashboard` chart API call would prevent a concurrent navigation request from starting.
+
+### Added
+- `public/js/pjax-router.js`: new PJAX client-side router implementing instant navigation. Intercepts `<a>` clicks, fetches the target page via `fetch()`, parses it with `DOMParser`, and swaps only `#pjax-content` without a full document reload. Manages a shared `AbortController` (`window.__pjaxController`) that cancels all in-flight chart and polling API calls when the user navigates away. Fires `dts:page-loaded` CustomEvent after every swap as a page lifecycle hook.
+- `src/Views/layouts/app.php`: added `#pjax-progress-bar` (3px gradient top bar) for visual navigation feedback, `#pjax-content` wrapper div as the PJAX swap target, and loads `pjax-router.js` last in `<body>`.
+- Refactored `admin-dashboard.js`, `statistics.js`, and `system-health.js`: wrapped all init logic in named exported functions (`initAdminDashboard`, `initStatistics`, `initSystemHealth`) listening to both `DOMContentLoaded` and `dts:page-loaded` so charts and event bindings re-initialize correctly after PJAX navigation. All `fetch()` calls now carry `window.__pjaxController.signal` for automatic cancellation on navigation; `AbortError` is silenced in catch handlers.
+
 ## 2026-07-25 18:34
 
 **Version:** 1.16.14-Alpha+202607251834
