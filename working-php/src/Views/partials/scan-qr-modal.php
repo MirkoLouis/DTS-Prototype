@@ -66,6 +66,9 @@ require BASE_PATH . '/src/Views/components/modal.php';
             });
         }
     }
-    document.addEventListener('DOMContentLoaded', initScanQrModal);
-    document.addEventListener('dts:page-loaded', initScanQrModal);
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initScanQrModal);
+    } else {
+        initScanQrModal();
+    }
 </script>

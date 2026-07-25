@@ -329,10 +329,8 @@ function initAdminDashboard() {
     });
 }
 
-// Run on initial hard page load
-document.addEventListener('DOMContentLoaded', initAdminDashboard);
-
-// Run again after every PJAX navigation that lands on the admin dashboard.
-// Canvas elements are freshly created in the swapped innerHTML, so Chart.js
-// will not throw "Canvas already in use" — no explicit destroy() is needed.
-document.addEventListener('dts:page-loaded', initAdminDashboard);
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAdminDashboard);
+} else {
+    initAdminDashboard();
+}

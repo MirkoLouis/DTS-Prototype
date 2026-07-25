@@ -259,8 +259,11 @@
         }
     }
 
-    document.addEventListener('DOMContentLoaded', initManageDocumentsPage);
-    document.addEventListener('dts:page-loaded', initManageDocumentsPage);
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initManageDocumentsPage);
+    } else {
+        initManageDocumentsPage();
+    }
 </script>
 
 <?php require BASE_PATH . '/src/Views/partials/signing-modal.php'; ?>
