@@ -1,4 +1,15 @@
-document.addEventListener('DOMContentLoaded', function() {
+/**
+ * Admin Dashboard — Chart initialization and data fetching.
+ *
+ * Listens to both `DOMContentLoaded` (initial page load) and `dts:page-loaded`
+ * (PJAX navigation swap) so charts re-initialize after every navigation without
+ * requiring a full browser reload.
+ *
+ * All fetch() calls are wired to window.__pjaxController.signal so they are
+ * automatically cancelled when the user navigates away, preventing orphaned
+ * TCP connections and session lock contention.
+ */
+function initAdminDashboard() {
     const chartContainer = document.querySelector('[data-current-load-url]');
     if (!chartContainer) return;
 
@@ -163,8 +174,11 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // --- Data Fetching ---
+    // All fetch() calls attach window.__pjaxController.signal so they are
+    // automatically cancelled when the user navigates away to a new page.
     const fetchData = (url, chart) => {
-        fetch(url)
+        const signal = window.__pjaxController?.signal;
+        fetch(url, { signal })
             .then(response => response.json())
             .then(data => {
                 if (data.datasets) {
@@ -183,7 +197,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 chart.update();
             })
-            .catch(error => console.error(`Error fetching data for ${chart.canvas.id}:`, error));
+            .catch(error => {
+                // Suppress AbortError noise — it's expected when navigating away
+                if (error.name !== 'AbortError') {
+                    console.error(`Error fetching data for ${chart.canvas.id}:`, error);
+                }
+            });
     };
 
     const fetchLoadVsTimeData = (period, departmentId) => {
@@ -218,7 +237,8 @@ document.addEventListener('DOMContentLoaded', function() {
         avgTatModal.classList.remove('hidden');
 
         // Fetch full dataset with all departments
-        fetch(`${avgStepTimeUrl}?full=1`)
+        const signal = window.__pjaxController?.signal;
+        fetch(`${avgStepTimeUrl}?full=1`, { signal })
             .then(res => res.json())
             .then(data => {
                 // Render Full Chart
@@ -264,7 +284,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             })
             .catch(err => {
-                console.error('Error fetching full Average TAT data:', err);
+                if (err.name !== 'AbortError') {
+                    console.error('Error fetching full Average TAT data:', err);
+                }
             });
     };
 
@@ -296,6 +318,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
     updateAllCharts();
 
-    // Polling: Update all charts every 60 seconds
-    setInterval(updateAllCharts, 60000);
-});
+    // Polling: Update all charts every 60 seconds.
+    // Store the interval ID on the controller so it can be cleared if needed.
+    const pollInterval = setInterval(updateAllCharts, 60000);
+
+    // Clear the polling interval when the user navigates away (PJAX or otherwise)
+    // to prevent ghost polling from a page that no longer exists in the DOM.
+    window.__pjaxController?.signal.addEventListener('abort', () => {
+        clearInterval(pollInterval);
+    });
+}
+
+// Run on initial hard page load
+document.addEventListener('DOMContentLoaded', initAdminDashboard);
+
+// Run again after every PJAX navigation that lands on the admin dashboard.
+// Canvas elements are freshly created in the swapped innerHTML, so Chart.js
+// will not throw "Canvas already in use" — no explicit destroy() is needed.
+document.addEventListener('dts:page-loaded', initAdminDashboard);

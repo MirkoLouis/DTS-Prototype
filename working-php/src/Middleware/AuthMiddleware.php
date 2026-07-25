@@ -23,6 +23,13 @@ class AuthMiddleware
             exit;
         }
 
+        // Release the session write lock immediately after reading auth data.
+        // PHP holds an exclusive file lock on the session for the entire request
+        // duration by default. Releasing early prevents concurrent requests (e.g.
+        // a PJAX page navigation while chart API calls are still in-flight) from
+        // blocking in session_start() while waiting for this request to finish.
+        session_write_close();
+
         $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '/';
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
         

@@ -1,0 +1,236 @@
+/**
+ * DTS PJAX Router — Instant Client-Side Navigation
+ *
+ * Intercepts <a> clicks to swap only the inner page content via fetch(),
+ * without triggering a full browser document reload. Cancels in-flight
+ * API requests (chart fetches, etc.) from the previous page on every
+ * navigation to prevent orphaned TCP connections and session lock contention.
+ *
+ * Dispatches `dts:page-loaded` after every successful swap so page-specific
+ * JS files can re-initialize their Chart.js instances, event listeners, etc.
+ */
+(function () {
+    'use strict';
+
+    // Shared AbortController for the active PJAX fetch AND for any page-level
+    // background fetches (charts, polling) that opt in via window.__pjaxController.
+    let pjaxController = null;
+
+    // Expose the active controller globally so page JS files can attach their
+    // fetch() calls to the same signal, getting cancelled on navigation.
+    function refreshController() {
+        if (pjaxController) {
+            pjaxController.abort();
+        }
+        pjaxController = new AbortController();
+        window.__pjaxController = pjaxController;
+    }
+
+    // --- Progress Bar ---
+    const bar = document.getElementById('pjax-progress-bar');
+
+    function showBar() {
+        if (!bar) return;
+        bar.style.transition = 'none';
+        bar.style.width = '0%';
+        bar.style.opacity = '1';
+        // Force reflow so the transition starts from 0
+        bar.getBoundingClientRect();
+        bar.style.transition = 'width 8s cubic-bezier(0.05, 0.6, 0.4, 0.9)';
+        bar.style.width = '80%';
+    }
+
+    function completeBar() {
+        if (!bar) return;
+        bar.style.transition = 'width 0.15s ease-out';
+        bar.style.width = '100%';
+        setTimeout(() => {
+            bar.style.opacity = '0';
+            bar.style.width = '0%';
+        }, 200);
+    }
+
+    // Re-executes <script src="..."> tags found inside the swapped container.
+    // innerHTML assignment does not run scripts; we must clone and re-append them.
+    // Inline <script> blocks (not src-based) are also re-executed this way.
+    function reExecuteScripts(container) {
+        container.querySelectorAll('script').forEach(oldScript => {
+            const newScript = document.createElement('script');
+
+            if (oldScript.src) {
+                // Cache-bust with timestamp to force re-evaluation by the browser
+                newScript.src = oldScript.src.split('?')[0] + '?_pjax=' + Date.now();
+                newScript.defer = oldScript.defer;
+                newScript.async = oldScript.async;
+            } else {
+                newScript.textContent = oldScript.textContent;
+            }
+
+            oldScript.replaceWith(newScript);
+        });
+    }
+
+    // Updates the active nav link underline to match the new URL.
+    function updateNavLinks(url) {
+        const currentPath = new URL(url, window.location.origin).pathname;
+
+        document.querySelectorAll('nav a[href]').forEach(a => {
+            const href = a.getAttribute('href');
+            // Match exact path or sub-paths (e.g. /users matches /users/3/edit)
+            const isActive = href === currentPath || (href !== '/' && currentPath.startsWith(href));
+
+            // Toggle the active/inactive Tailwind classes used in app.php
+            if (isActive) {
+                a.classList.add('border-accent-1', 'text-gray-900', 'dark:text-gray-100');
+                a.classList.remove('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+            } else {
+                a.classList.remove('border-accent-1', 'text-gray-900', 'dark:text-gray-100');
+                a.classList.add('border-transparent', 'text-gray-500', 'dark:text-gray-400');
+            }
+        });
+    }
+
+    // Core navigation function — fetches target URL, parses full HTML,
+    // swaps #pjax-content, re-runs scripts, fires lifecycle event.
+    async function navigateTo(url) {
+        // Abort previous in-flight PJAX fetch AND all chart/poll requests
+        // that registered themselves on window.__pjaxController.
+        refreshController();
+
+        showBar();
+
+        // Optimistically push the URL so the browser address bar updates instantly
+        history.pushState({ pjax: true, url }, '', url);
+
+        try {
+            const response = await fetch(url, {
+                signal: pjaxController.signal,
+                headers: {
+                    // Signal to the server that this is a PJAX request (future use)
+                    'X-PJAX': 'true'
+                }
+            });
+
+            // If the server issued a redirect (e.g. auth guard → /login), follow it natively.
+            // fetch() with redirect:'follow' (default) gives us the final URL in response.url.
+            if (response.redirected || response.url !== new URL(url, window.location.origin).href) {
+                window.location.href = response.url;
+                return;
+            }
+
+            if (!response.ok) {
+                // Non-2xx (403, 404, 500, etc.) — fall back to a full page load
+                window.location.href = url;
+                return;
+            }
+
+            const html = await response.text();
+            const parser = new DOMParser();
+            const newDoc = parser.parseFromString(html, 'text/html');
+
+            // Swap <title>
+            const newTitle = newDoc.querySelector('title');
+            if (newTitle) {
+                document.title = newTitle.textContent;
+            }
+
+            // Refresh CSRF meta token from the incoming page so POST forms remain valid
+            const newCsrf = newDoc.querySelector('meta[name="csrf-token"]');
+            const currentCsrf = document.querySelector('meta[name="csrf-token"]');
+            if (newCsrf && currentCsrf) {
+                currentCsrf.setAttribute('content', newCsrf.getAttribute('content'));
+            }
+
+            // Swap the inner page content block
+            const newContent = newDoc.getElementById('pjax-content');
+            const currentContent = document.getElementById('pjax-content');
+
+            if (!newContent || !currentContent) {
+                // Structure mismatch (guest page, login page, error page) — hard navigate
+                window.location.href = url;
+                return;
+            }
+
+            currentContent.innerHTML = newContent.innerHTML;
+
+            // Re-highlight the correct nav link
+            updateNavLinks(url);
+
+            // Re-run any <script> tags embedded in the new content (e.g. page-specific JS)
+            reExecuteScripts(currentContent);
+
+            // Notify all page-specific JS initializers that a new page is live
+            document.dispatchEvent(new CustomEvent('dts:page-loaded', {
+                detail: { url }
+            }));
+
+            completeBar();
+
+            // Scroll back to top like a real page navigation
+            window.scrollTo({ top: 0, behavior: 'instant' });
+
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                // User navigated away before this fetch resolved — do nothing.
+                // The new navigation's fetch is already in flight.
+                return;
+            }
+            console.error('[PJAX] Navigation failed, falling back to full load:', err);
+            window.location.href = url;
+        }
+    }
+
+    // --- Global Link Interception ---
+    document.addEventListener('click', (e) => {
+        const link = e.target.closest('a');
+        if (!link) return;
+
+        const href = link.getAttribute('href');
+        if (!href) return;
+
+        // Bail out for all link types that must not be PJAX-intercepted:
+        // external URLs, new tabs, mailto/tel/javascript, anchor fragments,
+        // explicit opt-outs (data-pjax="false"), and file downloads.
+        if (
+            link.target === '_blank' ||
+            link.target === '_self' ||
+            link.dataset.pjax === 'false' ||
+            href.startsWith('http://') ||
+            href.startsWith('https://') ||
+            href.startsWith('//') ||
+            href.startsWith('mailto:') ||
+            href.startsWith('tel:') ||
+            href.startsWith('#') ||
+            href.startsWith('javascript:') ||
+            link.hasAttribute('download')
+        ) {
+            return;
+        }
+
+        // Same-page: current path + same hash — let the browser handle it
+        const targetPath = href.split('?')[0].split('#')[0];
+        if (targetPath === window.location.pathname && !href.includes('?')) {
+            return;
+        }
+
+        e.preventDefault();
+        navigateTo(href);
+    });
+
+    // --- Browser Back / Forward ---
+    window.addEventListener('popstate', (e) => {
+        if (e.state && e.state.pjax) {
+            navigateTo(window.location.pathname + window.location.search);
+        } else {
+            // Non-PJAX history entry (initial hard load) — full reload for safety
+            window.location.reload();
+        }
+    });
+
+    // Mark the initial page load in history so popstate can identify PJAX entries
+    history.replaceState({ pjax: true, url: window.location.href }, '');
+
+    // Expose the initial controller so page scripts loaded before this file
+    // (which shouldn't happen, but as a safety net) can still use it
+    refreshController();
+})();
