@@ -20,8 +20,24 @@ $conn->exec("SET SESSION wait_timeout = 28800");
 $conn->exec("SET SESSION net_write_timeout = 3600");
 $conn->exec("SET SESSION net_read_timeout = 3600");
 
-// --- Truncate ---
-echo "🧹 Cleaning tables...\n";
+// --- Truncate & Flush Active Sessions ---
+echo "🧹 Cleaning tables, active session files, and response caches...\n";
+$savePath = session_save_path() ?: sys_get_temp_dir();
+if ($savePath && is_dir($savePath)) {
+    $sessFiles = glob($savePath . '/sess_*');
+    if ($sessFiles) {
+        foreach ($sessFiles as $sf) {
+            @unlink($sf);
+        }
+    }
+}
+$htmlCacheFiles = glob(BASE_PATH . '/cache/responses/*.html');
+if ($htmlCacheFiles) {
+    foreach ($htmlCacheFiles as $cf) {
+        @unlink($cf);
+    }
+}
+
 $conn->exec('SET FOREIGN_KEY_CHECKS = 0');
 $conn->exec('TRUNCATE TABLE document_logs');
 $conn->exec('TRUNCATE TABLE documents');

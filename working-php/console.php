@@ -27,9 +27,9 @@ $maxJobs = 100; // Restart after 100 jobs to clear any accumulated state
 $jobsProcessed = 0;
 
 // Timestamps for container-compatible internal worker task scheduler
-$lastSampleTime = 0;
-$lastBackfillTime = 0;
-$lastRollupTime = 0;
+$lastSampleTime = time();
+$lastBackfillTime = time();
+$lastRollupTime = time();
 
 /**
  * Execute periodic system maintenance and telemetry tasks inside the worker loop.

@@ -207,6 +207,78 @@ document.addEventListener('DOMContentLoaded', function() {
     if (globalThroughputPeriodEl) globalThroughputPeriodEl.addEventListener('change', () => fetchData(`${throughputUrl}?period=${globalThroughputPeriodEl.value}`, throughputChart));
     if (returnDeclinePeriodEl) returnDeclinePeriodEl.addEventListener('change', () => fetchData(`${declineTrendsUrl}?period=${returnDeclinePeriodEl.value}`, returnDeclineChart));
 
+    // --- Average TAT Modal Logic ---
+    const viewAllAvgTatBtn = document.getElementById('view-all-avg-tat-btn');
+    const avgTatModal = document.getElementById('avg-tat-modal');
+    const allAvgTatCanvas = document.getElementById('allAvgTatChart');
+    let allAvgTatChartInstance = null;
+
+    const openAvgTatModal = () => {
+        if (!avgTatModal) return;
+        avgTatModal.classList.remove('hidden');
+
+        // Fetch full dataset with all departments
+        fetch(`${avgStepTimeUrl}?full=1`)
+            .then(res => res.json())
+            .then(data => {
+                // Render Full Chart
+                if (allAvgTatCanvas && typeof Chart !== 'undefined') {
+                    if (allAvgTatChartInstance) {
+                        allAvgTatChartInstance.destroy();
+                    }
+
+                    const ctx = allAvgTatCanvas.getContext('2d');
+                    allAvgTatChartInstance = new Chart(ctx, {
+                        type: 'bar',
+                        data: {
+                            labels: data.labels || [],
+                            datasets: data.datasets || []
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            indexAxis: 'y',
+                            scales: {
+                                x: {
+                                    beginAtZero: true,
+                                    title: { display: true, text: 'Average Turnaround Time (hrs)' }
+                                },
+                                y: {
+                                    ticks: {
+                                        font: { size: 11 }
+                                    }
+                                }
+                            },
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return `Avg TAT: ${Number(context.raw).toFixed(2)} hrs`;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }
+            })
+            .catch(err => {
+                console.error('Error fetching full Average TAT data:', err);
+            });
+    };
+
+    if (viewAllAvgTatBtn) {
+        viewAllAvgTatBtn.addEventListener('click', openAvgTatModal);
+    }
+
+    const closeBtns = document.querySelectorAll('#avg-tat-modal .close-modal-btn, #avg-tat-modal .close-modal-backdrop');
+    closeBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (avgTatModal) avgTatModal.classList.add('hidden');
+        });
+    });
+
 
 
     // --- Initial Load ---

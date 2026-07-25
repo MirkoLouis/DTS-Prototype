@@ -210,6 +210,7 @@ return new class extends Migration
             $table->unsignedInteger('progress')->default(0);
             $table->unsignedInteger('total_documents')->default(0);
             $table->string('file_path')->nullable();
+            $table->json('filters')->nullable();
             $table->text('error_message')->nullable();
             $table->timestamps();
         });

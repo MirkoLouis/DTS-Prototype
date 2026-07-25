@@ -42,10 +42,14 @@ class RestoreBackupJob
         if ($sqlFile && file_exists($backupDir . '/' . $sqlFile)) {
             $filePath = $backupDir . '/' . $sqlFile;
             
-            // Restore DB
-            $passFlag = $dbConfig['password'] !== '' ? "-p{$pass}" : "";
-            $command = "mysql -h {$host} -u {$user} {$passFlag} {$dbname} < " . escapeshellarg($filePath);
-            exec($command);
+            // Restore DB using MYSQL_PWD environment variable to suppress password warnings
+            $envPrefix = $dbConfig['password'] !== '' ? "MYSQL_PWD=" . escapeshellarg($dbConfig['password']) . " " : "";
+            $command = "{$envPrefix}mysql -h {$host} -u {$user} {$dbname} < " . escapeshellarg($filePath) . " 2>&1";
+            exec($command, $output, $returnCode);
+
+            if ($returnCode !== 0) {
+                throw new \Exception("Database restore failed: " . implode("\n", $output));
+            }
             
             // Cleanup extracted SQL file
             unlink($filePath);

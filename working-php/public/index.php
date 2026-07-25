@@ -341,6 +341,9 @@ $router->get('/api/statistics/throughput', [App\Controllers\StatisticsController
 $router->get('/api/statistics/avg-processing-time', [App\Controllers\StatisticsController::class, 'getAverageProcessingTimeData'], [
     App\Middleware\AuthMiddleware::class
 ]);
+$router->get('/api/statistics/past-reports', [App\Controllers\StatisticsController::class, 'getPastReports'], [
+    App\Middleware\AuthMiddleware::class
+]);
 
 // Staff Routes (Officers also have access to tasks)
 $router->get('/tasks', [App\Controllers\DashboardController::class, 'staffTasks'], [

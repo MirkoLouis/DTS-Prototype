@@ -2,11 +2,35 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 const mysql = require('mysql2/promise');
 const fs = require('fs');
+const os = require('os');
+
+function clearSessionsAndCache() {
+    try {
+        const tmpDir = os.tmpdir();
+        const files = fs.readdirSync(tmpDir);
+        for (const file of files) {
+            if (file.startsWith('sess_')) {
+                try { fs.unlinkSync(path.join(tmpDir, file)); } catch (e) {}
+            }
+        }
+    } catch (e) {}
+
+    const cacheDir = path.join(__dirname, '../../cache/responses');
+    if (fs.existsSync(cacheDir)) {
+        try {
+            const files = fs.readdirSync(cacheDir);
+            for (const file of files) {
+                try { fs.unlinkSync(path.join(cacheDir, file)); } catch (e) {}
+            }
+        } catch (e) {}
+    }
+}
 
 async function setupDatabase() {
     let connection;
     try {
         console.log('🔄 Starting Database Setup...');
+        clearSessionsAndCache();
 
         connection = await mysql.createConnection({
             host: process.env.DB_HOST,

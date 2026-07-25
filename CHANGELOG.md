@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-07-25 18:34
+
+**Version:** 1.16.14-Alpha+202607251834
+
+### Fixed
+- Updated UI styling and layout responsive alignment for database performance metrics in [system-overview.php](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Views/admin/system-overview.php).
+- Refactored background job queue processors ([CreateBackupJob.php](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Jobs/CreateBackupJob.php), [GenerateReportJob.php](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Jobs/GenerateReportJob.php), [RestoreBackupJob.php](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Jobs/RestoreBackupJob.php)) and seeder digital key reset routines ([fast-seed.php](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/scripts/seeders/fast-seed.php), [seed.js](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/scripts/seeders/seed.js)).
+
+### Added
+- Integrated "Average Turnaround Time (TAT) by Department" detailed view modal in [dashboard.php](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Views/admin/dashboard.php) powered by [admin-dashboard.js](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/public/js/admin-dashboard.js).
+- Added departmental load vs time and database performance metrics calculations in [AdminAnalyticsService.php](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Services/AdminAnalyticsService.php) and [DatabasePerformanceService.php](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Services/DatabasePerformanceService.php).
+
 ## 2026-07-23 16:38
 
 **Version:** 1.16.13-Alpha+202607231638
