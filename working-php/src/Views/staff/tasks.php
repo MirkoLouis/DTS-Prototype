@@ -86,7 +86,9 @@
 <?php require BASE_PATH . '/src/Views/partials/signing-modal.php'; ?>
 
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+// Named so both DOMContentLoaded (hard load) and dts:page-loaded (PJAX swap)
+// can trigger re-binding of complete buttons and scan form.
+function initStaffTasksPage() {
     const completeBtns = document.querySelectorAll('.complete-btn');
     completeBtns.forEach(btn => {
         btn.addEventListener('click', function() {
@@ -123,7 +125,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-});
+}
+document.addEventListener('DOMContentLoaded', initStaffTasksPage);
+document.addEventListener('dts:page-loaded', initStaffTasksPage);
 </script>
 
 <?php $content = ob_get_clean(); ?>

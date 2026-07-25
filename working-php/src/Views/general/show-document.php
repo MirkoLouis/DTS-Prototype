@@ -188,7 +188,9 @@
     </div>
 </div>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+// Named so both DOMContentLoaded (hard load) and dts:page-loaded (PJAX swap)
+// can trigger re-binding of sign-action form handlers on this document view.
+function initShowDocumentPage() {
     document.querySelectorAll('form.sign-action').forEach(form => {
         form.addEventListener('submit', function(e) {
             const pinInput = this.querySelector('.sign-pin-input');
@@ -202,7 +204,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
-});
+}
+document.addEventListener('DOMContentLoaded', initShowDocumentPage);
+document.addEventListener('dts:page-loaded', initShowDocumentPage);
 </script>
 <?php require BASE_PATH . '/src/Views/partials/signing-modal.php'; ?>
 <?php $content = ob_get_clean(); ?>

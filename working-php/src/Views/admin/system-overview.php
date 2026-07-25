@@ -349,7 +349,8 @@ require BASE_PATH . '/src/Views/components/modal.php';
 <script src="/js/chart.min.js"></script>
 <script src="/js/system-health.js"></script>
 <script>
-document.addEventListener('DOMContentLoaded', function() {
+// Named so both DOMContentLoaded and dts:page-loaded (PJAX swap) trigger re-binding
+function initSystemOverviewPage() {
     document.querySelectorAll('form.sign-action').forEach(form => {
         form.addEventListener('submit', function(e) {
             const pinInput = this.querySelector('.sign-pin-input');
@@ -363,7 +364,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
-});
+}
+document.addEventListener('DOMContentLoaded', initSystemOverviewPage);
+document.addEventListener('dts:page-loaded', initSystemOverviewPage);
 </script>
 <?php require BASE_PATH . '/src/Views/partials/signing-modal.php'; ?>
 

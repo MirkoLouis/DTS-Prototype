@@ -203,11 +203,15 @@ if (isset($_SESSION['user_id'])) {
 
         <!-- Page Heading -->
         <?php if (isset($header)): ?>
-            <header class="bg-white dark:bg-gray-800 shadow dark:shadow-none border-b border-gray-200 dark:border-gray-700 relative z-10">
+            <!-- pjax-router.js also swaps this element's innerHTML after each navigation -->
+            <header id="pjax-header" class="bg-white dark:bg-gray-800 shadow dark:shadow-none border-b border-gray-200 dark:border-gray-700 relative z-10">
                 <div class="mx-[20vh] py-6 px-4 sm:px-6 lg:px-8">
                     <?= $header ?>
                 </div>
             </header>
+        <?php else: ?>
+            <!-- Render an empty placeholder so pjax-router.js always has a stable #pjax-header to swap -->
+            <header id="pjax-header" class="hidden"></header>
         <?php endif; ?>
 
         <!-- Page Content -->

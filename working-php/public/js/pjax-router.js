@@ -153,6 +153,21 @@
 
             currentContent.innerHTML = newContent.innerHTML;
 
+            // Swap the page heading (the <header id="pjax-header"> above <main>).
+            // Each view sets a $header variable that app.php renders here. Without
+            // swapping it, the old page title stays stuck after navigation.
+            const newHeader = newDoc.getElementById('pjax-header');
+            const currentHeader = document.getElementById('pjax-header');
+            if (newHeader && currentHeader) {
+                currentHeader.innerHTML = newHeader.innerHTML;
+                // Toggle visibility: pages without a $header render a hidden placeholder
+                if (newHeader.classList.contains('hidden')) {
+                    currentHeader.classList.add('hidden');
+                } else {
+                    currentHeader.classList.remove('hidden');
+                }
+            }
+
             // Re-highlight the correct nav link
             updateNavLinks(url);
 
