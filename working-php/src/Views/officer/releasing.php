@@ -114,8 +114,11 @@ function initReleasingPage() {
         });
     }
 }
-document.addEventListener('DOMContentLoaded', initReleasingPage);
-document.addEventListener('dts:page-loaded', initReleasingPage);
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initReleasingPage);
+} else {
+    initReleasingPage();
+}
 </script>
 
 <?php $content = ob_get_clean(); ?>

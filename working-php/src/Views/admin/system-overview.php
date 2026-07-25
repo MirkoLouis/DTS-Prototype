@@ -365,8 +365,11 @@ function initSystemOverviewPage() {
         });
     });
 }
-document.addEventListener('DOMContentLoaded', initSystemOverviewPage);
-document.addEventListener('dts:page-loaded', initSystemOverviewPage);
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSystemOverviewPage);
+} else {
+    initSystemOverviewPage();
+}
 </script>
 <?php require BASE_PATH . '/src/Views/partials/signing-modal.php'; ?>
 

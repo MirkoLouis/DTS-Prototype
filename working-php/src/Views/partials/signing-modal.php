@@ -98,6 +98,9 @@ require BASE_PATH . '/src/Views/components/modal.php';
             }
         });
     }
-    document.addEventListener('DOMContentLoaded', initSigningModal);
-    document.addEventListener('dts:page-loaded', initSigningModal);
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initSigningModal);
+    } else {
+        initSigningModal();
+    }
 </script>

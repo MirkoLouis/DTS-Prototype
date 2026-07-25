@@ -291,8 +291,10 @@ function initSystemHealth() {
 
 }
 
-// Run on initial hard page load
-document.addEventListener('DOMContentLoaded', initSystemHealth);
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSystemHealth);
+} else {
+    initSystemHealth();
+}
 
-// Run again after every PJAX navigation swap
-document.addEventListener('dts:page-loaded', initSystemHealth);
+

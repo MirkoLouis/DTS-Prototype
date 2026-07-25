@@ -126,8 +126,11 @@ function initStaffTasksPage() {
         });
     }
 }
-document.addEventListener('DOMContentLoaded', initStaffTasksPage);
-document.addEventListener('dts:page-loaded', initStaffTasksPage);
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initStaffTasksPage);
+} else {
+    initStaffTasksPage();
+}
 </script>
 
 <?php $content = ob_get_clean(); ?>

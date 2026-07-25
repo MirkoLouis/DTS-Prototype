@@ -374,8 +374,8 @@ function initStatistics() {
     initialize();
 }
 
-// Run on initial hard page load
-document.addEventListener('DOMContentLoaded', initStatistics);
-
-// Run again after every PJAX navigation swap
-document.addEventListener('dts:page-loaded', initStatistics);
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initStatistics);
+} else {
+    initStatistics();
+}
