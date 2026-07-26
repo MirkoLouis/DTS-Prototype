@@ -20,7 +20,10 @@ class CreateBackupJob
         $backupDir = BASE_PATH . '/storage/app/backups';
         if (!is_dir($backupDir)) mkdir($backupDir, 0777, true);
 
-        $filename = 'backup_' . date('Y_m_d_His') . '.sql';
+        $db = \App\Core\Database::getInstance();
+        $docCount = $db->query("SELECT COUNT(*) as count FROM documents")->fetch()['count'] ?? 0;
+
+        $filename = 'deped_dts_' . date('Y_m_d_His') . '_' . $docCount . '.sql';
         $filePath = $backupDir . '/' . $filename;
         $zipPath = $backupDir . '/' . $filename . '.zip';
 
