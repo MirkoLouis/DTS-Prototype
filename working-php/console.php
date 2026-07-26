@@ -84,6 +84,19 @@ if (extension_loaded('pcntl')) {
     echo "Warning: PCNTL extension not loaded. Worker cannot shut down gracefully.\n";
 }
 
+$maxWorkers = 2; // Can be changed freely
+$activeWorkers = [];
+
+// Clean up function to check for dead processes
+function cleanupActiveWorkers(array &$activeWorkers) {
+    foreach ($activeWorkers as $key => $pid) {
+        // posix_kill($pid, 0) checks if process is alive without sending a signal
+        if (!posix_kill($pid, 0)) {
+            unset($activeWorkers[$key]);
+        }
+    }
+}
+
 while (!$stopWorker) {
     // 0. Run scheduled maintenance & telemetry tasks
     runScheduledTasks($lastSampleTime, $lastBackfillTime, $lastRollupTime);
@@ -104,6 +117,13 @@ while (!$stopWorker) {
         exit(0);
     }
 
+    cleanupActiveWorkers($activeWorkers);
+
+    if (count($activeWorkers) >= $maxWorkers) {
+        sleep(1);
+        continue;
+    }
+
     // Look for a pending job
     $sql = "SELECT * FROM jobs WHERE reserved_at IS NULL AND available_at <= UNIX_TIMESTAMP() ORDER BY id ASC LIMIT 1";
     $stmt = $db->query($sql);
@@ -120,56 +140,19 @@ while (!$stopWorker) {
         $check = $db->query("SELECT * FROM jobs WHERE id = :id AND reserved_at IS NOT NULL", ['id' => $jobId])->fetch();
         
         if ($check) {
-            echo "Processing Job ID: {$jobId}\n";
+            echo "Dispatching Job ID: {$jobId}\n";
             
-            try {
-                $payload = json_decode($job['payload'], true);
-                
-                // Assuming payload contains a class and serialized data or just a class name for our simple implementation
-                $jobClass = $payload['class'];
-                $jobData = $payload['data'] ?? [];
-
-                if (class_exists($jobClass)) {
-                    // Dynamically instantiate the job class and pass its stored payload as constructor arguments
-                    $instance = new $jobClass(...array_values($jobData));
-                    if (method_exists($instance, 'handle')) {
-                        $instance->handle();
-                    }
-                } else {
-                    throw new Exception("Job class {$jobClass} not found.");
-                }
-
-                // If successful, delete the job
-                $db->query("DELETE FROM jobs WHERE id = :id", ['id' => $jobId]);
-                echo "Job ID: {$jobId} processed successfully.\n";
-
-            } catch (\Throwable $e) {
-                echo "Job ID: {$jobId} failed: " . $e->getMessage() . "\n";
-                
-                // Move to failed jobs
-                $db->query(
-                    "INSERT INTO failed_jobs (uuid, connection, queue, payload, exception, failed_at) VALUES (:uuid, :connection, :queue, :payload, :exception, NOW())",
-                    [
-                        'uuid' => uniqid(),
-                        'connection' => 'database',
-                        'queue' => $job['queue'],
-                        'payload' => $job['payload'],
-                        'exception' => (string) $e
-                    ]
-                );
-                
-                // Delete from jobs table
-                $db->query("DELETE FROM jobs WHERE id = :id", ['id' => $jobId]);
+            // Dispatch in background
+            $runnerScript = escapeshellarg(__DIR__ . '/runner.php');
+            $cmd = PHP_BINARY . " {$runnerScript} " . (int)$jobId . " > /dev/null 2>&1 & echo $!";
+            $pid = (int) shell_exec($cmd);
+            
+            if ($pid > 0) {
+                $activeWorkers[] = $pid;
+                echo "Dispatched to PID: {$pid} (" . count($activeWorkers) . "/{$maxWorkers} active workers)\n";
             }
             
-            // 3. Memory Leak Prevention: Explicitly unset objects and trigger Garbage Collection
             $jobsProcessed++;
-            unset($instance);
-            unset($payload);
-            unset($jobData);
-            
-            // Force PHP to clean up cyclical references
-            gc_collect_cycles();
         }
     } else {
         // Sleep if no jobs
