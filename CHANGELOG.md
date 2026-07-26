@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-07-26 11:31
+
+**Version:** 1.17.6-Alpha+202607261131
+
+### Fixed
+- Fixed an issue in `console.php` where background jobs (like `CreateBackupJob` and `GenerateReportJob`) were processed sequentially in a single-threaded loop, causing bottlenecks during long-running tasks. Refactored the queue worker into a master dispatcher that spawns parallel child processes via `runner.php` up to a configurable concurrency limit (`$maxWorkers = 2`), ensuring true asynchronous background processing.
+- Re-ordered columns in the `idx_log_category` composite index in `database.sql` to `(user_id, action_category, document_id, created_at)`. This enables MySQL to perform a "Loose Index Scan" (Skip Scan) on the `GROUP BY document_id` queries inside `DocumentQueryService`, reducing execution time for high-volume users from 1.2s to under 0.4s.
+
+### Added
+- Integrated the queue worker directly into the local development server lifecycle. `scripts/dev.php` now seamlessly starts `console.php` in the background (piping output to `storage/logs/worker.log`) and auto-cleans orphaned worker instances upon restart.
+
 ## 2026-07-25 20:25
 
 **Version:** 1.17.5-Alpha+202607252025
