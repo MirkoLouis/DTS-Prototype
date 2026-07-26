@@ -90,13 +90,9 @@ Comprehensive user manuals are provided in [working-php/documentation/user_manua
    ```
 
 5. **Launch Local Server & Background Worker:**
-   Run these in separate terminal windows:
    ```bash
-   # Terminal 1: Web Server & PostCSS Watcher
+   # Starts the Web Server, PostCSS Watcher, and Async Queue Worker seamlessly
    composer run dev
-
-   # Terminal 2: Background Queue Worker & Task Scheduler
-   composer run worker
    ```
 
 ---
