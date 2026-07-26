@@ -81,7 +81,7 @@ if (isset($_SESSION['user_id'])) {
                 <div class="flex justify-between h-16">
                     <div class="flex">
                         <div class="shrink-0 flex items-center">
-                            <a href="/">
+                            <a href="/dashboard">
                                 <img src="/images/logoipsum-411.png" alt="DTS Logo" class="h-8 w-auto dark:brightness-200">
                             </a>
                         </div>

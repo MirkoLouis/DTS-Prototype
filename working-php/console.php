@@ -30,12 +30,13 @@ $jobsProcessed = 0;
 $lastSampleTime = time();
 $lastBackfillTime = time();
 $lastRollupTime = time();
+$lastGcTime = time();
 
 /**
  * Execute periodic system maintenance and telemetry tasks inside the worker loop.
  * Eliminates reliance on host system cron daemons in containerized environments.
  */
-function runScheduledTasks(int &$lastSampleTime, int &$lastBackfillTime, int &$lastRollupTime): void
+function runScheduledTasks(int &$lastSampleTime, int &$lastBackfillTime, int &$lastRollupTime, int &$lastGcTime): void
 {
     $now = time();
 
@@ -66,6 +67,33 @@ function runScheduledTasks(int &$lastSampleTime, int &$lastBackfillTime, int &$l
         if (file_exists($scriptPath)) {
             echo "⏰ [Worker Scheduler] Running historical database metrics rollup...\n";
             passthru(PHP_BINARY . ' ' . escapeshellarg($scriptPath));
+        }
+    }
+
+    // 4. Response cache GC + log rotation every hour (3600s).
+    // Cache serve TTL is 55s, so any file older than 1 hour is guaranteed stale.
+    if ($now - $lastGcTime >= 3600) {
+        $lastGcTime = $now;
+
+        $cacheDir = BASE_PATH . '/cache/responses';
+        $purged = 0;
+        if (is_dir($cacheDir)) {
+            foreach (glob($cacheDir . '/*.html') as $file) {
+                if (time() - filemtime($file) > 3600) {
+                    if (@unlink($file)) {
+                        $purged++;
+                    }
+                }
+            }
+        }
+        echo "⏰ [Worker Scheduler] Response cache GC: purged {$purged} stale file(s).\n";
+
+        // Rotate navigation.log when it exceeds 50 MB to prevent unbounded growth
+        $navLog = BASE_PATH . '/storage/logs/navigation.log';
+        if (file_exists($navLog) && filesize($navLog) > 50 * 1024 * 1024) {
+            $archiveName = BASE_PATH . '/storage/logs/navigation-' . date('Y-m-d-His') . '.log';
+            rename($navLog, $archiveName);
+            echo "⏰ [Worker Scheduler] Rotated navigation.log → " . basename($archiveName) . "\n";
         }
     }
 }
@@ -99,7 +127,7 @@ function cleanupActiveWorkers(array &$activeWorkers) {
 
 while (!$stopWorker) {
     // 0. Run scheduled maintenance & telemetry tasks
-    runScheduledTasks($lastSampleTime, $lastBackfillTime, $lastRollupTime);
+    runScheduledTasks($lastSampleTime, $lastBackfillTime, $lastRollupTime, $lastGcTime);
 
     // 1. Memory Leak Prevention: Check if we exceeded our allowed memory
     if (memory_get_usage(true) > $maxMemory) {
