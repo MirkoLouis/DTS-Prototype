@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-07-26 15:06
+
+**Version:** 1.18.0-Release+202607261506
+
+### Fixed
+- Fixed navigation flow in `working-php/src/Views/layouts/app.php` where clicking the header logo directed authenticated users back to the public guest portal (`/`). Updated the logo link to `/dashboard` so logged-in users return to their role-specific dashboard.
+- Standardized top-right header button styling in `working-php/src/Views/layouts/guest.php` using the uniform `table-filters.php` design tokens (`bg-accent-1`, uppercase tracking, focus ring, `h-[38px]`).
+
+### Added
+- Added a dedicated "Staff Sign In" (or "Dashboard" when logged in) button to the public guest layout (`guest.php`) next to the theme toggle, providing administrative staff and officers with a direct login path from the guest landing page.
+- Added multi-stakeholder pitch documentation (`working-php/documentation/PITCH_AND_VALUE_PROPOSITION.md`) featuring targeted technical value propositions for IT Administrators, Government Decision Makers, Cryptographers/Auditors, Office Workers, and General Citizens.
+
+## 2026-07-26 12:06
+
+**Version:** 1.17.7-Alpha+202607261206
+
+### Fixed
+- Fixed an OOM risk in `IntegrityCheckJob.php` where `$mismatchedIds` was an unbounded PHP array appended to on every corrupted log entry, with O(n) `in_array()` deduplication calls that caused O(n²) scan time on large datasets. Replaced with an associative-array hashset (`$mismatchedIdsSet`) for O(1) duplicate detection. Introduced `$mismatchedIdsList` (capped at `MAX_TRACKED_MISMATCHES = 1000`) for safe admin display, and `$mismatchedIdsCount` as a separate accurate total counter so the verified-percentage metric remains correct even when mismatches exceed the cap. Applied the same cap to `$mismatchedDocumentTrackingCodes`.
+- Fixed an unbounded disk-growth issue where the `cache/responses/` directory accumulated stale HTML response-cache files indefinitely. Expired files were skipped on serve but never deleted. Added a 4th scheduled task to `console.php`'s internal worker scheduler that runs a garbage collector every hour, purging all `.html` files older than 1 hour (well past the 55s serve TTL).
+- Fixed an unbounded disk-growth issue with `storage/logs/navigation.log`, which was appended to on every request with no rotation. The new hourly GC task now archives the log to a timestamped file (e.g., `navigation-2026-07-26-120000.log`) when it exceeds 50 MB.
+
+### Added
+- Added `$lastGcTime` timestamp variable and the 4th argument `int &$lastGcTime` to `runScheduledTasks()` in `console.php` to support the new cache GC and log rotation scheduled task.
+
 ## 2026-07-26 11:31
 
 **Version:** 1.17.6-Alpha+202607261131

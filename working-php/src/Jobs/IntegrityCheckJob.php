@@ -8,6 +8,10 @@ use App\Core\EventDispatcher;
 
 class IntegrityCheckJob
 {
+    // Maximum number of mismatch IDs to store in-memory and persist to the results JSON.
+    // The audit still COUNTS all mismatches accurately beyond this cap; only the stored list is bounded.
+    private const MAX_TRACKED_MISMATCHES = 1000;
+
     protected $integrityCheckId;
     protected $publicKeyHistoryCache = [];
 
@@ -33,7 +37,12 @@ class IntegrityCheckJob
             
             $invalidLogsCount = 0;
             $invalidSignaturesCount = 0;
-            $mismatchedIds = [];
+            // Associative array used as a hashset for O(1) duplicate detection (replaces O(n) in_array calls).
+            $mismatchedIdsSet = [];
+            // Capped list stored for admin display — prevents a massive JSON blob from being written to the DB.
+            $mismatchedIdsList = [];
+            // True total mismatch count, accurate even when mismatches exceed MAX_TRACKED_MISMATCHES.
+            $mismatchedIdsCount = 0;
             $liveStateErrorsCount = 0;
             $mismatchedDocumentTrackingCodes = [];
             
@@ -96,7 +105,13 @@ class IntegrityCheckJob
 
                             if ($recalculatedHash !== $log['hash']) {
                                 $invalidLogsCount++;
-                                $mismatchedIds[] = $log['id'];
+                                if (!isset($mismatchedIdsSet[$log['id']])) {
+                                    $mismatchedIdsSet[$log['id']] = true;
+                                    $mismatchedIdsCount++;
+                                    if ($mismatchedIdsCount <= self::MAX_TRACKED_MISMATCHES) {
+                                        $mismatchedIdsList[] = $log['id'];
+                                    }
+                                }
                             }
 
                             // Verify Cryptographic Signature
@@ -105,9 +120,15 @@ class IntegrityCheckJob
                                 if ($isMockSignature) {
                                     $decodedMock = base64_decode($log['signature']);
                                     $expectedMock = "SYSTEM_SIG:{$log['action']}|{$log['document_state_hash']}";
-                                    if ($decodedMock !== $expectedMock) {
+                                     if ($decodedMock !== $expectedMock) {
                                         $invalidSignaturesCount++;
-                                        if (!in_array($log['id'], $mismatchedIds)) $mismatchedIds[] = $log['id'];
+                                        if (!isset($mismatchedIdsSet[$log['id']])) {
+                                            $mismatchedIdsSet[$log['id']] = true;
+                                            $mismatchedIdsCount++;
+                                            if ($mismatchedIdsCount <= self::MAX_TRACKED_MISMATCHES) {
+                                                $mismatchedIdsList[] = $log['id'];
+                                            }
+                                        }
                                     }
                                 } else {
                                     $pubKey = $this->getPublicKeyAtTime($db, $log['user_id'], $log['created_at'], $log['public_key'], $log['security_key_set_at']);
@@ -117,7 +138,13 @@ class IntegrityCheckJob
                                         
                                         if (strlen($rawPubKey) !== SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES) {
                                             $invalidSignaturesCount++;
-                                            if (!in_array($log['id'], $mismatchedIds)) $mismatchedIds[] = $log['id'];
+                                            if (!isset($mismatchedIdsSet[$log['id']])) {
+                                                $mismatchedIdsSet[$log['id']] = true;
+                                                $mismatchedIdsCount++;
+                                                if ($mismatchedIdsCount <= self::MAX_TRACKED_MISMATCHES) {
+                                                    $mismatchedIdsList[] = $log['id'];
+                                                }
+                                            }
                                         } else {
                                             $verified = sodium_crypto_sign_verify_detached(
                                                 base64_decode($log['signature']),
@@ -126,12 +153,24 @@ class IntegrityCheckJob
                                             );
                                             if (!$verified) {
                                                 $invalidSignaturesCount++;
-                                                if (!in_array($log['id'], $mismatchedIds)) $mismatchedIds[] = $log['id'];
+                                                if (!isset($mismatchedIdsSet[$log['id']])) {
+                                                    $mismatchedIdsSet[$log['id']] = true;
+                                                    $mismatchedIdsCount++;
+                                                    if ($mismatchedIdsCount <= self::MAX_TRACKED_MISMATCHES) {
+                                                        $mismatchedIdsList[] = $log['id'];
+                                                    }
+                                                }
                                             }
                                         }
                                     } else {
                                         $invalidSignaturesCount++;
-                                        if (!in_array($log['id'], $mismatchedIds)) $mismatchedIds[] = $log['id'];
+                                        if (!isset($mismatchedIdsSet[$log['id']])) {
+                                            $mismatchedIdsSet[$log['id']] = true;
+                                            $mismatchedIdsCount++;
+                                            if ($mismatchedIdsCount <= self::MAX_TRACKED_MISMATCHES) {
+                                                $mismatchedIdsList[] = $log['id'];
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -162,7 +201,10 @@ class IntegrityCheckJob
 
                             if ($currentStateHash !== $latestStateHash) {
                                 $liveStateErrorsCount++;
-                                $mismatchedDocumentTrackingCodes[] = $documentData['tracking_code'];
+                                // Cap stored tracking codes to avoid an unbounded list in the results JSON
+                                if (count($mismatchedDocumentTrackingCodes) < self::MAX_TRACKED_MISMATCHES) {
+                                    $mismatchedDocumentTrackingCodes[] = $documentData['tracking_code'];
+                                }
                                 $documentObj = \App\Models\Document::findById($documentData['id']);
                                 EventDispatcher::dispatch(new IntegrityCheckFailed($documentObj, 'Verification Scan'));
                             }
@@ -180,7 +222,8 @@ class IntegrityCheckJob
                 } // End while true
             } // End if totalDocuments > 0
 
-            $verifiedPercentage = ($totalLogs > 0) ? (($totalLogs - (count($mismatchedIds))) / $totalLogs) * 100 : 100;
+            // Use $mismatchedIdsCount (the true total) so the percentage stays accurate even when the stored list is capped
+            $verifiedPercentage = ($totalLogs > 0) ? (($totalLogs - $mismatchedIdsCount) / $totalLogs) * 100 : 100;
 
             $results = [
                 'verified_percentage' => round($verifiedPercentage, 2),
@@ -188,7 +231,8 @@ class IntegrityCheckJob
                 'total_logs' => $totalLogs,
                 'invalid_logs' => $invalidLogsCount,
                 'invalid_signatures' => $invalidSignaturesCount,
-                'mismatched_ids' => $mismatchedIds,
+                'mismatched_ids' => $mismatchedIdsList,
+                'total_mismatched_ids' => $mismatchedIdsCount,
                 'live_state_errors_count' => $liveStateErrorsCount,
                 'mismatched_document_tracking_codes' => $mismatchedDocumentTrackingCodes,
             ];
