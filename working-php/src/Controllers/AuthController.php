@@ -32,6 +32,10 @@ class AuthController
 
         if (!empty($errors)) {
             $_SESSION['error'] = implode("<br>", $errors);
+            $_SESSION['field_errors'] = $errors;
+            $old = $_POST;
+            unset($old['password']);
+            $_SESSION['old'] = $old;
             header("Location: /login");
             exit;
         }
@@ -67,6 +71,13 @@ class AuthController
         } else {
             // Failed login
             $_SESSION['error'] = "These credentials do not match our records.";
+            $_SESSION['field_errors'] = [
+                'email' => 'Invalid username or password.',
+                'password' => 'Invalid username or password.'
+            ];
+            $old = $_POST;
+            unset($old['password']);
+            $_SESSION['old'] = $old;
             header("Location: /login");
             exit;
         }

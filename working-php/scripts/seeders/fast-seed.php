@@ -6,6 +6,96 @@ require BASE_PATH . '/vendor/autoload.php';
 use App\Core\Database;
 use App\Core\IntegrityManager;
 
+class WeightedNameGenerator {
+    private array $firstNames = [];
+    private array $lastNames = [];
+    private int $totalFirstWeight = 0;
+    private int $totalLastWeight = 0;
+
+    /**
+     * Load name dataset from JSON file and pre-calculate total weights for sampling.
+     * Uses try/catch to ensure robust execution if file or JSON parsing fails.
+     */
+    public function __construct(string $jsonPath) {
+        if (!file_exists($jsonPath)) {
+            return;
+        }
+
+        try {
+            $content = file_get_contents($jsonPath);
+            if ($content === false) {
+                return;
+            }
+            $data = json_decode($content, true);
+            if (!is_array($data)) {
+                return;
+            }
+
+            $this->firstNames = $data['first_names'] ?? [];
+            $this->lastNames = $data['last_names'] ?? [];
+
+            foreach ($this->firstNames as $fn) {
+                $this->totalFirstWeight += (int)($fn['weight'] ?? 0);
+            }
+            foreach ($this->lastNames as $ln) {
+                $this->totalLastWeight += (int)($ln['weight'] ?? 0);
+            }
+        } catch (\Throwable $e) {
+            error_log("WeightedNameGenerator failed to parse name data: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Draw an item from a list of weighted items using random number generation within accumulated weight boundaries.
+     */
+    private function drawWeightedItem(array $items, int $totalWeight): string {
+        if (empty($items) || $totalWeight <= 0) {
+            return 'Guest';
+        }
+
+        $rand = mt_rand(1, $totalWeight);
+        $current = 0;
+        foreach ($items as $item) {
+            $current += $item['weight'];
+            if ($rand <= $current) {
+                return $item['name'];
+            }
+        }
+
+        return $items[0]['name'];
+    }
+
+    /**
+     * Generate a realistic full name with weighted multi-word first names and a last name.
+     */
+    public function getRandomFullName(): string {
+        if (empty($this->firstNames) || empty($this->lastNames)) {
+            return 'Seeded Guest ' . rand(100, 999);
+        }
+
+        // Probability distribution: 80% 1 first name word, 18% 2 words, 2% 3 words
+        $p = mt_rand(1, 100);
+        $wordCount = 1;
+        if ($p > 98) {
+            $wordCount = 3;
+        } elseif ($p > 80) {
+            $wordCount = 2;
+        }
+
+        $selectedFirstNames = [];
+        for ($w = 0; $w < $wordCount; $w++) {
+            $fn = $this->drawWeightedItem($this->firstNames, $this->totalFirstWeight);
+            if ($w > 0 && in_array($fn, $selectedFirstNames, true)) {
+                $fn = $this->drawWeightedItem($this->firstNames, $this->totalFirstWeight);
+            }
+            $selectedFirstNames[] = $fn;
+        }
+
+        $lastName = $this->drawWeightedItem($this->lastNames, $this->totalLastWeight);
+        return implode(' ', $selectedFirstNames) . ' ' . $lastName;
+    }
+}
+
 // Load config or bootstrap needed stuff
 $docsToCreate = isset($argv[1]) ? (int)$argv[1] : 10000;
 $chunkSize = 2500; // Safe for MySQL max_allowed_packet to prevent locking
@@ -203,6 +293,7 @@ function skipNonWorkingDays(&$ts, $forward = true) {
 }
 
 $globalDocIndex = 0;
+$nameGenerator = new WeightedNameGenerator(__DIR__ . '/names_data.json');
 
 while ($totalProcessed < $docsToCreate) {
     $currentChunk = min($chunkSize, $docsToCreate - $totalProcessed);
@@ -225,7 +316,7 @@ while ($totalProcessed < $docsToCreate) {
         $hexIndex = strtoupper(dechex($globalDocIndex));
         $randomPad = strtoupper(substr(sha1(uniqid('', true)), 0, 10 - strlen($hexIndex)));
         $trackingCode = 'DEPED-' . $randomPad . $hexIndex;
-        $guestInfo = json_encode(['name' => "Fast Guest $globalDocIndex", 'email' => "fast$globalDocIndex@test.com", 'phone' => '0912']);
+        $guestInfo = json_encode(['name' => $nameGenerator->getRandomFullName(), 'email' => "fast$globalDocIndex@test.com", 'phone' => '0912']);
         
         $isRecent = (mt_rand()/mt_getrandmax()) < 0.4;
         $ts = time();

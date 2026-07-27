@@ -223,6 +223,73 @@ function calculateLogHash(docId, userId, action, timestampStr, prevHash, stateHa
     return crypto.createHash('sha256').update(JSON.stringify(data)).digest('hex');
 }
 
+/**
+ * Generates realistic Philippine-style guest names using frequency-weighted
+ * first and last names loaded from JSON dataset to make seeded document history believable.
+ */
+class WeightedNameGenerator {
+    constructor(jsonPath) {
+        this.firstNames = [];
+        this.lastNames = [];
+        this.totalFirstWeight = 0;
+        this.totalLastWeight = 0;
+
+        try {
+            if (fs.existsSync(jsonPath)) {
+                const raw = fs.readFileSync(jsonPath, 'utf8');
+                const data = JSON.parse(raw);
+                this.firstNames = data.first_names || [];
+                this.lastNames = data.last_names || [];
+                this.totalFirstWeight = this.firstNames.reduce((acc, x) => acc + x.weight, 0);
+                this.totalLastWeight = this.lastNames.reduce((acc, x) => acc + x.weight, 0);
+            }
+        } catch (e) {
+            console.warn('Warning: Could not load names_data.json, using fallback names.', e.message);
+        }
+    }
+
+    drawWeightedItem(items, totalWeight) {
+        if (!items.length || totalWeight <= 0) return 'Guest';
+        let rand = Math.floor(Math.random() * totalWeight) + 1;
+        let current = 0;
+        for (const item of items) {
+            current += item.weight;
+            if (rand <= current) {
+                return item.name;
+            }
+        }
+        return items[0].name;
+    }
+
+    getRandomFullName() {
+        if (!this.firstNames.length || !this.lastNames.length) {
+            return 'Seeded Guest ' + Math.floor(Math.random() * 900 + 100);
+        }
+
+        const p = Math.random() * 100;
+        let wordCount = 1;
+        if (p > 98) {
+            wordCount = 3;
+        } else if (p > 80) {
+            wordCount = 2;
+        }
+
+        const selectedFirstNames = [];
+        for (let w = 0; w < wordCount; w++) {
+            let fn = this.drawWeightedItem(this.firstNames, this.totalFirstWeight);
+            if (w > 0 && selectedFirstNames.includes(fn)) {
+                fn = this.drawWeightedItem(this.firstNames, this.totalFirstWeight);
+            }
+            selectedFirstNames.push(fn);
+        }
+
+        const lastName = this.drawWeightedItem(this.lastNames, this.totalLastWeight);
+        return selectedFirstNames.join(' ') + ' ' + lastName;
+    }
+}
+
+const nameGenerator = new WeightedNameGenerator(path.join(__dirname, 'names_data.json'));
+
 async function processDocumentAPI(i, deptPools, departmentNames, guestClient, purposesDb, districts) {
     const randomPurposeObj = purposesDb[Math.floor(Math.random() * purposesDb.length)];
     const randomDistrict = districts[Math.floor(Math.random() * districts.length)];
@@ -230,7 +297,7 @@ async function processDocumentAPI(i, deptPools, departmentNames, guestClient, pu
 
     // 1. GUEST SUBMIT
     const res = await guestClient.postForm('/submit-document', {
-        guest_name: `Seeded Guest ${i}`,
+        guest_name: nameGenerator.getRandomFullName(),
         guest_email: `guest${i}@example.com`,
         guest_phone: '09123456789',
         district: randomDistrict,
