@@ -8,69 +8,76 @@
             
             <div class="mb-5">
                 <label for="guest_name" class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Your Full Name</label>
-                <input type="text" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white" id="guest_name" name="guest_name" required>
+                <input type="text" class="w-full px-4 py-2 border <?= field_error_class('guest_name') ?> rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white" id="guest_name" name="guest_name" value="<?= old('guest_name') ?>" required>
+                <?php if (has_error('guest_name')): ?><p class="mt-1 text-xs text-red-600 dark:text-red-400 font-medium"><?= error_msg('guest_name') ?></p><?php endif; ?>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
                 <div>
                     <label for="guest_email" class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Your Email Address (Optional)</label>
-                    <input type="email" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white" id="guest_email" name="guest_email">
+                    <input type="email" class="w-full px-4 py-2 border <?= field_error_class('guest_email') ?> rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white" id="guest_email" name="guest_email" value="<?= old('guest_email') ?>">
+                    <?php if (has_error('guest_email')): ?><p class="mt-1 text-xs text-red-600 dark:text-red-400 font-medium"><?= error_msg('guest_email') ?></p><?php endif; ?>
                 </div>
                 <div>
                     <label for="guest_phone" class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Your Phone Number</label>
-                    <input type="text" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white" id="guest_phone" name="guest_phone" inputmode="numeric" required>
+                    <input type="text" class="w-full px-4 py-2 border <?= field_error_class('guest_phone') ?> rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white" id="guest_phone" name="guest_phone" inputmode="numeric" value="<?= old('guest_phone') ?>" required>
+                    <?php if (has_error('guest_phone')): ?><p class="mt-1 text-xs text-red-600 dark:text-red-400 font-medium"><?= error_msg('guest_phone') ?></p><?php endif; ?>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
                 <div>
                     <label for="district" class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">District</label>
-                    <select class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white" id="district" name="district" required>
-                        <option selected disabled value="">Choose a district...</option>
-                        <option value="East I District">East I District</option>
-                        <option value="East II District">East II District</option>
-                        <option value="South I District">South I District</option>
-                        <option value="South II District">South II District</option>
-                        <option value="West I District">West I District</option>
-                        <option value="West II District">West II District</option>
-                        <option value="North I District">North I District</option>
-                        <option value="North II District">North II District</option>
-                        <option value="North III District">North III District</option>
-                        <option value="City Central District">City Central District</option>
+                    <select class="w-full px-4 py-2 border <?= field_error_class('district') ?> rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white" id="district" name="district" required>
+                        <option <?= !old('district') ? 'selected' : '' ?> disabled value="">Choose a district...</option>
+                        <option value="East I District" <?= old('district') === 'East I District' ? 'selected' : '' ?>>East I District</option>
+                        <option value="East II District" <?= old('district') === 'East II District' ? 'selected' : '' ?>>East II District</option>
+                        <option value="South I District" <?= old('district') === 'South I District' ? 'selected' : '' ?>>South I District</option>
+                        <option value="South II District" <?= old('district') === 'South II District' ? 'selected' : '' ?>>South II District</option>
+                        <option value="West I District" <?= old('district') === 'West I District' ? 'selected' : '' ?>>West I District</option>
+                        <option value="West II District" <?= old('district') === 'West II District' ? 'selected' : '' ?>>West II District</option>
+                        <option value="North I District" <?= old('district') === 'North I District' ? 'selected' : '' ?>>North I District</option>
+                        <option value="North II District" <?= old('district') === 'North II District' ? 'selected' : '' ?>>North II District</option>
+                        <option value="North III District" <?= old('district') === 'North III District' ? 'selected' : '' ?>>North III District</option>
+                        <option value="City Central District" <?= old('district') === 'City Central District' ? 'selected' : '' ?>>City Central District</option>
                     </select>
+                    <?php if (has_error('district')): ?><p class="mt-1 text-xs text-red-600 dark:text-red-400 font-medium"><?= error_msg('district') ?></p><?php endif; ?>
                 </div>
                 <div>
                     <label for="department" class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Unit/Department</label>
-                    <select class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white" id="department" name="department" required>
-                        <option selected disabled value="">Choose a unit/department...</option>
+                    <select class="w-full px-4 py-2 border <?= field_error_class('department') ?> rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white" id="department" name="department" required>
+                        <option <?= !old('department') ? 'selected' : '' ?> disabled value="">Choose a unit/department...</option>
                         <?php foreach ($departments as $dept): ?>
-                            <option value="<?= htmlspecialchars($dept['name']) ?>"><?= htmlspecialchars($dept['name']) ?></option>
+                            <option value="<?= htmlspecialchars($dept['name']) ?>" <?= old('department') === $dept['name'] ? 'selected' : '' ?>><?= htmlspecialchars($dept['name']) ?></option>
                         <?php endforeach; ?>
                     </select>
+                    <?php if (has_error('department')): ?><p class="mt-1 text-xs text-red-600 dark:text-red-400 font-medium"><?= error_msg('department') ?></p><?php endif; ?>
                 </div>
             </div>
 
             <div class="mb-5">
                 <label for="title" class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Document Title</label>
-                <input type="text" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white" id="title" name="title" required placeholder="N/A if inapplicable.">
+                <input type="text" class="w-full px-4 py-2 border <?= field_error_class('title') ?> rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white" id="title" name="title" value="<?= old('title') ?>" required placeholder="N/A if inapplicable.">
+                <?php if (has_error('title')): ?><p class="mt-1 text-xs text-red-600 dark:text-red-400 font-medium"><?= error_msg('title') ?></p><?php endif; ?>
             </div>
 
             <div class="mb-5">
                 <label for="purpose-select" class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">1. Select Purpose of Request</label>
-                <select class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white" id="purpose-select" name="purpose_id" required>
-                    <option selected disabled value="">Choose an option...</option>
+                <select class="w-full px-4 py-2 border <?= field_error_class('purpose_id') ?> rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white" id="purpose-select" name="purpose_id" required>
+                    <option <?= !old('purpose_id') ? 'selected' : '' ?> disabled value="">Choose an option...</option>
                     <?php foreach ($purposes as $purpose): ?>
-                        <option value="<?= $purpose['id'] ?>" data-requirements="<?= htmlspecialchars(json_encode($purpose['requirements'])) ?>">
+                        <option value="<?= $purpose['id'] ?>" <?= old('purpose_id') == $purpose['id'] ? 'selected' : '' ?> data-requirements="<?= htmlspecialchars(json_encode($purpose['requirements'])) ?>">
                             <?= htmlspecialchars($purpose['name']) ?>
                         </option>
                     <?php endforeach; ?>
-                    <option value="0">Other (Please specify)</option>
+                    <option value="0" <?= old('purpose_id') === '0' ? 'selected' : '' ?>>Other (Please specify)</option>
                 </select>
+                <?php if (has_error('purpose_id')): ?><p class="mt-1 text-xs text-red-600 dark:text-red-400 font-medium"><?= error_msg('purpose_id') ?></p><?php endif; ?>
             </div>
 
             <div class="mb-5 hidden" id="other-purpose-input">
                 <label for="other_purpose_text" class="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-2">Please Specify Your Purpose</label>
-                <input type="text" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white" id="other_purpose_text" name="other_purpose_text">
+                <input type="text" class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white" id="other_purpose_text" name="other_purpose_text" value="<?= old('other_purpose_text') ?>">
             </div>
 
             <div id="requirements-section" class="mb-5 hidden">
@@ -300,3 +307,4 @@
         });
     });
 </script>
+<?php clear_form_flash(); ?>

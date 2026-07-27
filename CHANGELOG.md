@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-07-27 10:43
+
+**Version:** 1.19.0-Alpha+202607271043
+
+### Fixed
+- Replaced static placeholder guest names (`"Fast Guest 1"`, `"Seeded Guest 1"`) in `fast-seed.php` and `seed.js` with believable weighted demographic name generation.
+- Fixed form input loss on validation failure in `login.php` and `welcome.php`. Valid fields now retain previously entered values across redirects while invalid fields that triggered constraint errors are cleared out and highlighted with high-visibility red borders (`border-red-500 ring-2 ring-red-500/20`) and inline error messages.
+
+### Added
+- Added `working-php/scripts/seeders/build-names-json.py` to extract 1,000 forenames and 994 lastnames with population weights from `pop_names.csv` (ISO-8859-1) into a shared UTF-8 dataset `working-php/scripts/seeders/names_data.json`.
+- Integrated `WeightedNameGenerator` class into `working-php/scripts/seeders/fast-seed.php` and `working-php/scripts/seeders/seed.js` using roulette-wheel sampling and a multi-word forename distribution (80% single, 18% double, 2% triple first names) to produce believable Filipino names with accented characters intact (*García*, *Rodríguez*, *Fernández*, *López*, *Pérez*, *Sánchez*, *Martínez*, *de León*).
+- Added global form flash helpers (`has_error`, `old`, `error_msg`, `field_error_class`, `clear_form_flash`) in `working-php/src/helpers.php` to handle session flash inputs (`$_SESSION['old']`) and field error maps (`$_SESSION['field_errors']`).
+
 ## 2026-07-26 15:06
 
 **Version:** 1.18.0-Release+202607261506

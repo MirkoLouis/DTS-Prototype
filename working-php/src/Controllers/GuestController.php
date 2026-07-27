@@ -51,6 +51,8 @@ class GuestController
 
         if (!empty($errors)) {
             $_SESSION['error'] = implode("<br>", $errors);
+            $_SESSION['field_errors'] = $errors;
+            $_SESSION['old'] = $_POST;
             header("Location: /");
             exit;
         }
@@ -65,6 +67,7 @@ class GuestController
             $documentId = $result['document_id'];
         } catch (\Exception $e) {
             $_SESSION['error'] = "An error occurred during submission: " . $e->getMessage();
+            $_SESSION['old'] = $_POST;
             header("Location: /");
             exit;
         }
