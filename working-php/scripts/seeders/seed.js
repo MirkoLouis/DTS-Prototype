@@ -574,21 +574,43 @@ async function timeTravelRetrofit(connection, documentIds) {
     const refDate = new Date();
     refDate.setUTCHours(17, 0, 0, 0);
 
-    for (const docId of documentIds) {
+    const sortedDocIds = [...documentIds].sort((a, b) => Number(a) - Number(b));
+    const totalDocs = sortedDocIds.length;
+    const docsByDate = {};
+
+    sortedDocIds.forEach((docId, index) => {
+        const progress = index / Math.max(1, totalDocs - 1);
+        let cTime = new Date(refDate.getTime());
+        cTime.setUTCDate(cTime.getUTCDate() - Math.floor((1 - progress) * 365 * 3));
+        cTime = skipWeekend(cTime, 'backward');
+        const dateKey = cTime.toISOString().split('T')[0];
+        if (!docsByDate[dateKey]) docsByDate[dateKey] = [];
+        docsByDate[dateKey].push(docId);
+    });
+
+    const docStartTimes = {};
+    Object.keys(docsByDate).forEach(dateKey => {
+        const docList = docsByDate[dateKey];
+        const times = [];
+        docList.forEach(() => {
+            const d = new Date(dateKey + 'T00:00:00Z');
+            const hour = getWeightedPeakHour();
+            const min = Math.floor(Math.random() * 60);
+            const sec = Math.floor(Math.random() * 60);
+            d.setUTCHours(hour, min, sec, 0);
+            times.push(d);
+        });
+        times.sort((a, b) => a.getTime() - b.getTime());
+        docList.forEach((id, i) => {
+            docStartTimes[id] = times[i];
+        });
+    });
+
+    for (const docId of sortedDocIds) {
         const docLogs = logsByDoc[docId] || [];
         if (docLogs.length === 0) continue;
 
-        const isRecent = Math.random() < 0.40;
-        let cTime = new Date(refDate.getTime());
-        if (isRecent) {
-            cTime.setUTCDate(cTime.getUTCDate() - (Math.floor(Math.random() * 30) + 1));
-        } else {
-            cTime.setUTCFullYear(cTime.getUTCFullYear() - Math.floor(Math.random() * 5));
-            cTime.setUTCDate(cTime.getUTCDate() - Math.floor(Math.random() * 365));
-        }
-        cTime.setUTCHours(Math.floor(Math.random() * 9) + 8);
-        cTime.setUTCMinutes(Math.floor(Math.random() * 60));
-        cTime = skipWeekend(cTime, 'backward');
+        let cTime = new Date(docStartTimes[docId].getTime());
 
         let previousHash = 'genesis_hash';
         let firstSqlDate = null;

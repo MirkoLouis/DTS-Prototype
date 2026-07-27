@@ -160,8 +160,17 @@ class DocumentQueryService
         });
         
         if ($cursor) {
-            $filters['sql'] .= " AND d.id < :cursor";
-            $filters['params'][':cursor'] = $cursor;
+            $parts = explode('_', $cursor);
+            if (count($parts) === 2) {
+                $filters['sql'] .= " AND (d.created_at < :c_time1 OR (d.created_at = :c_time2 AND d.id < :c_id))";
+                $filters['params'][':c_time1'] = $parts[0];
+                $filters['params'][':c_time2'] = $parts[0];
+                $filters['params'][':c_id'] = (int)$parts[1];
+            } else {
+                // Fallback for legacy single ID cursor
+                $filters['sql'] .= " AND d.id < :cursor";
+                $filters['params'][':cursor'] = $cursor;
+            }
         }
 
         $limit = $perPage + 1;
@@ -170,7 +179,7 @@ class DocumentQueryService
                 FROM documents d 
                 LEFT JOIN purposes p ON d.purpose_id = p.id 
                 WHERE 1=1" . $filters['sql'] . " 
-                ORDER BY d.id DESC
+                ORDER BY d.created_at DESC, d.id DESC
                 LIMIT {$limit}";
                 
         $stmt = $this->db->query($sql, $filters['params']);
@@ -178,7 +187,7 @@ class DocumentQueryService
         
         $nextCursor = null;
         if (count($documents) > $perPage) {
-            $nextCursor = $documents[$perPage - 1]['id'];
+            $nextCursor = $documents[$perPage - 1]['created_at'] . '_' . $documents[$perPage - 1]['id'];
         }
         
         $paginator = new \App\Utils\CursorPaginator($documents, $perPage, $nextCursor, $totalItems, '?' . http_build_query(array_diff_key($requestParams, ['cursor' => ''])));

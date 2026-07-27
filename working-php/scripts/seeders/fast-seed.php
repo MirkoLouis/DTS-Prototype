@@ -426,6 +426,36 @@ function getRandomDocumentTitle(string $purposeName, int $index, array $titlesDa
     return "Fast Seeded Doc $index";
 }
 
+// Pre-calculate date-grouped intra-day sorted timestamps for all documents
+echo "📅 Pre-calculating date-grouped intra-day timestamps...\n";
+$docTimestamps = [];
+$timeSpanSeconds = 365 * 3 * 86400;
+$startBaseline = time() - $timeSpanSeconds;
+
+$docsByDate = [];
+for ($idx = 1; $idx <= $docsToCreate; $idx++) {
+    $progress = ($idx - 1) / max(1, $docsToCreate - 1);
+    $rawTs = (int)($startBaseline + ($progress * $timeSpanSeconds));
+    $rawTs = min(time(), $rawTs);
+    skipNonWorkingDays($rawTs, false);
+    $dateStr = date('Y-m-d', $rawTs);
+    $docsByDate[$dateStr][] = $idx;
+}
+
+foreach ($docsByDate as $dateStr => $indices) {
+    $dayTs = [];
+    foreach ($indices as $iVal) {
+        $h = getWeightedPeakHour();
+        $m = rand(0, 59);
+        $s = rand(0, 59);
+        $dayTs[] = strtotime("{$dateStr} {$h}:{$m}:{$s}");
+    }
+    sort($dayTs);
+    foreach ($indices as $k => $iVal) {
+        $docTimestamps[$iVal] = $dayTs[$k];
+    }
+}
+
 while ($totalProcessed < $docsToCreate) {
     $currentChunk = min($chunkSize, $docsToCreate - $totalProcessed);
     
@@ -450,15 +480,7 @@ while ($totalProcessed < $docsToCreate) {
         $person = $nameGenerator->getRandomPerson();
         $guestInfo = json_encode(['name' => $person['fullName'], 'email' => $person['email'], 'phone' => $person['phone']]);
         
-        $isRecent = (mt_rand()/mt_getrandmax()) < 0.4;
-        $ts = time();
-        if ($isRecent) {
-            $ts -= rand(1, 30) * 86400;
-        } else {
-            $ts -= rand(31, 365 * 3) * 86400;
-        }
-        $ts = strtotime(date('Y-m-d', $ts) . ' ' . sprintf('%02d', getWeightedPeakHour()) . ':' . sprintf('%02d', rand(0, 59)) . ':' . sprintf('%02d', rand(0, 59)));
-        skipNonWorkingDays($ts, false);
+        $ts = $docTimestamps[$globalDocIndex] ?? time();
         $createdAt = date('Y-m-d H:i:s', $ts);
         
         $routeNames = [];
@@ -553,6 +575,7 @@ while ($totalProcessed < $docsToCreate) {
                 'prev_hash' => $prevHash,
                 'state_hash' => $stateHash,
                 'signature' => $signature,
+                'snapshot' => json_encode($docDataForHash),
                 'sql_date' => $sqlDate,
                 'iso_date' => $isoDate
             ];
@@ -667,8 +690,8 @@ while ($totalProcessed < $docsToCreate) {
             $dataForLogHash = [$docId, $uId, $tmpl['action'], $tmpl['iso_date'], $prevHash, $tmpl['state_hash'], $tmpl['signature']];
             $newHash = hash('sha256', json_encode($dataForLogHash, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
             
-            $logValues[] = '(?,?,?,?,?,?,?,?,?,?)';
-            array_push($logParams, $docId, $tmpl['user_id'], $tmpl['action'], $tmpl['remarks'], $prevHash, $newHash, $tmpl['state_hash'], $tmpl['signature'], $tmpl['sql_date'], $tmpl['sql_date']);
+            $logValues[] = '(?,?,?,?,?,?,?,?,?,?,?)';
+            array_push($logParams, $docId, $tmpl['user_id'], $tmpl['action'], $tmpl['remarks'], $prevHash, $newHash, $tmpl['state_hash'], $tmpl['signature'], $tmpl['snapshot'], $tmpl['sql_date'], $tmpl['sql_date']);
             
             $prevHash = $newHash;
         }
@@ -677,11 +700,11 @@ while ($totalProcessed < $docsToCreate) {
     // BULK INSERT LOGS
     if (!empty($logValues)) {
         $logChunks = array_chunk($logValues, 2000); 
-        $paramChunks = array_chunk($logParams, 2000 * 10);
+        $paramChunks = array_chunk($logParams, 2000 * 11);
         
         foreach ($logChunks as $idx => $vChunk) {
             $pChunk = $paramChunks[$idx];
-            $sql = "INSERT INTO document_logs (document_id, user_id, action, remarks, previous_hash, hash, document_state_hash, signature, created_at, updated_at) VALUES " . implode(',', $vChunk);
+            $sql = "INSERT INTO document_logs (document_id, user_id, action, remarks, previous_hash, hash, document_state_hash, signature, document_snapshot, created_at, updated_at) VALUES " . implode(',', $vChunk);
             $stmt = $conn->prepare($sql);
             $stmt->execute($pChunk);
         }

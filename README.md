@@ -61,6 +61,7 @@ Comprehensive user manuals are provided in [working-php/documentation/user_manua
 - 📗 **[Records Officer Manual](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/documentation/user_manuals/officer_manual.md):** Document intake, route finalization, QR tracking form printing, camera scanning, and releasing.
 - 📙 **[Department Staff Manual](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/documentation/user_manuals/staff_manual.md):** Departmental task processing, physical folder receipt, action remarks, and digital signatures.
 - 🔐 **[Cryptographic Logs Explained](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/documentation/CRYPTOGRAPHIC_LOGS_EXPLAINED.md):** How hash-chain logs work (mechanics), why seals/signatures match administrative chain-of-custody needs, and cryptography vs encryption.
+- 📖 **[Cryptographic Hash Verification Layman Guide](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/documentation/HASH_VERIFICATION_LAYMAN_GUIDE.md):** Simple, step-by-step breakdown of how document hashes, payload state hashes, digital signatures, and tamper detection work without complex jargon.
 - 🎯 **[Value Proposition & Multi-Stakeholder Pitch](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/documentation/PITCH_AND_VALUE_PROPOSITION.md):** Architectural value propositions and technical pitches for IT Admins, Executives, Cryptographers, Office Staff, and Citizens.
 
 ---
