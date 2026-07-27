@@ -262,6 +262,7 @@ $conn = $db->getConnection();
 $conn->exec("SET SESSION wait_timeout = 28800");
 $conn->exec("SET SESSION net_write_timeout = 3600");
 $conn->exec("SET SESSION net_read_timeout = 3600");
+$conn->exec("SET SESSION innodb_lock_wait_timeout = 3600");
 
 // --- Truncate & Flush Active Sessions ---
 echo "🧹 Cleaning tables, active session files, and response caches...\n";
@@ -295,7 +296,7 @@ $conn->exec('TRUNCATE TABLE cache');
 $conn->exec('TRUNCATE TABLE cache_locks');
 $conn->exec('TRUNCATE TABLE user_public_key_histories');
 $conn->exec("UPDATE users SET public_key = NULL, private_key = NULL, security_key_set_at = NULL");
-$conn->exec('SET FOREIGN_KEY_CHECKS = 1');
+// $conn->exec('SET FOREIGN_KEY_CHECKS = 1'); // Keep disabled during massive inserts
 
 // --- Preload Data ---
 echo "🔐 Ensuring user digital keys exist...\n";
@@ -766,6 +767,8 @@ $conn->commit();
 echo "\n🔒 Resetting all digital signatures for first-time login...\n";
 $conn->exec("UPDATE user_public_key_histories SET activated_at = '2000-01-01 00:00:00', deactivated_at = '2038-01-01 00:00:00', updated_at = NOW() WHERE deactivated_at IS NULL OR deactivated_at > '2000-01-01 00:00:00'");
 $conn->exec("UPDATE users SET public_key = NULL, private_key = NULL, security_key_set_at = NULL");
+
+$conn->exec('SET FOREIGN_KEY_CHECKS = 1');
 
 echo "\n📈 Backfilling daily departmental metrics...\n";
 passthru('php ' . escapeshellarg(BASE_PATH . '/scripts/backfill-metrics.php'));

@@ -58,7 +58,7 @@ class NotificationController
             if ($id) {
                 $this->notificationService->markAsRead((int)$id);
             } else {
-                // Mark all as read
+                // Clear all notifications
                 $this->notificationService->markAsRead();
             }
 

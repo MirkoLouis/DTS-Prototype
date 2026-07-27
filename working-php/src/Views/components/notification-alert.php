@@ -6,7 +6,7 @@ $title = htmlspecialchars($notification['title']);
 $message = htmlspecialchars($notification['message']);
 
 $borderColor = 'border-blue-500';
-$bgColor = 'bg-blue-50 dark:bg-blue-900/30';
+$bgColor = 'bg-blue-50 dark:bg-blue-900';
 $iconColor = 'text-blue-700 dark:text-blue-400';
 $titleColor = 'text-blue-800 dark:text-blue-300';
 $textColor = 'text-blue-700 dark:text-blue-400';
@@ -14,21 +14,21 @@ $iconSvg = '<path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25
 
 if ($type === 'success') {
     $borderColor = 'border-green-500';
-    $bgColor = 'bg-green-50 dark:bg-green-900/30';
+    $bgColor = 'bg-green-50 dark:bg-green-900';
     $iconColor = 'text-green-700 dark:text-green-400';
     $titleColor = 'text-green-800 dark:text-green-300';
     $textColor = 'text-green-700 dark:text-green-400';
     $iconSvg = '<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />';
 } elseif ($type === 'error') {
     $borderColor = 'border-red-500';
-    $bgColor = 'bg-red-50 dark:bg-red-900/30';
+    $bgColor = 'bg-red-50 dark:bg-red-900';
     $iconColor = 'text-red-700 dark:text-red-400';
     $titleColor = 'text-red-800 dark:text-red-300';
     $textColor = 'text-red-700 dark:text-red-400';
     $iconSvg = '<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />';
 } elseif ($type === 'warning') {
     $borderColor = 'border-yellow-500';
-    $bgColor = 'bg-yellow-50 dark:bg-yellow-900/30';
+    $bgColor = 'bg-yellow-50 dark:bg-yellow-900';
     $iconColor = 'text-yellow-700 dark:text-yellow-400';
     $titleColor = 'text-yellow-800 dark:text-yellow-300';
     $textColor = 'text-yellow-700 dark:text-yellow-400';
