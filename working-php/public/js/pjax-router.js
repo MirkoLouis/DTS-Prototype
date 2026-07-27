@@ -72,15 +72,24 @@
 
     // Core navigation function — fetches target URL, parses full HTML,
     // swaps #pjax-content, re-runs scripts, fires lifecycle event.
-    async function navigateTo(url) {
+    async function navigateTo(url, pushHistory = true) {
+        // Track origin URL before entering a document page from a non-document page
+        const currentPath = window.location.pathname;
+        const targetPath = url.split('?')[0].split('#')[0];
+        if (!currentPath.includes('/documents/') && targetPath.includes('/documents/')) {
+            sessionStorage.setItem('dts_doc_origin', currentPath + window.location.search);
+        }
+
         // Abort previous in-flight PJAX fetch AND all chart/poll requests
         // that registered themselves on window.__pjaxController.
         refreshController();
 
         showBar();
 
-        // Optimistically push the URL so the browser address bar updates instantly
-        history.pushState({ pjax: true, url }, '', url);
+        if (pushHistory) {
+            // Optimistically push the URL so the browser address bar updates instantly
+            history.pushState({ pjax: true, url }, '', url);
+        }
 
         try {
             const response = await fetch(url, {
@@ -228,7 +237,7 @@
     // --- Browser Back / Forward ---
     window.addEventListener('popstate', (e) => {
         if (e.state && e.state.pjax) {
-            navigateTo(window.location.pathname + window.location.search);
+            navigateTo(window.location.pathname + window.location.search, false);
         } else {
             // Non-PJAX history entry (initial hard load) — full reload for safety
             window.location.reload();
