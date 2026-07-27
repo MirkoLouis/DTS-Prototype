@@ -30,7 +30,9 @@ class ReleasingController
             $workflow = new \App\Services\DocumentWorkflowService();
             $workflow->releaseDocument((int)$id, $currentUser, $pin);
             
-            $_SESSION['success'] = "Document marked as completed and released.";
+            $doc = \App\Models\Document::findById((int)$id);
+            $trackingCode = $doc ? $doc->tracking_code : '';
+            $_SESSION['success'] = "Document {$trackingCode} marked as completed and released.";
         } catch (\Exception $e) {
             if (str_contains($e->getMessage(), 'Action Denied')) {
                 $_SESSION['console_error'] = $e->getMessage();

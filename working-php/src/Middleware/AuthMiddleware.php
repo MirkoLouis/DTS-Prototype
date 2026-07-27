@@ -23,15 +23,15 @@ class AuthMiddleware
             exit;
         }
 
-        // Release the session write lock immediately after reading auth data.
-        // PHP holds an exclusive file lock on the session for the entire request
-        // duration by default. Releasing early prevents concurrent requests (e.g.
-        // a PJAX page navigation while chart API calls are still in-flight) from
-        // blocking in session_start() while waiting for this request to finish.
-        session_write_close();
-
         $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '/';
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+
+        // Release the session write lock early ONLY for read-only API requests (e.g. chart/polling GET endpoints).
+        // For state-mutating requests and web page renders, keep session write open so controllers can set
+        // $_SESSION['success'], $_SESSION['error'], and $_SESSION['info'] flash messages.
+        if ($method === 'GET' && str_starts_with($uri, '/api/')) {
+            session_write_close();
+        }
         
         // Enforce mandatory security key setup for all routes except the key setup page and logout endpoint
         if ($uri !== '/security-key' && $uri !== '/logout') {

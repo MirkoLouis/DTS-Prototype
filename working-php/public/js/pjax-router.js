@@ -173,6 +173,33 @@
                 currentNav.innerHTML = newNav.innerHTML;
             }
 
+            // Synchronize notification bell badge and dropdown list across PJAX swaps
+            const newNotifBtn = newDoc.getElementById('notification-menu-button');
+            const currentNotifBtn = document.getElementById('notification-menu-button');
+            if (newNotifBtn && currentNotifBtn) {
+                currentNotifBtn.innerHTML = newNotifBtn.innerHTML;
+            }
+
+            const newNotifDropdown = newDoc.getElementById('notification-dropdown-menu');
+            const currentNotifDropdown = document.getElementById('notification-dropdown-menu');
+            if (newNotifDropdown && currentNotifDropdown) {
+                currentNotifDropdown.innerHTML = newNotifDropdown.innerHTML;
+            }
+
+            // Sync toast notification container so bottom-right toast modals pop up
+            const newToastContainer = newDoc.getElementById('toast-container');
+            const currentToastContainer = document.getElementById('toast-container');
+            if (newToastContainer && currentToastContainer) {
+                const newToasts = newToastContainer.querySelectorAll('.toast-message');
+                if (newToasts.length > 0) {
+                    console.log(`[DTS PJAX Router] Synchronizing ${newToasts.length} new toast modal(s) into DOM.`);
+                    newToasts.forEach(toast => {
+                        currentToastContainer.appendChild(toast.cloneNode(true));
+                    });
+                }
+            }
+            console.log('[DTS PJAX Router] Notification bell & toasts synchronized.');
+
             // Re-run any <script> tags embedded in the new content (e.g. page-specific JS)
             reExecuteScripts(currentContent);
 

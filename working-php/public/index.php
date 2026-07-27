@@ -199,6 +199,9 @@ $router->get('/api/admin-dashboard/department-load-vs-time', [\App\Controllers\A
 $router->get('/api/admin-dashboard/peak-intake-hours', [\App\Controllers\AdminDashboardController::class, 'getPeakIntakeHoursData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
 
 // Notifications
+$router->get('/api/notifications/unread', [App\Controllers\NotificationController::class, 'getUnread'], [
+    App\Middleware\AuthMiddleware::class
+]);
 $router->post('/api/notifications/mark-read', [App\Controllers\NotificationController::class, 'markAsRead'], [
     App\Middleware\AuthMiddleware::class
 ]);
