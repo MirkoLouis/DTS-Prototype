@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-07-27 17:16
+
+**Version:** 1.23.2-Alpha+202607271716
+
+### Fixed
+- Re-generated `working-php/scripts/seeders/names_data.json` with 100% ASCII compliance by applying Unicode NFD normalization in `build-names-json.py`, transliterating Spanish accents and tildes (`ñ` -> `n`, `á` -> `a`, `í` -> `i`) to reflect real-world fast data entry conventions (*Garcia*, *Rodriguez*, *Fernandez*, *Lopez*, *Perez*, *Sanchez*, *Martinez*, *de Leon*, *Diaz*).
+- Added a name combination blacklist (`isBlacklisted()`) and 10-attempt re-sampling loop to `fast-seed.php` and `seed.js` to filter out unusual or culturally sensitive generated name pairs (e.g. `"Mama Mary"`, `"Mary Mama"`, `"Papa Jesus"`).
+
+### Added
+- N/A
+
 ## 2026-07-27 16:59
 
 **Version:** 1.23.1-Alpha+202607271659
