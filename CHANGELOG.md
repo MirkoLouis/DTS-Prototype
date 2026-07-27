@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-07-27 13:46
+
+**Version:** 1.22.1-Alpha+202607271346
+
+### Fixed
+- Added missing **Document Title** (`$document['title']`) field to the Document Information metadata card in [`show-document.php`](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Views/general/show-document.php).
+
+### Added
+- N/A
+
 ## 2026-07-27 13:42
 
 **Version:** 1.22.0-Release+202607271342
