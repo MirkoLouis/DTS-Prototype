@@ -261,9 +261,50 @@ class WeightedNameGenerator {
         return items[0].name;
     }
 
-    getRandomFullName() {
+    sanitizeForEmail(str) {
+        let s = str.toLowerCase();
+        const charMap = {
+            'á':'a', 'à':'a', 'â':'a', 'ä':'a', 'ã':'a', 'å':'a',
+            'é':'e', 'è':'e', 'ê':'e', 'ë':'e',
+            'í':'i', 'ì':'i', 'î':'i', 'ï':'i',
+            'ó':'o', 'ò':'o', 'ô':'o', 'ö':'o', 'õ':'o',
+            'ú':'u', 'ù':'u', 'û':'u', 'ü':'u',
+            'ñ':'n', 'ç':'c'
+        };
+        s = s.split('').map(c => charMap[c] || c).join('');
+        return s.replace(/[^a-z0-9]/g, '');
+    }
+
+    getRandomDomain() {
+        const domains = [
+            { domain: 'gmail.com', weight: 45 },
+            { domain: 'yahoo.com', weight: 25 },
+            { domain: 'deped.gov.ph', weight: 15 },
+            { domain: 'outlook.com', weight: 8 },
+            { domain: 'hotmail.com', weight: 7 }
+        ];
+        let rand = Math.floor(Math.random() * 100) + 1;
+        let curr = 0;
+        for (const item of domains) {
+            curr += item.weight;
+            if (rand <= curr) return item.domain;
+        }
+        return 'gmail.com';
+    }
+
+    /**
+     * Generate a realistic person profile containing full name, believable email, and phone number.
+     * Uses patterns like firstname_lastname, lastname_firstname, firstnameLastname,
+     * lastnameBirthdate (e.g. march1979, 031979, 1979, 79), and firstnamebirthdate.
+     */
+    getRandomPerson() {
         if (!this.firstNames.length || !this.lastNames.length) {
-            return 'Seeded Guest ' + Math.floor(Math.random() * 900 + 100);
+            const fallbackNum = Math.floor(Math.random() * 900 + 100);
+            return {
+                fullName: 'Seeded Guest ' + fallbackNum,
+                email: `guest${fallbackNum}@gmail.com`,
+                phone: '0917' + String(Math.floor(Math.random() * 10000000)).padStart(7, '0')
+            };
         }
 
         const p = Math.random() * 100;
@@ -284,11 +325,102 @@ class WeightedNameGenerator {
         }
 
         const lastName = this.drawWeightedItem(this.lastNames, this.totalLastWeight);
-        return selectedFirstNames.join(' ') + ' ' + lastName;
+        const fullName = selectedFirstNames.join(' ') + ' ' + lastName;
+
+        // Take up to first 2 first names for email handle construction
+        const emailFirstNames = selectedFirstNames.slice(0, 2);
+        const cleanFirsts = emailFirstNames.map(fn => this.sanitizeForEmail(fn));
+        const cleanLast = this.sanitizeForEmail(lastName);
+
+        const months = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+        const monthShorts = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+        const mIdx = Math.floor(Math.random() * 12);
+        const monthName = months[mIdx];
+        const monthShort = monthShorts[mIdx];
+        const monthNum = String(mIdx + 1).padStart(2, '0');
+
+        const birthYearFull = String(Math.floor(Math.random() * 36) + 1970);
+        const birthYearShort = birthYearFull.substring(2);
+
+        const bdayFormats = [
+            monthName + birthYearFull,
+            monthShort + birthYearFull,
+            monthNum + birthYearFull,
+            birthYearFull,
+            birthYearShort
+        ];
+        const bdaySuffix = bdayFormats[Math.floor(Math.random() * bdayFormats.length)];
+
+        const firstUnderscore = cleanFirsts.join('_');
+        const firstDot = cleanFirsts.join('.');
+        const firstConcat = cleanFirsts.join('');
+        const firstCamel = cleanFirsts.map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('');
+
+        const lastCamel = cleanLast.charAt(0).toUpperCase() + cleanLast.slice(1);
+
+        const patterns = [
+            // 1. firstname_lastname / firstname.lastname
+            `${firstUnderscore}_${cleanLast}`,
+            `${firstDot}.${cleanLast}`,
+            // 2. lastname_firstname / lastname.firstname
+            `${cleanLast}_${firstUnderscore}`,
+            `${cleanLast}.${firstUnderscore}`,
+            // 3. firstnameLastname
+            `${firstCamel}${lastCamel}`,
+            `${firstConcat}${cleanLast}`,
+            // 4. lastnameBirthdate
+            `${cleanLast}${bdaySuffix}`,
+            `${cleanLast}_${bdaySuffix}`,
+            // 5. firstnamebirthdate
+            `${firstConcat}${bdaySuffix}`,
+            `${firstUnderscore}_${bdaySuffix}`,
+            // 6. firstname_lastname + birthdate
+            `${firstUnderscore}_${cleanLast}${bdaySuffix}`,
+            `${firstConcat}_${cleanLast}${birthYearShort}`
+        ];
+
+        const handle = patterns[Math.floor(Math.random() * patterns.length)];
+        const domain = this.getRandomDomain();
+        const email = `${handle}@${domain}`;
+
+        const prefixes = ['0917', '0918', '0920', '0922', '0927', '0939', '0956', '0977', '0998', '0999'];
+        const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
+        const phone = prefix + String(Math.floor(Math.random() * 10000000)).padStart(7, '0');
+
+        return {
+            fullName,
+            email,
+            phone
+        };
+    }
+
+    getRandomFullName() {
+        return this.getRandomPerson().fullName;
     }
 }
 
 const nameGenerator = new WeightedNameGenerator(path.join(__dirname, 'names_data.json'));
+
+/**
+ * Loads realistic document titles grouped by purpose from titles_data.json dataset.
+ */
+let titlesData = {};
+try {
+    const titlesJsonPath = path.join(__dirname, 'titles_data.json');
+    if (fs.existsSync(titlesJsonPath)) {
+        titlesData = JSON.parse(fs.readFileSync(titlesJsonPath, 'utf8'));
+    }
+} catch (e) {
+    console.warn('Warning: Could not load titles_data.json, using fallback titles.', e.message);
+}
+
+function getRandomDocumentTitle(purposeName, index) {
+    if (purposeName && titlesData[purposeName] && titlesData[purposeName].length > 0) {
+        const pool = titlesData[purposeName];
+        return pool[Math.floor(Math.random() * pool.length)];
+    }
+    return `Automated Test Document ${index}`;
+}
 
 async function processDocumentAPI(i, deptPools, departmentNames, guestClient, purposesDb, districts) {
     const randomPurposeObj = purposesDb[Math.floor(Math.random() * purposesDb.length)];
@@ -296,13 +428,14 @@ async function processDocumentAPI(i, deptPools, departmentNames, guestClient, pu
     const randomGuestDept = departmentNames[Math.floor(Math.random() * departmentNames.length)];
 
     // 1. GUEST SUBMIT
+    const guestPerson = nameGenerator.getRandomPerson();
     const res = await guestClient.postForm('/submit-document', {
-        guest_name: nameGenerator.getRandomFullName(),
-        guest_email: `guest${i}@example.com`,
-        guest_phone: '09123456789',
+        guest_name: guestPerson.fullName,
+        guest_email: guestPerson.email,
+        guest_phone: guestPerson.phone,
         district: randomDistrict,
         department: randomGuestDept,
-        title: `Automated Test Document ${i}`,
+        title: getRandomDocumentTitle(randomPurposeObj.name, i),
         purpose_id: randomPurposeObj.id
     });
 
@@ -604,7 +737,7 @@ async function seed() {
         users.forEach(u => deptMap[u.dept_name] = u.email);
         const departmentNames = Object.keys(deptMap).filter(name => name !== 'Records Unit');
 
-        const [purposesDb] = await connection.query("SELECT id, is_official, suggested_route FROM purposes");
+        const [purposesDb] = await connection.query("SELECT id, name, is_official, suggested_route FROM purposes");
         const districts = [
             'East I District', 'East II District', 
             'South I District', 'South II District', 

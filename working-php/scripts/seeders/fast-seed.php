@@ -66,11 +66,56 @@ class WeightedNameGenerator {
     }
 
     /**
-     * Generate a realistic full name with weighted multi-word first names and a last name.
+     * Sanitize string for email handles (remove accents, non-alphanumeric characters, convert to lowercase).
      */
-    public function getRandomFullName(): string {
+    private function sanitizeForEmail(string $str): string {
+        $str = mb_strtolower($str, 'UTF-8');
+        $charMap = [
+            'á'=>'a', 'à'=>'a', 'â'=>'a', 'ä'=>'a', 'ã'=>'a', 'å'=>'a',
+            'é'=>'e', 'è'=>'e', 'ê'=>'e', 'ë'=>'e',
+            'í'=>'i', 'ì'=>'i', 'î'=>'i', 'ï'=>'i',
+            'ó'=>'o', 'ò'=>'o', 'ô'=>'o', 'ö'=>'o', 'õ'=>'o',
+            'ú'=>'u', 'ù'=>'u', 'û'=>'u', 'ü'=>'u',
+            'ñ'=>'n', 'ç'=>'c'
+        ];
+        $str = strtr($str, $charMap);
+        $str = preg_replace('/[^a-z0-9]/', '', $str);
+        return $str;
+    }
+
+    /**
+     * Draw a believable email domain (gmail, yahoo, deped.gov.ph, outlook, hotmail).
+     */
+    private function getRandomDomain(): string {
+        $domains = [
+            'gmail.com' => 45,
+            'yahoo.com' => 25,
+            'deped.gov.ph' => 15,
+            'outlook.com' => 8,
+            'hotmail.com' => 7
+        ];
+        $rand = mt_rand(1, 100);
+        $curr = 0;
+        foreach ($domains as $domain => $weight) {
+            $curr += $weight;
+            if ($rand <= $curr) return $domain;
+        }
+        return 'gmail.com';
+    }
+
+    /**
+     * Generate a realistic person profile containing full name, believable email, and phone number.
+     * Uses patterns like firstname_lastname, lastname_firstname, firstnameLastname,
+     * lastnameBirthdate (e.g. march1979, 031979, 1979, 79), and firstnamebirthdate.
+     */
+    public function getRandomPerson(): array {
         if (empty($this->firstNames) || empty($this->lastNames)) {
-            return 'Seeded Guest ' . rand(100, 999);
+            $fallbackNum = rand(100, 999);
+            return [
+                'fullName' => "Seeded Guest $fallbackNum",
+                'email' => "guest$fallbackNum@gmail.com",
+                'phone' => '0917' . sprintf('%07d', rand(0, 9999999))
+            ];
         }
 
         // Probability distribution: 80% 1 first name word, 18% 2 words, 2% 3 words
@@ -92,7 +137,82 @@ class WeightedNameGenerator {
         }
 
         $lastName = $this->drawWeightedItem($this->lastNames, $this->totalLastWeight);
-        return implode(' ', $selectedFirstNames) . ' ' . $lastName;
+        $fullName = implode(' ', $selectedFirstNames) . ' ' . $lastName;
+
+        // Take up to first 2 first names for email handle construction
+        $emailFirstNames = array_slice($selectedFirstNames, 0, 2);
+        $cleanFirsts = array_map([$this, 'sanitizeForEmail'], $emailFirstNames);
+        $cleanLast = $this->sanitizeForEmail($lastName);
+
+        // Prepare birthdate variations
+        $months = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+        $monthShorts = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+        $mIdx = rand(0, 11);
+        $monthName = $months[$mIdx];
+        $monthShort = $monthShorts[$mIdx];
+        $monthNum = sprintf('%02d', $mIdx + 1);
+
+        $birthYearFull = (string)rand(1970, 2005);
+        $birthYearShort = substr($birthYearFull, 2);
+
+        $bdayFormats = [
+            $monthName . $birthYearFull,       // march1979
+            $monthShort . $birthYearFull,      // mar1979
+            $monthNum . $birthYearFull,        // 031979
+            $birthYearFull,                    // 1979
+            $birthYearShort                    // 79
+        ];
+        $bdaySuffix = $bdayFormats[array_rand($bdayFormats)];
+
+        $firstUnderscore = implode('_', $cleanFirsts);
+        $firstDot = implode('.', $cleanFirsts);
+        $firstConcat = implode('', $cleanFirsts);
+        $firstCamel = implode('', array_map('ucfirst', $cleanFirsts));
+
+        $lastCamel = ucfirst($cleanLast);
+
+        $patterns = [
+            // 1. firstname_lastname / firstname.lastname
+            $firstUnderscore . '_' . $cleanLast,
+            $firstDot . '.' . $cleanLast,
+            // 2. lastname_firstname / lastname.firstname
+            $cleanLast . '_' . $firstUnderscore,
+            $cleanLast . '.' . $firstUnderscore,
+            // 3. firstnameLastname
+            $firstCamel . $lastCamel,
+            $firstConcat . $cleanLast,
+            // 4. lastnameBirthdate
+            $cleanLast . $bdaySuffix,
+            $cleanLast . '_' . $bdaySuffix,
+            // 5. firstnamebirthdate
+            $firstConcat . $bdaySuffix,
+            $firstUnderscore . '_' . $bdaySuffix,
+            // 6. firstname_lastname + birthdate
+            $firstUnderscore . '_' . $cleanLast . $bdaySuffix,
+            $firstConcat . '_' . $cleanLast . $birthYearShort
+        ];
+
+        $handle = $patterns[array_rand($patterns)];
+        $domain = $this->getRandomDomain();
+        $email = $handle . '@' . $domain;
+
+        // Generate realistic 11-digit Philippine mobile phone number (09xxxxxxxx)
+        $prefixes = ['0917', '0918', '0920', '0922', '0927', '0939', '0956', '0977', '0998', '0999'];
+        $prefix = $prefixes[array_rand($prefixes)];
+        $phone = $prefix . sprintf('%07d', rand(0, 9999999));
+
+        return [
+            'fullName' => $fullName,
+            'email' => $email,
+            'phone' => $phone
+        ];
+    }
+
+    /**
+     * Generate a realistic full name with weighted multi-word first names and a last name.
+     */
+    public function getRandomFullName(): string {
+        return $this->getRandomPerson()['fullName'];
     }
 }
 
@@ -149,7 +269,7 @@ echo "🔐 Ensuring user digital keys exist...\n";
 require_once dirname(__DIR__) . '/generate-keys.php';
 
 $departments = $conn->query("SELECT id, name FROM departments")->fetchAll(PDO::FETCH_ASSOC);
-$purposes = $conn->query("SELECT id, is_official, suggested_route FROM purposes")->fetchAll(PDO::FETCH_ASSOC);
+$purposes = $conn->query("SELECT id, name, is_official, suggested_route FROM purposes")->fetchAll(PDO::FETCH_ASSOC);
 $users = $conn->query("SELECT id, department_id, role, private_key FROM users WHERE private_key IS NOT NULL")->fetchAll(PDO::FETCH_ASSOC);
 
 if (empty($departments) || empty($users)) {
@@ -295,6 +415,17 @@ function skipNonWorkingDays(&$ts, $forward = true) {
 $globalDocIndex = 0;
 $nameGenerator = new WeightedNameGenerator(__DIR__ . '/names_data.json');
 
+$titlesDataPath = __DIR__ . '/titles_data.json';
+$titlesData = file_exists($titlesDataPath) ? (json_decode(file_get_contents($titlesDataPath), true) ?: []) : [];
+
+function getRandomDocumentTitle(string $purposeName, int $index, array $titlesData): string {
+    if (!empty($purposeName) && !empty($titlesData[$purposeName])) {
+        $titles = $titlesData[$purposeName];
+        return $titles[array_rand($titles)];
+    }
+    return "Fast Seeded Doc $index";
+}
+
 while ($totalProcessed < $docsToCreate) {
     $currentChunk = min($chunkSize, $docsToCreate - $totalProcessed);
     
@@ -316,7 +447,8 @@ while ($totalProcessed < $docsToCreate) {
         $hexIndex = strtoupper(dechex($globalDocIndex));
         $randomPad = strtoupper(substr(sha1(uniqid('', true)), 0, 10 - strlen($hexIndex)));
         $trackingCode = 'DEPED-' . $randomPad . $hexIndex;
-        $guestInfo = json_encode(['name' => $nameGenerator->getRandomFullName(), 'email' => "fast$globalDocIndex@test.com", 'phone' => '0912']);
+        $person = $nameGenerator->getRandomPerson();
+        $guestInfo = json_encode(['name' => $person['fullName'], 'email' => $person['email'], 'phone' => $person['phone']]);
         
         $isRecent = (mt_rand()/mt_getrandmax()) < 0.4;
         $ts = time();
@@ -387,11 +519,13 @@ while ($totalProcessed < $docsToCreate) {
             $declineReason = 'Requirements not met.';
         }
         
+        $docTitle = getRandomDocumentTitle($purpose['name'] ?? '', $globalDocIndex, $titlesData);
+        
         // Generate Log Events & Advance Timestamp
         $docLogTemplates = [];
         $docDataForHash = [
             'tracking_code' => $trackingCode,
-            'title' => "Fast Seeded Doc $globalDocIndex",
+            'title' => $docTitle,
             'guest_info' => $guestInfo,
             'district' => $district,
             'department' => $dept['name'],
@@ -490,7 +624,7 @@ while ($totalProcessed < $docsToCreate) {
         
         $docsToInsert[] = [
             'tracking_code' => $trackingCode,
-            'title' => "Fast Seeded Doc $globalDocIndex",
+            'title' => $docTitle,
             'guest_info' => $guestInfo,
             'district' => $district,
             'department' => $dept['name'],

@@ -4,3 +4,5 @@ laravel_files.txt
 php_files.txt
 working-php/storage/app/backups/*
 .cursor/
+docs/
+.superpowers/

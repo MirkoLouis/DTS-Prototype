@@ -31,12 +31,13 @@ $lastSampleTime = time();
 $lastBackfillTime = time();
 $lastRollupTime = time();
 $lastGcTime = time();
+$lastStaleCleanupTime = time();
 
 /**
  * Execute periodic system maintenance and telemetry tasks inside the worker loop.
  * Eliminates reliance on host system cron daemons in containerized environments.
  */
-function runScheduledTasks(int &$lastSampleTime, int &$lastBackfillTime, int &$lastRollupTime, int &$lastGcTime): void
+function runScheduledTasks(int &$lastSampleTime, int &$lastBackfillTime, int &$lastRollupTime, int &$lastGcTime, int &$lastStaleCleanupTime): void
 {
     $now = time();
 
@@ -96,6 +97,19 @@ function runScheduledTasks(int &$lastSampleTime, int &$lastBackfillTime, int &$l
             echo "⏰ [Worker Scheduler] Rotated navigation.log → " . basename($archiveName) . "\n";
         }
     }
+
+    // 5. Cleanup stale pending documents (>3 days without intake) every 24 hours (86400s)
+    if ($now - $lastStaleCleanupTime >= 86400) {
+        $lastStaleCleanupTime = $now;
+        echo "⏰ [Worker Scheduler] Running stale pending documents cleanup...\n";
+        try {
+            $job = new \App\Jobs\CleanupStalePendingDocumentsJob();
+            $expiredCount = $job->handle(3);
+            echo "⏰ [Worker Scheduler] Stale pending cleanup finished. Expired {$expiredCount} document(s).\n";
+        } catch (\Throwable $e) {
+            echo "⏰ [Worker Scheduler] Stale pending cleanup failed: " . $e->getMessage() . "\n";
+        }
+    }
 }
 
 // Intercepts system termination signals to allow the worker to finish its current job 
@@ -127,7 +141,7 @@ function cleanupActiveWorkers(array &$activeWorkers) {
 
 while (!$stopWorker) {
     // 0. Run scheduled maintenance & telemetry tasks
-    runScheduledTasks($lastSampleTime, $lastBackfillTime, $lastRollupTime, $lastGcTime);
+    runScheduledTasks($lastSampleTime, $lastBackfillTime, $lastRollupTime, $lastGcTime, $lastStaleCleanupTime);
 
     // 1. Memory Leak Prevention: Check if we exceeded our allowed memory
     if (memory_get_usage(true) > $maxMemory) {
