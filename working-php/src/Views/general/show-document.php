@@ -50,6 +50,7 @@
                                     </svg>
                                 </button>
                             </p>
+                            <p><strong>Title:</strong> <?php echo htmlspecialchars($document['title'] ?? 'N/A'); ?></p>
                             <?php 
                             $guestInfo = json_decode($document['guest_info'], true);
                             ?>
