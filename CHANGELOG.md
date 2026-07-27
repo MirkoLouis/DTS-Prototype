@@ -2,6 +2,39 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-07-27 13:42
+
+**Version:** 1.22.0-Release+202607271342
+
+### Fixed
+- N/A
+
+### Added
+- Created `CleanupStalePendingDocumentsJob.php` to automatically transition stale pending documents lingering past 3 days without Records Office intake to `declined` status with system-sealed cryptographic log entries.
+- Integrated automated 24-hour pending document garbage collection into `console.php` worker scheduler loop.
+
+## 2026-07-27 13:04
+
+**Version:** 1.21.0-Alpha+202607271304
+
+### Fixed
+- Replaced increment/placeholder guest emails (`guestX@example.com`, `fastY@test.com`) and 4-digit phone numbers in `fast-seed.php` and `seed.js` with realistic guest profile data.
+
+### Added
+- Added `sanitizeForEmail()`, `getRandomDomain()`, and `getRandomPerson()` methods to `WeightedNameGenerator` in `fast-seed.php` and `seed.js`.
+- Implemented email handle generation supporting multiple realistic patterns (`firstname_lastname`, `lastname_firstname`, `firstnameLastname`, `lastnameBirthdate`, `firstnamebirthdate`), capping multi-word first names to the first 2 names, realistic birthdate suffixes (e.g., `march1979`, `031979`, `1979`, `79`), common domains (`gmail.com`, `yahoo.com`, `deped.gov.ph`, `outlook.com`, `hotmail.com`), and 11-digit Philippine mobile phone numbers (`09xxxxxxxxx`).
+
+## 2026-07-27 11:14
+
+**Version:** 1.20.0-Alpha+202607271114
+
+### Fixed
+- Replaced generic placeholder document titles (`"Fast Seeded Doc X"`, `"Automated Test Document Y"`) in `fast-seed.php` and `seed.js` with realistic DepEd (Department of Education) document titles specific to each document's purpose.
+
+### Added
+- Added `working-php/scripts/seeders/titles_data.json` containing 5 domain-appropriate document titles for each of the 23 default database purposes (115 titles total).
+- Updated `working-php/scripts/seeders/seed.js` and `working-php/scripts/seeders/fast-seed.php` to fetch purpose names from the database and sample realistic titles matching each document's purpose.
+
 ## 2026-07-27 10:43
 
 **Version:** 1.19.0-Alpha+202607271043

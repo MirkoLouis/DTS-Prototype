@@ -19,7 +19,7 @@ DTS Prototype/
 1. **Framework-Free Performance:** Eliminates framework bootstrapping overhead, delivering near-instant page loads and sub-millisecond raw PDO database query execution.
 2. **Zero-Dependency Core:** Runs natively using pure PHP 8.3 and MySQL 8.0 without heavy framework runtime dependencies.
 3. **Pessimistic Locking & Transaction Safety:** Centralizes database state mutations inside [DocumentWorkflowService.php](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Services/DocumentWorkflowService.php) using explicit `PDO` transactions and `SELECT ... FOR UPDATE` row-level locking to eliminate race conditions under concurrent loads.
-4. **Container-Native Scheduling:** Replaced host `cron` daemons with a unified CLI worker ([console.php](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/console.php)) featuring an internal task scheduler loop for telemetry sampling, TAT backfilling, and metrics rollups inside containerized environments (Distrobox / Docker).
+4. **Container-Native Scheduling:** Replaced host `cron` daemons with a unified CLI worker ([console.php](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/console.php)) featuring an internal task scheduler loop for telemetry sampling, TAT backfilling, metrics rollups, response cache GC, and automated stale pending document garbage collection inside containerized environments (Distrobox / Docker).
 
 ---
 
