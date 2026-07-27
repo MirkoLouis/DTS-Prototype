@@ -11,6 +11,12 @@ class WeightedNameGenerator {
     private array $lastNames = [];
     private int $totalFirstWeight = 0;
     private int $totalLastWeight = 0;
+    private array $blacklist = [
+        'mama mary', 'mary mama',
+        'papa jesus', 'jesus papa',
+        'jesus christ', 'christ jesus',
+        'santa claus'
+    ];
 
     /**
      * Load name dataset from JSON file and pre-calculate total weights for sampling.
@@ -46,6 +52,19 @@ class WeightedNameGenerator {
     }
 
     /**
+     * Check if a generated name contains any forbidden blacklisted phrases.
+     */
+    private function isBlacklisted(string $name): bool {
+        $lower = strtolower($name);
+        foreach ($this->blacklist as $phrase) {
+            if (str_contains($lower, $phrase)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * Draw an item from a list of weighted items using random number generation within accumulated weight boundaries.
      */
     private function drawWeightedItem(array $items, int $totalWeight): string {
@@ -63,6 +82,51 @@ class WeightedNameGenerator {
         }
 
         return $items[0]['name'];
+    }
+
+    /**
+     * Draw a single candidate full name based on multi-word first name and weighted last name sampling.
+     */
+    private function drawCandidateFullName(): string {
+        // Probability distribution: 80% 1 first name word, 18% 2 words, 2% 3 words
+        $p = mt_rand(1, 100);
+        $wordCount = 1;
+        if ($p > 98) {
+            $wordCount = 3;
+        } elseif ($p > 80) {
+            $wordCount = 2;
+        }
+
+        $selectedFirstNames = [];
+        for ($w = 0; $w < $wordCount; $w++) {
+            $fn = $this->drawWeightedItem($this->firstNames, $this->totalFirstWeight);
+            if ($w > 0 && in_array($fn, $selectedFirstNames, true)) {
+                $fn = $this->drawWeightedItem($this->firstNames, $this->totalFirstWeight);
+            }
+            $selectedFirstNames[] = $fn;
+        }
+
+        $lastName = $this->drawWeightedItem($this->lastNames, $this->totalLastWeight);
+        return implode(' ', $selectedFirstNames) . ' ' . $lastName;
+    }
+
+    /**
+     * Generate a realistic full name with weighted multi-word first names and a last name,
+     * re-sampling up to 10 attempts if the candidate matches a blacklisted phrase.
+     */
+    public function getRandomFullName(): string {
+        if (empty($this->firstNames) || empty($this->lastNames)) {
+            return 'Seeded Guest ' . rand(100, 999);
+        }
+
+        for ($attempt = 0; $attempt < 10; $attempt++) {
+            $candidate = $this->drawCandidateFullName();
+            if (!$this->isBlacklisted($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return $this->drawCandidateFullName();
     }
 
     /**
@@ -105,39 +169,15 @@ class WeightedNameGenerator {
 
     /**
      * Generate a realistic person profile containing full name, believable email, and phone number.
-     * Uses patterns like firstname_lastname, lastname_firstname, firstnameLastname,
-     * lastnameBirthdate (e.g. march1979, 031979, 1979, 79), and firstnamebirthdate.
+     * Uses getRandomFullName() to ensure generated names respect blacklist re-sampling rules.
      */
     public function getRandomPerson(): array {
-        if (empty($this->firstNames) || empty($this->lastNames)) {
-            $fallbackNum = rand(100, 999);
-            return [
-                'fullName' => "Seeded Guest $fallbackNum",
-                'email' => "guest$fallbackNum@gmail.com",
-                'phone' => '0917' . sprintf('%07d', rand(0, 9999999))
-            ];
-        }
+        $fullName = $this->getRandomFullName();
 
-        // Probability distribution: 80% 1 first name word, 18% 2 words, 2% 3 words
-        $p = mt_rand(1, 100);
-        $wordCount = 1;
-        if ($p > 98) {
-            $wordCount = 3;
-        } elseif ($p > 80) {
-            $wordCount = 2;
-        }
-
-        $selectedFirstNames = [];
-        for ($w = 0; $w < $wordCount; $w++) {
-            $fn = $this->drawWeightedItem($this->firstNames, $this->totalFirstWeight);
-            if ($w > 0 && in_array($fn, $selectedFirstNames, true)) {
-                $fn = $this->drawWeightedItem($this->firstNames, $this->totalFirstWeight);
-            }
-            $selectedFirstNames[] = $fn;
-        }
-
-        $lastName = $this->drawWeightedItem($this->lastNames, $this->totalLastWeight);
-        $fullName = implode(' ', $selectedFirstNames) . ' ' . $lastName;
+        // Split fullName into first names array and last name to derive email handles
+        $nameParts = explode(' ', $fullName);
+        $lastName = count($nameParts) > 1 ? array_pop($nameParts) : 'Guest';
+        $selectedFirstNames = !empty($nameParts) ? $nameParts : ['Seeded'];
 
         // Take up to first 2 first names for email handle construction
         $emailFirstNames = array_slice($selectedFirstNames, 0, 2);
@@ -206,13 +246,6 @@ class WeightedNameGenerator {
             'email' => $email,
             'phone' => $phone
         ];
-    }
-
-    /**
-     * Generate a realistic full name with weighted multi-word first names and a last name.
-     */
-    public function getRandomFullName(): string {
-        return $this->getRandomPerson()['fullName'];
     }
 }
 

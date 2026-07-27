@@ -233,6 +233,12 @@ class WeightedNameGenerator {
         this.lastNames = [];
         this.totalFirstWeight = 0;
         this.totalLastWeight = 0;
+        this.blacklist = [
+            'mama mary', 'mary mama',
+            'papa jesus', 'jesus papa',
+            'jesus christ', 'christ jesus',
+            'santa claus'
+        ];
 
         try {
             if (fs.existsSync(jsonPath)) {
@@ -248,6 +254,11 @@ class WeightedNameGenerator {
         }
     }
 
+    isBlacklisted(name) {
+        const lower = name.toLowerCase();
+        return this.blacklist.some(phrase => lower.includes(phrase));
+    }
+
     drawWeightedItem(items, totalWeight) {
         if (!items.length || totalWeight <= 0) return 'Guest';
         let rand = Math.floor(Math.random() * totalWeight) + 1;
@@ -259,6 +270,43 @@ class WeightedNameGenerator {
             }
         }
         return items[0].name;
+    }
+
+    drawCandidateFullName() {
+        const p = Math.random() * 100;
+        let wordCount = 1;
+        if (p > 98) {
+            wordCount = 3;
+        } else if (p > 80) {
+            wordCount = 2;
+        }
+
+        const selectedFirstNames = [];
+        for (let w = 0; w < wordCount; w++) {
+            let fn = this.drawWeightedItem(this.firstNames, this.totalFirstWeight);
+            if (w > 0 && selectedFirstNames.includes(fn)) {
+                fn = this.drawWeightedItem(this.firstNames, this.totalFirstWeight);
+            }
+            selectedFirstNames.push(fn);
+        }
+
+        const lastName = this.drawWeightedItem(this.lastNames, this.totalLastWeight);
+        return selectedFirstNames.join(' ') + ' ' + lastName;
+    }
+
+    getRandomFullName() {
+        if (!this.firstNames.length || !this.lastNames.length) {
+            return 'Seeded Guest ' + Math.floor(Math.random() * 900 + 100);
+        }
+
+        for (let attempt = 0; attempt < 10; attempt++) {
+            const candidate = this.drawCandidateFullName();
+            if (!this.isBlacklisted(candidate)) {
+                return candidate;
+            }
+        }
+
+        return this.drawCandidateFullName();
     }
 
     sanitizeForEmail(str) {
@@ -307,25 +355,10 @@ class WeightedNameGenerator {
             };
         }
 
-        const p = Math.random() * 100;
-        let wordCount = 1;
-        if (p > 98) {
-            wordCount = 3;
-        } else if (p > 80) {
-            wordCount = 2;
-        }
-
-        const selectedFirstNames = [];
-        for (let w = 0; w < wordCount; w++) {
-            let fn = this.drawWeightedItem(this.firstNames, this.totalFirstWeight);
-            if (w > 0 && selectedFirstNames.includes(fn)) {
-                fn = this.drawWeightedItem(this.firstNames, this.totalFirstWeight);
-            }
-            selectedFirstNames.push(fn);
-        }
-
-        const lastName = this.drawWeightedItem(this.lastNames, this.totalLastWeight);
-        const fullName = selectedFirstNames.join(' ') + ' ' + lastName;
+        const fullName = this.getRandomFullName();
+        const parts = fullName.split(' ');
+        const lastName = parts.pop();
+        const selectedFirstNames = parts;
 
         // Take up to first 2 first names for email handle construction
         const emailFirstNames = selectedFirstNames.slice(0, 2);
@@ -392,10 +425,6 @@ class WeightedNameGenerator {
             email,
             phone
         };
-    }
-
-    getRandomFullName() {
-        return this.getRandomPerson().fullName;
     }
 }
 
