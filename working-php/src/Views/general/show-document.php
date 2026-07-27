@@ -159,7 +159,7 @@
                             <?php 
                                 $fallbackReturn = $_SESSION['doc_return_url'] ?? (($_SESSION['role'] ?? '') === 'admin' ? '/admin-dashboard' : '/dashboard');
                             ?>
-                            <a href="<?= htmlspecialchars($fallbackReturn) ?>" onclick="if (history.length > 1 && document.referrer && !document.referrer.includes('/hash-chain')) { history.back(); return false; }" class="inline-flex items-center px-4 py-2 bg-accent-2 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-2-hover active:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent-2 transition ease-in-out duration-150">
+                            <a id="doc-back-button" href="<?= htmlspecialchars($fallbackReturn) ?>" class="inline-flex items-center px-4 py-2 bg-accent-2 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-2-hover active:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-accent-2 transition ease-in-out duration-150">
                                 Back
                             </a>
                         </div>
@@ -190,8 +190,16 @@
 </div>
 <script>
 // Named so both DOMContentLoaded (hard load) and dts:page-loaded (PJAX swap)
-// can trigger re-binding of sign-action form handlers on this document view.
+// can trigger re-binding of sign-action form handlers and back button origin.
 function initShowDocumentPage() {
+    const backBtn = document.getElementById('doc-back-button');
+    if (backBtn) {
+        const origin = sessionStorage.getItem('dts_doc_origin');
+        if (origin && origin !== window.location.pathname && !origin.includes('/documents/')) {
+            backBtn.setAttribute('href', origin);
+        }
+    }
+
     document.querySelectorAll('form.sign-action').forEach(form => {
         form.addEventListener('submit', function(e) {
             const pinInput = this.querySelector('.sign-pin-input');

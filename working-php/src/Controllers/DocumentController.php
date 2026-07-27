@@ -27,8 +27,11 @@ class DocumentController
             exit;
         }
 
-        if (!empty($_SERVER['HTTP_REFERER']) && !str_contains($_SERVER['HTTP_REFERER'], '/hash-chain') && !str_contains($_SERVER['HTTP_REFERER'], '/documents/')) {
-            $_SESSION['doc_return_url'] = $_SERVER['HTTP_REFERER'];
+        if (!empty($_SERVER['HTTP_REFERER'])) {
+            $refererPath = parse_url($_SERVER['HTTP_REFERER'], PHP_URL_PATH) ?? '';
+            if (!empty($refererPath) && !str_contains($refererPath, '/hash-chain') && !str_contains($refererPath, '/documents/')) {
+                $_SESSION['doc_return_url'] = $_SERVER['HTTP_REFERER'];
+            }
         }
 
         $logs = $document['logs'];

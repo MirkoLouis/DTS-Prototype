@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-07-27 16:59
+
+**Version:** 1.23.1-Alpha+202607271659
+
+### Fixed
+- Fixed document back routing and browser history state corruption across [`pjax-router.js`](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/public/js/pjax-router.js), [`show-document.php`](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Views/general/show-document.php), [`document-hash-chain.php`](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Views/general/document-hash-chain.php), and [`DocumentController.php`](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Controllers/DocumentController.php).
+- Resolved duplicate `history.pushState()` calls during `popstate` events in [`pjax-router.js`](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/public/js/pjax-router.js) that broke `history.back()`.
+- Implemented `sessionStorage` origin URL tracking (`dts_doc_origin`) to return users to their exact entry page (including active filter query parameters and table pagination state) when navigating back from document details.
+
+### Added
+- N/A
+
 ## 2026-07-27 16:46
 
 **Version:** 1.23.0-Release+202607271646
