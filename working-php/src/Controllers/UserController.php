@@ -216,6 +216,20 @@ class UserController
         $db->query("UPDATE user_public_key_histories SET deactivated_at = NOW(), updated_at = NOW() WHERE user_id = :id AND deactivated_at IS NULL", [':id' => $id]);
         $db->query("UPDATE users SET public_key = NULL, private_key = NULL, security_key_set_at = NULL WHERE id = :id", [':id' => $id]);
         
+        // Clear the user's personal page cache so they see the setup modal immediately on their next request
+        $prefix = "cache_user_{$id}";
+        $cacheDir = BASE_PATH . '/cache/responses/';
+        if (is_dir($cacheDir)) {
+            $files = glob($cacheDir . $prefix . '_*.html');
+            if ($files) {
+                foreach ($files as $file) {
+                    if (is_file($file)) {
+                        @unlink($file);
+                    }
+                }
+            }
+        }
+
         $_SESSION['success'] = 'User digital signature reset successfully.';
         header('Location: /users');
         exit;

@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-07-27 23:21
+
+**Version:** 1.23.4-Release+202607272321
+
+### Fixed
+- Fixed an infinite loop bug in digital signature setup by clearing the user's personal HTML page cache in `SecurityKeyController.php` and `UserController.php`, preventing the `CacheMiddleware` from serving a stale page containing the setup modal.
+- Fixed an issue where newly generated digital signatures couldn't be used immediately by updating `$_SESSION['private_key']` with the new Ed25519 private key right after generation.
+
+### Added
+- None.
+
+## 2026-07-27 17:46
+
+**Version:** 1.23.3-Alpha+202607271746
+
+### Fixed
+- Updated notification toast messages across document lifecycle actions to dynamically include the document tracking code (e.g. `Document DEPED-XXXXXXXX marked as completed and released.`).
+- Fixed root cause in [`AuthMiddleware.php`](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Middleware/AuthMiddleware.php) where premature `session_write_close()` calls during request middleware execution froze PHP session files and discarded controller `$_SESSION['success']` flash alerts.
+- Extended [`ReleasingController.php`](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Controllers/ReleasingController.php) and [`DocumentController.php`](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Controllers/DocumentController.php) (`finalizeIntake`, `decline`, `release`) to query the document tracking code for toast notification consistency.
+- Extended [`pjax-router.js`](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/public/js/pjax-router.js) and [`app.php`](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Views/layouts/app.php) to synchronize toast modals and notification dropdown lists across client-side page swaps with console debugging (`[DTS Notif System]` and `[DTS PJAX Router]`).
+
+### Added
+- Added `getUnread()` endpoint to [`NotificationController.php`](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Controllers/NotificationController.php) and registered `GET /api/notifications/unread` route in [`index.php`](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/public/index.php).
+
 ## 2026-07-27 17:16
 
 **Version:** 1.23.2-Alpha+202607271716

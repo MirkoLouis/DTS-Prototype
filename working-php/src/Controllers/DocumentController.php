@@ -183,7 +183,9 @@ class DocumentController
             $officer = \App\Models\User::findById($_SESSION['user_id']);
             $workflow->finalizeIntake((int)$id, $routeNames, $officer, $pin);
             
-            $_SESSION['success'] = "Document accepted and is now in transit!";
+            $doc = \App\Models\Document::findById((int)$id);
+            $trackingCode = $doc ? $doc->tracking_code : '';
+            $_SESSION['success'] = "Document {$trackingCode} accepted and is now in transit!";
         } catch (\Exception $e) {
             if (str_contains($e->getMessage(), 'Action Denied')) {
                 $_SESSION['console_error'] = $e->getMessage();
@@ -263,9 +265,11 @@ class DocumentController
             $workflow = new \App\Services\DocumentWorkflowService();
             $officer = \App\Models\User::findById($_SESSION['user_id']);
             
+            $doc = \App\Models\Document::findById((int)$documentId);
+            $trackingCode = $doc ? $doc->tracking_code : '';
             $workflow->declineDocument((int)$documentId, $reason, $officer, $pin);
             
-            $_SESSION['success'] = "Document successfully declined.";
+            $_SESSION['success'] = "Document {$trackingCode} successfully declined.";
         } catch (\Exception $e) {
             if (str_contains($e->getMessage(), 'Action Denied')) {
                 $_SESSION['console_error'] = $e->getMessage();

@@ -155,9 +155,8 @@ if (isset($_SESSION['user_id'])) {
                             <!-- Notification Dropdown -->
                             <div class="relative mr-4">
                                 <button type="button" id="notification-menu-button" class="relative p-2 bg-gray-100 dark:bg-gray-700 rounded-full shadow-md text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-accent-1-hover transition-colors">
-                                    <span class="sr-only"></span>
+                                    <span class="sr-only">Notifications</span>
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
-
                                 </button>
                                 <div id="notification-dropdown-menu" class="hidden absolute right-0 z-50 mt-2 w-80 sm:w-96 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none py-2 max-h-[80vh] overflow-y-auto">
                                     <div class="px-4 py-2 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
@@ -456,33 +455,138 @@ if (isset($_SESSION['user_id'])) {
             });
         });
 
-        // Notification Toggle Logic
-        document.addEventListener('DOMContentLoaded', () => {
-            const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-            const notifBtn = document.getElementById('notification-menu-button');
-            const notifDropdown = document.getElementById('notification-dropdown-menu');
+        // Notification & Toast System Logic
+        (function() {
+            window.__shownNotifIds = window.__shownNotifIds || new Set();
 
-            if (notifBtn && notifDropdown) {
-                notifBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    notifDropdown.classList.toggle('hidden');
-                });
+            console.log('[DTS Notif System] Initialized. Existing known notifications count:', window.__shownNotifIds.size);
 
-                document.addEventListener('click', (e) => {
-                    if (!notifBtn.contains(e.target) && !notifDropdown.contains(e.target)) {
-                        notifDropdown.classList.add('hidden');
-                    }
+            // Auto-dismiss toast messages after 5 seconds
+            function setupToastAutoDismiss() {
+                const toasts = document.querySelectorAll('#toast-container .toast-message');
+                console.log(`[DTS Notif System] setupToastAutoDismiss running. Found ${toasts.length} toast message(s).`);
+
+                toasts.forEach((toast, idx) => {
+                    if (toast.dataset.dismissScheduled) return;
+                    toast.dataset.dismissScheduled = "true";
+                    console.log(`[DTS Notif System] Toast #${idx + 1} scheduled for auto-dismiss in 5s.`);
+
+                    setTimeout(() => {
+                        if (toast.parentNode) {
+                            console.log(`[DTS Notif System] Fading out Toast #${idx + 1}.`);
+                            toast.style.transition = 'opacity 0.5s ease-out';
+                            toast.style.opacity = '0';
+                            setTimeout(() => {
+                                toast.remove();
+                                console.log(`[DTS Notif System] Removed Toast #${idx + 1} from DOM.`);
+                            }, 500);
+                        }
+                    }, 5000);
                 });
             }
 
-            // Mark single notification read
-            document.querySelectorAll('.mark-notification-read').forEach(btn => {
-                btn.addEventListener('click', async (e) => {
+            // Seed known unread notification IDs from DOM on load
+            function syncShownNotificationIds() {
+                const items = document.querySelectorAll('#notification-list .mark-notification-read');
+                items.forEach(btn => {
+                    if (btn.dataset.id) {
+                        window.__shownNotifIds.add(String(btn.dataset.id));
+                    }
+                });
+                console.log(`[DTS Notif System] Synced ${items.length} unread notification IDs into memory set.`);
+            }
+
+            // Fetch unread notifications from API to capture background job updates
+            async function pollUnreadNotifications() {
+                console.log('[DTS Notif System] Polling /api/notifications/unread...');
+                try {
+                    const res = await fetch('/api/notifications/unread');
+                    if (!res.ok) {
+                        console.warn('[DTS Notif System] Poll response non-OK status:', res.status);
+                        return;
+                    }
+
+                    const data = await res.json();
+                    console.log('[DTS Notif System] Poll response received:', data);
+
+                    if (!data.success || !Array.isArray(data.notifications)) return;
+
+                    // Check for newly arrived notifications that haven't been alerted as toasts
+                    const toastContainer = document.getElementById('toast-container');
+                    data.notifications.forEach(notif => {
+                        const notifIdStr = String(notif.id);
+                        if (!window.__shownNotifIds.has(notifIdStr)) {
+                            window.__shownNotifIds.add(notifIdStr);
+                            console.log(`[DTS Notif System] New unread notification detected (ID ${notif.id}): "${notif.title}" - popping toast modal.`);
+
+                            if (toastContainer) {
+                                let iconSvg = '<path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />';
+                                let borderColor = 'border-blue-500', bgColor = 'bg-blue-50 dark:bg-blue-900/30', iconColor = 'text-blue-700 dark:text-blue-400', titleColor = 'text-blue-800 dark:text-blue-300', textColor = 'text-blue-700 dark:text-blue-400';
+                                
+                                if (notif.type === 'success') {
+                                    borderColor = 'border-green-500'; bgColor = 'bg-green-50 dark:bg-green-900/30'; iconColor = 'text-green-700 dark:text-green-400'; titleColor = 'text-green-800 dark:text-green-300'; textColor = 'text-green-700 dark:text-green-400';
+                                    iconSvg = '<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />';
+                                } else if (notif.type === 'error') {
+                                    borderColor = 'border-red-500'; bgColor = 'bg-red-50 dark:bg-red-900/30'; iconColor = 'text-red-700 dark:text-red-400'; titleColor = 'text-red-800 dark:text-red-300'; textColor = 'text-red-700 dark:text-red-400';
+                                    iconSvg = '<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />';
+                                }
+
+                                const toastHtml = `
+                                    <div role="alert" class="rounded-md border ${borderColor} ${bgColor} p-4 shadow-sm mb-3 relative toast-message pointer-events-auto animate-slide-in-right">
+                                        <div class="flex items-start gap-4">
+                                            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="-mt-0.5 w-6 h-6 ${iconColor}">
+                                                ${iconSvg}
+                                            </svg>
+                                            <div class="flex-1 pr-6">
+                                                <strong class="block leading-tight font-medium ${titleColor}"> ${notif.title} </strong>
+                                                <p class="mt-0.5 text-sm ${textColor}">${notif.message}</p>
+                                            </div>
+                                            <button class="mark-notification-read absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition" data-id="${notif.id}" title="Dismiss">
+                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                            </button>
+                                        </div>
+                                    </div>
+                                `;
+                                toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+                                setupToastAutoDismiss();
+                            }
+                        }
+                    });
+                } catch (err) {
+                    console.error('[DTS Notif System] Error polling unread notifications:', err);
+                }
+            }
+
+            // Global event delegation for notification dropdown, dismiss, and mark as read buttons
+            document.addEventListener('click', async (e) => {
+                const notifBtn = e.target.closest('#notification-menu-button');
+                if (notifBtn) {
                     e.stopPropagation();
-                    const notifId = btn.dataset.id;
+                    const dropdown = document.getElementById('notification-dropdown-menu');
+                    if (dropdown) {
+                        dropdown.classList.toggle('hidden');
+                        console.log('[DTS Notif System] Toggled dropdown menu. Hidden:', dropdown.classList.contains('hidden'));
+                    }
+                    return;
+                }
+
+                const notifDropdown = document.getElementById('notification-dropdown-menu');
+                if (notifDropdown && !notifDropdown.contains(e.target) && !e.target.closest('#notification-menu-button')) {
+                    if (!notifDropdown.classList.contains('hidden')) {
+                        notifDropdown.classList.add('hidden');
+                        console.log('[DTS Notif System] Closed dropdown menu on outside click.');
+                    }
+                }
+
+                const markReadBtn = e.target.closest('.mark-notification-read');
+                if (markReadBtn) {
+                    e.stopPropagation();
+                    const notifId = markReadBtn.dataset.id;
                     if (!notifId) return;
 
+                    console.log(`[DTS Notif System] Marking notification ID ${notifId} as read.`);
                     try {
+                        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
                         const res = await fetch('/api/notifications/mark-read', {
                             method: 'POST',
                             headers: { 
@@ -493,29 +597,29 @@ if (isset($_SESSION['user_id'])) {
                         });
                         const data = await res.json();
                         if (data.success) {
-                            btn.closest('[role="alert"]').remove();
-                            updateNotificationBadge();
+                            console.log(`[DTS Notif System] Notification ID ${notifId} marked read successfully.`);
+                            markReadBtn.closest('[role="alert"]')?.remove();
                         }
                     } catch (err) {
-                        console.error('Error marking notification read', err);
+                        console.error('[DTS Notif System] Error marking notification read:', err);
                     }
-                });
-            });
+                    return;
+                }
 
-            // Dismiss single session alert
-            document.querySelectorAll('.dismiss-alert').forEach(btn => {
-                btn.addEventListener('click', (e) => {
+                const dismissBtn = e.target.closest('.dismiss-alert');
+                if (dismissBtn) {
                     e.stopPropagation();
-                    btn.closest('[role="alert"]').remove();
-                });
-            });
+                    console.log('[DTS Notif System] Dismissing alert manually.');
+                    dismissBtn.closest('[role="alert"]')?.remove();
+                    return;
+                }
 
-            // Mark all read
-            const markAllBtn = document.getElementById('mark-all-read');
-            if (markAllBtn) {
-                markAllBtn.addEventListener('click', async (e) => {
+                const markAllBtn = e.target.closest('#mark-all-read');
+                if (markAllBtn) {
                     e.stopPropagation();
+                    console.log('[DTS Notif System] Marking ALL notifications as read.');
                     try {
+                        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
                         const res = await fetch('/api/notifications/mark-read', {
                             method: 'POST',
                             headers: { 
@@ -526,41 +630,37 @@ if (isset($_SESSION['user_id'])) {
                         });
                         const data = await res.json();
                         if (data.success) {
-                            document.getElementById('notification-list').innerHTML = '<p class="text-sm text-gray-500 dark:text-gray-400 p-4 text-center">No new notifications.</p>';
+                            console.log('[DTS Notif System] All notifications marked read successfully.');
+                            const list = document.getElementById('notification-list');
+                            if (list) {
+                                list.innerHTML = '<p class="text-sm text-gray-500 dark:text-gray-400 p-4 text-center">No new notifications.</p>';
+                            }
                             markAllBtn.remove();
-                            const badge = document.querySelector('#notification-menu-button span.bg-red-600');
-                            if (badge) badge.remove();
                         }
                     } catch (err) {
-                        console.error('Error marking all notifications read', err);
+                        console.error('[DTS Notif System] Error marking all notifications read:', err);
                     }
-                });
-            }
-
-            function updateNotificationBadge() {
-                const badge = document.querySelector('#notification-menu-button span.bg-red-600');
-                if (badge) {
-                    let count = parseInt(badge.innerText, 10);
-                    count = isNaN(count) ? 0 : count - 1;
-                    if (count <= 0) {
-                        badge.remove();
-                    } else {
-                        badge.innerText = count;
-                    }
+                    return;
                 }
-            }
-
-            // Auto-dismiss session toasts after 5 seconds
-            document.querySelectorAll('.toast-message').forEach(toast => {
-                setTimeout(() => {
-                    if (toast.parentNode) {
-                        toast.style.transition = 'opacity 0.5s ease-out';
-                        toast.style.opacity = '0';
-                        setTimeout(() => toast.remove(), 500);
-                    }
-                }, 5000);
             });
-        });
+
+            // Lifecycle hooks
+            document.addEventListener('DOMContentLoaded', () => {
+                console.log('[DTS Notif System] Lifecycle: DOMContentLoaded');
+                setupToastAutoDismiss();
+                syncShownNotificationIds();
+            });
+
+            document.addEventListener('dts:page-loaded', () => {
+                console.log('[DTS Notif System] Lifecycle: dts:page-loaded');
+                setupToastAutoDismiss();
+                syncShownNotificationIds();
+                pollUnreadNotifications();
+            });
+
+            // Periodically poll for background notifications every 30s
+            setInterval(pollUnreadNotifications, 30000);
+        })();
     </script>
 
     <!-- PJAX Router: must be loaded last so all layout-level DOM is available -->

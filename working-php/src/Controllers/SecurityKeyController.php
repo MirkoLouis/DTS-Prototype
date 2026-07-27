@@ -67,6 +67,24 @@ class SecurityKeyController
             'now3' => $now
         ]);
 
+        // Fix: Update the session with the new private key so client-side JS can use it without requiring re-login
+        $_SESSION['private_key'] = $privB64;
+
+        // Fix: Clear the user's personal page cache. If we don't, CacheMiddleware might serve an old cached version 
+        // of the dashboard containing the setup modal, causing it to pop up infinitely.
+        $prefix = "cache_user_{$userId}";
+        $cacheDir = BASE_PATH . '/cache/responses/';
+        if (is_dir($cacheDir)) {
+            $files = glob($cacheDir . $prefix . '_*.html');
+            if ($files) {
+                foreach ($files as $file) {
+                    if (is_file($file)) {
+                        @unlink($file);
+                    }
+                }
+            }
+        }
+
         $_SESSION['success'] = "Digital Signature successfully generated and secured.";
         $this->redirectBasedOnRole();
     }
