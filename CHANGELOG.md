@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-07-27 16:46
+
+**Version:** 1.23.0-Release+202607271646
+
+### Fixed
+- Fixed document sorting and pagination in `DocumentQueryService.php` by changing default document list ordering to `created_at DESC, id DESC` and introducing a compound cursor format (`created_at_id`) for keyset pagination with backward-compatibility for single ID cursors.
+- Updated fast and Node database seeders (`fast-seed.php` and `seed.js`) to strictly preserve chronological monotonicity between generated document IDs and `created_at` timestamps across working days and peak hours.
+
+### Added
+- Integrated document state snapshotting (`document_snapshot`) into bulk log insertions inside `fast-seed.php`.
+- Added user documentation guide `HASH_VERIFICATION_LAYMAN_GUIDE.md` detailing cryptographic hash chain verification, document state hashing, Ed25519 digital signatures, and genesis integrity.
+
 ## 2026-07-27 13:46
 
 **Version:** 1.22.1-Alpha+202607271346
