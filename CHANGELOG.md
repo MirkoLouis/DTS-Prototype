@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-07-28 00:17
+
+**Version:** 1.24.0-Release+202607280017
+
+### Fixed
+- Consolidated scattered `.gitignore` files into a unified root configuration.
+
+### Added
+- Added screenshots to `README.md`.
+- Updated documentation to point to real system export examples (PDF and XLSX).
+- Added a custom non-commercial `LICENSE` file explicitly forbidding distribution and monetization.
+
 ## 2026-07-27 23:21
 
 **Version:** 1.23.4-Release+202607272321

@@ -25,31 +25,43 @@ DTS Prototype/
 
 ## 📸 System Screenshots
 
-*(Place screenshot images in `working-php/documentation/screenshots/`)*
+### Guest Submission
+<img src="working-php/documentation/screenshots/Guest%20Submission%20(Filled).png" width="100%" alt="Guest Submission">
 
-### Public & Guest Portal
-| Public Submission Portal | Multi-Document Tracking Dashboard |
-|:---:|:---:|
-| ![Public Submission](working-php/documentation/screenshots/guest_submission.png) | ![Tracking Dashboard](working-php/documentation/screenshots/guest_tracking.png) |
+### Guest Submission Success
+<img src="working-php/documentation/screenshots/Guest%20Submission%20Success.png" width="100%" alt="Guest Submission Success">
 
-### Administrative & Security Suite
-| Admin Overview & Analytics | Integrity Monitor & Tamper Control | System Health & Performance |
-|:---:|:---:|:---:|
-| ![Admin Dashboard](working-php/documentation/screenshots/admin_dashboard.png) | ![Integrity Monitor](working-php/documentation/screenshots/integrity_monitor.png) | ![System Health](working-php/documentation/screenshots/system_health.png) |
+### Document Intake
+<img src="working-php/documentation/screenshots/Document%20Intake.png" width="100%" alt="Document Intake">
 
-### Operational Workflows & Audit Trail
-| Records Officer Intake Portal | Digital Hash-Chain Ledger | Department Staff Tasks |
-|:---:|:---:|:---:|
-| ![Records Intake](working-php/documentation/screenshots/officer_intake.png) | ![Hash Chain Audit](working-php/documentation/screenshots/hash_chain_audit.png) | ![Staff Tasks](working-php/documentation/screenshots/staff_tasks.png) |
+### Department Tasks
+<img src="working-php/documentation/screenshots/Department%20Tasks.png" width="100%" alt="Department Tasks">
+
+### Department Digital Signature
+<img src="working-php/documentation/screenshots/Department%20Digital%20Signature.png" width="100%" alt="Department Digital Signature">
+
+### Document Releasing
+<img src="working-php/documentation/screenshots/Document%20Releasing.png" width="100%" alt="Document Releasing">
+
+### Admin Dashboard
+<img src="working-php/documentation/screenshots/Admin%20Dashboard.png" width="100%" alt="Admin Dashboard">
+
+### Admin Dashboard (Dark Mode)
+<img src="working-php/documentation/screenshots/Admin%20Dashboard%20(Dark%20Mode).png" width="100%" alt="Admin Dashboard (Dark Mode)">
+
+### Admin System Overview
+<img src="working-php/documentation/screenshots/Admin%20System%20Overview.png" width="100%" alt="Admin System Overview">
+
+### [View More Screenshots ➔](working-php/documentation/screenshots/)
 
 ---
 
 ## 📄 Example Outputs & Generated Reports
 
-Example document tracking forms and administrative export reports are located in [working-php/documentation/examples](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/documentation/examples):
+Real examples of document tracking forms and administrative export reports are located in [working-php/documentation/exports](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/documentation/exports):
 
-- **Sample Tracking Form (PDF):** Generated PDF containing submitter information, document requirements, and a scannable QR code. *(Place sample PDF in `working-php/documentation/examples/`)*
-- **Sample Release Report (XLSX):** Streaming Excel export of completed document throughput generated via `OpenSpout`. *(Place sample XLSX in `working-php/documentation/examples/`)*
+- **Sample Tracking Form (PDF):** [document-tracking-form-DEPED-E5345FDA4F.pdf](working-php/documentation/exports/document-tracking-form-DEPED-E5345FDA4F.pdf) — Generated PDF containing submitter information, document requirements, and a scannable QR code.
+- **Sample Release Report (XLSX):** [released-documents-20260728_000645-677docs.xlsx](working-php/documentation/exports/released-documents-20260728_000645-677docs.xlsx) — Streaming Excel export of completed document throughput generated via `OpenSpout`.
 
 ---
 
@@ -139,6 +151,18 @@ Comprehensive user manuals are provided in [working-php/documentation/user_manua
 | **Staff: ASDS Office** | `assistant.schools.division.superintendent.office` |
 | **Staff: CID** | `curriculum.implementation.division` |
 | **Staff: SGOD** | `school.governance.and.operations.division` |
+
+---
+
+## ⚖️ License & Usage
+
+**Non-Commercial Government-Backed Project License**
+
+This project is a government-backed initiative for the **DepEd Division of Iligan City**. 
+
+You are free to clone, use, and modify the system to make it your own for internal use. However, **you may not sell, rent, profit from, or redistribute this system or its derivatives in any way.** 
+
+Please see the [LICENSE](LICENSE) file for more details.
 
 ---
 
