@@ -37,7 +37,13 @@ require BASE_PATH . '/src/Views/components/modal.php';
                     qrModal.classList.add('hidden');
                     if (trackingInput && targetForm) {
                         trackingInput.value = decodedText;
-                        targetForm.submit();
+                        if (typeof targetForm.requestSubmit === 'function') {
+                            targetForm.requestSubmit();
+                        } else {
+                            if (targetForm.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }))) {
+                                targetForm.submit();
+                            }
+                        }
                     }
                 });
             }
