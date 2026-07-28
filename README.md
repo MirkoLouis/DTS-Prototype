@@ -18,39 +18,39 @@ DTS Prototype/
 
 1. **Framework-Free Performance:** Eliminates framework bootstrapping overhead, delivering near-instant page loads and sub-millisecond raw PDO database query execution.
 2. **Zero-Dependency Core:** Runs natively using pure PHP 8.3 and MySQL 8.0 without heavy framework runtime dependencies.
-3. **Pessimistic Locking & Transaction Safety:** Centralizes database state mutations inside [DocumentWorkflowService.php](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Services/DocumentWorkflowService.php) using explicit `PDO` transactions and `SELECT ... FOR UPDATE` row-level locking to eliminate race conditions under concurrent loads.
-4. **Container-Native Scheduling:** Replaced host `cron` daemons with a unified CLI worker ([console.php](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/console.php)) featuring an internal task scheduler loop for telemetry sampling, TAT backfilling, metrics rollups, response cache GC, and automated stale pending document garbage collection inside containerized environments (Distrobox / Docker).
+3. **Pessimistic Locking & Transaction Safety:** Centralizes database state mutations inside [DocumentWorkflowService.php](working-php/src/Services/DocumentWorkflowService.php) using explicit `PDO` transactions and `SELECT ... FOR UPDATE` row-level locking to eliminate race conditions under concurrent loads.
+4. **Container-Native Scheduling:** Replaced host `cron` daemons with a unified CLI worker ([console.php](working-php/console.php)) featuring an internal task scheduler loop for telemetry sampling, TAT backfilling, metrics rollups, response cache GC, and automated stale pending document garbage collection inside containerized environments (Distrobox / Docker).
 
 ---
 
 ## 📸 System Screenshots
 
 ### Guest Submission
-<img src="working-php/documentation/screenshots/Guest%20Submission%20(Filled).png" width="100%" alt="Guest Submission">
+<img src="working-php/documentation/screenshots/Guest%20Submission%20(Filled).png" width="100%" alt="Guest Submission" style="border: 1px solid black;">
 
 ### Guest Submission Success
-<img src="working-php/documentation/screenshots/Guest%20Submission%20Success.png" width="100%" alt="Guest Submission Success">
+<img src="working-php/documentation/screenshots/Guest%20Submission%20Success.png" width="100%" alt="Guest Submission Success" style="border: 1px solid black;">
 
 ### Document Intake
-<img src="working-php/documentation/screenshots/Document%20Intake.png" width="100%" alt="Document Intake">
+<img src="working-php/documentation/screenshots/Document%20Intake.png" width="100%" alt="Document Intake" style="border: 1px solid black;">
 
 ### Department Tasks
-<img src="working-php/documentation/screenshots/Department%20Tasks.png" width="100%" alt="Department Tasks">
+<img src="working-php/documentation/screenshots/Department%20Tasks.png" width="100%" alt="Department Tasks" style="border: 1px solid black;">
 
 ### Department Digital Signature
-<img src="working-php/documentation/screenshots/Department%20Digital%20Signature.png" width="100%" alt="Department Digital Signature">
+<img src="working-php/documentation/screenshots/Department%20Digital%20Signature.png" width="100%" alt="Department Digital Signature" style="border: 1px solid black;">
 
 ### Document Releasing
-<img src="working-php/documentation/screenshots/Document%20Releasing.png" width="100%" alt="Document Releasing">
+<img src="working-php/documentation/screenshots/Document%20Releasing.png" width="100%" alt="Document Releasing" style="border: 1px solid black;">
 
 ### Admin Dashboard
-<img src="working-php/documentation/screenshots/Admin%20Dashboard.png" width="100%" alt="Admin Dashboard">
+<img src="working-php/documentation/screenshots/Admin%20Dashboard.png" width="100%" alt="Admin Dashboard" style="border: 1px solid black;">
 
 ### Admin Dashboard (Dark Mode)
-<img src="working-php/documentation/screenshots/Admin%20Dashboard%20(Dark%20Mode).png" width="100%" alt="Admin Dashboard (Dark Mode)">
+<img src="working-php/documentation/screenshots/Admin%20Dashboard%20(Dark%20Mode).png" width="100%" alt="Admin Dashboard (Dark Mode)" style="border: 1px solid black;">
 
 ### Admin System Overview
-<img src="working-php/documentation/screenshots/Admin%20System%20Overview.png" width="100%" alt="Admin System Overview">
+<img src="working-php/documentation/screenshots/Admin%20System%20Overview.png" width="100%" alt="Admin System Overview" style="border: 1px solid black;">
 
 ### [View More Screenshots ➔](working-php/documentation/screenshots/)
 
@@ -58,7 +58,7 @@ DTS Prototype/
 
 ## 📄 Example Outputs & Generated Reports
 
-Real examples of document tracking forms and administrative export reports are located in [working-php/documentation/exports](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/documentation/exports):
+Real examples of document tracking forms and administrative export reports are located in [working-php/documentation/exports](working-php/documentation/exports):
 
 - **Sample Tracking Form (PDF):** [document-tracking-form-DEPED-E5345FDA4F.pdf](working-php/documentation/exports/document-tracking-form-DEPED-E5345FDA4F.pdf) — Generated PDF containing submitter information, document requirements, and a scannable QR code.
 - **Sample Release Report (XLSX):** [released-documents-20260728_000645-677docs.xlsx](working-php/documentation/exports/released-documents-20260728_000645-677docs.xlsx) — Streaming Excel export of completed document throughput generated via `OpenSpout`.
@@ -67,14 +67,14 @@ Real examples of document tracking forms and administrative export reports are l
 
 ## 📖 System Documentation & Manuals
 
-Comprehensive user manuals are provided in [working-php/documentation/user_manuals](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/documentation/user_manuals):
+Comprehensive user manuals are provided in [working-php/documentation/user_manuals](working-php/documentation/user_manuals):
 
-- 📘 **[Administrator Manual](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/documentation/user_manuals/admin_manual.md):** Account management, database performance, integrity checks, backups, and snapshot Auto-Resolve.
-- 📗 **[Records Officer Manual](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/documentation/user_manuals/officer_manual.md):** Document intake, route finalization, QR tracking form printing, camera scanning, and releasing.
-- 📙 **[Department Staff Manual](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/documentation/user_manuals/staff_manual.md):** Departmental task processing, physical folder receipt, action remarks, and digital signatures.
-- 🔐 **[Cryptographic Logs Explained](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/documentation/CRYPTOGRAPHIC_LOGS_EXPLAINED.md):** How hash-chain logs work (mechanics), why seals/signatures match administrative chain-of-custody needs, and cryptography vs encryption.
-- 📖 **[Cryptographic Hash Verification Layman Guide](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/documentation/HASH_VERIFICATION_LAYMAN_GUIDE.md):** Simple, step-by-step breakdown of how document hashes, payload state hashes, digital signatures, and tamper detection work without complex jargon.
-- 🎯 **[Value Proposition & Multi-Stakeholder Pitch](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/documentation/PITCH_AND_VALUE_PROPOSITION.md):** Architectural value propositions and technical pitches for IT Admins, Executives, Cryptographers, Office Staff, and Citizens.
+- 📘 **[Administrator Manual](working-php/documentation/user_manuals/admin_manual.md):** Account management, database performance, integrity checks, backups, and snapshot Auto-Resolve.
+- 📗 **[Records Officer Manual](working-php/documentation/user_manuals/officer_manual.md):** Document intake, route finalization, QR tracking form printing, camera scanning, and releasing.
+- 📙 **[Department Staff Manual](working-php/documentation/user_manuals/staff_manual.md):** Departmental task processing, physical folder receipt, action remarks, and digital signatures.
+- 🔐 **[Cryptographic Logs Explained](working-php/documentation/CRYPTOGRAPHIC_LOGS_EXPLAINED.md):** How hash-chain logs work (mechanics), why seals/signatures match administrative chain-of-custody needs, and cryptography vs encryption.
+- 📖 **[Cryptographic Hash Verification Layman Guide](working-php/documentation/HASH_VERIFICATION_LAYMAN_GUIDE.md):** Simple, step-by-step breakdown of how document hashes, payload state hashes, digital signatures, and tamper detection work without complex jargon.
+- 🎯 **[Value Proposition & Multi-Stakeholder Pitch](working-php/documentation/PITCH_AND_VALUE_PROPOSITION.md):** Architectural value propositions and technical pitches for IT Admins, Executives, Cryptographers, Office Staff, and Citizens.
 
 ---
 
@@ -123,9 +123,9 @@ Comprehensive user manuals are provided in [working-php/documentation/user_manua
 
 | Command / Script | Purpose |
 | :--- | :--- |
-| `composer run worker` | Runs [console.php](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/console.php) background job processor and telemetry scheduler. |
-| `composer run dev` | Runs [scripts/dev.php](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/scripts/dev.php) to start local dev server & Tailwind watcher. |
-| `composer run corrupt` | Runs [scripts/corrupt.php](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/scripts/corrupt.php) to simulate database tampering and test JIT Active Guard auto-freeze. |
+| `composer run worker` | Runs [console.php](working-php/console.php) background job processor and telemetry scheduler. |
+| `composer run dev` | Runs [scripts/dev.php](working-php/scripts/dev.php) to start local dev server & Tailwind watcher. |
+| `composer run corrupt` | Runs [scripts/corrupt.php](working-php/scripts/corrupt.php) to simulate database tampering and test JIT Active Guard auto-freeze. |
 | `php scripts/tune-database.php` | Analyzes system memory and outputs optimal MySQL `my.cnf` buffer pool configurations. |
 | `php scripts/generate-keys.php` | CLI tool for generating missing Ed25519 digital signature keypairs. |
 | `php scripts/concurrency_test.php` | Evaluates pessimistic locking performance under high-concurrency transaction loads. |
