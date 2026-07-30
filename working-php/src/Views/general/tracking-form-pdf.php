@@ -28,19 +28,24 @@
             padding-top: 40px;
             text-align: center;
             margin-bottom: 8px;
+            width: 100%;
         }
         .header img {
-            width: 45px;
+            width: 120px;
             height: auto;
+            display: block;
+            margin: 0 auto 5px auto;
         }
         .header p {
             margin: 0;
             font-size: 12px;
+            text-align: center;
         }
         .header .division {
             font-weight: bold;
             margin-top: 3px;
             font-size: 18px;
+            text-align: center;
         }
         .title {
             text-align: center;
@@ -110,13 +115,17 @@
         $host = $_SERVER['HTTP_HOST'];
         $trackingUrl = $protocol . $host . '/track?codes=' . urlencode($document['tracking_code']);
         
-        // Resolve absolute path for Dompdf images
-        $logoPath = BASE_PATH . '/public/images/logoipsum-411.png';
+        // Base64 encode the logo for reliable DomPDF rendering
+        $logoPath = BASE_PATH . '/public/images/DepEd Seal.png';
+        $logoData = '';
+        if (file_exists($logoPath)) {
+            $logoData = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));
+        }
 
-        function renderFormContent($details, $rowCount, $qrCodeBase64, $trackingUrl, $logoPath) {
+        function renderFormContent($details, $rowCount, $qrCodeBase64, $trackingUrl, $logoData) {
             echo '
             <div class="header">
-                <img src="' . $logoPath . '" alt="DepEd Logo">
+                <img src="' . $logoData . '" alt="DepEd Logo">
                 <p>Republic of the Philippines</p>
                 <p>Department of Education</p>
                 <p>Region X - Northern Mindanao</p>
@@ -155,9 +164,9 @@
     ?>
 
     <div class="form-container">
-        <?php renderFormContent($details, $rowCount, $qrCodeBase64, $trackingUrl, $logoPath); ?>
+        <?php renderFormContent($details, $rowCount, $qrCodeBase64, $trackingUrl, $logoData); ?>
         <div class="cut-line"></div>
-        <?php renderFormContent($details, $rowCount, $qrCodeBase64, $trackingUrl, $logoPath); ?>
+        <?php renderFormContent($details, $rowCount, $qrCodeBase64, $trackingUrl, $logoData); ?>
     </div>
 </body>
 </html>
