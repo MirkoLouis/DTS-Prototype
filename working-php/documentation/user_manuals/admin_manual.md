@@ -35,7 +35,7 @@ Every user action that mutates document state requires a cryptographically secur
 3. **Security Key Setup Prompt:** If you have not set up your security key, the system automatically redirects you to the Security Key Setup screen (`/security-key`).
 4. **Create Your 6-Digit PIN:**
    - Enter a secure 6-digit numeric PIN.
-   - *Technical Note:* The system derives an encryption key from your PIN using Argon2/Sodium (or SHA-256) to encrypt your newly generated Ed25519 private key before storing it in the database (`users.private_key`).
+   - *Technical Note:* The system derives an encryption key from your PIN using Argon2id (libsodium) to encrypt your newly generated Ed25519 private key with AES-256-CBC before storing it in the database (`users.private_key`).
 5. **Confirm Initialization:** Click **Set Security Key**. Once completed, your public key is published to `users.public_key` and logged in `user_public_key_histories`.
 
 > [!IMPORTANT]

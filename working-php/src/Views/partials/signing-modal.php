@@ -37,13 +37,17 @@ require BASE_PATH . '/src/Views/components/modal.php';
 ?>
 
 <script>
+    // Remove the plaintext PIN left behind by earlier builds
+    try { sessionStorage.removeItem('dts_security_pin'); } catch (e) {}
+
     window.SigningModal = {
         callback: null,
         show: function(message, callback) {
-            const cachedPin = sessionStorage.getItem('dts_security_pin');
-            if (cachedPin) {
-                // Pin is cached client-side in browser memory
-                callback(cachedPin);
+            // Reuse the server-issued encrypted token instead of prompting; the PIN itself is never stored
+            let cachedToken = null;
+            try { cachedToken = sessionStorage.getItem('dts_pin_token'); } catch (e) {}
+            if (cachedToken) {
+                callback(cachedToken);
                 return;
             }
             this.callback = callback;
@@ -76,14 +80,12 @@ require BASE_PATH . '/src/Views/components/modal.php';
                 pinInput.focus();
                 return;
             }
-            
-            // Store the PIN securely in client-side sessionStorage (cleared when tab closes)
-            sessionStorage.setItem('dts_security_pin', pin);
-            
+
+            // Send the typed PIN once; the server answers with an encrypted cache token on the next page
             if (window.SigningModal.callback) {
                 const cb = window.SigningModal.callback;
                 window.SigningModal.hide();
-                cb(pin); // Send the actual PIN to the server, not 'CACHED_PIN'
+                cb(pin);
             }
         });
 

@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Core\Database;
+use App\Core\IntegrityManager;
 use App\Events\IntegrityCheckFailed;
 use App\Core\EventDispatcher;
 
@@ -13,7 +14,6 @@ class IntegrityCheckJob
     private const MAX_TRACKED_MISMATCHES = 1000;
 
     protected $integrityCheckId;
-    protected $publicKeyHistoryCache = [];
 
     public function __construct(string $integrityCheckId)
     {
@@ -65,7 +65,7 @@ class IntegrityCheckJob
                     $placeholders = implode(',', array_fill(0, count($docIds), '?'));
                     
                     // Fetch all logs for this chunk of documents
-                    $logsStmt = $db->query("SELECT dl.*, u.public_key, u.security_key_set_at FROM document_logs dl LEFT JOIN users u ON dl.user_id = u.id WHERE dl.document_id IN ($placeholders) ORDER BY dl.document_id ASC, dl.id ASC", $docIds);
+                    $logsStmt = $db->query("SELECT dl.* FROM document_logs dl WHERE dl.document_id IN ($placeholders) ORDER BY dl.document_id ASC, dl.id ASC", $docIds);
                     $logsChunk = $logsStmt->fetchAll();
 
                     // Group logs by document ID
@@ -86,92 +86,52 @@ class IntegrityCheckJob
                         }
 
                         $docLogs = $logsByDoc[$docId] ?? [];
-                        $expectedPreviousHash = 'genesis_hash';
+                        $expectedPreviousHash = IntegrityManager::GENESIS_HASH;
                         $latestStateHash = null;
 
                         foreach ($docLogs as $log) {
-                            $timestampForHashing = date('c', strtotime($log['created_at']));
-                            
-                            $dataToHash = [
-                                (int) $log['document_id'],
-                                $log['user_id'] ? (int) $log['user_id'] : '',
-                                $log['action'],
-                                $timestampForHashing,
-                                $expectedPreviousHash,
-                                $log['document_state_hash'],
-                                $log['signature']
-                            ];
-                            $recalculatedHash = hash('sha256', json_encode($dataToHash, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+                            $logUserId = $log['user_id'] !== null ? (int) $log['user_id'] : null;
+                            $epoch = IntegrityManager::logTimestamp($log['created_at']);
+                            $remarks = (string) ($log['remarks'] ?? '');
+                            $isBadLog = false;
 
+                            // Step 1: Re-derive the chain hash from the expected parent, not the stored previous_hash
+                            $recalculatedHash = IntegrityManager::chainHash(
+                                (int) $log['document_id'],
+                                $logUserId,
+                                $log['action'],
+                                $epoch,
+                                $expectedPreviousHash,
+                                (string) $log['document_state_hash'],
+                                $remarks,
+                                (string) $log['signature']
+                            );
                             if ($recalculatedHash !== $log['hash']) {
                                 $invalidLogsCount++;
-                                if (!isset($mismatchedIdsSet[$log['id']])) {
-                                    $mismatchedIdsSet[$log['id']] = true;
-                                    $mismatchedIdsCount++;
-                                    if ($mismatchedIdsCount <= self::MAX_TRACKED_MISMATCHES) {
-                                        $mismatchedIdsList[] = $log['id'];
-                                    }
-                                }
+                                $isBadLog = true;
                             }
 
-                            // Verify Cryptographic Signature
-                            if ($log['signature'] && strlen($log['signature']) > 10) {
-                                $isMockSignature = str_starts_with(base64_decode($log['signature']), 'SYSTEM_SIG:');
-                                if ($isMockSignature) {
-                                    $decodedMock = base64_decode($log['signature']);
-                                    $expectedMock = "SYSTEM_SIG:{$log['action']}|{$log['document_state_hash']}";
-                                     if ($decodedMock !== $expectedMock) {
-                                        $invalidSignaturesCount++;
-                                        if (!isset($mismatchedIdsSet[$log['id']])) {
-                                            $mismatchedIdsSet[$log['id']] = true;
-                                            $mismatchedIdsCount++;
-                                            if ($mismatchedIdsCount <= self::MAX_TRACKED_MISMATCHES) {
-                                                $mismatchedIdsList[] = $log['id'];
-                                            }
-                                        }
-                                    }
-                                } else {
-                                    $pubKey = $this->getPublicKeyAtTime($db, $log['user_id'], $log['created_at'], $log['public_key'], $log['security_key_set_at']);
-                                    if ($pubKey) {
-                                        $signedData = $log['action'] . '|' . $log['document_state_hash'];
-                                        $rawPubKey = base64_decode($pubKey);
-                                        
-                                        if (strlen($rawPubKey) !== SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES) {
-                                            $invalidSignaturesCount++;
-                                            if (!isset($mismatchedIdsSet[$log['id']])) {
-                                                $mismatchedIdsSet[$log['id']] = true;
-                                                $mismatchedIdsCount++;
-                                                if ($mismatchedIdsCount <= self::MAX_TRACKED_MISMATCHES) {
-                                                    $mismatchedIdsList[] = $log['id'];
-                                                }
-                                            }
-                                        } else {
-                                            $verified = sodium_crypto_sign_verify_detached(
-                                                base64_decode($log['signature']),
-                                                $signedData,
-                                                $rawPubKey
-                                            );
-                                            if (!$verified) {
-                                                $invalidSignaturesCount++;
-                                                if (!isset($mismatchedIdsSet[$log['id']])) {
-                                                    $mismatchedIdsSet[$log['id']] = true;
-                                                    $mismatchedIdsCount++;
-                                                    if ($mismatchedIdsCount <= self::MAX_TRACKED_MISMATCHES) {
-                                                        $mismatchedIdsList[] = $log['id'];
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        $invalidSignaturesCount++;
-                                        if (!isset($mismatchedIdsSet[$log['id']])) {
-                                            $mismatchedIdsSet[$log['id']] = true;
-                                            $mismatchedIdsCount++;
-                                            if ($mismatchedIdsCount <= self::MAX_TRACKED_MISMATCHES) {
-                                                $mismatchedIdsList[] = $log['id'];
-                                            }
-                                        }
-                                    }
+                            // Step 2: Verify the Ed25519 signature over the full signed message
+                            $message = IntegrityManager::signedMessage(
+                                (int) $log['document_id'],
+                                $log['action'],
+                                $epoch,
+                                $expectedPreviousHash,
+                                (string) $log['document_state_hash'],
+                                $remarks
+                            );
+                            $verification = IntegrityManager::verifySignature($logUserId, $log['created_at'], $message, $log['signature']);
+                            if (!$verification['valid']) {
+                                $invalidSignaturesCount++;
+                                $isBadLog = true;
+                            }
+
+                            // Record each failing log once, keeping the stored list bounded
+                            if ($isBadLog && !isset($mismatchedIdsSet[$log['id']])) {
+                                $mismatchedIdsSet[$log['id']] = true;
+                                $mismatchedIdsCount++;
+                                if ($mismatchedIdsCount <= self::MAX_TRACKED_MISMATCHES) {
+                                    $mismatchedIdsList[] = $log['id'];
                                 }
                             }
 
@@ -225,8 +185,14 @@ class IntegrityCheckJob
             // Use $mismatchedIdsCount (the true total) so the percentage stays accurate even when the stored list is capped
             $verifiedPercentage = ($totalLogs > 0) ? (($totalLogs - $mismatchedIdsCount) / $totalLogs) * 100 : 100;
 
+            // Floor instead of round so a single failure can never be displayed as 100%
+            $verifiedPercentage = floor($verifiedPercentage * 100) / 100;
+
+            // Detect deleted chain heads against the newest signed checkpoint
+            $checkpoint = (new ChainCheckpointJob())->verifyLatest();
+
             $results = [
-                'verified_percentage' => round($verifiedPercentage, 2),
+                'verified_percentage' => $verifiedPercentage,
                 'last_checked' => date('Y-m-d H:i:s'),
                 'total_logs' => $totalLogs,
                 'invalid_logs' => $invalidLogsCount,
@@ -235,6 +201,7 @@ class IntegrityCheckJob
                 'total_mismatched_ids' => $mismatchedIdsCount,
                 'live_state_errors_count' => $liveStateErrorsCount,
                 'mismatched_document_tracking_codes' => $mismatchedDocumentTrackingCodes,
+                'checkpoint' => $checkpoint,
             ];
 
             if (!is_dir(BASE_PATH . '/cache')) {
@@ -253,29 +220,5 @@ class IntegrityCheckJob
                 'id' => $this->integrityCheckId
             ]);
         }
-    }
-
-    protected function getPublicKeyAtTime($db, $userId, $timestamp, $userPubKey, $userKeySetAt)
-    {
-        if (!array_key_exists($userId, $this->publicKeyHistoryCache)) {
-            $this->publicKeyHistoryCache[$userId] = $db->query("SELECT public_key, activated_at, deactivated_at FROM user_public_key_histories WHERE user_id = :uid", ['uid' => $userId])->fetchAll();
-        }
-
-        $timestampTime = strtotime($timestamp);
-        foreach ($this->publicKeyHistoryCache[$userId] as $history) {
-            $activatedAt = strtotime($history['activated_at']);
-            $deactivatedAt = $history['deactivated_at'] ? strtotime($history['deactivated_at']) : null;
-            if ($activatedAt <= $timestampTime && ($deactivatedAt === null || $deactivatedAt >= $timestampTime)) {
-                return $history['public_key'];
-            }
-        }
-
-        if ($userPubKey) {
-            $hasHistory = !empty($this->publicKeyHistoryCache[$userId]);
-            if (!$hasHistory) return $userPubKey;
-            if ($userKeySetAt && strtotime($userKeySetAt) <= strtotime($timestamp)) return $userPubKey;
-        }
-
-        return null;
     }
 }

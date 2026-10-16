@@ -6,7 +6,7 @@
 
 ## 1. Overview & Role Summary
 
-As **Department Staff** (`staff`), you handle the domain-specific review, actioning, and endorsement of official documents routed to your specific division department (e.g., Accounting, Budget, Personnel, Legal, ODS). Your key responsibilities include receiving physical document folders delivered to your desk, executing internal actions, providing detailed action remarks, digitally signing completed tasks, and routing paperwork to the next department in line.
+As **Department Staff** (`staff`), you handle the domain-specific review, actioning, and endorsement of official documents routed to your specific division department (e.g., Accounting, Budget, Personnel, Legal, ODS). Your key responsibilities include receiving physical document folders delivered to your desk, executing internal actions, digitally signing completed tasks, and routing paperwork to the next department in line.
 
 ---
 
@@ -16,7 +16,7 @@ As **Department Staff** (`staff`), you handle the domain-specific review, action
 | :--- | :--- | :--- |
 | **Department Tasks** (`/tasks`) | Primary Landing | View and process active documents currently routed to your department. |
 | **Global QR Scanner** (`/documents/scan`) | Department-Scoped | Scan QR codes to log physical receipt of documents assigned to your department. |
-| **Task Completion** (`/tasks/{id}/complete`) | Full Access | Add action remarks, enter Security PIN, and advance document to next step. |
+| **Task Completion** (`/tasks/{id}/complete`) | Full Access | Enter Security PIN and advance document to next step. |
 | **Completed Tasks History** (`/tasks/completed`) | Full Access | Review past tasks completed by your department. |
 | **Department Analytics** (`/statistics`) | Read Access | View turnaround time (TAT) charts and request custom statistics exports. |
 | **Document Visibility** | Department-Scoped | Restricted to documents whose finalized route includes your department. |
@@ -62,26 +62,23 @@ When a physical document folder is delivered to your department:
 2. Point your camera at the QR code on the document's tracking sheet.
 3. The scanner identifies the document. Click **Receive Document**.
 4. Enter your **6-Digit Security PIN** and click confirm.
-5. The system logs a `Received at [Department Name]` entry signed with your cryptographic key.
+5. The system logs a `Received` entry ("Document received by [Department Name].") signed with your cryptographic key.
 
 ### 4.3 Actioning & Completing a Task (`/tasks/{id}/complete`)
 
 After performing your required office work (e.g., verifying budget allocation, signing endorsement, encoding records):
 
 1. On `/tasks`, locate the document and click **Complete Task** (or open document details at `/documents/{tracking_code}`).
-2. In the completion modal:
-   - Enter detailed **Action Remarks** summarizing the work done (e.g., *Approved budget allocation of ₱15,000. Forwarded to Accounting for obligation*).
-   - Enter your **6-Digit Security PIN**.
-3. Click **Submit & Route to Next Step**.
-4. **What happens under the hood:**
+2. Enter your **Security PIN** when prompted. After the first correct PIN, the system remembers it in an encrypted, session-bound form for the configured period, so later actions do not prompt again.
+3. **What happens under the hood:**
    - The Active Guard checks document integrity before proceeding.
-   - The system locks the document row using pessimistic locking (`SELECT ... FOR UPDATE`).
-   - It records a signed log entry, increments the document's `current_step` counter, and automatically updates the active department pointer to the next office in the routing chain.
+   - The document row is updated with an optimistic version check inside a database transaction; the row lock it takes ensures only one of two simultaneous completions succeeds.
+   - It records a signed log entry ("Step processed by [Department]. In transit to [Next Department]."), increments the document's `current_step` counter, and updates the active department pointer to the next office in the routing chain.
 
 ### 4.4 Reviewing Completed Tasks (`/tasks/completed`)
 
 1. Navigate to `/tasks/completed`.
-2. View historical documents previously processed and signed by your department, along with timestamps, action remarks, and total processing duration.
+2. View historical documents previously processed and signed by your department, along with timestamps and total processing duration.
 
 ---
 

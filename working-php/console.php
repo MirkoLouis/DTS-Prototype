@@ -32,14 +32,26 @@ $lastBackfillTime = time();
 $lastRollupTime = time();
 $lastGcTime = time();
 $lastStaleCleanupTime = time();
+$lastCheckpointTime = time();
 
 /**
  * Execute periodic system maintenance and telemetry tasks inside the worker loop.
  * Eliminates reliance on host system cron daemons in containerized environments.
  */
-function runScheduledTasks(int &$lastSampleTime, int &$lastBackfillTime, int &$lastRollupTime, int &$lastGcTime, int &$lastStaleCleanupTime): void
+function runScheduledTasks(int &$lastSampleTime, int &$lastBackfillTime, int &$lastRollupTime, int &$lastGcTime, int &$lastStaleCleanupTime, int &$lastCheckpointTime): void
 {
     $now = time();
+
+    // 0. Signed chain-head checkpoint every 24 hours (86400s)
+    if ($now - $lastCheckpointTime >= 86400) {
+        $lastCheckpointTime = $now;
+        try {
+            $path = (new \App\Jobs\ChainCheckpointJob())->create();
+            echo "⏰ [Worker Scheduler] Chain-head checkpoint written: " . basename($path) . "\n";
+        } catch (\Throwable $e) {
+            echo "⏰ [Worker Scheduler] Chain-head checkpoint failed: " . $e->getMessage() . "\n";
+        }
+    }
 
     // 1. Sample database performance metrics every 5 minutes (300s)
     if ($now - $lastSampleTime >= 300) {
@@ -141,7 +153,7 @@ function cleanupActiveWorkers(array &$activeWorkers) {
 
 while (!$stopWorker) {
     // 0. Run scheduled maintenance & telemetry tasks
-    runScheduledTasks($lastSampleTime, $lastBackfillTime, $lastRollupTime, $lastGcTime, $lastStaleCleanupTime);
+    runScheduledTasks($lastSampleTime, $lastBackfillTime, $lastRollupTime, $lastGcTime, $lastStaleCleanupTime, $lastCheckpointTime);
 
     // 1. Memory Leak Prevention: Check if we exceeded our allowed memory
     if (memory_get_usage(true) > $maxMemory) {

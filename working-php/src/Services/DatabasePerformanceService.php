@@ -4,62 +4,11 @@ namespace App\Services;
 
 use App\Core\Database;
 
+/**
+ * Reads the samples written by scripts/sample-db-metrics.php for the System Overview chart.
+ */
 class DatabasePerformanceService
 {
-    /**
-     * Get database performance metrics.
-     *
-     * @param  string  $period
-     * @return array
-     */
-    public function getPerformanceMetrics($period = 'now')
-    {
-        return [
-            'connections' => $this->getConnections(),
-            'avg_query_time' => $this->getAverageQueryTime($period),
-            'slow_queries' => $this->getSlowQueries($period),
-        ];
-    }
-
-    /**
-     * Get the current number of database connections.
-     *
-     * @return int
-     */
-    protected function getConnections()
-    {
-        try {
-            $db = Database::getInstance();
-            $stmt = $db->query("SHOW STATUS WHERE `variable_name` = 'Threads_connected'");
-            $result = $stmt->fetch();
-            return isset($result['Value']) ? (int) $result['Value'] : 0;
-        } catch (\Exception $e) {
-            return 0;
-        }
-    }
-
-    /**
-     * Get the average query time. (Placeholder)
-     *
-     * @param  string  $period
-     * @return float
-     */
-    protected function getAverageQueryTime($period)
-    {
-        return rand(10, 50) / 1000; // Random value in ms
-    }
-
-    /**
-     * Get the number of slow queries. (Placeholder)
-     *
-     * @param  string  $period
-     * @return int
-     */
-    protected function getSlowQueries($period)
-    {
-        return rand(0, 5);
-    }
-
     /**
      * Get historical data for the charts.
      *
@@ -185,7 +134,7 @@ class DatabasePerformanceService
                     'tension' => 0.1
                 ],
                 [
-                    'label' => 'Avg Query Time (ms)',
+                    'label' => 'Mean Statement Time (ms)',
                     'data' => $avgQueryTimeData,
                     'borderColor' => 'rgba(255, 159, 64, 1)',
                     'backgroundColor' => 'rgba(255, 159, 64, 0.2)',

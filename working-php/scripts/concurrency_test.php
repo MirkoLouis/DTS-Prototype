@@ -3,7 +3,8 @@
 /**
  * Concurrency Test Script
  * Simulates multiple users attempting to process the same document simultaneously
- * to ensure that FOR UPDATE row-level locking handles the race condition perfectly.
+ * to ensure the optimistic version check (UPDATE ... WHERE version = :v under an InnoDB row lock)
+ * lets exactly one of them succeed.
  */
 
 require __DIR__ . '/../vendor/autoload.php';
@@ -102,7 +103,7 @@ echo "New Step: {$docAfter['current_step']}\n";
 
 $expectedStep = $doc['current_step'] + 1;
 if ($docAfter['current_step'] == $expectedStep) {
-    echo "\n🎉 TEST PASSED! The FOR UPDATE lock perfectly prevented race conditions.\n";
+    echo "\n🎉 TEST PASSED! The optimistic version check let exactly one request advance the document.\n";
 } else {
     echo "\n⚠️ TEST FAILED! The document advanced multiple steps or state is corrupted.\n";
 }

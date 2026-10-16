@@ -1,0 +1,199 @@
+MANUSCRIPT REVISIONS - Cryptographic DTS
+Source: "PROPOSED - Cryptographic DTS - Manuscript.md"
+Prepared: 2026-10-16
+
+How to use: each item quotes the CURRENT text (FIND) and gives the REPLACEMENT.
+"DELETE" means remove the quoted text entirely. Section numbers follow the manuscript.
+
+=====================================================================
+M1. OBJECTIVES (adviser-approved)
+=====================================================================
+
+--- 1.4 Objectives of the Study ---------------------------------------
+
+FIND (the whole "Specific Objectives" list, items 1-5):
+1. Develop a Trust Builder module responsible for Audit Trail: ...
+2. Integrate Ed25519 Non-Repudiation: ...
+3. Establish Unified Tracking and Heuristic Routing: ...
+4. Optimize Physical Workflows: ...
+5. Evaluate System Integrity and Usability: ...
+
+REPLACE WITH:
+1. Conduct Institutional Data Gathering: To gather functional requirements, workflow specifications, and technical network constraints directly from the Records, IT, and administrative units of the DepEd Division Office of Iligan City.
+2. Design and Implement the Cryptographic Artifact: To construct the software prototype by engineering a Trust Builder module that enforces SHA-256 micro-sharded hash chains for tamper-evident logging and an Ed25519 signature mechanism to provide cryptographic non-repudiation for administrative actions.
+3. Conduct System Testing and Evaluation: To evaluate the computational performance of log hashing, reading, and signature generation, verify tamper-detection resilience via an Active Guard module, and measure user interaction and operational friction using the standardized System Usability Scale.
+
+NOTE: QR hand-off, unified intake and route suggestions are no longer
+separate objectives. They are now features of the artifact built under
+Objective 2. Keep them in 1.6 Scope (they already appear there).
+
+=====================================================================
+M2. LARAVEL -> FRAMEWORK-FREE PHP
+=====================================================================
+
+--- 1.6 Scope and Delimitation (2nd paragraph) ------------------------
+
+FIND:
+Technical implementation is restricted to the PHP programming language; specifically, the prototype is built using the Laravel 12 framework to provide a modern, optimized structure while adhering to the client's language constraints. Additionally, the system utilizes MySQL as the relational database engine, selected for its native support for row-level locking — a critical requirement for resolving concurrent transaction conflicts — its proven compatibility with the Laravel Eloquent ORM, and the researchers' demonstrable proficiency in MySQL database architecture and optimization, which ensures that the implementation is both technically sound and efficiently executed (Silberschatz et al., 2020).
+
+REPLACE WITH:
+Technical implementation is restricted to the PHP programming language. Following the recommendation of the DepEd Iligan ICT head, the prototype is implemented in framework-free PHP 8.3 using PDO, so that the division's IT staff can maintain it without framework-specific knowledge; an earlier Laravel 12 build is retained only as a reference implementation. The system utilizes MySQL 8 (InnoDB) as the relational database engine, selected for its transactional row-level locking, which the system combines with optimistic version checking to resolve concurrent transaction conflicts (see M5), and for the researchers' demonstrable proficiency in MySQL database architecture and optimization (Silberschatz et al., 2020).
+
+--- 3.9 Data Analysis, "Operational and Performance Metric Verification" ---
+
+FIND:
+Laravel's built-in query logging and the system's database performance metrics serve as the primary instruments for capturing average query execution times, connection counts, and response durations, with a target of maintaining sub-second response times (less than 1,000 milliseconds) during peak usage.
+
+REPLACE WITH:
+The system's built-in telemetry serves as the primary instrument: MySQL Performance Schema statement statistics (mean statement execution time per 5-minute interval), connection counts, slow-query increments, and the server-side duration of every HTTP request recorded in the application's request log. The target is sub-second response times (less than 1,000 milliseconds) during peak usage. The computational cost of log hashing, log reading, and signature generation is measured separately with a dedicated benchmark script (mean, median, and 95th-percentile times per operation).
+
+=====================================================================
+M3. MICRO-SHARDING WORDING
+=====================================================================
+
+--- 3.4 Objectives of the Solution Table, row "Technical Objectives" ---
+
+FIND:
+Use Logical Micro-sharding (table partitioning) to isolate chains and ensure sub-second verification.
+
+REPLACE WITH:
+Use logical micro-sharding, an independent SHA-256 hash chain per document keyed by its document ID, so each document's integrity can be verified in time proportional to its own history rather than the whole ledger (Kim & Kim, 2024).
+
+NOTE: The 1.7 definition of "Micro-sharding" is already correct. No change needed there.
+
+=====================================================================
+M4. REMOVE TF-IDF (scope revision based on data gathering)
+=====================================================================
+
+--- 1.3 Statement of the Problem (end of 3rd paragraph) ---------------
+
+FIND:
+Additionally, the absence of any intelligent routing assistance forces Records Officers to manually determine the appropriate departmental path for each document, a repetitive cognitive task that contributes to processing delays and human error in high-volume workflows.
+
+REPLACE WITH:
+Additionally, the absence of routing assistance forces Records Officers to determine the departmental path of recurring document types from memory each time, a repetitive task that contributes to processing delays and human error in high-volume workflows.
+
+--- 1.6 Scope and Delimitation (1st paragraph) -----------------------
+
+FIND:
+The heuristic route prediction module suggests routes but does not autonomously force document transfers.
+
+REPLACE WITH:
+The system suggests the route last finalized for a document's purpose, but the Records Officer confirms or edits every route; documents filed under "Others" are routed manually by the Records Officer.
+
+--- 1.7 Definition of Terms -----------------------------------------
+
+DELETE the entire "TF-IDF" row.
+
+--- 2.1.4 Shadow Systems (3rd paragraph) ------------------------------
+
+FIND:
+features—such as smart routing and sub-second load times—
+
+REPLACE WITH:
+features—such as purpose-based route suggestions and sub-second load times—
+
+--- 2.1.6 Human-Centric Design (3rd paragraph) ------------------------
+
+FIND:
+By utilizing Decision Support Theory, the researchers integrated an heuristic route prediction module to help Records Officers manage document routing efficiently.
+
+REPLACE WITH:
+By utilizing Decision Support Theory, the researchers integrated purpose-based route suggestions that the Records Officer confirms or edits, helping officers manage recurring document routing efficiently.
+
+--- 2.3 Synthesis of the Review (last paragraph) ---------------------
+
+FIND:
+while its smart routing and QR-sync features ensure it matches the speed of informal shadow systems (Behrens, 2009).
+
+REPLACE WITH:
+while its route suggestions and QR-sync features ensure it matches the speed of informal shadow systems (Behrens, 2009).
+
+--- 2.4 Theoretical Framework (3rd paragraph) ------------------------
+
+FIND:
+Decision Support Theory informs the development of the heuristic route prediction module, which utilizes learned keyword weights to help Records Officers manage routing tasks efficiently (Ngan et al., 2022).
+
+REPLACE WITH:
+Decision Support Theory informs the route-suggestion feature, which recalls the route last finalized for each document purpose and presents it to the Records Officer, who retains full authority over the final route (Keen & Scott Morton, 1978).
+
+--- 2.5 Conceptual Framework, "Process" -----------------------------
+
+FIND:
+The system also incorporates Decision Support logic through TF-IDF-inspired route prediction and employs asynchronous background processing to handle high-volume analytics and system-wide integrity audits.
+
+REPLACE WITH:
+The system also incorporates Decision Support logic through purpose-based route suggestions and employs asynchronous background processing to handle high-volume analytics and system-wide integrity audits.
+
+--- 3.2 Research Framework (2nd paragraph) ---------------------------
+
+FIND:
+such as the TF-IDF-inspired route prediction (Ngan et al., 2022) and asynchronous background processing
+
+REPLACE WITH:
+such as the purpose-based route suggestions and asynchronous background processing
+
+--- 3.4 Objectives of the Solution Table, row "Functional Objectives" ---
+
+FIND:
+provide heuristic route suggestions (Ngan et al., 2022) as a secondary heuristic tool for efficiency,
+
+REPLACE WITH:
+provide purpose-based route suggestions as a secondary tool for efficiency,
+
+--- 3.4 Objectives of the Solution Table, row "Technical Objectives" ---
+
+DELETE these three sentences:
+The TF-IDF route prediction module is implemented as a heuristic decision-support tool rather than an autonomous classifier; it presents weighted keyword-based routing suggestions to the Records Officer, who retains full authority over final routing decisions. This approach is consistent with the decision-support framework proposed by Ngan et al. (2022), where algorithm-generated recommendations augment rather than replace human judgment.
+
+--- References ------------------------------------------------------
+
+If Ngan et al. (2022) is no longer cited anywhere after the edits above,
+DELETE its entry from the reference list.
+
+--- Chapter 4 / 5 (new paragraph to add) ------------------------------
+
+ADD:
+Scope revision: TF-IDF route prediction. The originally proposed TF-IDF route prediction was removed after data gathering. Keyword prediction would only apply to documents filed under the "Others" purpose, since official purposes already have a fixed route. Guests' free-text descriptions for these documents were overwhelmingly generic (e.g., "FOR APPROVAL", "FOR SIGNATURE"). Because such terms occur in nearly every "Others" submission, their inverse document frequency approaches zero, so they carry no routing signal. Documents with the same generic purpose were also routed to different departments. Routing of "Others" documents was therefore assigned entirely to the Records Officer, and official purposes use the route last finalized for that purpose.
+[Insert the count/share of generic "Others" submissions from your data if available.]
+
+=====================================================================
+M5. CONCURRENCY CONTROL WORDING
+=====================================================================
+
+Use this wording wherever the manuscript explains how race conditions are
+prevented (1.2 last paragraph, 1.6 via M2, Chapter 4 results):
+
+"Concurrency control uses optimistic version checking inside InnoDB transactions. The conditional UPDATE acquires an exclusive row lock that serializes hash-chain appends per document, and a version mismatch aborts the competing transaction."
+
+--- 1.2 Background of the Study (last paragraph) ----------------------
+
+FIND:
+To directly resolve the kiosk race conditions, the system implements strict database-level concurrency controls and queue management.
+
+REPLACE WITH:
+To directly resolve the kiosk race conditions, each submission is committed in its own database transaction under a unique tracking code, and every later state change uses optimistic version checking inside InnoDB transactions, so concurrent actions on the same document cannot overwrite one another.
+
+=====================================================================
+M6. METRIC NAMES (match the implemented instruments)
+=====================================================================
+
+--- 3.8 Data Gathering Procedures, "System Performance Logs and Technical Metrics" ---
+
+FIND:
+quantitative data is extracted directly from the system's database metrics, including average query times, connection counts, and the occurrence of race conditions.
+
+REPLACE WITH:
+quantitative data is extracted directly from the system's database metrics, including mean statement execution time (MySQL Performance Schema), connection counts, slow-query increments, per-request server response times, and the occurrence of race conditions.
+
+--- 3.7 Evaluation Framework, Ex-ante row, "Method" column ------------
+
+FIND:
+Performance Load Testing: Measuring sub-second response times under concurrent database load.
+
+REPLACE WITH:
+Performance Load Testing: Measuring sub-second response times under concurrent database load, and benchmarking the computational cost of log hashing, log reading, and Ed25519 signature generation.
+
+=====================================================================
+END
+=====================================================================

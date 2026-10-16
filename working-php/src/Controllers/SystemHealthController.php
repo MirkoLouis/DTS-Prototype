@@ -3,6 +3,7 @@
 namespace App\Controllers;
 
 use App\Core\Database;
+use App\Core\IntegrityManager;
 
 class SystemHealthController
 {
@@ -141,19 +142,18 @@ class SystemHealthController
             'id' => $log['id']
         ])->fetch();
 
-        $previousHash = $lastLog ? $lastLog['hash'] : 'genesis_hash';
-        $timestampForHashing = date('c', strtotime($log['created_at']));
-        
-        $dataToHash = [
-            (int) $log['document_id'],
-            $log['user_id'] ? (int) $log['user_id'] : '',
-            $log['action'],
-            $timestampForHashing,
-            $previousHash,
-            $log['document_state_hash'],
-            $log['signature']
-        ];
-        $recalculatedHash = hash('sha256', json_encode($dataToHash, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
+        // Rebuild the block's inputs exactly as the auditor does (format v2)
+        $previousHash = $lastLog ? $lastLog['hash'] : IntegrityManager::GENESIS_HASH;
+        $userId = $log['user_id'] !== null ? (int) $log['user_id'] : null;
+        $epoch = IntegrityManager::logTimestamp($log['created_at']);
+        $remarks = (string) ($log['remarks'] ?? '');
+
+        $hashInput = IntegrityManager::chainHashInput((int) $log['document_id'], $userId, $log['action'], $epoch, $previousHash, (string) $log['document_state_hash'], $remarks, (string) $log['signature']);
+        $recalculatedHash = IntegrityManager::chainHash((int) $log['document_id'], $userId, $log['action'], $epoch, $previousHash, (string) $log['document_state_hash'], $remarks, (string) $log['signature']);
+
+        // Verify the signature too, so the debugger explains signature failures and not only hash failures
+        $message = IntegrityManager::signedMessage((int) $log['document_id'], $log['action'], $epoch, $previousHash, (string) $log['document_state_hash'], $remarks);
+        $verification = IntegrityManager::verifySignature($userId, $log['created_at'], $message, $log['signature']);
 
         header('Content-Type: application/json');
         echo json_encode([
@@ -162,14 +162,18 @@ class SystemHealthController
             'match' => $log['hash'] === $recalculatedHash,
             'components' => [
                 'document_id' => $log['document_id'],
-                'user_id' => $log['user_id'],
+                'user_id' => $log['user_id'] ?? 'system',
                 'action' => $log['action'],
-                'timestamp' => $timestampForHashing,
+                'created_at' => $log['created_at'],
+                'epoch (hashed)' => $epoch,
                 'previous_hash' => $previousHash,
                 'document_state_hash' => $log['document_state_hash'],
+                'remarks' => $remarks,
                 'signature' => $log['signature'],
+                'signature_valid' => $verification['valid'] ? 'yes' : 'NO',
+                'verified_with' => $verification['key_source'],
             ],
-            'raw_data_string' => $dataToHash
+            'raw_data_string' => json_encode($hashInput, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
         ]);
         exit;
     }
@@ -236,76 +240,6 @@ class SystemHealthController
 
         header('Content-Type: application/json');
         echo json_encode($result);
-        exit;
-    }
-
-    public function rebuildChain()
-    {
-        $logId = $_POST['logId'] ?? null;
-        if (!$logId) {
-            header('Content-Type: application/json');
-            echo json_encode(['status' => 'error', 'message' => 'Missing logId']);
-            exit;
-        }
-
-        $db = Database::getInstance();
-        $startLog = $db->query("SELECT * FROM document_logs WHERE id = :id", ['id' => $logId])->fetch();
-
-        if (!$startLog) {
-            header('Content-Type: application/json');
-            echo json_encode(['status' => 'error', 'message' => "DocumentLog with ID {$logId} not found."]);
-            exit;
-        }
-
-        $documentId = $startLog['document_id'];
-
-        // Get logs to rebuild
-        $logsToRebuild = $db->query("SELECT * FROM document_logs WHERE document_id = :doc_id AND id >= :log_id ORDER BY id ASC", [
-            'doc_id' => $documentId,
-            'log_id' => $logId
-        ])->fetchAll();
-
-        // Get last valid log
-        $lastValidLog = $db->query("SELECT hash FROM document_logs WHERE document_id = :doc_id AND id < :log_id ORDER BY id DESC LIMIT 1", [
-            'doc_id' => $documentId,
-            'log_id' => $logId
-        ])->fetch();
-
-        $previousHash = $lastValidLog ? $lastValidLog['hash'] : 'genesis_hash';
-
-        foreach ($logsToRebuild as $log) {
-            $timestampForHashing = date('c', strtotime($log['created_at']));
-            
-            $dataToHash = [
-                (int) $log['document_id'],
-                $log['user_id'] ? (int) $log['user_id'] : '',
-                $log['action'],
-                $timestampForHashing,
-                $previousHash,
-                $log['document_state_hash'],
-                $log['signature']
-            ];
-            $newHash = hash('sha256', json_encode($dataToHash, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-
-            $db->query("UPDATE document_logs SET previous_hash = :prev, hash = :hash WHERE id = :id", [
-                'prev' => $previousHash,
-                'hash' => $newHash,
-                'id' => $log['id']
-            ]);
-
-            $previousHash = $newHash;
-        }
-
-        // Add admin log
-        $db->query("INSERT INTO document_logs (document_id, user_id, action, remarks, created_at) VALUES (:doc_id, :uid, :action, :remarks, NOW())", [
-            'doc_id' => $documentId,
-            'uid' => $_SESSION['user_id'],
-            'action' => 'ADMIN: Hash chain rebuilt for Log ID: ' . $logId,
-            'remarks' => 'An administrator manually triggered a hash chain rebuild to resolve an integrity mismatch.'
-        ]);
-
-        header('Content-Type: application/json');
-        echo json_encode(['status' => 'success', 'message' => 'Hash chain rebuilt']);
         exit;
     }
 

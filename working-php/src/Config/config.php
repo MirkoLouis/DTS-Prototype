@@ -24,5 +24,12 @@ return [
         'user' => $env['DB_USERNAME'],
         'password' => $env['DB_PASSWORD'],
         'charset' => 'utf8mb4'
+    ],
+    // Application runtime and cryptographic settings
+    'app' => [
+        'debug' => filter_var($env['APP_DEBUG'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
+        'pin_cache_duration' => (int) ($env['PIN_CACHE_DURATION'] ?? 900),
+        'system_signing_secret' => $env['SYSTEM_SIGNING_SECRET'] ?? '',
+        'system_signing_public' => $env['SYSTEM_SIGNING_PUBLIC'] ?? ''
     ]
 ];

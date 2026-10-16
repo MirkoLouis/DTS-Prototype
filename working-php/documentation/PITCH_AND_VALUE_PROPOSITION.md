@@ -64,9 +64,9 @@ Modern frameworks introduce heavy abstraction layers, loading hundreds of class 
 - **Memory Footprint:** Extremely low memory overhead per request (< 4 MB per worker), allowing a standard host server to comfortably handle **100+ concurrent active sessions**.
 
 #### 2. Deterministic Concurrency Controls (Zero Kiosk Race Conditions)
-Under high intake volume, guest kiosks often suffer from race conditions where simultaneous submissions overwrite tracking numbers or print jobs. The DTS resolves this at the database engine level using a dual-locking strategy:
-- **Pessimistic Row Locking (`SELECT ... FOR UPDATE`):** Holds explicit database row locks during multi-table state mutations.
-- **Optimistic Versioning (`UPDATE ... SET version = version + 1 WHERE id = :id AND version = :version`):** Ensures that if two users attempt to update the same document simultaneously, exactly one succeeds and the other is safely prompted to refresh, preventing silent data corruption.
+Under high intake volume, guest kiosks often suffer from race conditions where simultaneous submissions overwrite tracking numbers or print jobs. The DTS resolves this at the database engine level:
+- **Isolated Submissions:** Each kiosk submission commits in its own transaction under a unique tracking code (a `UNIQUE` index with automatic retry), so one guest can never receive another guest's code.
+- **Optimistic Versioning inside InnoDB Transactions (`UPDATE ... SET version = version + 1 WHERE id = :id AND version = :version`):** The conditional UPDATE takes an exclusive row lock that serializes hash-chain appends per document; if two users act on the same document simultaneously, exactly one succeeds and the other is safely prompted to refresh.
 
 #### 3. 3-Layer Performance Architecture
 - **Layer 1 (Server HTML Response Cache):** Full rendered pages are cached to disk with a 55-second TTL. On hit, PHP bypasses database queries and controller execution entirely. **Dynamic CSRF Injection** uses instant regex substitution on serve so cached forms never break security tokens.
@@ -110,7 +110,7 @@ The system uses distinct cryptographic primitives for specific security guarante
 | Security Goal | Primitive Used | Implementation |
 | :--- | :--- | :--- |
 | **Data Integrity** | SHA-256 Hashing | Micro-sharded hash chain (`previous_hash` binding) |
-| **Authenticity & Non-Repudiation** | Ed25519 Digital Signatures | Detached Sodium signature over `ActionText \| StateHash` |
+| **Authenticity & Non-Repudiation** | Ed25519 Digital Signatures | Detached Sodium signature over document ID, action, time, parent hash, state hash and remarks |
 | **Key Confidentiality** | Argon2id + AES-256-CBC | Encrypted private key wrapping using 6-digit user Security PIN |
 
 - **State Hash:** SHA-256 calculated over normalized document metadata (tracking code, title, submitter info, district, department, purpose ID, finalized route).
@@ -216,7 +216,7 @@ Citizens have full visibility into how long their document has been at its curre
 | **Non-Repudiation** | Wet Signatures | Simple User Login Sessions | **Ed25519 Elliptic Curve Signatures (PIN-gated)** |
 | **Tamper Detection** | Physical Inspection | None (DB records easily altered) | **Active Guard (Real-Time Pre-Action JIT Verification)** |
 | **Tamper Recovery** | Manual Re-entry | Database Restores (Data Loss) | **1-Click Snapshot Auto-Resolve (Zero Data Loss)** |
-| **High-Volume Concurrency** | Physical Bottleneck | Vulnerable to Race Conditions | **Pessimistic `FOR UPDATE` & Optimistic Versioning** |
+| **High-Volume Concurrency** | Physical Bottleneck | Vulnerable to Race Conditions | **Optimistic Versioning under InnoDB Row Locks** |
 | **Framework Overhead** | N/A | High (Laravel/Symfony Bootstrap) | **Zero (Pure Vanilla PHP 8.3 & Native PDO)** |
 | **Page Navigation Speed** | N/A | Full Page Reloads (1.5s - 3.0s) | **Instant PJAX DOM Swaps + HTML Caching (< 50ms)** |
 | **Deployment Model** | Manual Office Desk | Often Third-Party Cloud | **On-Premise LAN (100% Data Sovereignty)** |

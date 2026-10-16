@@ -53,9 +53,12 @@ class SecurityKeyController
             'id' => $userId
         ]);
 
-        $db->query("UPDATE user_public_key_histories SET deactivated_at = :now, updated_at = :now2 WHERE user_id = :id AND deactivated_at IS NULL", [
+        // Close every key period still open at this moment (including seeded periods with a future end),
+        // so key periods never overlap and verification always resolves to exactly one key
+        $db->query("UPDATE user_public_key_histories SET deactivated_at = :now, updated_at = :now2 WHERE user_id = :id AND (deactivated_at IS NULL OR deactivated_at > :now3)", [
             'now' => $now,
             'now2' => $now,
+            'now3' => $now,
             'id' => $userId
         ]);
 
@@ -67,8 +70,9 @@ class SecurityKeyController
             'now3' => $now
         ]);
 
-        // Fix: Update the session with the new private key so client-side JS can use it without requiring re-login
-        $_SESSION['private_key'] = $privB64;
+        // A new key invalidates any PIN-cache token issued for the old PIN
+        unset($_SESSION['pin_cache_key']);
+        $_SESSION[\App\Core\SecurityHelper::SESSION_CLEAR] = true;
 
         // Fix: Clear the user's personal page cache. If we don't, CacheMiddleware might serve an old cached version 
         // of the dashboard containing the setup modal, causing it to pop up infinitely.

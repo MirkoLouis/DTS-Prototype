@@ -53,7 +53,7 @@ All state-mutating actions (Intake, Scan, Finalize, Decline, Release) require an
 2. **Review Document Details:** Click **Manage Route** on a pending document.
 3. **Verify Purpose & Requirements:** Inspect submitter details, purpose, and attached compliance items.
 4. **Configure Department Route:**
-   - Review the default route suggested by the system based on document keywords.
+   - Review the default route suggested by the system: the route last finalized for this document's purpose. Documents filed under "Others" have no suggestion; build their route manually.
    - Adjust department order (e.g., *Records -> Administrative -> Budget -> Accounting -> ODS*).
 5. **Finalize & Sign:**
    - Click **Finalize & Accept Document**.
@@ -67,7 +67,7 @@ All state-mutating actions (Intake, Scan, Finalize, Decline, Release) require an
 2. Point the camera scanner at the document's printed QR code (or enter the tracking code manually).
 3. Confirm document details in the pop-up modal.
 4. Enter your **Security PIN** and click **Receive Document**.
-5. The system locks the database row (`SELECT ... FOR UPDATE`), records a `Received at Records` log entry with your digital signature, and updates the document status.
+5. The system updates the document inside a transaction with an optimistic version check, records a signed log entry (`Received` at a department step, or `Ready for Releasing` when the route is finished), and updates the document status.
 
 ### 4.3 Declining Incomplete Submissions
 

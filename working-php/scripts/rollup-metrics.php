@@ -10,7 +10,7 @@ $conn = $db->getConnection();
 $stmt = $db->query(
     "SELECT DATE_FORMAT(created_at, '%Y-%m-%d %H:00:00') as hour_group,
             AVG(connections) as avg_conn,
-            AVG(avg_query_time_ms) as avg_time,
+            AVG(avg_query_time_ms) as avg_time, -- AVG skips NULL intervals with no statements
             SUM(slow_queries) as total_slow
      FROM database_metrics
      WHERE created_at < DATE_SUB(NOW(), INTERVAL 1 DAY)
