@@ -4,7 +4,54 @@ if (!defined('BASE_PATH')) {
 }
 require_once BASE_PATH . '/vendor/autoload.php';
 
+// Key periods must use the same clock as log timestamps
+date_default_timezone_set(\App\Core\IntegrityManager::APP_TIMEZONE);
+
 use App\Core\Database;
+
+/**
+ * Write or replace KEY=value lines in .env, keeping every other line untouched.
+ */
+function writeEnvValues(string $envPath, array $values): void
+{
+    $lines = file_exists($envPath) ? file($envPath, FILE_IGNORE_NEW_LINES) : [];
+
+    // Replace existing keys in place
+    foreach ($lines as $i => $line) {
+        foreach ($values as $key => $value) {
+            if (str_starts_with(trim($line), $key . '=')) {
+                $lines[$i] = "{$key}={$value}";
+                unset($values[$key]);
+            }
+        }
+    }
+
+    // Append keys that were not present
+    foreach ($values as $key => $value) {
+        $lines[] = "{$key}={$value}";
+    }
+
+    file_put_contents($envPath, implode(PHP_EOL, $lines) . PHP_EOL);
+}
+
+// --system: create the server's Ed25519 key for system-initiated log entries (skips if one exists)
+if (PHP_SAPI === 'cli' && realpath($_SERVER['SCRIPT_FILENAME'] ?? '') === __FILE__ && in_array('--system', $argv ?? [], true)) {
+    $force = in_array('--force', $argv, true);
+    $existing = \App\Core\Config::get('app', 'system_signing_secret', '');
+
+    if ($existing !== '' && !$force) {
+        echo "System signing key already present in .env (use --force to replace it; old logs will then fail verification).\n";
+        exit(0);
+    }
+
+    $keypair = sodium_crypto_sign_keypair();
+    writeEnvValues(BASE_PATH . '/.env', [
+        'SYSTEM_SIGNING_SECRET' => base64_encode(sodium_crypto_sign_secretkey($keypair)),
+        'SYSTEM_SIGNING_PUBLIC' => base64_encode(sodium_crypto_sign_publickey($keypair))
+    ]);
+    echo "System signing key written to .env.\n";
+    exit(0);
+}
 
 try {
     $db = Database::getInstance();
@@ -41,9 +88,15 @@ try {
             'id' => $user['id']
         ]);
 
-        $db->query("INSERT INTO user_public_key_histories (user_id, public_key, activated_at, created_at, updated_at) VALUES (:user_id, :pub, '2000-01-01 00:00:00', :now2, :now3)", [
+        // A user's first key covers all seeded history (seeders sign past-dated logs with it);
+        // a later key starts now, so it never overlaps a key that already signed logs
+        $hasHistory = (bool) $db->query("SELECT 1 FROM user_public_key_histories WHERE user_id = :id LIMIT 1", ['id' => $user['id']])->fetch();
+        $activatedAt = $hasHistory ? $now : '2000-01-01 00:00:00';
+
+        $db->query("INSERT INTO user_public_key_histories (user_id, public_key, activated_at, created_at, updated_at) VALUES (:user_id, :pub, :activated, :now2, :now3)", [
             'user_id' => $user['id'],
             'pub' => $pubB64,
+            'activated' => $activatedAt,
             'now2' => $now,
             'now3' => $now
         ]);

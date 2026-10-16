@@ -52,7 +52,7 @@ function initSystemHealth() {
                                     type: 'linear',
                                     display: true,
                                     position: 'right',
-                                    title: { display: true, text: 'Avg Query Time (ms)' },
+                                    title: { display: true, text: 'Mean Statement Time (ms)' },
                                     grid: { drawOnChartArea: false }
                                 },
                                 y2: {
@@ -248,14 +248,22 @@ function initSystemHealth() {
                 recalculatedHashVal.textContent = data.recalculated_hash;
                 rawDataStringVal.textContent = data.raw_data_string;
 
+                // Build rows with textContent so staff-typed remarks can never inject HTML
                 componentsBody.innerHTML = '';
                 for (const [key, value] of Object.entries(data.components)) {
-                    componentsBody.innerHTML += `
-                        <tr>
-                            <td class="px-4 py-2 font-bold text-accent-1 dark:text-accent-1-hover">${key}</td>
-                            <td class="px-4 py-2 break-all dark:text-gray-300">${value === null ? '<span class="text-red-500 italic">null</span>' : value}</td>
-                        </tr>
-                    `;
+                    const row = document.createElement('tr');
+                    const keyCell = document.createElement('td');
+                    keyCell.className = 'px-4 py-2 font-bold text-accent-1 dark:text-accent-1-hover';
+                    keyCell.textContent = key;
+                    const valueCell = document.createElement('td');
+                    valueCell.className = 'px-4 py-2 break-all dark:text-gray-300';
+                    if (value === null) {
+                        valueCell.innerHTML = '<span class="text-red-500 italic">null</span>';
+                    } else {
+                        valueCell.textContent = value;
+                    }
+                    row.append(keyCell, valueCell);
+                    componentsBody.appendChild(row);
                 }
 
                 if (debugModal) {
@@ -282,7 +290,7 @@ function initSystemHealth() {
     }
 
     // Handle form submissions for actions (AJAX version)
-    document.querySelectorAll('.rebuild-form, .freeze-form, .unfreeze-form').forEach(form => {
+    document.querySelectorAll('.freeze-form, .unfreeze-form').forEach(form => {
         form.addEventListener('submit', function(event) {
             event.preventDefault();
             submitFormAjax(this);

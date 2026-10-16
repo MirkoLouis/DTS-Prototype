@@ -18,16 +18,18 @@ if (empty($_SESSION['csrf_token'])) {
 // Match Laravel's default timezone so hashes align properly
 date_default_timezone_set('Asia/Manila');
 
-// Setup Error Reporting (Development Mode)
-ini_set('display_errors', 1);
-ini_set('display_startup_errors', 1);
-error_reporting(E_ALL);
-
 // Base Path Definition
 define('BASE_PATH', dirname(__DIR__));
 
 // Require Composer Autoloader & Custom Helpers
 require BASE_PATH . '/vendor/autoload.php';
+
+// Error reporting: always log everything, but only print errors to the page when APP_DEBUG=true
+$appDebug = \App\Core\Config::get('app', 'debug', false);
+ini_set('display_errors', $appDebug ? '1' : '0');
+ini_set('display_startup_errors', $appDebug ? '1' : '0');
+ini_set('log_errors', '1');
+error_reporting(E_ALL);
 require BASE_PATH . '/src/helpers.php';
 
 use App\Core\Router;
@@ -104,10 +106,6 @@ $router->post('/api/system-health/integrity-cancel/(?P<jobId>[a-zA-Z0-9_-]+)', [
     App\Middleware\RoleMiddleware::class . ':admin'
 ]);
 $router->get('/system-health/results', [App\Controllers\SystemHealthController::class, 'getIntegrityCheckResults'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
-]);
-$router->post('/system-health/rebuild-chain/(?P<logId>\d+)', [App\Controllers\SystemHealthController::class, 'rebuildChain'], [
     App\Middleware\AuthMiddleware::class,
     App\Middleware\RoleMiddleware::class . ':admin'
 ]);

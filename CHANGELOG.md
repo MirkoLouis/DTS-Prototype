@@ -2,6 +2,54 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-10-16 14:33
+
+**Version:** 2.0.0-Release+202610161433
+
+> **Breaking:** cryptographic log format v2. Logs written by v1.x no longer verify; back up and
+reseed (`composer run seed:prod` + a seeder) and run `php scripts/generate-keys.php --system` once.
+
+### Fixed
+- Fixed false "invalid signature" results in the integrity audit: overlapping
+`user_public_key_histories` periods (seeded periods ending in 2038) made the a
+key. `SecurityKeyController.php` and `UserController.php` now close every open period,
+`fast-seed.php`/`import-legacy.php` end seeded periods at seed time, and
+`IntegrityManager::publicKeyAt()` prefers the newest active key.
+- `IntegrityManager::autoFreeze()` now increments `version`, so an in-flight t
+longer undo a freeze or fork the chain.
+- The verified percentage is floored instead of rounded, so a failure can neve
+System Overview now shows exact counts (broken links, invalid signatures, live-state mismatches,
+missing checkpoint heads).                                                    
+- Mixed timezones: every database session now runs at `+08:00` (`Database.php`,
+`setup-production-db.js`, `seed.js`), matching PHP's Asia/Manila timestamps.
+- Guest tracking card (`document-card.php`) maps "Processing Complete" entries to route steps by
+order instead of parsing remarks.                                             
+- Hash Integrity Debugger renders values with `textContent` (prevents HTML injection) and now also
+verifies the Ed25519 signature and shows which key was used.                  
+- Slow-query metric: the sampler stores per-interval deltas instead of the cumulative server counter that the chart was summing.
+- `seed.js` time-travel re-signs chains through the new `resign-logs.php` (v1 JS re-hashing would invalidate v2 signatures); `seed.js` and `import-legacy.php` reset users' keys together with key history.
+
+### Added
+- Log format v2: signatures cover document ID, action, Unix epoch, previous hash, state hash and remarks; chain hash includes remarks and signature (`IntegrityManager::signedMessage()`, `chainHash()`, `logTimestamp()`).
+- Server Ed25519 key for system-initiated entries (`SYSTEM_SIGNING_SECRET` / `SYSTEM_SIGNING_PUBLIC`, created with `php scripts/generate-keys.php --system`).
+- Signed chain-head checkpoints (`ChainCheckpointJob`, `scripts/create-checkpoint.php`, daily in `console.php`), verified by the integrity audit to detect deleted entries.
+- Encrypted, session-bound PIN-cache token (`SecurityHelper`) with a lifetime of `PIN_CACHE_DURATION`.
+- `scripts/benchmark-crypto.php`: times state/chain hashing, log reads, Active Guard, Argon2id, AES unwrap and Ed25519 sign/verify; writes a CSV to `storage/benchmarks/`.
+- `APP_DEBUG` setting controlling PHP error output; `src/Core/Config.php` accessor.
+- "Back to Guest Page" button on the login page.
+
+### Changed
+- Database telemetry reads mean statement time from `performance_schema.events_statements_summary_by_digest` (chart label: "Mean Statement Time (ms)").
+- The browser no longer receives the encrypted private key (`window.UserConfig.encryptedPrivKey` and `$_SESSION['private_key']` removed; supersedes the 1.23.4 session-key fix).
+- Documentation (README, user manuals, pitch, cryptography guides) updated for log format v2 and optimistic locking.
+
+### Removed
+- Legacy unsalted SHA-256 / zero-IV private-key format.
+- Orphaned `rebuildChain` admin endpoint (Laravel-era leftover).
+- Synthetic random metrics from `fast-seed.php` and `seed.js`.
+- Unused `prediction_keywords` table and `DatabasePerformanceService` `rand()` placeholders.
+- 13 unused ad-hoc test scripts in `scripts/`.
+
 ## 2026-07-28 00:17
 
 **Version:** 1.24.0-Release+202607280017

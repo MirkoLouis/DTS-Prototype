@@ -55,8 +55,7 @@ if (isset($_SESSION['user_id'])) {
     <script src="/js/vendor/libsodium.js"></script>
     <script>
         window.UserConfig = {
-            id: <?= json_encode($_SESSION['user_id'] ?? null) ?>,
-            encryptedPrivKey: <?= json_encode($_SESSION['private_key'] ?? '') ?>
+            id: <?= json_encode($_SESSION['user_id'] ?? null) ?>
         };
     </script>
     <style>
@@ -301,6 +300,23 @@ if (isset($_SESSION['user_id'])) {
             console.error(<?= json_encode($_SESSION['console_error']) ?>);
         </script>
         <?php unset($_SESSION['console_error']); ?>
+    <?php endif; ?>
+
+    <?php // Hand the encrypted PIN-cache token to the browser, or tell it to discard a stale one ?>
+    <?php if (isset($_SESSION[\App\Core\SecurityHelper::SESSION_ISSUED]) || isset($_SESSION[\App\Core\SecurityHelper::SESSION_CLEAR])): ?>
+        <script>
+            (function() {
+                try {
+                    <?php if (isset($_SESSION[\App\Core\SecurityHelper::SESSION_CLEAR])): ?>
+                    sessionStorage.removeItem('dts_pin_token');
+                    <?php endif; ?>
+                    <?php if (isset($_SESSION[\App\Core\SecurityHelper::SESSION_ISSUED])): ?>
+                    sessionStorage.setItem('dts_pin_token', <?= json_encode($_SESSION[\App\Core\SecurityHelper::SESSION_ISSUED]) ?>);
+                    <?php endif; ?>
+                } catch (e) {}
+            })();
+        </script>
+        <?php unset($_SESSION[\App\Core\SecurityHelper::SESSION_ISSUED], $_SESSION[\App\Core\SecurityHelper::SESSION_CLEAR]); ?>
     <?php endif; ?>
 
     <?php if (isset($_SESSION['needs_security_key']) && $_SESSION['needs_security_key']): ?>

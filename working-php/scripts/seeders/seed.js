@@ -2,6 +2,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 const mysql = require('mysql2/promise');
 const fs = require('fs');
+const os = require('os');
 const { exec } = require('child_process');
 const util = require('util');
 const crypto = require('crypto');
@@ -201,27 +202,7 @@ function formatDates(dateObj) {
     };
 }
 
-let hourlyMetricsBuffer = {};
-function generateMetrics(dates, isPeak = false) {
-    const { hourKey, isBusinessHours } = dates;
-    const baseConnections = isBusinessHours ? Math.floor(Math.random() * 41) + 10 : Math.floor(Math.random() * 9) + 2;
-    const connections = isPeak ? baseConnections + Math.floor(Math.random() * 31) + 20 : baseConnections;
-    const avgQueryTime = isPeak ? (Math.floor(Math.random() * 151) + 50) / 10 : (Math.floor(Math.random() * 46) + 5) / 10;
-    const slowQueries = isPeak ? Math.floor(Math.random() * 4) : (Math.random() < 0.02 ? 1 : 0);
-
-    if (!hourlyMetricsBuffer[hourKey]) {
-        hourlyMetricsBuffer[hourKey] = { conns: [], avgTimes: [], slow: 0 };
-    }
-    hourlyMetricsBuffer[hourKey].conns.push(connections);
-    hourlyMetricsBuffer[hourKey].avgTimes.push(avgQueryTime);
-    hourlyMetricsBuffer[hourKey].slow += slowQueries;
-}
-
-function calculateLogHash(docId, userId, action, timestampStr, prevHash, stateHash, signature) {
-    const uId = userId !== null ? userId : '';
-    const data = [docId, uId, action, timestampStr, prevHash, stateHash, signature];
-    return crypto.createHash('sha256').update(JSON.stringify(data)).digest('hex');
-}
+// database_metrics is intentionally not seeded: it holds only real samples from scripts/sample-db-metrics.php
 
 /**
  * Generates realistic Philippine-style guest names using frequency-weighted
@@ -597,9 +578,6 @@ async function timeTravelRetrofit(connection, documentIds) {
         logsByDoc[l.document_id].push(l);
     });
 
-    const queries = [];
-    const updateParams = [];
-
     const refDate = new Date();
     refDate.setUTCHours(17, 0, 0, 0);
 
@@ -635,15 +613,15 @@ async function timeTravelRetrofit(connection, documentIds) {
         });
     });
 
+    // New date per log, keyed by document; resign-logs.php applies them and re-seals each chain
+    const plan = {};
+
     for (const docId of sortedDocIds) {
         const docLogs = logsByDoc[docId] || [];
         if (docLogs.length === 0) continue;
 
         let cTime = new Date(docStartTimes[docId].getTime());
-
-        let previousHash = 'genesis_hash';
-        let firstSqlDate = null;
-        let lastSqlDate = null;
+        plan[docId] = [];
 
         for (let j = 0; j < docLogs.length; j++) {
             const log = docLogs[j];
@@ -666,80 +644,20 @@ async function timeTravelRetrofit(connection, documentIds) {
                 cTime = skipWeekend(cTime, 'forward');
             }
 
-            const dates = formatDates(cTime);
-            if (j === 0) firstSqlDate = dates.sql;
-            lastSqlDate = dates.sql;
-
-            const newHash = calculateLogHash(log.document_id, log.user_id, log.action, dates.iso, previousHash, log.document_state_hash, log.signature);
-            
-            queries.push(`UPDATE document_logs SET created_at = ?, updated_at = ?, previous_hash = ?, hash = ? WHERE id = ?`);
-            updateParams.push(dates.sql, dates.sql, previousHash, newHash, log.id);
-
-            previousHash = newHash;
-
-            const isPeak = log.action.includes('Declined');
-            generateMetrics(dates, isPeak);
-        }
-
-        if (firstSqlDate) {
-            let hasDeclined = docLogs.some(l => l.action.includes('Declined'));
-            let hasReleased = docLogs.some(l => l.action.includes('Released'));
-            if (hasDeclined) {
-                queries.push(`UPDATE documents SET created_at = ?, updated_at = ?, declined_at = ? WHERE id = ?`);
-                updateParams.push(firstSqlDate, lastSqlDate, lastSqlDate, docId);
-            } else if (hasReleased) {
-                queries.push(`UPDATE documents SET created_at = ?, updated_at = ?, released_at = ? WHERE id = ?`);
-                updateParams.push(firstSqlDate, lastSqlDate, lastSqlDate, docId);
-            } else {
-                queries.push(`UPDATE documents SET created_at = ?, updated_at = ? WHERE id = ?`);
-                updateParams.push(firstSqlDate, lastSqlDate, docId);
-            }
+            plan[docId].push(formatDates(cTime).sql);
         }
     }
 
-    if (queries.length > 0) {
-        let qIdx = 0;
-        const promises = [];
-        await connection.query('START TRANSACTION');
+    // Log format v2 signs the timestamp and parent hash, so re-dated chains must be re-signed in PHP
+    if (Object.keys(plan).length > 0) {
+        const planFile = path.join(os.tmpdir(), `dts-resign-${process.pid}.json`);
+        fs.writeFileSync(planFile, JSON.stringify(plan));
         try {
-            for (let q of queries) {
-                if (q.includes('document_logs')) {
-                    promises.push(connection.query(q, [updateParams[qIdx], updateParams[qIdx+1], updateParams[qIdx+2], updateParams[qIdx+3], updateParams[qIdx+4]]));
-                    qIdx += 5;
-                } else if (q.includes('declined_at') || q.includes('released_at')) {
-                    promises.push(connection.query(q, [updateParams[qIdx], updateParams[qIdx+1], updateParams[qIdx+2], updateParams[qIdx+3]]));
-                    qIdx += 4;
-                } else {
-                    promises.push(connection.query(q, [updateParams[qIdx], updateParams[qIdx+1], updateParams[qIdx+2]]));
-                    qIdx += 3;
-                }
-            }
-            await Promise.all(promises);
-            await connection.query('COMMIT');
-        } catch (e) {
-            await connection.query('ROLLBACK');
-            throw e;
+            require('child_process').execFileSync('php', [path.join(__dirname, 'resign-logs.php'), planFile], { stdio: 'inherit' });
+        } finally {
+            fs.unlinkSync(planFile);
         }
     }
-}
-
-async function flushMetrics(connection) {
-    if (Object.keys(hourlyMetricsBuffer).length === 0) return;
-    
-    console.log(`\n📊 Flushing database metrics to clear memory...`);
-    const metricsToInsert = [];
-    for (const hourKey in hourlyMetricsBuffer) {
-        const data = hourlyMetricsBuffer[hourKey];
-        const conns = data.conns.length > 0 ? data.conns.reduce((a, b) => a + b, 0) / data.conns.length : 0;
-        const avg = data.avgTimes.length > 0 ? data.avgTimes.reduce((a, b) => a + b, 0) / data.avgTimes.length : 0;
-        metricsToInsert.push([conns, avg, data.slow, hourKey]);
-    }
-
-    for (let i = 0; i < metricsToInsert.length; i += 1000) {
-        const chunk = metricsToInsert.slice(i, i + 1000);
-        await connection.query('INSERT INTO database_metrics (connections, avg_query_time_ms, slow_queries, created_at) VALUES ?', [chunk]);
-    }
-    hourlyMetricsBuffer = {}; // Free memory!
 }
 
 async function seed() {
@@ -753,8 +671,12 @@ async function seed() {
             host: process.env.DB_HOST,
             user: process.env.DB_USERNAME,
             password: process.env.DB_PASSWORD,
-            database: process.env.DB_DATABASE
+            database: process.env.DB_DATABASE,
+            timezone: '+08:00' // Convert JS dates using Philippine time
         });
+
+        // Run the session on Philippine time so SQL NOW() matches the Asia/Manila times PHP writes
+        await connection.query("SET time_zone = '+08:00'");
 
         console.log('🧹 Cleaning tables...');
         await connection.query('SET FOREIGN_KEY_CHECKS = 0');
@@ -770,6 +692,8 @@ async function seed() {
         await connection.query('TRUNCATE TABLE cache');
         await connection.query('TRUNCATE TABLE cache_locks');
         await connection.query('TRUNCATE TABLE user_public_key_histories');
+        // Keys without history rows can never be verified, so clear them too; generate-keys.php recreates both
+        await connection.query('UPDATE users SET public_key = NULL, private_key = NULL, security_key_set_at = NULL');
         await connection.query('SET FOREIGN_KEY_CHECKS = 1');
 
         console.log('🧹 Cleaning file caches and active PHP session files...');
@@ -846,13 +770,6 @@ async function seed() {
 
             totalProcessed += chunkAmount;
             
-            // 2. PERIODIC MEMORY FLUSHING
-            // Flush metrics to DB every 5,000 documents to prevent Node.js V8 
-            // array structures from leaking gigabytes of memory.
-            if (totalProcessed % 5000 === 0) {
-                await flushMetrics(connection);
-            }
-            
             // Print progress cleanly
             const memoryUsage = process.memoryUsage();
             const ramMB = Math.round(memoryUsage.rss / 1024 / 1024);
@@ -860,7 +777,6 @@ async function seed() {
         }
 
         console.log('\n'); // newline after progress
-        await flushMetrics(connection);
 
         console.log('📈 Backfilling daily departmental metrics...');
         execSync(`php "${path.join(__dirname, '../backfill-metrics.php')}"`, { stdio: 'inherit' });

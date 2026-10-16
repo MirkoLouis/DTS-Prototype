@@ -3,6 +3,9 @@
 define('BASE_PATH', dirname(dirname(__DIR__)));
 require BASE_PATH . '/vendor/autoload.php';
 
+// Same clock as the live system and the database session (+08:00)
+date_default_timezone_set('Asia/Manila');
+
 use App\Core\Database;
 use App\Core\IntegrityManager;
 
@@ -138,6 +141,10 @@ $conn->exec('TRUNCATE TABLE documents');
 $conn->exec('TRUNCATE TABLE daily_department_metrics');
 // We do NOT truncate purposes here because we want to preserve the official ones from setup-production-db.js
 
+// Start keys fresh so generate-keys.php issues keys whose period covers the past-dated legacy logs
+$conn->exec('TRUNCATE TABLE user_public_key_histories');
+$conn->exec("UPDATE users SET public_key = NULL, private_key = NULL, security_key_set_at = NULL");
+
 echo "🔐 Preloading data and keys...\n";
 require_once dirname(__DIR__) . '/generate-keys.php';
 
@@ -164,20 +171,16 @@ function getUserForDept($users, $deptId, $fallback) {
 $decryptedKeys = [];
 $pin = 'password';
 foreach ($users as $user) {
-    $decoded = base64_decode($user['private_key']);
-    if (strlen($decoded) === 64) {
-        $key = substr(hash('sha256', $pin), 0, 32);
-        $iv = str_repeat('0', 16);
-        $encryptedPriv = $decoded;
-    } elseif (strlen($decoded) >= 112) {
-        $salt = substr($decoded, 0, SODIUM_CRYPTO_PWHASH_SALTBYTES);
-        $iv = substr($decoded, SODIUM_CRYPTO_PWHASH_SALTBYTES, 16);
-        $encryptedPriv = substr($decoded, SODIUM_CRYPTO_PWHASH_SALTBYTES + 16);
-        $key = sodium_crypto_pwhash(32, $pin, $salt, SODIUM_CRYPTO_PWHASH_OPSLIMIT_INTERACTIVE, SODIUM_CRYPTO_PWHASH_MEMLIMIT_INTERACTIVE, SODIUM_CRYPTO_PWHASH_ALG_ARGON2ID13);
-    } else continue;
-    $decryptedPriv = openssl_decrypt($encryptedPriv, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv);
-    if ($decryptedPriv !== false) $decryptedKeys[$user['id']] = $decryptedPriv;
+    // Same Argon2id + AES-256-CBC unwrap the live system uses; skip keys that do not open with the seed PIN
+    try {
+        $decryptedKeys[$user['id']] = IntegrityManager::decryptPrivateKey($user['private_key'], $pin);
+    } catch (\Exception $e) {
+        continue;
+    }
 }
+
+// Fail early if system-initiated entries cannot be signed
+IntegrityManager::signAsSystem('import-preflight');
 
 $districts = ['East I District', 'East II District', 'South I District', 'South II District', 'West I District', 'North I District', 'North II District', 'North III District', 'City Central District'];
 
@@ -408,29 +411,18 @@ foreach ($docs as $legacyDocId => $actions) {
         'finalized_route' => $finalizedRoute 
     ];
     
-    $prevHash = 'genesis_hash';
-    
-    $addLogTemplate = function($action, $remarks, $userId, $logTs) use (&$docLogTemplates, &$prevHash, $docDataForHash, $decryptedKeys) {
-        $stateHash = IntegrityManager::calculateStateHash($docDataForHash);
-        $sqlDate = date('Y-m-d H:i:s', $logTs);
-        $isoDate = date('c', $logTs);
-        
-        $signature = base64_encode("SYSTEM_SIG:{$action}|{$stateHash}");
-        if ($userId && isset($decryptedKeys[$userId])) {
-            $signatureBytes = sodium_crypto_sign_detached($action . '|' . $stateHash, $decryptedKeys[$userId]);
-            $signature = base64_encode($signatureBytes);
-        }
-        
+    // Collect each log's content now; signing and chaining happen after insert, once the document ID is known
+    $addLogTemplate = function($action, $remarks, $userId, $logTs) use (&$docLogTemplates, $docDataForHash) {
+        $sqlDate = date('Y-m-d H:i:s', min($logTs, time()));
+
         $docLogTemplates[] = [
             'user_id' => $userId,
             'action' => $action,
             'remarks' => $remarks,
-            'prev_hash' => $prevHash,
-            'state_hash' => $stateHash,
-            'signature' => $signature,
+            'state_hash' => IntegrityManager::calculateStateHash($docDataForHash),
             'snapshot' => json_encode($docDataForHash),
             'sql_date' => $sqlDate,
-            'iso_date' => $isoDate
+            'epoch' => IntegrityManager::logTimestamp($sqlDate)
         ];
     };
     
@@ -539,16 +531,26 @@ if (!empty($docsToInsert)) {
     
     foreach ($allLogTemplates as $i => $templates) {
         $docId = $firstInsertId + $i;
-        $prevHash = 'genesis_hash';
-        
+        $prevHash = IntegrityManager::GENESIS_HASH;
+
         foreach ($templates as $tmpl) {
-            $uId = $tmpl['user_id'] !== null ? (int)$tmpl['user_id'] : '';
-            $dataForLogHash = [$docId, $uId, $tmpl['action'], $tmpl['iso_date'], $prevHash, $tmpl['state_hash'], $tmpl['signature']];
-            $newHash = hash('sha256', json_encode($dataForLogHash, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-            
+            $uId = $tmpl['user_id'] !== null ? (int) $tmpl['user_id'] : null;
+
+            // Sign the v2 message with the actor's in-memory key, or the server key for system entries
+            $message = IntegrityManager::signedMessage((int) $docId, $tmpl['action'], $tmpl['epoch'], $prevHash, $tmpl['state_hash'], $tmpl['remarks']);
+            if ($uId !== null && isset($decryptedKeys[$uId])) {
+                $signature = base64_encode(sodium_crypto_sign_detached($message, $decryptedKeys[$uId]));
+            } else {
+                $uId = null;
+                $signature = IntegrityManager::signAsSystem($message);
+            }
+
+            // Seal the block exactly as IntegrityManager::createLog does
+            $newHash = IntegrityManager::chainHash((int) $docId, $uId, $tmpl['action'], $tmpl['epoch'], $prevHash, $tmpl['state_hash'], $tmpl['remarks'], $signature);
+
             $logValues[] = '(?,?,?,?,?,?,?,?,?,?,?)';
-            array_push($logParams, $docId, $tmpl['user_id'], $tmpl['action'], $tmpl['remarks'], $prevHash, $newHash, $tmpl['state_hash'], $tmpl['signature'], $tmpl['snapshot'], $tmpl['sql_date'], $tmpl['sql_date']);
-            
+            array_push($logParams, $docId, $uId, $tmpl['action'], $tmpl['remarks'], $prevHash, $newHash, $tmpl['state_hash'], $signature, $tmpl['snapshot'], $tmpl['sql_date'], $tmpl['sql_date']);
+
             $prevHash = $newHash;
         }
     }
@@ -565,5 +567,13 @@ if (!empty($docsToInsert)) {
 }
 
 $conn->commit();
+
+// Close the import keys' periods now and clear the keys, so every user sets a real PIN on first login
+echo "🔒 Resetting all digital signatures for first-time login...\n";
+$importEnd = date('Y-m-d H:i:s');
+$stmt = $conn->prepare("UPDATE user_public_key_histories SET deactivated_at = :end, updated_at = :end2 WHERE deactivated_at IS NULL OR deactivated_at > :end3");
+$stmt->execute(['end' => $importEnd, 'end2' => $importEnd, 'end3' => $importEnd]);
+$conn->exec("UPDATE users SET public_key = NULL, private_key = NULL, security_key_set_at = NULL");
+
 $conn->exec('SET FOREIGN_KEY_CHECKS = 1');
 echo "🎉 Done! Seeded legacy data successfully.\n";

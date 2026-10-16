@@ -213,7 +213,10 @@ class UserController
 
         $db = Database::getInstance();
         
-        $db->query("UPDATE user_public_key_histories SET deactivated_at = NOW(), updated_at = NOW() WHERE user_id = :id AND deactivated_at IS NULL", [':id' => $id]);
+        // Close every key period still open now, including seeded periods with a future end.
+        // PHP time (Asia/Manila) matches the clock that writes log timestamps; SQL NOW() uses the server timezone.
+        $now = date('Y-m-d H:i:s');
+        $db->query("UPDATE user_public_key_histories SET deactivated_at = :now, updated_at = :now2 WHERE user_id = :id AND (deactivated_at IS NULL OR deactivated_at > :now3)", [':id' => $id, ':now' => $now, ':now2' => $now, ':now3' => $now]);
         $db->query("UPDATE users SET public_key = NULL, private_key = NULL, security_key_set_at = NULL WHERE id = :id", [':id' => $id]);
         
         // Clear the user's personal page cache so they see the setup modal immediately on their next request

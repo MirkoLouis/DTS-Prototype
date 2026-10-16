@@ -12,14 +12,19 @@ Related historical diagrams (Laravel-era reference): `backup-laravel/documentati
 
 This is not ordinary application logging (“user X clicked Y”). Each document maintains its **own** hash chain in `document_logs`. Chains are independent on purpose: a integrity failure on one folder freezes that document’s workflow, not the entire division.
 
-Whenever a custody-relevant action occurs (Submitted, route finalized, Received, Processing Complete, Released, System Auto-Freeze), `IntegrityManager::createLog` builds a sealed log entry in four steps:
+Whenever a custody-relevant action occurs (Submitted, route finalized, Received, Processing Complete, Released, System Auto-Freeze), `IntegrityManager::createLog` builds a sealed log entry (log format v2) in five steps:
 
-1. **State hash** — SHA-256 over critical document fields (tracking code, title, guest info, district, department, purpose, finalized route). This fingerprints *what* the document claimed to be at that moment.
-2. **Signature** — the actor’s Ed25519 private key (unlocked with their PIN) signs `action + stateHash`. This attests *who* accepted that state. System-initiated actions use a marked system signature.
-3. **Chain link** — the new block hash covers document id, user, action, timestamp, **previous hash**, state hash, and signature. Each log is sealed to the prior one (`genesis_hash` for the first entry).
-4. **Snapshot** — the document payload is stored on the log so an admin can Auto-Resolve back to a known-good sealed state.
+1. **State hash**: SHA-256 over critical document fields (tracking code, title, guest info, district, department, purpose, finalized route). This fingerprints *what* the document claimed to be at that moment.
+2. **Parent lookup**: the hash of the document's newest log entry (`genesis_hash` for the first entry). It is read *before* signing, because the signature binds it.
+3. **Signature**: the actor's Ed25519 private key (unlocked with their PIN) signs the message `json([document_id, action, epoch, previous_hash, state_hash, remarks])`. This attests *who* accepted *which* state, *when*, at *which position* in the chain, and *with what remarks*. System-initiated actions are signed with the server's own Ed25519 key (`SYSTEM_SIGNING_SECRET` in `.env`).
+4. **Chain link**: the block hash is `sha256(json([document_id, user_id, action, epoch, previous_hash, state_hash, remarks, signature]))`. `epoch` is the Unix time of `created_at`, read explicitly in Asia/Manila time, so hashes do not depend on the server's timezone setting.
+5. **Snapshot**: the document payload is stored on the log so an admin can Auto-Resolve back to a known-good sealed state.
+
+Every writer (live workflow, seeders) and every verifier (integrity audit, hash debugger) builds these inputs through the same helpers: `IntegrityManager::signedMessage`, `chainHash` and `logTimestamp`.
 
 Before staff or officers can mutate a document, `DocumentPolicy::process` (and related manage checks) run **Active Guard**: recompute the live state hash and compare it to the last sealed `document_state_hash`. On mismatch, the system auto-freezes the document. Verification is operational at the next handoff, not deferred to a nightly audit.
+
+The full integrity audit (`IntegrityCheckJob`) re-derives every chain hash, verifies every signature against the key that was active at the time, compares live state, and checks the newest **chain-head checkpoint**. The checkpoint is a signed file in `storage/checkpoints/` listing every document's newest hash, written daily by the worker or manually with `php scripts/create-checkpoint.php`. If a listed hash no longer exists, entries were deleted. The audit only *reports*; freezing flagged documents stays an administrator decision ("Freeze All").
 
 ### Lifecycle ↔ cryptographic seal
 
@@ -30,19 +35,23 @@ Before staff or officers can mutate a document, `DocumentPolicy::process` (and r
 | Receive | QR scan at department | Signed receive on current state |
 | Complete | Staff finishes step | Signed completion; chain advances |
 | Release | Officer releases | Signed completion of custody |
-| Tamper detected | Active Guard / integrity job | System Auto-Freeze (halt workflow) |
+| Tamper detected | Active Guard | System Auto-Freeze (halt workflow, signed by the server key) |
 
 ### Implementer map
 
 | Component | Role |
 | :--- | :--- |
 | `IntegrityManager::calculateStateHash` | Fingerprint of critical document fields |
-| `IntegrityManager::signAction` | Ed25519 (or system) attestation |
+| `IntegrityManager::signedMessage` / `chainHash` / `logTimestamp` | The single definition of log format v2 |
+| `IntegrityManager::signAction` / `signAsSystem` | Ed25519 attestation by a user (PIN) or the server key |
+| `IntegrityManager::verifySignature` / `publicKeyAt` | Verify against the key active at the log's time |
 | `IntegrityManager::createLog` | Append hash-chained, signed log + snapshot |
 | `IntegrityManager::verifyCurrentState` | Live row vs last sealed state hash |
 | `IntegrityManager::autoFreeze` | Halt workflow on mismatch |
 | `DocumentPolicy::process` / `manage` | Active Guard before mutating actions |
+| `ChainCheckpointJob` | Signed chain-head checkpoints; detects deleted entries |
 | `users.private_key` + PIN | Encrypted key wrap (confidentiality only) |
+| `SecurityHelper::resolvePin` | Encrypted, session-bound PIN-cache token (`PIN_CACHE_DURATION`) |
 
 ---
 
@@ -91,9 +100,11 @@ Cryptography here is not decoration. It encodes **institutional memory** so a di
 
 | Goal | Primitive in DTS | Encryption? |
 | :--- | :--- | :--- |
-| Keep the signing key secret at rest | AES-256-CBC + PIN → Argon2id (or legacy SHA-256) key wrap | **Yes** — confidentiality only |
-| Detect altered document rows / broken log sequence | SHA-256 state hash + hash chain (`previous_hash`) | **No** — integrity |
-| Prove who attested an action | Ed25519 detached signature over `action \| stateHash` | **No** — authenticity / non-repudiation |
+| Keep the signing key secret at rest | AES-256-CBC with a key derived from the PIN by Argon2id | **Yes**: confidentiality only |
+| Keep a cached PIN unreadable in the browser | XSalsa20-Poly1305 (sodium secretbox) under a per-session server key | **Yes**: confidentiality only |
+| Detect altered document rows / broken log sequence | SHA-256 state hash + hash chain (`previous_hash`) | **No**: integrity |
+| Detect deleted newest entries | Signed chain-head checkpoints | **No**: integrity |
+| Prove who attested an action | Ed25519 detached signature over document, action, time, parent hash, state and remarks | **No**: authenticity / non-repudiation |
 
 - Encryption answers: *can someone recover the private key from a DB dump without the PIN?*
 - Hashing answers: *did anyone change sealed fields or break the log sequence?*
@@ -105,7 +116,7 @@ A lone SHA-256 of a row is only a strong checksum. The protocol becomes cryptogr
 
 1. binds each step to prior steps (`previous_hash`)
 2. binds each step to document meaning (`document_state_hash`)
-3. binds each step to an identity (Ed25519 over action+state)
+3. binds each step to an identity (Ed25519 over document, action, time, parent hash, state and remarks)
 4. verifies that binding before further state changes (Active Guard)
 
 Those four bindings deliver integrity, authenticity, and practical non-repudiation. Encryption never enters those steps — it only protects the pen (private key) so it is not left on the desk.

@@ -32,13 +32,18 @@ $displayRoute[] = ['name' => 'Releasing', 'type' => 'releasing', 'timestamp' => 
 
 // Get timestamps from logs (logs are ordered by created_at DESC)
 $stepTimestamps = [];
+$completedSteps = 0;
 foreach (array_reverse($logs) as $log) {
     if ($log['action'] === 'Accepted and Document Routing finalized') {
         $stepTimestamps['Intake'] = date('M d, Y h:i A', strtotime($log['created_at']));
     }
-    if ($log['action'] === 'Processing Complete' && preg_match('/processed by (.+?)\./', $log['remarks'], $matches)) {
-        $departmentName = trim($matches[1]);
-        $stepTimestamps[$departmentName] = date('M d, Y h:i A', strtotime($log['created_at']));
+    // The Nth "Processing Complete" entry closes the Nth route step; remarks are free text, so they are not parsed
+    if ($log['action'] === 'Processing Complete') {
+        $departmentName = $finalizedRoute[$completedSteps]['name'] ?? null;
+        $completedSteps++;
+        if ($departmentName !== null) {
+            $stepTimestamps[$departmentName] = date('M d, Y h:i A', strtotime($log['created_at']));
+        }
     }
     if ($log['action'] === 'Ready for Releasing' || $log['action'] === 'Document Released') {
         if ($log['action'] === 'Document Released') {

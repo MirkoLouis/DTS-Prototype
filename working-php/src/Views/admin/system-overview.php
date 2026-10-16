@@ -142,11 +142,41 @@ ob_start(); ?>
                             <div class="md:col-span-1 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-inner">
                                 <h3 class="text-lg font-bold mb-4 text-center">Verification Status</h3>
                                 <div id="integrity-status-container" class="text-center">
-                                    <div class="text-5xl font-bold <?= $integrityCheckResult['verified_percentage'] == 100 && ($integrityCheckResult['live_state_errors_count'] ?? 0) == 0 ? 'text-green-500' : 'text-red-500' ?>" id="verified-percentage">
+                                    <?php
+                                        // Green only when every check passed, including the checkpoint comparison
+                                        $cp = $integrityCheckResult['checkpoint'] ?? null;
+                                        $allVerified = $integrityCheckResult['verified_percentage'] == 100
+                                            && ($integrityCheckResult['live_state_errors_count'] ?? 0) == 0
+                                            && ($cp === null || ($cp['missing_heads'] == 0 && $cp['file_intact']));
+                                    ?>
+                                    <div class="text-5xl font-bold <?= $allVerified ? 'text-green-500' : 'text-red-500' ?>" id="verified-percentage">
                                         <?= htmlspecialchars($integrityCheckResult['verified_percentage']) ?>%
                                     </div>
                                     <div class="text-sm text-gray-500 dark:text-gray-400 mt-2">Chain Integrity</div>
-                                    
+
+                                    <?php // Exact failure counts, so a rounded percentage never hides a failure ?>
+                                    <?php if (isset($integrityCheckResult['total_logs'])): ?>
+                                        <dl class="mt-4 text-xs text-left grid grid-cols-2 gap-x-3 gap-y-1">
+                                            <dt class="text-gray-500 dark:text-gray-400">Logs checked</dt>
+                                            <dd class="text-right font-mono"><?= number_format((int) $integrityCheckResult['total_logs']) ?></dd>
+                                            <dt class="text-gray-500 dark:text-gray-400">Broken hash links</dt>
+                                            <dd class="text-right font-mono <?= ($integrityCheckResult['invalid_logs'] ?? 0) > 0 ? 'text-red-500 font-bold' : '' ?>"><?= number_format((int) ($integrityCheckResult['invalid_logs'] ?? 0)) ?></dd>
+                                            <dt class="text-gray-500 dark:text-gray-400">Invalid signatures</dt>
+                                            <dd class="text-right font-mono <?= ($integrityCheckResult['invalid_signatures'] ?? 0) > 0 ? 'text-red-500 font-bold' : '' ?>"><?= number_format((int) ($integrityCheckResult['invalid_signatures'] ?? 0)) ?></dd>
+                                            <dt class="text-gray-500 dark:text-gray-400">Live-state mismatches</dt>
+                                            <dd class="text-right font-mono <?= ($integrityCheckResult['live_state_errors_count'] ?? 0) > 0 ? 'text-red-500 font-bold' : '' ?>"><?= number_format((int) ($integrityCheckResult['live_state_errors_count'] ?? 0)) ?></dd>
+                                            <?php $checkpoint = $integrityCheckResult['checkpoint'] ?? null; ?>
+                                            <dt class="text-gray-500 dark:text-gray-400">Checkpoint heads missing</dt>
+                                            <?php if ($checkpoint === null): ?>
+                                                <dd class="text-right text-gray-400 italic">no checkpoint yet</dd>
+                                            <?php else: ?>
+                                                <dd class="text-right font-mono <?= ($checkpoint['missing_heads'] > 0 || !$checkpoint['file_intact']) ? 'text-red-500 font-bold' : '' ?>">
+                                                    <?= number_format((int) $checkpoint['missing_heads']) ?><?= $checkpoint['file_intact'] ? '' : ' (file altered)' ?>
+                                                </dd>
+                                            <?php endif; ?>
+                                        </dl>
+                                    <?php endif; ?>
+
                                     <?php if(($integrityCheckResult['live_state_errors_count'] ?? 0) > 0): ?>
                                         <div class="mt-4 p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
                                             <div class="text-xl font-bold text-red-600 dark:text-red-400"><?= $integrityCheckResult['live_state_errors_count'] ?></div>
@@ -184,7 +214,9 @@ ob_start(); ?>
                                     <li><strong>Hash-Chaining:</strong> When a document log is created, a unique digital signature (a "hash") is generated from its data and the hash of the previous log. This creates a linked chain of records.</li>
                                     <li><strong>Active State Comparison:</strong> The system compares the current live database state of every document against the state recorded in its last cryptographic log. Any unauthorized modification to document details (title, submitter, route) is immediately detected.</li>
                                     <li><strong>Verification Process:</strong> Clicking "Run Verification" triggers a system-wide check of both the historical log chain and the current live states.</li>
-                                    <li><strong>Status Indication:</strong> If all historical logs and live states match their cryptographic hashes, the system is 100% verified.</li>
+                                    <li><strong>Signature Verification:</strong> Every log's Ed25519 signature is checked against the signer's key that was active at that time (or the server key for system actions). Signatures cover the action, time, parent hash, document state and remarks.</li>
+                                    <li><strong>Checkpoint Comparison:</strong> Every chain head recorded in the newest signed checkpoint must still exist, so deleting a chain's newest entries is detected.</li>
+                                    <li><strong>Status Indication:</strong> The system is 100% verified only when every count on the left is zero. The audit only reports; freezing affected documents stays an administrator decision ("Freeze All").</li>
                                 </ol>
                             </div>
                         </div>

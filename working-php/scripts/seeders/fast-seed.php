@@ -325,25 +325,17 @@ $decryptedKeys = [];
 $pin = 'password';
 
 foreach ($users as $user) {
-    $decoded = base64_decode($user['private_key']);
-    if (strlen($decoded) === 64) {
-        $key = substr(hash('sha256', $pin), 0, 32);
-        $iv = str_repeat('0', 16);
-        $encryptedPriv = $decoded;
-    } elseif (strlen($decoded) >= 112) {
-        $salt = substr($decoded, 0, SODIUM_CRYPTO_PWHASH_SALTBYTES);
-        $iv = substr($decoded, SODIUM_CRYPTO_PWHASH_SALTBYTES, 16);
-        $encryptedPriv = substr($decoded, SODIUM_CRYPTO_PWHASH_SALTBYTES + 16);
-        $key = sodium_crypto_pwhash(32, $pin, $salt, SODIUM_CRYPTO_PWHASH_OPSLIMIT_INTERACTIVE, SODIUM_CRYPTO_PWHASH_MEMLIMIT_INTERACTIVE, SODIUM_CRYPTO_PWHASH_ALG_ARGON2ID13);
-    } else {
+    // Same Argon2id + AES-256-CBC unwrap the live system uses; skip keys that do not open with the seed PIN
+    try {
+        $decryptedKeys[$user['id']] = IntegrityManager::decryptPrivateKey($user['private_key'], $pin);
+    } catch (\Exception $e) {
         continue;
-    }
-    $decryptedPriv = openssl_decrypt($encryptedPriv, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv);
-    if ($decryptedPriv !== false) {
-        $decryptedKeys[$user['id']] = $decryptedPriv;
     }
 }
 echo "✅ Cached " . count($decryptedKeys) . " private keys.\n";
+
+// Fail early if system-initiated entries cannot be signed
+IntegrityManager::signAsSystem('seed-preflight');
 
 $districts = ['East I District', 'East II District', 'South I District', 'South II District', 'West I District', 'North I District', 'North II District', 'North III District', 'City Central District'];
 
@@ -352,49 +344,7 @@ date_default_timezone_set('Asia/Manila');
 $totalProcessed = 0;
 $startTime = microtime(true);
 
-// Metrics helper using streaming O(1) memory aggregation
-$hourlyMetrics = [];
-function addMetric(&$hourlyMetrics, $timestamp, $isPeak) {
-    $hourKey = date('Y-m-d H:00:00', $timestamp);
-    if (!isset($hourlyMetrics[$hourKey])) {
-        $hourlyMetrics[$hourKey] = ['conn_sum' => 0, 'conn_count' => 0, 'avg_sum' => 0, 'avg_count' => 0, 'slow' => 0];
-    }
-    $isBusiness = (date('H', $timestamp) >= 8 && date('H', $timestamp) < 17 && date('N', $timestamp) < 6);
-    $base = $isBusiness ? rand(10, 50) : rand(2, 10);
-    $conns = $isPeak ? $base + rand(20, 50) : $base;
-    $avg = $isPeak ? rand(50, 200)/10 : rand(5, 50)/10;
-    
-    $hourlyMetrics[$hourKey]['conn_sum'] += $conns;
-    $hourlyMetrics[$hourKey]['conn_count']++;
-    $hourlyMetrics[$hourKey]['avg_sum'] += $avg;
-    $hourlyMetrics[$hourKey]['avg_count']++;
-    $hourlyMetrics[$hourKey]['slow'] += $isPeak ? rand(0, 3) : 0;
-}
-
-function flushMetricsToDb($conn, &$hourlyMetrics) {
-    if (empty($hourlyMetrics)) return;
-    
-    $metricValues = [];
-    $metricParams = [];
-    foreach ($hourlyMetrics as $hourKey => $data) {
-        $c = $data['conn_count'] > 0 ? $data['conn_sum'] / $data['conn_count'] : 0;
-        $a = $data['avg_count'] > 0 ? $data['avg_sum'] / $data['avg_count'] : 0;
-        $s = $data['slow'];
-        $metricValues[] = '(?,?,?,?)';
-        array_push($metricParams, $c, $a, $s, $hourKey);
-    }
-    
-    if (!empty($metricValues)) {
-        $mChunks = array_chunk($metricValues, 1000);
-        $pChunks = array_chunk($metricParams, 4000);
-        foreach ($mChunks as $idx => $vChunk) {
-            $sql = "INSERT INTO database_metrics (connections, avg_query_time_ms, slow_queries, created_at) VALUES " . implode(',', $vChunk) . " ON DUPLICATE KEY UPDATE connections = VALUES(connections), avg_query_time_ms = VALUES(avg_query_time_ms), slow_queries = slow_queries + VALUES(slow_queries)";
-            $stmt = $conn->prepare($sql);
-            $stmt->execute($pChunks[$idx]);
-        }
-    }
-    $hourlyMetrics = []; // Reset RAM to 0 bytes
-}
+// database_metrics is intentionally not seeded: it holds only real samples from scripts/sample-db-metrics.php
 
 function getWeightedPeakHour(): int {
     $weightedHours = [
@@ -589,32 +539,21 @@ while ($totalProcessed < $docsToCreate) {
             'finalized_route' => $finalizedRoute 
         ];
         
-        $prevHash = 'genesis_hash';
-        
-        $addLogTemplate = function($action, $remarks, $userId, $isPeak = false) use (&$docLogTemplates, &$prevHash, &$ts, $docDataForHash, &$hourlyMetrics, $decryptedKeys) {
-            $stateHash = IntegrityManager::calculateStateHash($docDataForHash);
+        // Collect each log's content now; signing and chaining happen after insert, once the document ID is known
+        $addLogTemplate = function($action, $remarks, $userId) use (&$docLogTemplates, &$ts, $docDataForHash) {
+            // Never date a log in the future: seeded key periods end at seed time
+            $ts = min($ts, time());
             $sqlDate = date('Y-m-d H:i:s', $ts);
-            $isoDate = date('c', strtotime($sqlDate));
-            
-            $signature = base64_encode("SYSTEM_SIG:{$action}|{$stateHash}");
-            if ($userId && isset($decryptedKeys[$userId])) {
-                $signatureBytes = sodium_crypto_sign_detached($action . '|' . $stateHash, $decryptedKeys[$userId]);
-                $signature = base64_encode($signatureBytes);
-            }
-            
+
             $docLogTemplates[] = [
                 'user_id' => $userId,
                 'action' => $action,
                 'remarks' => $remarks,
-                'prev_hash' => $prevHash,
-                'state_hash' => $stateHash,
-                'signature' => $signature,
+                'state_hash' => IntegrityManager::calculateStateHash($docDataForHash),
                 'snapshot' => json_encode($docDataForHash),
                 'sql_date' => $sqlDate,
-                'iso_date' => $isoDate
+                'epoch' => IntegrityManager::logTimestamp($sqlDate)
             ];
-            
-            addMetric($hourlyMetrics, $ts, $isPeak);
         };
         
         $addLogTemplate('Submitted', 'Document submitted by guest via the public portal.', null);
@@ -624,7 +563,7 @@ while ($totalProcessed < $docsToCreate) {
         } elseif ($status === 'declined') {
             $ts += rand(5, 30) * 60;
             skipNonWorkingDays($ts, true);
-            $addLogTemplate('Declined', 'Requirements not met.', $recordsOfficer['id'], true);
+            $addLogTemplate('Document Declined', 'Requirements not met.', $recordsOfficer['id']);
             $declinedAt = date('Y-m-d H:i:s', $ts);
             $updatedAt = $declinedAt;
         } else { // processing, ready_for_release, or completed
@@ -717,16 +656,26 @@ while ($totalProcessed < $docsToCreate) {
     for ($i = 0; $i < $currentChunk; $i++) {
         $docId = $firstInsertId + $i;
         $templates = $chunkLogTemplates[$i];
-        $prevHash = 'genesis_hash';
-        
+        $prevHash = IntegrityManager::GENESIS_HASH;
+
         foreach ($templates as $tmpl) {
-            $uId = $tmpl['user_id'] !== null ? (int)$tmpl['user_id'] : '';
-            $dataForLogHash = [$docId, $uId, $tmpl['action'], $tmpl['iso_date'], $prevHash, $tmpl['state_hash'], $tmpl['signature']];
-            $newHash = hash('sha256', json_encode($dataForLogHash, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE));
-            
+            $uId = $tmpl['user_id'] !== null ? (int) $tmpl['user_id'] : null;
+
+            // Sign the v2 message with the actor's in-memory key, or the server key for system entries
+            $message = IntegrityManager::signedMessage((int) $docId, $tmpl['action'], $tmpl['epoch'], $prevHash, $tmpl['state_hash'], $tmpl['remarks']);
+            if ($uId !== null && isset($decryptedKeys[$uId])) {
+                $signature = base64_encode(sodium_crypto_sign_detached($message, $decryptedKeys[$uId]));
+            } else {
+                $uId = null;
+                $signature = IntegrityManager::signAsSystem($message);
+            }
+
+            // Seal the block exactly as IntegrityManager::createLog does
+            $newHash = IntegrityManager::chainHash((int) $docId, $uId, $tmpl['action'], $tmpl['epoch'], $prevHash, $tmpl['state_hash'], $tmpl['remarks'], $signature);
+
             $logValues[] = '(?,?,?,?,?,?,?,?,?,?,?)';
-            array_push($logParams, $docId, $tmpl['user_id'], $tmpl['action'], $tmpl['remarks'], $prevHash, $newHash, $tmpl['state_hash'], $tmpl['signature'], $tmpl['snapshot'], $tmpl['sql_date'], $tmpl['sql_date']);
-            
+            array_push($logParams, $docId, $uId, $tmpl['action'], $tmpl['remarks'], $prevHash, $newHash, $tmpl['state_hash'], $signature, $tmpl['snapshot'], $tmpl['sql_date'], $tmpl['sql_date']);
+
             $prevHash = $newHash;
         }
     }
@@ -747,25 +696,17 @@ while ($totalProcessed < $docsToCreate) {
     $conn->commit();
     
     $totalProcessed += $currentChunk;
-    
-    // Periodically flush metrics every 50,000 documents to keep RAM at O(1) constant footprint
-    if ($totalProcessed % 50000 === 0) {
-        $conn->beginTransaction();
-        flushMetricsToDb($conn, $hourlyMetrics);
-        $conn->commit();
-    }
 
     $mem = round(memory_get_usage() / 1024 / 1024);
     echo "\r   ⏳ Progress: " . number_format($totalProcessed) . " / " . number_format($docsToCreate) . " documents. | 🧠 RAM: {$mem} MB   ";
 }
 
-echo "\n📊 Flushing metrics...\n";
-$conn->beginTransaction();
-flushMetricsToDb($conn, $hourlyMetrics);
-$conn->commit();
-
 echo "\n🔒 Resetting all digital signatures for first-time login...\n";
-$conn->exec("UPDATE user_public_key_histories SET activated_at = '2000-01-01 00:00:00', deactivated_at = '2038-01-01 00:00:00', updated_at = NOW() WHERE deactivated_at IS NULL OR deactivated_at > '2000-01-01 00:00:00'");
+// End every seeded key period now, so a key the user sets later never overlaps the seeded one.
+// The time comes from PHP (Asia/Manila), the same clock that wrote the log timestamps, not SQL NOW() (server timezone).
+$seedEnd = date('Y-m-d H:i:s');
+$stmt = $conn->prepare("UPDATE user_public_key_histories SET activated_at = '2000-01-01 00:00:00', deactivated_at = :end, updated_at = :end2 WHERE deactivated_at IS NULL OR deactivated_at > :end3");
+$stmt->execute(['end' => $seedEnd, 'end2' => $seedEnd, 'end3' => $seedEnd]);
 $conn->exec("UPDATE users SET public_key = NULL, private_key = NULL, security_key_set_at = NULL");
 
 $conn->exec('SET FOREIGN_KEY_CHECKS = 1');

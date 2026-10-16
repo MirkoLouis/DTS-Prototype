@@ -35,6 +35,9 @@ class Database
             // Establish the PDO connection. We wrap this in a try-catch to prevent leaking 
             // raw database credentials directly to the user/logs on connection failure.
             $this->connection = new PDO($dsn, $dbConfig['user'], $dbConfig['password'], $options);
+
+            // Run the session on Philippine time so SQL NOW() matches the Asia/Manila times PHP writes
+            $this->connection->exec("SET time_zone = '+08:00'");
         } catch (PDOException $e) {
             // In a real production app, we would log this securely and show a generic error
             error_log("Database Connection Failed: " . $e->getMessage());

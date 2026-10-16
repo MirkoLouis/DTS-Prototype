@@ -18,7 +18,7 @@ DTS Prototype/
 
 1. **Framework-Free Performance:** Eliminates framework bootstrapping overhead, delivering near-instant page loads and sub-millisecond raw PDO database query execution.
 2. **Zero-Dependency Core:** Runs natively using pure PHP 8.3 and MySQL 8.0 without heavy framework runtime dependencies.
-3. **Pessimistic Locking & Transaction Safety:** Centralizes database state mutations inside [DocumentWorkflowService.php](working-php/src/Services/DocumentWorkflowService.php) using explicit `PDO` transactions and `SELECT ... FOR UPDATE` row-level locking to eliminate race conditions under concurrent loads.
+3. **Transaction Safety & Optimistic Locking:** Centralizes database state mutations inside [DocumentWorkflowService.php](working-php/src/Services/DocumentWorkflowService.php) using explicit `PDO` transactions with optimistic version checks; the conditional `UPDATE` takes an InnoDB row lock that serializes hash-chain appends per document, eliminating race conditions under concurrent loads.
 4. **Container-Native Scheduling:** Replaced host `cron` daemons with a unified CLI worker ([console.php](working-php/console.php)) featuring an internal task scheduler loop for telemetry sampling, TAT backfilling, metrics rollups, response cache GC, and automated stale pending document garbage collection inside containerized environments (Distrobox / Docker).
 
 ---
@@ -127,8 +127,10 @@ Comprehensive user manuals are provided in [working-php/documentation/user_manua
 | `composer run dev` | Runs [scripts/dev.php](working-php/scripts/dev.php) to start local dev server & Tailwind watcher. |
 | `composer run corrupt` | Runs [scripts/corrupt.php](working-php/scripts/corrupt.php) to simulate database tampering and test JIT Active Guard auto-freeze. |
 | `php scripts/tune-database.php` | Analyzes system memory and outputs optimal MySQL `my.cnf` buffer pool configurations. |
-| `php scripts/generate-keys.php` | CLI tool for generating missing Ed25519 digital signature keypairs. |
-| `php scripts/concurrency_test.php` | Evaluates pessimistic locking performance under high-concurrency transaction loads. |
+| `php scripts/generate-keys.php` | CLI tool for generating missing Ed25519 digital signature keypairs. `--system` creates the server key used to sign system actions (`SYSTEM_SIGNING_SECRET` / `SYSTEM_SIGNING_PUBLIC` in `.env`). |
+| `php scripts/create-checkpoint.php` | Writes a signed chain-head checkpoint to `storage/checkpoints/` (the worker also does this daily). Copy checkpoints off the server. |
+| `php scripts/benchmark-crypto.php` | Objective 3 benchmark: times state/chain hashing, log reads, Argon2id, AES unwrap and Ed25519 sign/verify; writes a CSV to `storage/benchmarks/`. |
+| `php scripts/concurrency_test.php` | Forks 5 simultaneous task completions on one document; exactly one must succeed (optimistic version check). |
 
 ---
 

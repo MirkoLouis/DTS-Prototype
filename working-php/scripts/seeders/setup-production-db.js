@@ -32,12 +32,20 @@ async function setupDatabase() {
         console.log('🔄 Starting Database Setup...');
         clearSessionsAndCache();
 
+        // Ensure the server Ed25519 key exists; system-initiated log entries cannot be signed without it
+        console.log('🔐 Ensuring system signing key exists...');
+        require('child_process').execFileSync('php', [path.join(__dirname, '../generate-keys.php'), '--system'], { stdio: 'inherit' });
+
         connection = await mysql.createConnection({
             host: process.env.DB_HOST,
             user: process.env.DB_USERNAME,
             password: process.env.DB_PASSWORD,
-            multipleStatements: true // Required to run the full SQL file
+            multipleStatements: true, // Required to run the full SQL file
+            timezone: '+08:00' // Convert JS dates using Philippine time
         });
+
+        // Run the session on Philippine time so SQL NOW() matches the Asia/Manila times PHP writes
+        await connection.query("SET time_zone = '+08:00'");
 
         // 1. Load and execute database.sql
         const sqlFilePath = path.join(__dirname, '../../database.sql');

@@ -142,6 +142,9 @@ homestead.vagrant
 /working-php/storage/reports/*.xlsx
 /working-php/storage/cache/*.sqlite*
 /working-php/storage/app/backups/*
+/working-php/storage/checkpoints/
+/working-php/storage/benchmarks/
+/working-php/storage/cache/db-metrics-state.json
 
 /working-php/database/database.sqlite
 /working-php/database/database.sqlite-journal
