@@ -49,6 +49,17 @@ class GuestController
             'other_purpose_text' => ''
         ]);
 
+        // The department becomes step 1 of the suggested route, so it must exactly (case-sensitively) name a real department
+        if (!isset($errors['department'])) {
+            $department = $validated['department'];
+            $known = is_string($department)
+                ? $db->query("SELECT name FROM departments WHERE name = :name", [':name' => $department])->fetchAll(\PDO::FETCH_COLUMN)
+                : [];
+            if (!in_array($department, $known, true)) {
+                $errors['department'] = 'Please choose a valid department.';
+            }
+        }
+
         if (!empty($errors)) {
             $_SESSION['error'] = implode("<br>", $errors);
             $_SESSION['field_errors'] = $errors;

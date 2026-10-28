@@ -51,8 +51,6 @@ if (isset($_SESSION['user_id'])) {
             }
         })();
     </script>
-    <script src="/js/vendor/libsodium-wrappers.js"></script>
-    <script src="/js/vendor/libsodium.js"></script>
     <script>
         window.UserConfig = {
             id: <?= json_encode($_SESSION['user_id'] ?? null) ?>
@@ -554,16 +552,23 @@ if (isset($_SESSION['user_id'])) {
                                                 ${iconSvg}
                                             </svg>
                                             <div class="flex-1 pr-6">
-                                                <strong class="block leading-tight font-medium ${titleColor}"> ${notif.title} </strong>
-                                                <p class="mt-0.5 text-sm ${textColor}">${notif.message}</p>
+                                                <strong class="toast-title block leading-tight font-medium ${titleColor}"></strong>
+                                                <p class="toast-text mt-0.5 text-sm ${textColor}"></p>
                                             </div>
-                                            <button class="mark-notification-read absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition" data-id="${notif.id}" title="Dismiss">
+                                            <button class="mark-notification-read absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition" title="Dismiss">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                             </button>
                                         </div>
                                     </div>
                                 `;
-                                toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+                                // Build the static shell, then insert server text with textContent so notification text never parses as HTML (I1)
+                                const holder = document.createElement('div');
+                                holder.innerHTML = toastHtml;
+                                const toastEl = holder.firstElementChild;
+                                toastEl.querySelector('.toast-title').textContent = String(notif.title ?? '');
+                                toastEl.querySelector('.toast-text').textContent = String(notif.message ?? '');
+                                toastEl.querySelector('.mark-notification-read').dataset.id = notifIdStr;
+                                toastContainer.appendChild(toastEl);
                                 setupToastAutoDismiss();
                             }
                         }

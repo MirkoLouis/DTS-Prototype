@@ -129,8 +129,74 @@ Comprehensive user manuals are provided in [working-php/documentation/user_manua
 | `php scripts/tune-database.php` | Analyzes system memory and outputs optimal MySQL `my.cnf` buffer pool configurations. |
 | `php scripts/generate-keys.php` | CLI tool for generating missing Ed25519 digital signature keypairs. `--system` creates the server key used to sign system actions (`SYSTEM_SIGNING_SECRET` / `SYSTEM_SIGNING_PUBLIC` in `.env`). |
 | `php scripts/create-checkpoint.php` | Writes a signed chain-head checkpoint to `storage/checkpoints/` (the worker also does this daily). Copy checkpoints off the server. |
-| `php scripts/benchmark-crypto.php` | Objective 3 benchmark: times state/chain hashing, log reads, Argon2id, AES unwrap and Ed25519 sign/verify; writes a CSV to `storage/benchmarks/`. |
-| `php scripts/concurrency_test.php` | Forks 5 simultaneous task completions on one document; exactly one must succeed (optimistic version check). |
+| `composer run test` / `test:security` / `test:concurrency` | PHPUnit suites, see [Testing](#-testing-working-php). |
+| `composer run bench` | Performance benchmark (state/chain hashing, log reads, Active Guard, Argon2id, AES unwrap, Ed25519, HTTP timings); writes CSVs to `storage/benchmarks/`. Replaces the former `benchmark-crypto.php`. |
+| `composer run replay -- <csv>` | Runs [scripts/route-replay.php](working-php/scripts/route-replay.php) to replay the legacy routing export against the route suggester. |
+| `scripts/migrations/*.sql` | One-off SQL migrations for existing databases (see the migration notice under Testing). |
+
+---
+
+## 🧪 Testing (`working-php`)
+
+**Setup.**
+
+```bash
+cd working-php
+cp .env.testing.example .env.testing
+APP_ENV=testing php scripts/generate-keys.php --system   # writes the system key into .env.testing
+```
+
+You do not create the database by hand: `TestLifecycle` (called from `tests/bootstrap.php`) drops and recreates `deped_dts_test` and the `-test` response cache, checkpoint directory and integrity-result file before every run, and removes them again after it. Result CSVs are kept. Only `.env.testing` and the system key are one-time setup. Within a run, the suite resets `deped_dts_test` from `database.sql` before every test, and the security tests deliberately corrupt and overwrite data. It therefore refuses to run unless `APP_ENV=testing` and the database name ends in `_test`. The test environment also uses its own response cache, checkpoint directory and integrity-result file so it never touches real data.
+
+**Commands** (from `working-php/`).
+
+| Command | What it runs |
+| :--- | :--- |
+| `composer test` | Unit, workflow and HTTP suites only. |
+| `vendor/bin/phpunit` | Default suites: unit, workflow, HTTP and security (concurrency and benchmark are excluded by group). |
+| `composer test:security` | Tamper-injection tactics and HTTP attack tests, tagged by threat actor. |
+| `composer test:concurrency` | Kiosk-burst and simultaneous-action tests against `php -S` started with 16 workers (`PHP_CLI_SERVER_WORKERS=16`); set `TEST_BASE_URL` to target an nginx/FPM deployment instead. The parallelism check is timing-sensitive and can fail on a heavily loaded machine. |
+| `composer bench` | Performance benchmark. Seeds through `scripts/seeders/fast-seed.php` (the `seed:fast` logic, direct DB inserts); 100,000 documents took 83.8 s in a logged run, so 1,000,000 takes about 14 minutes if it scales linearly. Defaults to 1,000,000 documents and 1,000 iterations; full run: `BENCH_DOCS=1000000 BENCH_ITERATIONS=1000 composer bench`. Smaller runs: e.g. `BENCH_DOCS=10000`. Set `BENCH_HTTP=0` to skip HTTP timings. |
+| `composer replay -- <path-to-legacy-csv>` | Replays the legacy routing export (`dts_docroutes` CSV) through `RouteSuggestionService`; optional second argument is the output directory, and `--records-names="A\|B"` overrides the Records intake section names. |
+
+**External server (`TEST_BASE_URL`).** Before attaching, the suite calls `GET /__test/env` and refuses to run unless the server reports `env` `testing` and a database name ending in `_test`. That route is registered only when the app runs with `APP_ENV=testing`; in production it returns 404 like any unknown route. An nginx/FPM run therefore needs a separate PHP-FPM pool (or vhost) for the tests with `env[APP_ENV]=testing`, so it loads `.env.testing`; never point `TEST_BASE_URL` at the production pool.
+
+**Results.** Security, concurrency and replay CSVs are written to `working-php/storage/test-results/`; benchmark CSVs to `working-php/storage/benchmarks/`. Rows are appended, so delete the old CSVs before a clean evidence run.
+
+**Threat model.** Every simulated attack is tagged with one of four LAN actors (`tests/Support/ThreatActor.php`):
+
+| Actor | Description |
+| :--- | :--- |
+| `kiosk_walkup` | Unauthenticated person at a kiosk or on a LAN browser. |
+| `lan_device` | Rogue or compromised device on the office network sending crafted HTTP requests. |
+| `staff_insider` | Logged-in user acting outside their role or department, or using an unattended unlocked session. |
+| `privileged_insider` | Someone with direct database or server access. |
+
+Not applicable on an offline LAN (`ThreatActor::NOT_APPLICABLE`): botnet DDoS, internet credential stuffing, cloud metadata SSRF.
+
+**Migration notice.** Existing databases must run `working-php/scripts/migrations/2026_10_27_add_attempt_throttles.sql` to enable login and PIN attempt limiting (3 failures within 1 minute trigger a 1-minute timeout). Until it is run, limiting is off and a line is written to `error_log` (fail-open). Fresh databases built from `database.sql` already include the table.
+
+**Fixed findings.** F1 (finalizing a route accepted an unknown department), F2 (staff could view documents outside their route through `DocumentController::show`) and F3 (`CacheMiddleware` wrote cached pages non-atomically, so a cold-cache kiosk burst could get pages without a CSRF token) are fixed. The former finding tests remain as regression tests, and the default `vendor/bin/phpunit` ends with 0 failures.
+
+**Workflow rules.** Officers are bound by the department-step rule like staff: acting on a document outside their step gives "Action Denied". They keep intake, the final Records receive, and release.
+
+**Seeders.** `fast-seed.php` and `import-legacy.php` rely on the database unique key for tracking codes and retry the chunk on MySQL duplicate error 1062; there is no in-memory duplicate check. Under `APP_ENV=testing`, `fast-seed.php` only clears the `-test` cache and leaves PHP sessions alone.
+
+### Manual tests (you start these)
+
+The live concurrency run is not part of any suite. It fires simultaneous kiosk submissions at the real web app and `deped_dts`:
+
+```bash
+cd working-php
+COMPOSER_PROCESS_TIMEOUT=0 composer manual:live-concurrency -- --base-url=https://<lan-host>:8000 --confirm-live --insecure
+```
+
+- `--workers=N` sets the number of simultaneous submissions (1 to 1000, default 100).
+- `--insecure` skips TLS verification; drop it when the server certificate is trusted.
+- Do not run it in a shell where `APP_ENV=testing` is exported; it refuses.
+- Titles are tagged `CONC-LIVE-<run_id>-<i>`. The script always auto-deletes only its own documents, and prints the run id and the deleted count. "Its own" means rows titled with its run id prefix `CONC-LIVE-<run_id>-…` that were created during the run (id above the highest id seen at start). The run id is `LIVE` plus a timestamp to the second (`YmdHis`), so two runs started in the same second share a run id and each would delete the other's rows. If anything remains, it prints a manual `DELETE` statement.
+- It warns if a checkpoint was written during the run, because those chain heads will show as missing in the next audit.
+- Results are appended to `storage/test-results/live-concurrency.csv`.
 
 ---
 

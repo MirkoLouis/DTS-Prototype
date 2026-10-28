@@ -4,7 +4,7 @@ USE deped_dts;
 SET FOREIGN_KEY_CHECKS = 0;
 
 -- Drop all tables to be safe
-DROP TABLE IF EXISTS notifications, cache, cache_locks, jobs, job_batches, failed_jobs, departments, users, user_public_key_histories, password_reset_tokens, sessions, purposes, documents, document_logs, prediction_keywords, daily_department_metrics, database_metrics, report_jobs, integrity_checks;
+DROP TABLE IF EXISTS attempt_throttles, notifications, cache, cache_locks, jobs, job_batches, failed_jobs, departments, users, user_public_key_histories, password_reset_tokens, sessions, purposes, documents, document_logs, prediction_keywords, daily_department_metrics, database_metrics, report_jobs, integrity_checks;
 
 -- 1. Core Laravel & Infrastructure Tables
 CREATE TABLE cache ( `key` VARCHAR(255) PRIMARY KEY, `value` MEDIUMTEXT, `expiration` INT );
@@ -30,6 +30,8 @@ CREATE TABLE daily_department_metrics ( id BIGINT UNSIGNED AUTO_INCREMENT PRIMAR
 CREATE TABLE database_metrics ( id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, connections INT UNSIGNED, avg_query_time_ms DECIMAL(10, 4), slow_queries INT UNSIGNED, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, INDEX idx_metrics_created_at (created_at) );
 CREATE TABLE report_jobs ( id CHAR(36) PRIMARY KEY, user_id BIGINT UNSIGNED, status VARCHAR(255) DEFAULT 'queued', progress INT UNSIGNED DEFAULT 0, total_documents INT UNSIGNED DEFAULT 0, file_path VARCHAR(255) NULL, filters JSON NULL, error_message TEXT NULL, created_at TIMESTAMP NULL, updated_at TIMESTAMP NULL, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE );
 CREATE TABLE integrity_checks ( id CHAR(36) PRIMARY KEY, user_id BIGINT UNSIGNED, status VARCHAR(255) DEFAULT 'queued', progress INT UNSIGNED DEFAULT 0, results JSON NULL, error_message TEXT NULL, created_at TIMESTAMP NULL, updated_at TIMESTAMP NULL, FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE );
+-- Failed-attempt limiting for login and Security PIN entry (keys are SHA-256 of scope|subject)
+CREATE TABLE attempt_throttles ( throttle_key CHAR(64) PRIMARY KEY, failures INT UNSIGNED NOT NULL DEFAULT 0, first_failed_at INT UNSIGNED NOT NULL, locked_until INT UNSIGNED NULL );
 
 SET FOREIGN_KEY_CHECKS = 1;
 

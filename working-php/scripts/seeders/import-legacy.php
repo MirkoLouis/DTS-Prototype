@@ -8,6 +8,7 @@ date_default_timezone_set('Asia/Manila');
 
 use App\Core\Database;
 use App\Core\IntegrityManager;
+use App\Core\TrackingCode;
 
 class WeightedNameGenerator {
     private array $firstNames = [];
@@ -298,16 +299,23 @@ function getPurposeRoute($purposeName, $purposesCache) {
     return [$pool[0]];
 }
 
-echo "🔄 Parsing and Inserting Documents with Dynamic Processing...\n";
-$docsToInsert = [];
-$allLogTemplates = [];
+// A documents chunk whose INSERT hits MySQL 1062 is rebuilt with fresh codes and retried this many times
+const MAX_CODE_RETRIES = 3;
 
-$globalDocIndex = 0;
+/**
+ * Build one legacy document and its log templates in memory. The code is hashed into every state hash,
+ * so a retry after a duplicate code calls this again for each document of the failed chunk.
+ * Purposes and departments it creates are cached, so a rebuild reuses them instead of inserting again.
+ */
+function buildLegacyDocument(int $globalDocIndex, array $actions, array $ctx, array &$purposeCache, array &$deptCache): array {
+    $conn = $ctx['conn'];
+    $titlesData = $ctx['titlesData'];
+    $nameGenerator = $ctx['nameGenerator'];
+    $districts = $ctx['districts'];
+    $departments = $ctx['departments'];
+    $users = $ctx['users'];
+    $recordsOfficer = $ctx['recordsOfficer'];
 
-$conn->beginTransaction();
-
-foreach ($docs as $legacyDocId => $actions) {
-    $globalDocIndex++;
     $firstAction = $actions[0];
     
     $legacyPurpose = trim($firstAction['route_purpose']);
@@ -345,7 +353,8 @@ foreach ($docs as $legacyDocId => $actions) {
     }
     $finalizedRoute = json_encode(array_map(function($n) { return ['name' => $n, 'type' => 'initial']; }, $routeNames));
     
-    $trackingCode = 'DEPED-' . strtoupper(substr(sha1(uniqid('', true) . microtime()), 0, 10));
+    // CSPRNG code; uniqueness is enforced by the UNIQUE index at INSERT time (1062 triggers a chunk rebuild)
+    $trackingCode = TrackingCode::generate();
     
     $createdAtTs = strtotime($firstAction['datetime_forwarded']);
     if (!$createdAtTs) $createdAtTs = time();
@@ -485,7 +494,7 @@ foreach ($docs as $legacyDocId => $actions) {
     
     $updatedAt = date('Y-m-d H:i:s', $ts);
     
-    $docsToInsert[] = [
+    $doc = [
         'tracking_code' => $trackingCode,
         'title' => $docTitle,
         'guest_info' => $guestInfo,
@@ -503,26 +512,100 @@ foreach ($docs as $legacyDocId => $actions) {
         'created_at' => $createdAt,
         'updated_at' => $updatedAt
     ];
-    
+
+    return [$doc, $docLogTemplates];
+}
+
+/**
+ * Bulk-insert one chunk of documents and return the first auto-increment ID.
+ * A duplicate tracking code surfaces as a PDOException with errorInfo[1] == 1062.
+ */
+function insertDocuments(PDO $conn, array $chunk): int {
+    $placeholders = implode(',', array_fill(0, count($chunk), '(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'));
+    $sql = "INSERT INTO documents (tracking_code, title, guest_info, district, department, purpose_id, status, current_department_id, current_step, released_at, released_by_user_id, declined_at, decline_reason, finalized_route, created_at, updated_at) VALUES $placeholders";
+    $stmt = $conn->prepare($sql);
+    $flatParams = [];
+    // Flatten the rows in column order
+    foreach ($chunk as $d) {
+        array_push($flatParams, $d['tracking_code'], $d['title'], $d['guest_info'], $d['district'], $d['department'], $d['purpose_id'], $d['status'], $d['current_department_id'], $d['current_step'], $d['released_at'], $d['released_by_user_id'], $d['declined_at'], $d['decline_reason'], $d['finalized_route'], $d['created_at'], $d['updated_at']);
+    }
+    $stmt->execute($flatParams);
+
+    return (int) $conn->lastInsertId();
+}
+
+echo "🔄 Parsing and Inserting Documents with Dynamic Processing...\n";
+$docsToInsert = [];
+$allLogTemplates = [];
+// Legacy actions per document position, kept so a failed chunk can be rebuilt
+$legacyActions = [];
+
+// Read-only inputs every document build draws from
+$buildContext = [
+    'conn' => $conn,
+    'titlesData' => $titlesData,
+    'nameGenerator' => $nameGenerator,
+    'districts' => $districts,
+    'departments' => $departments,
+    'users' => $users,
+    'recordsOfficer' => $recordsOfficer,
+];
+
+$globalDocIndex = 0;
+
+$conn->beginTransaction();
+
+// Build every legacy document and its log timeline in memory
+foreach ($docs as $legacyDocId => $actions) {
+    $globalDocIndex++;
+    [$doc, $docLogTemplates] = buildLegacyDocument($globalDocIndex, $actions, $buildContext, $purposeCache, $deptCache);
+    $docsToInsert[] = $doc;
     $allLogTemplates[] = $docLogTemplates;
+    $legacyActions[] = $actions;
 }
 
 // Bulk Insert Documents
 if (!empty($docsToInsert)) {
     echo "💾 Inserting " . count($docsToInsert) . " documents...\n";
-    $chunks = array_chunk($docsToInsert, 1000);
-    $firstInsertId = null;
+    $docChunkSize = 1000;
+    // Document ID per position; a failed attempt burns auto-increment values, so IDs are recorded per chunk
+    $docIds = [];
     
-    foreach ($chunks as $chunk) {
-        $placeholders = implode(',', array_fill(0, count($chunk), '(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'));
-        $sql = "INSERT INTO documents (tracking_code, title, guest_info, district, department, purpose_id, status, current_department_id, current_step, released_at, released_by_user_id, declined_at, decline_reason, finalized_route, created_at, updated_at) VALUES $placeholders";
-        $stmt = $conn->prepare($sql);
-        $flatParams = [];
-        foreach ($chunk as $d) {
-            array_push($flatParams, $d['tracking_code'], $d['title'], $d['guest_info'], $d['district'], $d['department'], $d['purpose_id'], $d['status'], $d['current_department_id'], $d['current_step'], $d['released_at'], $d['released_by_user_id'], $d['declined_at'], $d['decline_reason'], $d['finalized_route'], $d['created_at'], $d['updated_at']);
+    // Insert chunk by chunk; the whole import shares one transaction, so a savepoint scopes each chunk's rollback
+    for ($offset = 0; $offset < count($docsToInsert); $offset += $docChunkSize) {
+        $chunkLength = min($docChunkSize, count($docsToInsert) - $offset);
+
+        // On a duplicate code, roll back to the savepoint, rebuild the chunk with fresh codes and retry
+        for ($attempt = 1; ; $attempt++) {
+            $conn->exec('SAVEPOINT legacy_chunk');
+            try {
+                $chunkFirstId = insertDocuments($conn, array_slice($docsToInsert, $offset, $chunkLength));
+                $conn->exec('RELEASE SAVEPOINT legacy_chunk');
+                break;
+            } catch (PDOException $e) {
+                $conn->exec('ROLLBACK TO SAVEPOINT legacy_chunk');
+
+                // Only a duplicate key is retryable; anything else is a real failure
+                if ((int) ($e->errorInfo[1] ?? 0) !== 1062) {
+                    throw $e;
+                }
+                // Give up after the initial attempt plus MAX_CODE_RETRIES rebuilds
+                if ($attempt > MAX_CODE_RETRIES) {
+                    throw new RuntimeException("Chunk starting at document " . ($offset + 1) . " still hit a duplicate tracking code after " . MAX_CODE_RETRIES . " retries.", 0, $e);
+                }
+                echo "   ⚠️  Duplicate tracking code in chunk starting at document " . ($offset + 1) . " (attempt {$attempt}); rebuilding chunk with fresh codes...\n";
+
+                // Rebuild every document of the chunk through the same builder, so new codes are re-hashed into new chains
+                for ($k = $offset; $k < $offset + $chunkLength; $k++) {
+                    [$docsToInsert[$k], $allLogTemplates[$k]] = buildLegacyDocument($k + 1, $legacyActions[$k], $buildContext, $purposeCache, $deptCache);
+                }
+            }
         }
-        $stmt->execute($flatParams);
-        if ($firstInsertId === null) $firstInsertId = $conn->lastInsertId();
+
+        // Record the consecutive IDs this multi-row INSERT received
+        for ($k = 0; $k < $chunkLength; $k++) {
+            $docIds[$offset + $k] = $chunkFirstId + $k;
+        }
     }
     
     echo "💾 Inserting logs...\n";
@@ -530,7 +613,7 @@ if (!empty($docsToInsert)) {
     $logParams = [];
     
     foreach ($allLogTemplates as $i => $templates) {
-        $docId = $firstInsertId + $i;
+        $docId = $docIds[$i];
         $prevHash = IntegrityManager::GENESIS_HASH;
 
         foreach ($templates as $tmpl) {

@@ -20,11 +20,21 @@ class IntegrityCheckJob
         $this->integrityCheckId = $integrityCheckId;
     }
 
+    // File that caches the latest audit result for the System Health pages.
+    // The test suite (app.env = testing) writes its own file so test audits never replace the real result.
+    public static function resultPath(): string
+    {
+        return BASE_PATH . (\App\Core\Config::get('app', 'env') === 'testing' ? '/cache/integrity-check-result-test.json' : '/cache/integrity-check-result.json');
+    }
+
     // Executes a full cryptographic audit of the system. Verifies the SHA-256 hash chain, 
     // Ed25519 signatures against historical public keys, and live document states.
     public function handle(): void
     {
         date_default_timezone_set('Asia/Manila');
+
+        // Start every audit with fresh key histories, even inside a long-lived process
+        IntegrityManager::clearKeyCache();
         $db = Database::getInstance();
         
         $db->query("UPDATE integrity_checks SET status = 'processing', progress = 5, updated_at = NOW() WHERE id = :id", [
@@ -207,7 +217,7 @@ class IntegrityCheckJob
             if (!is_dir(BASE_PATH . '/cache')) {
                 mkdir(BASE_PATH . '/cache', 0777, true);
             }
-            file_put_contents(BASE_PATH . '/cache/integrity-check-result.json', json_encode($results));
+            file_put_contents(self::resultPath(), json_encode($results));
 
             $db->query("UPDATE integrity_checks SET status = 'completed', progress = 100, results = :res, updated_at = NOW() WHERE id = :id", [
                 'res' => json_encode($results),

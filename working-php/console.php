@@ -88,7 +88,7 @@ function runScheduledTasks(int &$lastSampleTime, int &$lastBackfillTime, int &$l
     if ($now - $lastGcTime >= 3600) {
         $lastGcTime = $now;
 
-        $cacheDir = BASE_PATH . '/cache/responses';
+        $cacheDir = \App\Middleware\CacheMiddleware::cacheDir();
         $purged = 0;
         if (is_dir($cacheDir)) {
             foreach (glob($cacheDir . '/*.html') as $file) {

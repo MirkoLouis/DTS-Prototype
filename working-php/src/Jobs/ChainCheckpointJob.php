@@ -21,10 +21,13 @@ class ChainCheckpointJob
 
     /**
      * Directory that holds checkpoint files.
+     *
+     * The test suite (app.env = testing) uses its own directory, so test checkpoints are never
+     * picked up as the real app's latest checkpoint.
      */
     public static function directory(): string
     {
-        return BASE_PATH . '/storage/checkpoints';
+        return BASE_PATH . (Config::get('app', 'env') === 'testing' ? '/storage/checkpoints-test' : '/storage/checkpoints');
     }
 
     /**

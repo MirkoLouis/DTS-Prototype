@@ -27,6 +27,9 @@ class DocumentController
             exit;
         }
 
+        // Enforce document visibility: staff may only open documents routed through their department
+        $this->requireViewAccess($document);
+
         if (!empty($_SERVER['HTTP_REFERER'])) {
             $refererPath = parse_url($_SERVER['HTTP_REFERER'], PHP_URL_PATH) ?? '';
             if (!empty($refererPath) && !str_contains($refererPath, '/hash-chain') && !str_contains($refererPath, '/documents/')) {
@@ -55,9 +58,29 @@ class DocumentController
             exit;
         }
 
+        // Enforce document visibility: staff may only open documents routed through their department
+        $this->requireViewAccess($document);
+
         $logs = $document['logs'];
 
         require BASE_PATH . '/src/Views/general/document-hash-chain.php';
+    }
+
+    /**
+     * Redirect the current user to the dashboard unless DocumentPolicy::view grants access.
+     */
+    private function requireViewAccess(array $document): void
+    {
+        // Resolve the logged-in user and ask the policy
+        $user = \App\Models\User::findById($_SESSION['user_id'] ?? 0);
+        if ($user && (new \App\Policies\DocumentPolicy())->view($user, $document)) {
+            return;
+        }
+
+        // Deny with a flash message and no document data in the response
+        $_SESSION['error'] = 'You do not have access to this document.';
+        header('Location: /dashboard');
+        exit;
     }
 
     /**
@@ -117,7 +140,7 @@ class DocumentController
     {
         $db = Database::getInstance();
         
-        $stmt = $db->query("SELECT d.*, p.name as purpose_name, p.suggested_route 
+        $stmt = $db->query("SELECT d.*, p.name as purpose_name, p.is_official, p.suggested_route 
                             FROM documents d 
                             LEFT JOIN purposes p ON d.purpose_id = p.id 
                             WHERE d.id = :id", [':id' => $id]);
@@ -128,26 +151,11 @@ class DocumentController
             exit;
         }
 
-        $suggestedRoute = $document['suggested_route'] ? json_decode($document['suggested_route'], true) : [];
-
-        $guestDept = $document['department'] ?? '';
-        $purposeName = $document['purpose_name'] ?? '';
-        
-        // For official purposes, dynamically prepend the guest-selected unit/department
-        if ($guestDept && !str_starts_with($purposeName, 'Others:')) {
-            if (empty($suggestedRoute)) {
-                $suggestedRoute = [['name' => $guestDept, 'is_injected' => true]];
-            } else {
-                // Ensure we handle legacy arrays and don't duplicate if it's already the first step
-                $firstStep = is_array($suggestedRoute[0]) ? ($suggestedRoute[0]['name'] ?? '') : $suggestedRoute[0];
-                if ($firstStep !== $guestDept) {
-                    array_unshift($suggestedRoute, ['name' => $guestDept, 'is_injected' => true]);
-                } else {
-                    // It's already the first step, let's just flag it
-                    $suggestedRoute[0] = ['name' => $guestDept, 'is_injected' => true];
-                }
-            }
-        }
+        // Official purposes get the stored route with the guest's unit injected; "Others" gets none
+        $suggestedRoute = (new \App\Services\RouteSuggestionService())->suggest(
+            ['is_official' => $document['is_official'] ?? 0, 'suggested_route' => $document['suggested_route'] ?? null],
+            $document['department'] ?? null
+        );
 
         $document['suggested_route'] = $suggestedRoute;
 
@@ -171,6 +179,13 @@ class DocumentController
         }
 
         $routeNames = json_decode($finalRouteJson, true);
+
+        // A route that is not a JSON list would fail the typed service call, so reject it here
+        if (!empty($routeNames) && !is_array($routeNames)) {
+            $_SESSION['error'] = "Invalid route.";
+            header("Location: /documents/{$id}/manage");
+            exit;
+        }
 
         if (empty($routeNames)) {
             $_SESSION['error'] = "The route cannot be empty. Please add at least one step.";

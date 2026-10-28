@@ -61,23 +61,28 @@ class DocumentPolicy
             return false;
         }
 
-        // Admins and Officers have global processing authorization across all intake and management steps
-        if ($user->role === 'admin' || $user->role === 'officer') {
+        // Admins keep global processing authorization
+        if ($user->role === 'admin') {
             return true;
         }
 
-        // Staff members are restricted strictly to processing documents positioned at their department's current active step
-        if ($user->role === 'staff' && $user->department_id) {
+        // Officers and staff share one rule: they may only process a document positioned at their department's step
+        if (($user->role === 'staff' || $user->role === 'officer') && $user->department_id) {
             $db = Database::getInstance();
             $stmt = $db->query("SELECT name FROM departments WHERE id = :id", [':id' => $user->department_id]);
             $dept = $stmt->fetch();
             $departmentName = $dept ? $dept['name'] : '';
-            
-            // Only allow staff to process if the document is currently routed to their department's specific step index
+
             $route = $document['finalized_route'] ? json_decode($document['finalized_route'], true) : [];
             $currentStepIndex = ((int)($document['current_step'] ?? 1)) - 1;
 
+            // Allow the user when the current step belongs to their department
             if (isset($route[$currentStepIndex]['name']) && $route[$currentStepIndex]['name'] === $departmentName) {
+                return true;
+            }
+
+            // Allow the final Records receive once the route is complete
+            if (($document['status'] ?? '') === 'in_transit' && is_array($route) && $currentStepIndex >= count($route) && $departmentName === 'Records Unit') {
                 return true;
             }
         }

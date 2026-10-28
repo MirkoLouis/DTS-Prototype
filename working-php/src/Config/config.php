@@ -1,6 +1,7 @@
 <?php
 
-$envPath = BASE_PATH . '/.env';
+// The test suite sets APP_ENV=testing so it reads .env.testing and never touches the operational .env
+$envPath = BASE_PATH . (getenv('APP_ENV') === 'testing' ? '/.env.testing' : '/.env');
 $env = [];
 
 if (file_exists($envPath)) {
@@ -18,15 +19,16 @@ if (file_exists($envPath)) {
 
 return [
     'database' => [
-        'host' => $env['DB_HOST'],
-        'port' => $env['DB_PORT'],
-        'dbname' => $env['DB_DATABASE'],
-        'user' => $env['DB_USERNAME'],
-        'password' => $env['DB_PASSWORD'],
+        'host' => $env['DB_HOST'] ?? '127.0.0.1',
+        'port' => $env['DB_PORT'] ?? '3306',
+        'dbname' => $env['DB_DATABASE'] ?? '',
+        'user' => $env['DB_USERNAME'] ?? '',
+        'password' => $env['DB_PASSWORD'] ?? '',
         'charset' => 'utf8mb4'
     ],
     // Application runtime and cryptographic settings
     'app' => [
+        'env' => $env['APP_ENV'] ?? 'production',
         'debug' => filter_var($env['APP_DEBUG'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
         'pin_cache_duration' => (int) ($env['PIN_CACHE_DURATION'] ?? 900),
         'system_signing_secret' => $env['SYSTEM_SIGNING_SECRET'] ?? '',

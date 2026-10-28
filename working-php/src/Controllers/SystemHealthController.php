@@ -17,8 +17,8 @@ class SystemHealthController
             'mismatched_ids' => [],
         ];
 
-        if (file_exists(BASE_PATH . '/cache/integrity-check-result.json')) {
-            $integrityCheckResult = json_decode(file_get_contents(BASE_PATH . '/cache/integrity-check-result.json'), true);
+        if (file_exists(\App\Jobs\IntegrityCheckJob::resultPath())) {
+            $integrityCheckResult = json_decode(file_get_contents(\App\Jobs\IntegrityCheckJob::resultPath()), true);
         }
 
         $issues = [];
@@ -234,8 +234,8 @@ class SystemHealthController
             'last_checked' => 'Never',
         ];
 
-        if (file_exists(BASE_PATH . '/cache/integrity-check-result.json')) {
-            $result = json_decode(file_get_contents(BASE_PATH . '/cache/integrity-check-result.json'), true);
+        if (file_exists(\App\Jobs\IntegrityCheckJob::resultPath())) {
+            $result = json_decode(file_get_contents(\App\Jobs\IntegrityCheckJob::resultPath()), true);
         }
 
         header('Content-Type: application/json');
@@ -353,8 +353,8 @@ class SystemHealthController
         $workflow = new \App\Services\DocumentWorkflowService();
         
         $integrityCheckResult = [];
-        if (file_exists(BASE_PATH . '/cache/integrity-check-result.json')) {
-            $integrityCheckResult = json_decode(file_get_contents(BASE_PATH . '/cache/integrity-check-result.json'), true);
+        if (file_exists(\App\Jobs\IntegrityCheckJob::resultPath())) {
+            $integrityCheckResult = json_decode(file_get_contents(\App\Jobs\IntegrityCheckJob::resultPath()), true);
         }
 
         $trackingCodesToFreeze = [];
@@ -381,15 +381,28 @@ class SystemHealthController
         }
 
         $frozenCount = 0;
+        $throttled = false;
         foreach (array_keys($trackingCodesToFreeze) as $code) {
             try {
                 $workflow->freezeDocument($code, $currentUser, $pin);
                 $frozenCount++;
             } catch (\Exception $e) {
+                // A PIN timeout applies to every remaining document, so stop and report it
+                if ($e->getMessage() === \App\Core\AttemptThrottle::MESSAGE) {
+                    $throttled = true;
+                    break;
+                }
                 // Ignore if it's already frozen or if permission issues arise
             }
         }
-        
+
+        // Surface a PIN timeout instead of a misleading success count
+        if ($throttled) {
+            $_SESSION['error'] = \App\Core\AttemptThrottle::MESSAGE;
+            header("Location: /system-overview");
+            exit;
+        }
+
         $_SESSION['success'] = "Successfully frozen $frozenCount documents with integrity issues.";
         header("Location: /system-overview");
         exit;
@@ -423,7 +436,7 @@ class SystemHealthController
         $userId = $_SESSION['user_id'] ?? 'guest';
         $prefix = "cache_" . ($userId === 'guest' ? 'guest' : "user_{$userId}");
         
-        $cacheDir = BASE_PATH . '/cache/responses/';
+        $cacheDir = \App\Middleware\CacheMiddleware::cacheDir() . '/';
         if (is_dir($cacheDir)) {
             $files = glob($cacheDir . $prefix . '_*.html');
             foreach ($files as $file) {

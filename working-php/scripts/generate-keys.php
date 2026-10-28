@@ -45,11 +45,13 @@ if (PHP_SAPI === 'cli' && realpath($_SERVER['SCRIPT_FILENAME'] ?? '') === __FILE
     }
 
     $keypair = sodium_crypto_sign_keypair();
-    writeEnvValues(BASE_PATH . '/.env', [
+    // Under APP_ENV=testing the key goes into .env.testing, never the operational .env
+    $targetEnv = getenv('APP_ENV') === 'testing' ? '/.env.testing' : '/.env';
+    writeEnvValues(BASE_PATH . $targetEnv, [
         'SYSTEM_SIGNING_SECRET' => base64_encode(sodium_crypto_sign_secretkey($keypair)),
         'SYSTEM_SIGNING_PUBLIC' => base64_encode(sodium_crypto_sign_publickey($keypair))
     ]);
-    echo "System signing key written to .env.\n";
+    echo "System signing key written to " . ltrim($targetEnv, '/') . ".\n";
     exit(0);
 }
 

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Core\Database;
 use App\Core\IntegrityManager;
+use App\Core\TrackingCode;
 use App\Policies\DocumentPolicy;
 use App\Models\User;
 use Exception;
@@ -68,6 +69,14 @@ class DocumentWorkflowService
      * 
      * Handles public form submissions. Initiates the cryptographic hash chain and handles dynamic purpose creation securely.
      */
+    /**
+     * Hook for the tracking code source; tests override it to force a collision.
+     */
+    protected function newTrackingCode(): string
+    {
+        return TrackingCode::generate();
+    }
+
     public function submitDocument(array $data): array
     {
         $conn = $this->db->getConnection();
@@ -103,8 +112,8 @@ class DocumentWorkflowService
                     }
                 }
 
-                // Generate a highly randomized 10-character tracking code
-                $trackingCode = 'DEPED-' . strtoupper(substr(sha1(uniqid('', true) . microtime()), 0, 10));
+                // Draw a fresh CSPRNG tracking code on every attempt; the UNIQUE index plus the 1062 retry below guarantees uniqueness
+                $trackingCode = $this->newTrackingCode();
 
                 $guestInfo = json_encode([
                     'name' => $data['guest_name'],
@@ -177,6 +186,25 @@ class DocumentWorkflowService
                 throw new Exception("This document is already being processed.");
             }
 
+            // Validate the route before any write: a non-empty list of strings naming existing departments
+            if ($routeNames === [] || !array_is_list($routeNames)) {
+                throw new Exception("Invalid route.");
+            }
+            foreach ($routeNames as $name) {
+                if (!is_string($name) || $name === '') {
+                    throw new Exception("Invalid route.");
+                }
+            }
+            $unique = array_values(array_unique($routeNames));
+            $placeholders = implode(',', array_fill(0, count($unique), '?'));
+            $known = $db->query("SELECT name FROM departments WHERE name IN ($placeholders)", $unique)->fetchAll(\PDO::FETCH_COLUMN);
+            foreach ($routeNames as $name) {
+                // Exact (case-sensitive) match against departments.name is required
+                if (!in_array($name, $known, true)) {
+                    throw new Exception("Invalid route: '{$name}' is not a department.");
+                }
+            }
+
             $firstDepartmentName = $routeNames[0];
             $stmt = $db->query("SELECT id FROM departments WHERE name = :name", [':name' => $firstDepartmentName]);
             $firstDepartment = $stmt->fetch();
@@ -191,23 +219,15 @@ class DocumentWorkflowService
             $stmt = $db->query("SELECT is_official, suggested_route FROM purposes WHERE id = :id", [':id' => $document['purpose_id']]);
             $purpose = $stmt->fetch();
 
-            if ($purpose && $purpose['suggested_route'] !== json_encode($routeNames)) {
-                $learnedRoute = $routeNames;
-                
-                // If it's an official purpose, strip out the guest department if it's the first step 
-                // so we don't permanently learn a specific guest's unit.
-                if ($purpose['is_official'] && !empty($document['department'])) {
-                    if (!empty($learnedRoute) && $learnedRoute[0] === $document['department']) {
-                        array_shift($learnedRoute);
-                    }
-                }
-                
-                if ($purpose['suggested_route'] !== json_encode($learnedRoute)) {
-                    $db->query("UPDATE purposes SET suggested_route = :route WHERE id = :id", [
-                        ':route' => json_encode($learnedRoute),
-                        ':id' => $document['purpose_id']
-                    ]);
-                }
+            // Learn the route only for official purposes and only when it actually changed
+            $learnedRoute = $purpose
+                ? (new RouteSuggestionService())->learnedRoute($purpose, $routeNames, $document['department'] ?? null)
+                : null;
+            if ($learnedRoute !== null) {
+                $db->query("UPDATE purposes SET suggested_route = :route WHERE id = :id", [
+                    ':route' => json_encode($learnedRoute),
+                    ':id' => $document['purpose_id']
+                ]);
             }
 
             // Optimistic locking check: increment version and update status. 
@@ -433,20 +453,9 @@ class DocumentWorkflowService
     public function unfreezeDocument(string $trackingCode, User $admin, string $pin): string
     {
         return $this->executeInTransaction('tracking_code', $trackingCode, $admin, 'unfreeze', function ($document, $db) use ($admin, $pin) {
-            $lastValidLog = $db->query("SELECT action FROM document_logs WHERE document_id = :id AND action != 'ADMIN: Document frozen.' AND action != 'System Auto-Freeze' ORDER BY id DESC LIMIT 1", [':id' => $document['id']])->fetch();
-            
-            $previousStatus = $document['status'];
-            if ($lastValidLog) {
-                $previousStatus = match($lastValidLog['action']) {
-                    'Submitted' => 'pending',
-                    'Accepted and Document Routing finalized' => 'in_transit',
-                    'Received' => 'processing',
-                    'Processing Complete' => 'in_transit',
-                    'Ready for Releasing' => 'ready_for_release',
-                    'Document Released' => 'completed',
-                    default => 'processing'
-                };
-            }
+            // Find the newest real workflow log and map its action to the status to restore
+            $lastValidLog = $this->lastRestorableLog((int) $document['id'], false);
+            $previousStatus = self::statusForAction($lastValidLog['action']);
 
             $stmt = $db->query("UPDATE documents SET status = :status, updated_at = NOW(), version = version + 1 WHERE id = :id AND version = :version", [
                 ':status' => $previousStatus,
@@ -470,11 +479,10 @@ class DocumentWorkflowService
             // Tampered documents might not be in 'frozen' status if they were just flagged by verification
             // and haven't triggered the Active Guard yet.
 
-            // Find the most recent uncorrupted log entry that contains a full data snapshot
-            $stmt = $db->query("SELECT * FROM document_logs WHERE document_id = :id AND action != 'ADMIN: Document frozen.' AND action != 'System Auto-Freeze' AND document_snapshot IS NOT NULL ORDER BY id DESC LIMIT 1", [':id' => $document['id']]);
-            $lastValidLog = $stmt->fetch();
-            
-            if (!$lastValidLog || !$lastValidLog['document_snapshot']) {
+            // Find the most recent real workflow log entry that contains a full data snapshot
+            try {
+                $lastValidLog = $this->lastRestorableLog((int) $document['id'], true);
+            } catch (Exception $e) {
                 throw new Exception("No valid document snapshot found to recover from.");
             }
 
@@ -483,15 +491,15 @@ class DocumentWorkflowService
                 throw new Exception("Document snapshot is corrupted or invalid.");
             }
 
-            $previousStatus = match($lastValidLog['action']) {
-                'Submitted' => 'pending',
-                'Accepted and Document Routing finalized' => 'in_transit',
-                'Received' => 'processing',
-                'Processing Complete' => 'in_transit',
-                'Ready for Releasing' => 'ready_for_release',
-                'Document Released' => 'completed',
-                default => 'processing'
-            };
+            // Prove the snapshot is genuine: it must belong to this document, match its recorded state hash,
+            // and that log row's chain hash and Ed25519 signature must both verify
+            if (($snapshot['tracking_code'] ?? null) !== $document['tracking_code']
+                || !$this->snapshotMatchesRecordedHash($snapshot, $lastValidLog['document_state_hash'])
+                || !$this->logRowIsAuthentic($lastValidLog)) {
+                throw new Exception("The stored snapshot does not match its recorded hash and cannot be trusted for recovery.");
+            }
+
+            $previousStatus = self::statusForAction($lastValidLog['action']);
 
             // Overwrite the tampered row with the safe snapshot data, incrementing version to lock the recovery
             $stmt = $db->query("UPDATE documents SET 
@@ -522,5 +530,97 @@ class DocumentWorkflowService
             
             return $previousStatus;
         });
+    }
+
+    /**
+     * Returns the newest log row that represents a real workflow step (not an admin or system freeze action).
+     */
+    private function lastRestorableLog(int $documentId, bool $requireSnapshot): array
+    {
+        $db = Database::getInstance();
+
+        // Skip every ADMIN action (freeze, unfreeze, restore) and the system auto-freeze
+        $sql = "SELECT * FROM document_logs WHERE document_id = :id AND action NOT LIKE 'ADMIN:%' AND action <> 'System Auto-Freeze'"
+            . ($requireSnapshot ? " AND document_snapshot IS NOT NULL" : "")
+            . " ORDER BY id DESC LIMIT 1";
+        $log = $db->query($sql, [':id' => $documentId])->fetch();
+
+        if (!$log) {
+            throw new Exception("No log entry found to restore this document's status from.");
+        }
+        return $log;
+    }
+
+    /**
+     * Maps a workflow log action to the document status it leaves behind.
+     */
+    public static function statusForAction(string $action): string
+    {
+        return match ($action) {
+            'Submitted' => 'pending',
+            'Accepted and Document Routing finalized' => 'in_transit',
+            'Received' => 'processing',
+            'Processing Complete' => 'in_transit',
+            'Ready for Releasing' => 'ready_for_release',
+            'Document Released' => 'completed',
+            'Document Declined' => 'declined',
+            default => throw new Exception("Cannot determine the status to restore after action: {$action}"),
+        };
+    }
+
+    /**
+     * Re-derives a log row's chain hash and verifies its Ed25519 signature, exactly as IntegrityCheckJob does
+     * (using the row's stored previous_hash as its parent).
+     */
+    private function logRowIsAuthentic(array $log): bool
+    {
+        $userId = $log['user_id'] !== null ? (int) $log['user_id'] : null;
+        $epoch = IntegrityManager::logTimestamp($log['created_at']);
+        $remarks = (string) ($log['remarks'] ?? '');
+        $previousHash = (string) $log['previous_hash'];
+        $stateHash = (string) $log['document_state_hash'];
+
+        // Step 1: the stored chain hash must equal the recomputed one
+        $recalculated = IntegrityManager::chainHash(
+            (int) $log['document_id'],
+            $userId,
+            $log['action'],
+            $epoch,
+            $previousHash,
+            $stateHash,
+            $remarks,
+            (string) $log['signature']
+        );
+        if (!hash_equals((string) $log['hash'], $recalculated)) {
+            return false;
+        }
+
+        // Step 2: the signature over the rebuilt message must verify against the signer's key
+        $message = IntegrityManager::signedMessage((int) $log['document_id'], $log['action'], $epoch, $previousHash, $stateHash, $remarks);
+        return IntegrityManager::verifySignature($userId, $log['created_at'], $message, $log['signature'])['valid'];
+    }
+
+    /**
+     * Checks a decoded snapshot against the recorded state hash, with the same finalized_route re-encoding fallback as verifyCurrentState().
+     */
+    private function snapshotMatchesRecordedHash(array $snapshot, ?string $recordedHash): bool
+    {
+        if ($recordedHash === null) {
+            return false;
+        }
+        if (hash_equals($recordedHash, IntegrityManager::calculateStateHash($snapshot))) {
+            return true;
+        }
+
+        // Fallback: tolerate harmless JSON spacing differences in finalized_route
+        if (isset($snapshot['finalized_route']) && is_string($snapshot['finalized_route'])) {
+            $decoded = json_decode($snapshot['finalized_route'], true);
+            if ($decoded !== null) {
+                $alt = $snapshot;
+                $alt['finalized_route'] = json_encode($decoded);
+                return hash_equals($recordedHash, IntegrityManager::calculateStateHash($alt));
+            }
+        }
+        return false;
     }
 }

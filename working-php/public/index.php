@@ -39,6 +39,17 @@ $router = new Router();
 
 // --- Define Routes Below ---
 
+// Test-only environment probe: registered only under APP_ENV=testing, so production 404s it like any unknown route
+if (\App\Core\Config::get('app', 'env') === 'testing') {
+    $router->get('/__test/env', function () {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'env' => \App\Core\Config::get('app', 'env'),
+            'db' => \App\Core\Config::get('database', 'dbname'),
+        ]);
+    });
+}
+
 
 
 // --- Auth Routes ---
@@ -369,8 +380,6 @@ $router->post('/documents/scan', [App\Controllers\DocumentController::class, 'sc
 // Dispatch the Request
 $uri = $_SERVER['REQUEST_URI'] ?? '/';
 $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-
-file_put_contents('/tmp/router.log', "URI: $uri, Method: $method, Path: " . (parse_url($uri, PHP_URL_PATH) ?? '/') . "\n", FILE_APPEND);
 
 // If running PHP built-in server and file exists, return false to serve it statically
 if (php_sapi_name() === 'cli-server' && is_file(__DIR__ . parse_url($uri, PHP_URL_PATH))) {

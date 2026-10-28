@@ -44,9 +44,25 @@ class SecurityHelper
             return $pin;
         }
 
-        // A typed PIN: issue a cache token only if the PIN actually unlocks the user's key
-        if ($userId > 0 && self::pinUnlocksKey($userId, $submittedPin)) {
+        // No logged-in user: nothing to verify or count; signing will refuse later
+        if ($userId === 0) {
+            return $submittedPin;
+        }
+
+        // While timed out, neither verify nor count the PIN; IntegrityManager::signAction() refuses it
+        $throttleKey = AttemptThrottle::key('pin', (string) $userId);
+        if (AttemptThrottle::secondsLocked($throttleKey, time()) > 0) {
+            return $submittedPin;
+        }
+
+        // A typed PIN: count failures and issue a cache token only if the PIN unlocks the user's key.
+        // This runs before the workflow transaction opens, so a rollback cannot erase the failure.
+        $unlocks = self::pinUnlocksKey($userId, $submittedPin);
+        if ($unlocks === true) {
+            AttemptThrottle::clear($throttleKey);
             $_SESSION[self::SESSION_ISSUED] = self::issueToken($submittedPin, $userId);
+        } elseif ($unlocks === false) {
+            AttemptThrottle::recordFailure($throttleKey, time());
         }
 
         return $submittedPin;
@@ -54,12 +70,14 @@ class SecurityHelper
 
     /**
      * Check a typed PIN by trial-decrypting the user's stored private key.
+     *
+     * Returns null when the user has no private key (such users are not throttled).
      */
-    private static function pinUnlocksKey(int $userId, string $pin): bool
+    private static function pinUnlocksKey(int $userId, string $pin): ?bool
     {
         $user = Database::getInstance()->query("SELECT private_key FROM users WHERE id = :id", ['id' => $userId])->fetch();
         if (!$user || !$user['private_key']) {
-            return false;
+            return null;
         }
 
         // decryptPrivateKey throws on a wrong PIN

@@ -4,6 +4,62 @@ namespace App\Middleware;
 
 class CacheMiddleware
 {
+    /**
+     * Test seam: replaces file_put_contents in writeAtomic (signature: fn(string $path, string $data): int|false).
+     * Null in production.
+     */
+    public static ?\Closure $writer = null;
+
+    /**
+     * Directory of cached responses (no trailing slash); tests use a separate -test directory.
+     */
+    public static function cacheDir(): string
+    {
+        return BASE_PATH . (\App\Core\Config::get('app', 'env') === 'testing' ? '/cache/responses-test' : '/cache/responses');
+    }
+
+    /**
+     * Write a cache file atomically: temp file in the same directory, then rename() over the target,
+     * so a concurrent reader sees either the old complete file or the new complete one. Empty output is never cached.
+     */
+    public static function writeAtomic(string $file, string $html): void
+    {
+        // An empty page would be served as a blank page with no CSRF token
+        if ($html === '') {
+            return;
+        }
+
+        // Same directory keeps rename() on one filesystem (atomic)
+        $temp = $file . '.' . bin2hex(random_bytes(6)) . '.tmp';
+        $written = self::$writer !== null ? (self::$writer)($temp, $html) : @file_put_contents($temp, $html);
+
+        // A failed or short write (e.g. disk full) must never replace the cache file
+        if ($written !== strlen($html)) {
+            @unlink($temp);
+            return;
+        }
+
+        // Failed rename: leave nothing behind
+        if (!@rename($temp, $file)) {
+            @unlink($temp);
+        }
+    }
+
+    /**
+     * Read a cache file; null when it cannot be read or is empty, so the caller renders the page normally.
+     */
+    public static function readCached(string $file): ?string
+    {
+        $content = @file_get_contents($file);
+
+        // false (unreadable/vanished) and '' (truncated) are both a miss, never a blank page
+        if ($content === false || $content === '') {
+            return null;
+        }
+
+        return $content;
+    }
+
     public function handle($ttl = 55)
     {
         // Only cache GET requests
@@ -26,12 +82,21 @@ class CacheMiddleware
         
         // Use md5 of URI
         $uriHash = md5($requestUri);
-        $cacheDir = BASE_PATH . '/cache/responses';
+        // Tests use a separate cache directory so they never read pages cached by real use
+        $cacheDir = self::cacheDir();
+        if (!is_dir($cacheDir)) {
+            mkdir($cacheDir, 0755, true);
+        }
         $cacheFile = $cacheDir . '/' . $prefix . '_' . $uriHash . '.html';
 
-        if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < $ttl) {
+        // A fresh cache file that reads back as usable content is served; otherwise fall through to a normal render
+        $cachedOutput = null;
+        if (file_exists($cacheFile) && filesize($cacheFile) > 0 && (time() - filemtime($cacheFile)) < $ttl) {
+            $cachedOutput = self::readCached($cacheFile);
+        }
+
+        if ($cachedOutput !== null) {
             // Serve cache and exit
-            $cachedOutput = file_get_contents($cacheFile);
 
             // DYNAMIC CSRF INJECTION:
             // Since we cache full HTML pages, the cached HTML contains the CSRF token of the user 
@@ -78,7 +143,7 @@ class CacheMiddleware
                 if (!is_dir($cacheDir)) {
                     mkdir($cacheDir, 0755, true);
                 }
-                file_put_contents($cacheFile, $output);
+                self::writeAtomic($cacheFile, $output);
             }
 
             echo $output;

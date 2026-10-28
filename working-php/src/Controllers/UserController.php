@@ -218,10 +218,13 @@ class UserController
         $now = date('Y-m-d H:i:s');
         $db->query("UPDATE user_public_key_histories SET deactivated_at = :now, updated_at = :now2 WHERE user_id = :id AND (deactivated_at IS NULL OR deactivated_at > :now3)", [':id' => $id, ':now' => $now, ':now2' => $now, ':now3' => $now]);
         $db->query("UPDATE users SET public_key = NULL, private_key = NULL, security_key_set_at = NULL WHERE id = :id", [':id' => $id]);
+
+        // The key period is closed, so drop the memoized key histories
+        \App\Core\IntegrityManager::clearKeyCache();
         
         // Clear the user's personal page cache so they see the setup modal immediately on their next request
         $prefix = "cache_user_{$id}";
-        $cacheDir = BASE_PATH . '/cache/responses/';
+        $cacheDir = \App\Middleware\CacheMiddleware::cacheDir() . '/';
         if (is_dir($cacheDir)) {
             $files = glob($cacheDir . $prefix . '_*.html');
             if ($files) {

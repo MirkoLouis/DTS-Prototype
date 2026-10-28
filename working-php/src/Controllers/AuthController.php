@@ -2,6 +2,7 @@
 
 namespace App\Controllers;
 
+use App\Core\AttemptThrottle;
 use App\Core\Database;
 use App\Core\Validator;
 
@@ -43,12 +44,28 @@ class AuthController
         $email = $validated['email'];
         $password = $validated['password'];
 
+        // Throttle per email and client IP; nginx passes REMOTE_ADDR over FastCGI, X-Forwarded-For is not trusted
+        $throttleKey = AttemptThrottle::key('login', strtolower(trim($email)) . '|' . ($_SERVER['REMOTE_ADDR'] ?? ''));
+
+        // While timed out, refuse without checking the password at all
+        if (AttemptThrottle::secondsLocked($throttleKey, time()) > 0) {
+            $_SESSION['error'] = AttemptThrottle::MESSAGE;
+            $old = $_POST;
+            unset($old['password']);
+            $_SESSION['old'] = $old;
+            header("Location: /login");
+            exit;
+        }
+
         $db = Database::getInstance();
         $stmt = $db->query("SELECT * FROM users WHERE email = :email LIMIT 1", [':email' => $email]);
         $user = $stmt->fetch();
 
         // Verify the user exists and the password is correct
         if ($user && password_verify($password, $user['password'])) {
+            // A successful login forgets earlier failures
+            AttemptThrottle::clear($throttleKey);
+
             // Success! Store user details in session
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['user_name'] = $user['name'];
@@ -68,8 +85,9 @@ class AuthController
 
             $this->redirectBasedOnRole($user['role']);
         } else {
-            // Failed login
-            $_SESSION['error'] = "These credentials do not match our records.";
+            // Failed login: count it, and show the timeout message if this failure triggered the lock
+            $lockedNow = AttemptThrottle::recordFailure($throttleKey, time());
+            $_SESSION['error'] = $lockedNow ? AttemptThrottle::MESSAGE : "These credentials do not match our records.";
             $_SESSION['field_errors'] = [
                 'email' => 'Invalid username or password.',
                 'password' => 'Invalid username or password.'

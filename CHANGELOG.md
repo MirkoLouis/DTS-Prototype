@@ -2,6 +2,64 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-10-28 12:00
+
+**Version:** 2.2.0-Release+202610281200
+
+### Fixed
+- F1: finalizing a route validates departments; an unknown department is rejected instead of storing `current_department_id` as NULL.
+- F2: `DocumentController::show` now applies `DocumentPolicy::view`, so staff can no longer read documents outside their route by tracking code.
+- F3: `CacheMiddleware` writes cache files atomically, so a cold-cache kiosk burst no longer serves pages without a CSRF token.
+- I1 (stored XSS): `POST /submit-document` now requires `department` to exactly match a `departments.name` (prepared query; otherwise "Please choose a valid department." with the old input kept), and the 30 s notification poll toast in `layouts/app.php` renders title and message with `textContent` instead of interpolating them into `insertAdjacentHTML`.
+- F3 hardening: `CacheMiddleware::writeAtomic` discards short writes (bytes written must equal the page length) instead of renaming them into place, and an unreadable or empty cache file falls through to a normal render instead of a blank page.
+- The seeders (`fast-seed.php`) no longer wipe real PHP sessions and the real response cache when run under `APP_ENV=testing`.
+
+### Added
+- Fresh test database lifecycle (`TestLifecycle`): `deped_dts_test` and the `-test` cache, checkpoint and integrity-result artifacts are dropped and recreated before every run and removed after it; result CSVs are kept.
+- Seeders retry a chunk on MySQL duplicate error 1062 (tracking code collision).
+- Manual live concurrency script, `composer manual:live-concurrency`, which runs against the real web app, tags titles `CONC-LIVE-<run_id>-<i>`, auto-deletes only its own documents (rows titled `CONC-LIVE-<run_id>-…` created during the run; the run id has one-second resolution, so two runs started in the same second share it), warns about checkpoints written during the run and writes `storage/test-results/live-concurrency.csv`.
+
+### Changed
+- Officers are bound by the department-step rule like staff ("Action Denied"); they keep intake, the final Records receive and release.
+- `Barrier` and `ResultWriter` moved to `src/Research/` (with a shared `HttpSession`).
+- README Testing section updated; the stale 'not yet fixed' caveat for F1/F2 was removed.
+
+### Removed
+- `TrackingCode::generateUnique` and the seeders' in-memory duplicate check.
+
+## 2026-10-28 01:22
+
+**Version:** 2.1.0-Release+202610280122
+
+> **Migration:** existing databases must run `working-php/scripts/migrations/2026_10_27_add_attempt_throttles.sql` to enable login and PIN attempt limiting (3 failures within 1 minute trigger a 1-minute timeout). Until then limiting is off and a line is written to `error_log` (fail-open).
+
+### Fixed
+- Unfreezing a document and auto-resolving a freeze now restore the correct status (`statusForAction`).
+- Auto-resolve only restores a snapshot whose tracking code matches the document, whose state hash matches, and whose log row's chain hash and Ed25519 signature verify; a forged or copied snapshot is refused and nothing is written.
+- "Freeze all" now reports a PIN timeout instead of "Successfully frozen 0 documents".
+- Every response-cache clearing path (user reset, security key, personal cache, report job, worker GC) uses `CacheMiddleware::cacheDir()`, so the test cache directory is honoured.
+- Removed the debug write to `/tmp/router.log` from `public/index.php`.
+- The Hash Integrity Debugger button/label now reads "Verify Hash" instead of "Debug".
+- Tracking codes come from a CSPRNG (10 hex characters, regenerated on collision) instead of a predictable generator; `fast-seed.php` and `import-legacy.php` deduplicate codes in memory.
+- `PIN_CACHE_DURATION=900` added to `.env.example`.
+
+### Added
+- Login and PIN attempts are limited: 3 failures within 1 minute trigger a 1-minute timeout (`AttemptThrottle`, `attempt_throttles` table, migration `2026_10_27_add_attempt_throttles.sql`).
+- "Others" route suggestion (`RouteSuggestionService`) for documents routed to Others.
+- Print button for officers on the document view and manage-documents pages.
+- Test-only `GET /__test/env` probe, registered only under `APP_ENV=testing`; with `TEST_BASE_URL` set, the suite refuses servers that are not on the testing env and a `_test` database.
+- PHPUnit suite in `working-php/tests/`: unit, workflow, http, security (tamper-injection tactics and HTTP attacks tagged by LAN threat actor), concurrency and benchmark suites, with `.env.testing.example`, `phpunit.xml` and a guard that refuses to run unless `APP_ENV=testing` and the database name ends in `_test`.
+- Composer commands `test`, `test:security`, `test:concurrency`, `bench` and `replay`; `scripts/route-replay.php` replays the legacy routing export (`src/Research/`).
+- README "Testing" section documenting setup, commands, result locations, the threat model, the migration notice and known findings F1 (unknown department accepted in a finalized route), F2 (staff can view documents outside their route) and F3 (`CacheMiddleware` non-atomic cache writes).
+
+### Changed
+- Under `APP_ENV=testing` the response cache (`CacheMiddleware`), checkpoints (`ChainCheckpointJob`) and integrity results (`IntegrityCheckJob`) use separate test locations so test runs never overwrite real data.
+- `scripts/corrupt.php` is kept and is also run as an automated tactic in `TamperInjectionTest`.
+
+### Removed
+- Client-side libsodium (`public/js/vendor/libsodium.js`, `libsodium-wrappers.js`).
+- `scripts/concurrency_test.php` (superseded by the concurrency suite) and `scripts/benchmark-crypto.php` (superseded by `composer bench`).
+
 ## 2026-10-16 14:33
 
 **Version:** 2.0.0-Release+202610161433

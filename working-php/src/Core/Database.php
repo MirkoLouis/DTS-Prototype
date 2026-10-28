@@ -58,6 +58,15 @@ class Database
     }
 
     /**
+     * Forget the shared instance so the next getInstance() opens a fresh connection.
+     * Forked child processes call this so they never reuse the parent's PDO socket.
+     */
+    public static function resetInstance(): void
+    {
+        self::$instance = null;
+    }
+
+    /**
      * Get the underlying PDO connection object.
      */
     public function getConnection(): PDO

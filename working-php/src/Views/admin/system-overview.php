@@ -259,7 +259,7 @@ ob_start(); ?>
                                             <button type="button" 
                                                     class="text-accent-1 hover:text-accent-1-active dark:text-accent-1-hover debug-log-btn ml-3" 
                                                     data-url="/system-health/debug-log/%s">
-                                                Debug
+                                                Verify Hash
                                             </button>
                                         ', $issue['log_id']);
                                     }
@@ -332,9 +332,9 @@ $modalContent = '
 $modalFooter = '<button id="close-integrity-modal" class="w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 bg-red-500 text-base font-medium text-white hover:bg-red-600 sm:text-sm">Cancel Verification</button>';
 require BASE_PATH . '/src/Views/components/modal.php';
 
-// 2. Debug Modal
+// 2. Verify Hash Modal
 $modalId = 'debug-hash-modal';
-$modalTitle = 'Hash Integrity Debugger';
+$modalTitle = 'Verify Hash';
 $modalSize = 8; // max-w-4xl
 $hideCloseButton = false;
 $modalContent = '

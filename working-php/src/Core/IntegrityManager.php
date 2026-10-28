@@ -179,6 +179,11 @@ class IntegrityManager
             throw new \Exception("Action Denied: Security PIN is required to digitally sign this action.");
         }
 
+        // Refuse while the user is timed out for wrong PINs (failures are recorded in SecurityHelper::resolvePin)
+        if (AttemptThrottle::secondsLocked(AttemptThrottle::key('pin', (string) $userId), time()) > 0) {
+            throw new \Exception(AttemptThrottle::MESSAGE);
+        }
+
         $db = Database::getInstance();
         $user = $db->query("SELECT private_key FROM users WHERE id = :id", ['id' => $userId])->fetch();
 
@@ -189,6 +194,18 @@ class IntegrityManager
         // Produce a detached signature over the full signed message
         $secretKey = self::decryptPrivateKey($user['private_key'], $pin);
         return base64_encode(sodium_crypto_sign_detached($message, $secretKey));
+    }
+
+    /**
+     * Empty the per-process key-history cache.
+     *
+     * Call after any write to user_public_key_histories, and at the start of every audit, so a
+     * long-lived process never verifies against a stale key list.
+     */
+    public static function clearKeyCache(): void
+    {
+        // Drop every memoized key history
+        self::$keyHistoryCache = [];
     }
 
     /**

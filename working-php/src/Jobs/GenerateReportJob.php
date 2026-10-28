@@ -92,7 +92,7 @@ class GenerateReportJob
             );
 
             // Clear the user's response cache so subsequent page loads fetch fresh report listings
-            $cacheFiles = glob(BASE_PATH . "/cache/responses/cache_user_{$this->userId}_*.html");
+            $cacheFiles = glob(\App\Middleware\CacheMiddleware::cacheDir() . "/cache_user_{$this->userId}_*.html");
             if ($cacheFiles) {
                 foreach ($cacheFiles as $f) {
                     @unlink($f);

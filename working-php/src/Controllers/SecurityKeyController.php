@@ -70,6 +70,9 @@ class SecurityKeyController
             'now3' => $now
         ]);
 
+        // The new key period is written, so drop the memoized key histories
+        \App\Core\IntegrityManager::clearKeyCache();
+
         // A new key invalidates any PIN-cache token issued for the old PIN
         unset($_SESSION['pin_cache_key']);
         $_SESSION[\App\Core\SecurityHelper::SESSION_CLEAR] = true;
@@ -77,7 +80,7 @@ class SecurityKeyController
         // Fix: Clear the user's personal page cache. If we don't, CacheMiddleware might serve an old cached version 
         // of the dashboard containing the setup modal, causing it to pop up infinitely.
         $prefix = "cache_user_{$userId}";
-        $cacheDir = BASE_PATH . '/cache/responses/';
+        $cacheDir = \App\Middleware\CacheMiddleware::cacheDir() . '/';
         if (is_dir($cacheDir)) {
             $files = glob($cacheDir . $prefix . '_*.html');
             if ($files) {

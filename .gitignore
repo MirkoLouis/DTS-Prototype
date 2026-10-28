@@ -160,3 +160,13 @@ homestead.vagrant
 /working-php/paper/PITCH_SCRIPT.md
 /working-php/paper/ITE193/*
 /temp
+# --- working-php test suite ---
+/working-php/.env.testing
+/working-php/storage/test-results/
+/working-php/cache/responses-test/
+/working-php/storage/checkpoints-test/
+
+# Thesis manuscript working files (kept local, not versioned)
+/Manuscript Revisions (M1-M6).txt
+/Manuscript Revisions (M7-M20).md
+/Copy of WORKING.md
