@@ -2,9 +2,9 @@
 
 All notable changes to this project will be documented in this file.
 
-## 2026-10-28 12:00
+## 2026-10-28 03:56
 
-**Version:** 2.2.0-Release+202610281200
+**Version:** 2.2.0-Release+202610280356
 
 ### Fixed
 - F1: finalizing a route validates departments; an unknown department is rejected instead of storing `current_department_id` as NULL.
@@ -13,6 +13,7 @@ All notable changes to this project will be documented in this file.
 - I1 (stored XSS): `POST /submit-document` now requires `department` to exactly match a `departments.name` (prepared query; otherwise "Please choose a valid department." with the old input kept), and the 30 s notification poll toast in `layouts/app.php` renders title and message with `textContent` instead of interpolating them into `insertAdjacentHTML`.
 - F3 hardening: `CacheMiddleware::writeAtomic` discards short writes (bytes written must equal the page length) instead of renaming them into place, and an unreadable or empty cache file falls through to a normal render instead of a blank page.
 - The seeders (`fast-seed.php`) no longer wipe real PHP sessions and the real response cache when run under `APP_ENV=testing`.
+- `IntegrityManager::clearKeyCache()` empties the in-process public-key history cache at the start of every integrity audit and right after a key is replaced (`SecurityKeyController::store`, `UserController::resetSignature`), so a long-running process can never verify new entries against a stale key list. Tests use it instead of resetting the cache through reflection.
 
 ### Added
 - Fresh test database lifecycle (`TestLifecycle`): `deped_dts_test` and the `-test` cache, checkpoint and integrity-result artifacts are dropped and recreated before every run and removed after it; result CSVs are kept.
@@ -22,7 +23,8 @@ All notable changes to this project will be documented in this file.
 ### Changed
 - Officers are bound by the department-step rule like staff ("Action Denied"); they keep intake, the final Records receive and release.
 - `Barrier` and `ResultWriter` moved to `src/Research/` (with a shared `HttpSession`).
-- README Testing section updated; the stale 'not yet fixed' caveat for F1/F2 was removed.
+- README Testing section updated; the stale 'not yet fixed' caveat for F1/F2 was removed. README now states the privileged-insider limitation.
+- Thesis manuscript working files at the repository root (`Manuscript Revisions (M1-M6).txt`, `Manuscript Revisions (M7-M20).md`, `Copy of WORKING.md`) are gitignored and kept local only; `Manuscript Revisions (M1-M6).txt` is no longer tracked.
 
 ### Removed
 - `TrackingCode::generateUnique` and the seeders' in-memory duplicate check.

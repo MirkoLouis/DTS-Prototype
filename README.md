@@ -14,6 +14,8 @@ DTS Prototype/
 └── backup-laravel/  <-- HISTORICAL REFERENCE CODEBASE (Original Laravel 12 Build)
 ```
 
+Thesis manuscript working files kept at the repository root (`Manuscript Revisions (M1-M6).txt`, `Manuscript Revisions (M7-M20).md`, `Copy of WORKING.md`) are gitignored and never committed.
+
 ### Why Port to Pure Vanilla PHP 8.3?
 
 1. **Framework-Free Performance:** Eliminates framework bootstrapping overhead, delivering near-instant page loads and sub-millisecond raw PDO database query execution.
@@ -173,6 +175,8 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `privileged_insider` | Someone with direct database or server access. |
 
 Not applicable on an offline LAN (`ThreatActor::NOT_APPLICABLE`): botnet DDoS, internet credential stuffing, cloud metadata SSRF.
+
+**Known limitation: the fully privileged insider.** The audit trail is tamper-evident, not tamper-proof. Anyone without the users' PINs and the server signing key cannot alter, delete or reorder log entries undetected. However, the tamper matrix shows that someone with database access can register their own key pair in `user_public_key_histories` and append a properly signed entry, and nothing detects it, because public keys are trusted from the same database. Someone who also controls the server holds the server signing key and can re-sign entries and checkpoints. No mechanism stored on the same machine can detect such an insider. The defence is organizational: separation of duties between server and database administration, restricted and logged administrator access, and copying the daily signed checkpoint (`storage/checkpoints/`) off the server. Certifying user public keys with an offline key is future work.
 
 **Migration notice.** Existing databases must run `working-php/scripts/migrations/2026_10_27_add_attempt_throttles.sql` to enable login and PIN attempt limiting (3 failures within 1 minute trigger a 1-minute timeout). Until it is run, limiting is off and a line is written to `error_log` (fail-open). Fresh databases built from `database.sql` already include the table.
 
