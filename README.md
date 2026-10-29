@@ -228,13 +228,7 @@ COMPOSER_PROCESS_TIMEOUT=0 composer manual:live-concurrency -- --base-url=https:
 
 ## ⚖️ License & Usage
 
-**Non-Commercial Government-Backed Project License**
-
-This project is a government-backed initiative for the **DepEd Division of Iligan City**. 
-
-You are free to clone, use, and modify the system to make it your own for internal use. However, **you may not sell, rent, profit from, or redistribute this system or its derivatives in any way.** 
-
-Please see the [LICENSE](LICENSE) file for more details.
+**License pending.** The licensing terms for this project are being reviewed with the thesis adviser. Until a license is published, no license is granted: all rights are reserved by the authors, and the code may not be used, copied, modified or redistributed without permission.
 
 ---
 
