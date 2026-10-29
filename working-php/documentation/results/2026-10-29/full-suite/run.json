@@ -1,0 +1,21 @@
+{
+    "run_id": "20261029-154416-9a1e",
+    "started_at": "2026-10-29T15:44:16+08:00",
+    "finished_at": "2026-10-29T15:46:01+08:00",
+    "arguments": [
+        "vendor/bin/phpunit"
+    ],
+    "git_describe": "v2.0.0-5-g7540d39",
+    "php_version": "8.5.4",
+    "cpu": "11th Gen Intel(R) Core(TM) i5-11260H @ 2.60GHz",
+    "ram_gb": 15.4,
+    "duration_s": 104.877,
+    "files": [
+        "http-attacks.csv",
+        "signatures.csv",
+        "summary.csv",
+        "tamper-matrix.csv",
+        "test-outcomes.csv",
+        "run.json"
+    ]
+}
