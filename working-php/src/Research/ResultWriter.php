@@ -2,6 +2,8 @@
 
 namespace App\Research;
 
+use App\Integrity\HashChainMicroShardingBuilder;
+
 /**
  * Appends result rows to CSV files inside the current run folder (storage/test-results/<run_id>/).
  */
@@ -38,7 +40,7 @@ class ResultWriter
         // Otherwise create this process's own folder and export it for children
         $runId = getenv('DTS_RUN_ID');
         if ($runId === false || $runId === '') {
-            $runId = date('Ymd-His') . '-' . bin2hex(random_bytes(2));
+            $runId = self::now()->format('Ymd-His') . '-' . bin2hex(random_bytes(2));
         }
         if (!preg_match('/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/', $runId) || $runId === '.' || $runId === '..') {
             throw new \InvalidArgumentException('Invalid DTS_RUN_ID: ' . $runId);
@@ -63,6 +65,15 @@ class ResultWriter
         }
 
         return $dir;
+    }
+
+    /**
+     * The current time in the app timezone (Asia/Manila), whatever the PHP default timezone is.
+     */
+    private static function now(): \DateTimeImmutable
+    {
+        // Explicit zone keeps run ids and run.json stamps ordered across PHPUnit and CLI scripts
+        return new \DateTimeImmutable('now', new \DateTimeZone(HashChainMicroShardingBuilder::APP_TIMEZONE));
     }
 
     /**
@@ -93,8 +104,8 @@ class ResultWriter
         $commit = trim((string) @shell_exec('git -C ' . escapeshellarg(dirname(BASE_PATH)) . ' describe --always --dirty 2>/dev/null')) ?: 'unknown';
         $data = array_merge([
             'run_id' => basename($dir),
-            'started_at' => date('c'),
-            'finished_at' => date('c'),
+            'started_at' => self::now()->format('c'),
+            'finished_at' => self::now()->format('c'),
             'arguments' => $_SERVER['argv'] ?? [],
             'git_describe' => $commit,
             'php_version' => PHP_VERSION,

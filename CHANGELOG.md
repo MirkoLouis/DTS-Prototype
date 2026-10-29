@@ -2,6 +2,14 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-10-29 07:49
+
+**Version:** 2.5.1-Release+202610290749
+
+### Fixed
+- Run folders and the `started_at`/`finished_at` stamps in `run.json` now use `Asia/Manila` explicitly (with offset), so CLI scripts and PHPUnit name runs in the same timezone and `latest` follows the true order. Existing folders are not renamed.
+- Benchmark operation `active_guard_check` is now labelled `pre_action_integrity_check` in `benchmark.csv` (measured code unchanged).
+
 ## 2026-10-29 07:08
 
 **Version:** 2.5.0-Release+202610290708

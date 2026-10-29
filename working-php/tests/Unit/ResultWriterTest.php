@@ -64,6 +64,41 @@ class ResultWriterTest extends TestCase
         }
     }
 
+    // The default run id is stamped in Manila time even when the PHP default timezone is UTC
+    public function test_default_run_id_uses_app_timezone(): void
+    {
+        // Force UTC, clear the inherited run folder and run id, and skip the latest link
+        $originalTz = date_default_timezone_get();
+        $saved = [];
+        foreach (['DTS_RESULTS_DIR' => '', 'DTS_RUN_ID' => '', 'DTS_NO_LATEST' => '1'] as $k => $v) {
+            $saved[$k] = getenv($k);
+            putenv($k . '=' . $v);
+        }
+        $dir = null;
+        date_default_timezone_set('UTC');
+
+        try {
+            $before = new \DateTimeImmutable('now', new \DateTimeZone('Asia/Manila'));
+            $dir = ResultWriter::dir();
+            $after = new \DateTimeImmutable('now', new \DateTimeZone('Asia/Manila'));
+
+            // The time part of the id must match Manila time (allow the clock to tick between the reads)
+            $this->assertMatchesRegularExpression('/^(\d{8}-\d{6})-[0-9a-f]{4}$/', basename($dir));
+            $stamp = substr(basename($dir), 0, 15);
+            $this->assertContains($stamp, [$before->format('Ymd-His'), $after->format('Ymd-His')]);
+        } finally {
+            // Restore the timezone and environment, remove the throwaway folder
+            date_default_timezone_set($originalTz);
+            foreach ($saved as $k => $v) {
+                putenv($v === false ? $k : $k . '=' . $v);
+            }
+            unset($_ENV['DTS_RESULTS_DIR'], $_ENV['DTS_RUN_ID']);
+            if ($dir !== null && is_dir($dir)) {
+                @rmdir($dir);
+            }
+        }
+    }
+
     // Call dir() with the given env values and assert it throws the expected exception
     private function assertRejected(array $env, string $exception): void
     {

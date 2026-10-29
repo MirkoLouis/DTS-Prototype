@@ -214,8 +214,8 @@ class PerformanceBenchmarkTest extends TestCase
         }), $cli];
         $this->assertSame([], array_slice($verifyFailures, 0, 5), 'Seeded chains must verify');
 
-        // active_guard_check: live state against the last sealed state
-        $results['active_guard_check'] = [self::measure($iterations, fn($i) => PreActionIntegrityCheck::passes($documents[$i % $docCount])), $cli];
+        // pre_action_integrity_check: live state against the last sealed state
+        $results['pre_action_integrity_check'] = [self::measure($iterations, fn($i) => PreActionIntegrityCheck::passes($documents[$i % $docCount])), $cli];
 
         // HTTP page loads through the multi-worker built-in server, one logged-in client per role
         if ($withHttp) {
