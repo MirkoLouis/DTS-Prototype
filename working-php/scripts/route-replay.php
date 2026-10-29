@@ -52,5 +52,9 @@ printf("Excluded (no prior):  %d\n", $result['excluded_no_prior']);
 printf("Scored:               %d\n", $scored);
 printf("Exact match:          %d (%.2f%%)\n", $result['exact_matches'], $scored ? $result['exact_matches'] / $scored * 100 : 0);
 printf("First-dept match:     %d (%.2f%%)\n", $result['first_dept_matches'], $scored ? $result['first_dept_matches'] / $scored * 100 : 0);
+// One line per strategy (static_hindsight looks ahead by design)
+foreach ($result['baselines'] as $name => $b) {
+    printf("%-18s exact %d (%.2f%%), first-dept %d (%.2f%%)%s\n", $name . ':', $b['exact_matches'], $scored ? $b['exact_matches'] / $scored * 100 : 0, $b['first_dept_matches'], $scored ? $b['first_dept_matches'] / $scored * 100 : 0, $name === 'static_hindsight' ? '  [uses look-ahead]' : '');
+}
 ResultWriter::writeRunJson(['script' => 'route-replay', 'started_at' => $startedAt, 'input' => realpath($args[0])], $outDir);
 echo "Output: $outDir\n";

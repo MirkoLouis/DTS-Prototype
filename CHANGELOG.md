@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-10-29 07:08
+
+**Version:** 2.5.0-Release+202610290708
+
+### Added
+- The route-suggestion replay reports `heuristic` alongside the baselines `none`, `frequent_so_far` (online, ties go to the most recent route) and `static_hindsight` (most common route over the whole data set; uses look-ahead by design), each scored on the same documents, overall, by year and by purpose.
+- New outputs `route-replay-baselines.csv` (long format: scope, key, strategy, scored, exact/first-department counts and percentages) and `route-replay-purpose-profile.csv` (documents, distinct routes, top-route share, single-hop share, revisit share per purpose and for `all`). Existing replay CSVs are unchanged.
+- `scripts/route-replay.php` prints one summary line per strategy.
+
 ## 2026-10-29 06:45
 
 **Version:** 2.4.0-Release+202610290645

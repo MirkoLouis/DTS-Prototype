@@ -23,6 +23,9 @@ class RouteReplay
         'Records- Releasing',
     ];
 
+    /** Strategy keys reported side by side (static_hindsight looks ahead by design). */
+    public const STRATEGIES = ['heuristic', 'none', 'frequent_so_far', 'static_hindsight'];
+
     private HeuristicRouter $service;
 
     /**
@@ -78,8 +81,28 @@ class RouteReplay
 
         // Replay chronologically so each suggestion only knows earlier documents
         usort($candidates, fn($a, $b) => [$a['when'], $a['action']] <=> [$b['when'], $b['action']]);
+
+        // Whole-set route counts per purpose: feed static_hindsight and the purpose profile (order-independent)
+        $whole = [];
+        foreach ($candidates as $i => $c) {
+            $sig = json_encode($c['route']);
+            $whole[$c['key']][$sig] ??= ['n' => 0, 'last' => 0, 'route' => $c['route']];
+            $whole[$c['key']][$sig]['n']++;
+            $whole[$c['key']][$sig]['last'] = $i;
+        }
+        $hindsight = [];
+        foreach ($whole as $key => $routes) {
+            $hindsight[$key] = $this->mostCommon($routes);
+        }
+
+        // Empty tallies for every strategy
+        $result['baselines'] = [];
+        foreach (self::STRATEGIES as $name) {
+            $result['baselines'][$name] = ['exact_matches' => 0, 'first_dept_matches' => 0, 'by_year' => [], 'by_purpose' => []];
+        }
         $learned = [];
-        foreach ($candidates as $c) {
+        $seen = [];
+        foreach ($candidates as $i => $c) {
             $result['documents']++;
             $key = $c['key'];
             $purpose = ['is_official' => 1, 'suggested_route' => json_encode($learned[$key] ?? [])];
@@ -89,6 +112,23 @@ class RouteReplay
             if ($suggested === []) {
                 $result['excluded_no_prior']++;
             } else {
+                // Every strategy is scored on the same document; "none" suggests nothing
+                $suggestions = [
+                    'heuristic' => $suggested,
+                    'none' => [],
+                    'frequent_so_far' => isset($seen[$key]) ? $this->mostCommon($seen[$key]) : [],
+                    'static_hindsight' => $hindsight[$key],
+                ];
+                foreach ($suggestions as $name => $route) {
+                    $exact = $route !== [] && $route === $c['route'];
+                    $first = $route !== [] && $route[0] === $c['route'][0];
+                    $b = &$result['baselines'][$name];
+                    $b['exact_matches'] += (int) $exact;
+                    $b['first_dept_matches'] += (int) $first;
+                    $this->tally($b['by_year'], $c['year'], $exact, $first);
+                    $this->tally($b['by_purpose'], $key, $exact, $first);
+                    unset($b);
+                }
                 $exact = $suggested === $c['route'];
                 $first = $suggested[0] === $c['route'][0];
                 $result['exact_matches'] += (int) $exact;
@@ -99,10 +139,22 @@ class RouteReplay
 
             // Learn the finalized route the way the app does
             $learned[$key] = $this->service->learnedRoute($purpose, $c['route'], null) ?? $learned[$key] ?? $c['route'];
-        }
 
+            // The online frequency baseline learns this document only after it is scored
+            $sig = json_encode($c['route']);
+            $seen[$key][$sig] ??= ['n' => 0, 'last' => 0, 'route' => $c['route']];
+            $seen[$key][$sig]['n']++;
+            $seen[$key][$sig]['last'] = $i;
+        }
+        $result['profile'] = $this->profile($whole);
+        // Sort every breakdown by its name
         ksort($result['by_year']);
         ksort($result['by_purpose']);
+        foreach ($result['baselines'] as &$b) {
+            ksort($b['by_year']);
+            ksort($b['by_purpose']);
+        }
+        unset($b);
         return $result;
     }
 
@@ -228,6 +280,63 @@ class RouteReplay
     }
 
     /**
+     * The most common route of a count table; ties go to the most recently seen route.
+     *
+     * @param array<string,array{n:int,last:int,route:list<string>}> $routes
+     * @return list<string>
+     */
+    private function mostCommon(array $routes): array
+    {
+        // Highest count wins, then the latest occurrence
+        $best = null;
+        foreach ($routes as $r) {
+            if ($best === null || [$r['n'], $r['last']] > [$best['n'], $best['last']]) {
+                $best = $r;
+            }
+        }
+        return $best['route'] ?? [];
+    }
+
+    /**
+     * Route-shape statistics per purpose plus an "all" row, from the whole-set route counts.
+     *
+     * @param array<string,array<string,array{n:int,last:int,route:list<string>}>> $whole
+     * @return array<string,array{documents:int,distinct_routes:int,top_route_share_pct:float,single_hop_pct:float,revisit_pct:float}>
+     */
+    private function profile(array $whole): array
+    {
+        // Accumulate per purpose and for everything together
+        $acc = [];
+        $all = [];
+        foreach ($whole as $key => $routes) {
+            foreach ($routes as $sig => $r) {
+                foreach ([$key, 'all'] as $slot) {
+                    $acc[$slot] ??= ['documents' => 0, 'routes' => [], 'single' => 0, 'revisit' => 0];
+                    $acc[$slot]['documents'] += $r['n'];
+                    $acc[$slot]['routes'][$sig] = ($acc[$slot]['routes'][$sig] ?? 0) + $r['n'];
+                    $acc[$slot]['single'] += count($r['route']) === 1 ? $r['n'] : 0;
+                    $acc[$slot]['revisit'] += count($r['route']) !== count(array_unique($r['route'])) ? $r['n'] : 0;
+                }
+            }
+        }
+
+        // Turn counts into percentages
+        ksort($acc);
+        $out = [];
+        foreach ($acc as $slot => $a) {
+            $d = $a['documents'];
+            $out[$slot] = [
+                'documents' => $d,
+                'distinct_routes' => count($a['routes']),
+                'top_route_share_pct' => round(max($a['routes']) / $d * 100, 2),
+                'single_hop_pct' => round($a['single'] / $d * 100, 2),
+                'revisit_pct' => round($a['revisit'] / $d * 100, 2),
+            ];
+        }
+        return $out;
+    }
+
+    /**
      * Add one scored document to a bucket.
      */
     private function tally(array &$buckets, string $name, bool $exact, bool $first): void
@@ -266,7 +375,7 @@ class RouteReplay
     }
 
     /**
-     * Write the overall, by_year and by_purpose CSVs into $dir.
+     * Write the overall, by_year, by_purpose, baselines and purpose-profile CSVs into $dir.
      */
     public static function writeResults(array $r, string $dir, array $config = []): void
     {
@@ -292,6 +401,31 @@ class RouteReplay
         $out = fopen($dir . '/route-replay-overall.csv', 'w');
         fputcsv($out, ['documents', 'excluded_others', 'excluded_no_prior', 'scored', 'exact_matches', 'exact_pct', 'first_dept_matches', 'first_dept_pct'], ',', '"', '\\');
         fputcsv($out, [$r['documents'], $r['excluded_others'], $r['excluded_no_prior'], $scored, $r['exact_matches'], $pct($r['exact_matches'], $scored), $r['first_dept_matches'], $pct($r['first_dept_matches'], $scored)], ',', '"', '\\');
+        fclose($out);
+
+        // Strategy comparison in long format
+        $out = fopen($dir . '/route-replay-baselines.csv', 'w');
+        fputcsv($out, ['scope', 'key', 'strategy', 'scored', 'exact_matches', 'exact_pct', 'first_dept_matches', 'first_dept_pct'], ',', '"', '\\');
+        foreach ($r['baselines'] ?? [] as $name => $b) {
+            // Overall row, then every year and purpose
+            $rows = [['overall', 'all', $scored, $b['exact_matches'], $b['first_dept_matches']]];
+            foreach (['year' => 'by_year', 'purpose' => 'by_purpose'] as $scope => $part) {
+                foreach ($b[$part] as $k => $x) {
+                    $rows[] = [$scope, $k, $x['documents'], $x['exact_matches'], $x['first_dept_matches']];
+                }
+            }
+            foreach ($rows as [$scope, $k, $n, $e, $f]) {
+                fputcsv($out, [$scope, $k, $name, $n, $e, $pct($e, $n), $f, $pct($f, $n)], ',', '"', '\\');
+            }
+        }
+        fclose($out);
+
+        // Route-shape profile per purpose
+        $out = fopen($dir . '/route-replay-purpose-profile.csv', 'w');
+        fputcsv($out, ['purpose', 'documents', 'distinct_routes', 'top_route_share_pct', 'single_hop_pct', 'revisit_pct'], ',', '"', '\\');
+        foreach ($r['profile'] ?? [] as $name => $p) {
+            fputcsv($out, [$name, $p['documents'], $p['distinct_routes'], $p['top_route_share_pct'], $p['single_hop_pct'], $p['revisit_pct']], ',', '"', '\\');
+        }
         fclose($out);
 
         // Per-year and per-purpose breakdowns
