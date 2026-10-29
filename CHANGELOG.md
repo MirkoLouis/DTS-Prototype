@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-10-29 09:36
+
+**Version:** 2.5.2-Release+202610290936
+
+### Changed
+- The simultaneous task-completion concurrency test now honours `CONCURRENCY_RUNS` like the guest-submission test: each run uses a fresh `processing` document at Cash, 5 workers, exactly 1 success, and writes its own `concurrency.csv` row with the run number.
+
+### Removed
+- Unused e-mail (SMTP) support: `phpmailer/phpmailer` dependency and the `SMTP_*` keys in `.env.example`. E-mail notifications are not part of the prototype and are recommended as future work.
+
 ## 2026-10-29 07:49
 
 **Version:** 2.5.1-Release+202610290749
