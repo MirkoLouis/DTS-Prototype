@@ -1,0 +1,45 @@
+scope,key,strategy,scored,exact_matches,exact_pct,first_dept_matches,first_dept_pct
+overall,all,heuristic,38015,22013,57.91,25412,66.85
+year,2022,heuristic,6116,1498,24.49,1905,31.15
+year,2023,heuristic,10806,8570,79.31,8861,82
+year,2024,heuristic,9767,6304,64.54,7308,74.82
+year,2025,heuristic,10769,5344,49.62,6960,64.63
+year,2026,heuristic,557,297,53.32,378,67.86
+purpose,"dissemination of information",heuristic,300,101,33.67,149,49.67
+purpose,endorsement/recommendation,heuristic,884,325,36.76,388,43.89
+purpose,"for approval/signature",heuristic,29659,16341,55.1,19561,65.95
+purpose,"job application",heuristic,3666,3347,91.3,3359,91.63
+purpose,reporting/filing,heuristic,3506,1899,54.16,1955,55.76
+overall,all,none,38015,0,0,0,0
+year,2022,none,6116,0,0,0,0
+year,2023,none,10806,0,0,0,0
+year,2024,none,9767,0,0,0,0
+year,2025,none,10769,0,0,0,0
+year,2026,none,557,0,0,0,0
+purpose,"dissemination of information",none,300,0,0,0,0
+purpose,endorsement/recommendation,none,884,0,0,0,0
+purpose,"for approval/signature",none,29659,0,0,0,0
+purpose,"job application",none,3666,0,0,0,0
+purpose,reporting/filing,none,3506,0,0,0,0
+overall,all,frequent_so_far,38015,8928,23.49,9196,24.19
+year,2022,frequent_so_far,6116,1471,24.05,1628,26.62
+year,2023,frequent_so_far,10806,2206,20.41,2236,20.69
+year,2024,frequent_so_far,9767,2717,27.82,2739,28.04
+year,2025,frequent_so_far,10769,2468,22.92,2521,23.41
+year,2026,frequent_so_far,557,66,11.85,72,12.93
+purpose,"dissemination of information",frequent_so_far,300,60,20,65,21.67
+purpose,endorsement/recommendation,frequent_so_far,884,151,17.08,263,29.75
+purpose,"for approval/signature",frequent_so_far,29659,6300,21.24,6437,21.7
+purpose,"job application",frequent_so_far,3666,1509,41.16,1510,41.19
+purpose,reporting/filing,frequent_so_far,3506,908,25.9,921,26.27
+overall,all,static_hindsight,38015,8943,23.52,9223,24.26
+year,2022,static_hindsight,6116,1448,23.68,1581,25.85
+year,2023,static_hindsight,10806,1932,17.88,1944,17.99
+year,2024,static_hindsight,9767,2285,23.4,2346,24.02
+year,2025,static_hindsight,10769,3212,29.83,3280,30.46
+year,2026,static_hindsight,557,66,11.85,72,12.93
+purpose,"dissemination of information",static_hindsight,300,62,20.67,63,21
+purpose,endorsement/recommendation,static_hindsight,884,152,17.19,335,37.9
+purpose,"for approval/signature",static_hindsight,29659,6309,21.27,6390,21.54
+purpose,"job application",static_hindsight,3666,1509,41.16,1510,41.19
+purpose,reporting/filing,static_hindsight,3506,911,25.98,925,26.38

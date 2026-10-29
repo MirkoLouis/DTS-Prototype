@@ -1,0 +1,9 @@
+key,value
+records_sections,"Records Unit- Receiving | OSDS - AS - Records Unit | Records Unit"
+trailing_sections,"Records- Releasing"
+input,"/home/mirkolouis/Documents/DTS Prototype/from_dts/dts_docroutes (1).csv"
+peak_memory_bytes,89653248
+rows_read,163038
+skipped_malformed_rows,0
+excluded_no_date,0
+run_at,2026-10-29T09:45:08+00:00
