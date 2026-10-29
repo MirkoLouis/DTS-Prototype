@@ -5,7 +5,7 @@ if (!defined('BASE_PATH')) {
 require_once BASE_PATH . '/vendor/autoload.php';
 
 // Key periods must use the same clock as log timestamps
-date_default_timezone_set(\App\Core\IntegrityManager::APP_TIMEZONE);
+date_default_timezone_set(\App\Integrity\HashChainMicroShardingBuilder::APP_TIMEZONE);
 
 use App\Core\Database;
 

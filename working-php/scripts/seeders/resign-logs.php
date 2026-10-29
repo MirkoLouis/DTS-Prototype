@@ -14,10 +14,11 @@
 
 define('BASE_PATH', dirname(dirname(__DIR__)));
 require BASE_PATH . '/vendor/autoload.php';
-date_default_timezone_set(\App\Core\IntegrityManager::APP_TIMEZONE);
+date_default_timezone_set(\App\Integrity\HashChainMicroShardingBuilder::APP_TIMEZONE);
 
 use App\Core\Database;
-use App\Core\IntegrityManager;
+use App\Integrity\DigitalSignature;
+use App\Integrity\HashChainMicroShardingBuilder;
 
 $plan = json_decode((string) file_get_contents($argv[1] ?? ''), true);
 if (!is_array($plan)) {
@@ -37,7 +38,7 @@ $userKeys = [];
 $keyFor = function (int $userId) use ($db, $pin, &$userKeys) {
     if (!array_key_exists($userId, $userKeys)) {
         $row = $db->query("SELECT private_key FROM users WHERE id = :id", ['id' => $userId])->fetch();
-        $userKeys[$userId] = $row && $row['private_key'] ? IntegrityManager::decryptPrivateKey($row['private_key'], $pin) : null;
+        $userKeys[$userId] = $row && $row['private_key'] ? DigitalSignature::decryptPrivateKey($row['private_key'], $pin) : null;
     }
     return $userKeys[$userId];
 };
@@ -48,7 +49,7 @@ try {
         $documentId = (int) $documentId;
         $logs = $db->query("SELECT * FROM document_logs WHERE document_id = :id ORDER BY id ASC", ['id' => $documentId])->fetchAll();
 
-        $previousHash = IntegrityManager::GENESIS_HASH;
+        $previousHash = HashChainMicroShardingBuilder::GENESIS_HASH;
         $firstDate = null;
         $lastDate = null;
         $lastTs = 0;
@@ -64,15 +65,15 @@ try {
 
             // Re-sign and re-chain with the v2 helpers
             $userId = $log['user_id'] !== null ? (int) $log['user_id'] : null;
-            $epoch = IntegrityManager::logTimestamp($createdAt);
+            $epoch = HashChainMicroShardingBuilder::logTimestamp($createdAt);
             $remarks = (string) ($log['remarks'] ?? '');
-            $message = IntegrityManager::signedMessage($documentId, $log['action'], $epoch, $previousHash, $log['document_state_hash'], $remarks);
+            $message = HashChainMicroShardingBuilder::signedMessage($documentId, $log['action'], $epoch, $previousHash, $log['document_state_hash'], $remarks);
             $secret = $userId !== null ? $keyFor($userId) : null;
             if ($userId !== null && $secret === null) {
                 throw new \RuntimeException("User {$userId} has no key unlockable with the seed PIN");
             }
-            $signature = $secret !== null ? base64_encode(sodium_crypto_sign_detached($message, $secret)) : IntegrityManager::signAsSystem($message);
-            $hash = IntegrityManager::chainHash($documentId, $userId, $log['action'], $epoch, $previousHash, $log['document_state_hash'], $remarks, $signature);
+            $signature = $secret !== null ? base64_encode(sodium_crypto_sign_detached($message, $secret)) : DigitalSignature::signAsSystem($message);
+            $hash = HashChainMicroShardingBuilder::chainHash($documentId, $userId, $log['action'], $epoch, $previousHash, $log['document_state_hash'], $remarks, $signature);
 
             $db->query(
                 "UPDATE document_logs SET created_at = :c, updated_at = :u, previous_hash = :p, hash = :h, signature = :s WHERE id = :id",

@@ -8,13 +8,13 @@
  *
  * Fires N simultaneous guest submissions (titles CONC-LIVE-{run_id}-{i}), verifies them in the database
  * the same way tests/Concurrency/GuestSubmissionConcurrencyTest does, appends a row to
- * storage/test-results/live-concurrency.csv, and ALWAYS deletes the documents it created (finally block,
+ * storage/test-results/<run_id>/live-concurrency.csv, and ALWAYS deletes the documents it created (finally block,
  * plus a shutdown/signal fallback). It is not part of PHPUnit; the automated equivalent is composer test:concurrency.
  */
 
 define('BASE_PATH', dirname(__DIR__, 2));
 require BASE_PATH . '/vendor/autoload.php';
-date_default_timezone_set(\App\Core\IntegrityManager::APP_TIMEZONE);
+date_default_timezone_set(\App\Integrity\HashChainMicroShardingBuilder::APP_TIMEZONE);
 
 use App\Core\Database;
 use App\Research\Barrier;
@@ -190,8 +190,10 @@ $cleanup = function () use (&$cleanupDone, &$results, &$runError, &$metrics, $pd
             'run_id' => $runId,
             'deleted_rows' => $deleted,
         ]);
+        // Provenance of this script run, next to the CSV
+        ResultWriter::writeRunJson(['script' => 'live-concurrency', 'live_run_id' => $runId, 'base_url' => $baseUrl]);
     } catch (\Throwable $e) {
-        fwrite(STDERR, "Could not write storage/test-results/live-concurrency.csv: " . $e->getMessage() . "\n");
+        fwrite(STDERR, "Could not write storage/test-results/<run_id>/live-concurrency.csv: " . $e->getMessage() . "\n");
     }
 };
 
@@ -332,6 +334,6 @@ $passed = $runError === null
 printf("\nSuccesses %d/%d, distinct codes %d, documents added %d, mismatches %d, log faults %d, wall %ss, slowest %ss, skew %ss\n",
     $metrics['successes'], $workers, $metrics['distinct_codes'], $metrics['documents_added'], $metrics['mismatches'],
     $metrics['submitted_log_faults'], $metrics['wall_seconds'], $metrics['max_request_seconds'], $metrics['skew_seconds']);
-echo "Result row appended to storage/test-results/live-concurrency.csv (run_id {$runId}).\n";
+echo "Result row appended to " . ResultWriter::dir() . "/live-concurrency.csv (run_id {$runId}).\n";
 echo $passed ? "PASS\n" : "FAIL\n";
 exit($passed ? 0 : EXIT_FAILED);

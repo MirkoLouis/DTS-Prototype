@@ -3,7 +3,8 @@
 namespace App\Controllers;
 
 use App\Core\Database;
-use App\Core\IntegrityManager;
+use App\Integrity\DigitalSignature;
+use App\Integrity\HashChainMicroShardingBuilder;
 
 class SystemHealthController
 {
@@ -143,17 +144,17 @@ class SystemHealthController
         ])->fetch();
 
         // Rebuild the block's inputs exactly as the auditor does (format v2)
-        $previousHash = $lastLog ? $lastLog['hash'] : IntegrityManager::GENESIS_HASH;
+        $previousHash = $lastLog ? $lastLog['hash'] : HashChainMicroShardingBuilder::GENESIS_HASH;
         $userId = $log['user_id'] !== null ? (int) $log['user_id'] : null;
-        $epoch = IntegrityManager::logTimestamp($log['created_at']);
+        $epoch = HashChainMicroShardingBuilder::logTimestamp($log['created_at']);
         $remarks = (string) ($log['remarks'] ?? '');
 
-        $hashInput = IntegrityManager::chainHashInput((int) $log['document_id'], $userId, $log['action'], $epoch, $previousHash, (string) $log['document_state_hash'], $remarks, (string) $log['signature']);
-        $recalculatedHash = IntegrityManager::chainHash((int) $log['document_id'], $userId, $log['action'], $epoch, $previousHash, (string) $log['document_state_hash'], $remarks, (string) $log['signature']);
+        $hashInput = HashChainMicroShardingBuilder::chainHashInput((int) $log['document_id'], $userId, $log['action'], $epoch, $previousHash, (string) $log['document_state_hash'], $remarks, (string) $log['signature']);
+        $recalculatedHash = HashChainMicroShardingBuilder::chainHash((int) $log['document_id'], $userId, $log['action'], $epoch, $previousHash, (string) $log['document_state_hash'], $remarks, (string) $log['signature']);
 
         // Verify the signature too, so the debugger explains signature failures and not only hash failures
-        $message = IntegrityManager::signedMessage((int) $log['document_id'], $log['action'], $epoch, $previousHash, (string) $log['document_state_hash'], $remarks);
-        $verification = IntegrityManager::verifySignature($userId, $log['created_at'], $message, $log['signature']);
+        $message = HashChainMicroShardingBuilder::signedMessage((int) $log['document_id'], $log['action'], $epoch, $previousHash, (string) $log['document_state_hash'], $remarks);
+        $verification = DigitalSignature::verifySignature($userId, $log['created_at'], $message, $log['signature']);
 
         header('Content-Type: application/json');
         echo json_encode([
@@ -281,7 +282,7 @@ class SystemHealthController
     {
         $currentUser = \App\Models\User::findById($_SESSION['user_id'] ?? 0);
         $submittedPin = $_POST['pin'] ?? '';
-        $pin = \App\Core\SecurityHelper::resolvePin($submittedPin);
+        $pin = \App\Security\SecurityPinCache::resolvePin($submittedPin);
 
         if (empty($pin)) {
             $_SESSION['error'] = "Security PIN is required.";
@@ -311,7 +312,7 @@ class SystemHealthController
     {
         $currentUser = \App\Models\User::findById($_SESSION['user_id'] ?? 0);
         $submittedPin = $_POST['pin'] ?? '';
-        $pin = \App\Core\SecurityHelper::resolvePin($submittedPin);
+        $pin = \App\Security\SecurityPinCache::resolvePin($submittedPin);
 
         if (empty($pin)) {
             $_SESSION['error'] = "Security PIN is required.";
@@ -341,7 +342,7 @@ class SystemHealthController
     {
         $currentUser = \App\Models\User::findById($_SESSION['user_id'] ?? 0);
         $submittedPin = $_POST['pin'] ?? '';
-        $pin = \App\Core\SecurityHelper::resolvePin($submittedPin);
+        $pin = \App\Security\SecurityPinCache::resolvePin($submittedPin);
 
         if (empty($pin)) {
             $_SESSION['error'] = "Security PIN is required.";
@@ -412,7 +413,7 @@ class SystemHealthController
     {
         $currentUser = \App\Models\User::findById($_SESSION['user_id'] ?? 0);
         $submittedPin = $_POST['pin'] ?? '';
-        $pin = \App\Core\SecurityHelper::resolvePin($submittedPin);
+        $pin = \App\Security\SecurityPinCache::resolvePin($submittedPin);
 
         if (empty($pin)) {
             $_SESSION['error'] = "Security PIN is required.";

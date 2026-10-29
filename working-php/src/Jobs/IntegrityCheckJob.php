@@ -3,7 +3,8 @@
 namespace App\Jobs;
 
 use App\Core\Database;
-use App\Core\IntegrityManager;
+use App\Integrity\DigitalSignature;
+use App\Integrity\HashChainMicroShardingBuilder;
 use App\Events\IntegrityCheckFailed;
 use App\Core\EventDispatcher;
 
@@ -34,7 +35,7 @@ class IntegrityCheckJob
         date_default_timezone_set('Asia/Manila');
 
         // Start every audit with fresh key histories, even inside a long-lived process
-        IntegrityManager::clearKeyCache();
+        DigitalSignature::clearKeyCache();
         $db = Database::getInstance();
         
         $db->query("UPDATE integrity_checks SET status = 'processing', progress = 5, updated_at = NOW() WHERE id = :id", [
@@ -96,17 +97,17 @@ class IntegrityCheckJob
                         }
 
                         $docLogs = $logsByDoc[$docId] ?? [];
-                        $expectedPreviousHash = IntegrityManager::GENESIS_HASH;
+                        $expectedPreviousHash = HashChainMicroShardingBuilder::GENESIS_HASH;
                         $latestStateHash = null;
 
                         foreach ($docLogs as $log) {
                             $logUserId = $log['user_id'] !== null ? (int) $log['user_id'] : null;
-                            $epoch = IntegrityManager::logTimestamp($log['created_at']);
+                            $epoch = HashChainMicroShardingBuilder::logTimestamp($log['created_at']);
                             $remarks = (string) ($log['remarks'] ?? '');
                             $isBadLog = false;
 
                             // Step 1: Re-derive the chain hash from the expected parent, not the stored previous_hash
-                            $recalculatedHash = IntegrityManager::chainHash(
+                            $recalculatedHash = HashChainMicroShardingBuilder::chainHash(
                                 (int) $log['document_id'],
                                 $logUserId,
                                 $log['action'],
@@ -122,7 +123,7 @@ class IntegrityCheckJob
                             }
 
                             // Step 2: Verify the Ed25519 signature over the full signed message
-                            $message = IntegrityManager::signedMessage(
+                            $message = HashChainMicroShardingBuilder::signedMessage(
                                 (int) $log['document_id'],
                                 $log['action'],
                                 $epoch,
@@ -130,7 +131,7 @@ class IntegrityCheckJob
                                 (string) $log['document_state_hash'],
                                 $remarks
                             );
-                            $verification = IntegrityManager::verifySignature($logUserId, $log['created_at'], $message, $log['signature']);
+                            $verification = DigitalSignature::verifySignature($logUserId, $log['created_at'], $message, $log['signature']);
                             if (!$verification['valid']) {
                                 $invalidSignaturesCount++;
                                 $isBadLog = true;
@@ -152,7 +153,7 @@ class IntegrityCheckJob
 
                         // Step 3: Compare the current live state against its last cryptographically sealed state
                         if ($latestStateHash) {
-                            $currentStateHash = \App\Core\IntegrityManager::calculateStateHash($documentData);
+                            $currentStateHash = \App\Integrity\HashChainMicroShardingBuilder::calculateStateHash($documentData);
                             
                             if ($currentStateHash !== $latestStateHash) {
                                 // Fallback: Check JSON spacing artifact
@@ -161,7 +162,7 @@ class IntegrityCheckJob
                                     $decoded = json_decode($altDocumentData['finalized_route'], true);
                                     if ($decoded !== null) {
                                         $altDocumentData['finalized_route'] = json_encode($decoded);
-                                        $altStateHash = \App\Core\IntegrityManager::calculateStateHash($altDocumentData);
+                                        $altStateHash = \App\Integrity\HashChainMicroShardingBuilder::calculateStateHash($altDocumentData);
                                         if ($altStateHash === $latestStateHash) {
                                             $currentStateHash = $altStateHash;
                                         }

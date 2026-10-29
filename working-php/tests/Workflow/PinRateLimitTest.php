@@ -4,7 +4,7 @@ namespace Tests\Workflow;
 
 use App\Core\AttemptThrottle;
 use App\Core\Database;
-use App\Core\SecurityHelper;
+use App\Security\SecurityPinCache;
 use App\Services\DocumentWorkflowService;
 use Tests\Support\Fixtures;
 use Tests\Support\TestDatabase;
@@ -12,7 +12,7 @@ use Tests\TestCase;
 
 class PinRateLimitTest extends TestCase
 {
-    // Isolate the session superglobal used by SecurityHelper
+    // Isolate the session superglobal used by SecurityPinCache
     protected function setUp(): void
     {
         parent::setUp();
@@ -45,7 +45,7 @@ class PinRateLimitTest extends TestCase
         $_SESSION['user_id'] = $user->id;
 
         try {
-            $pin = SecurityHelper::resolvePin($typedPin);
+            $pin = SecurityPinCache::resolvePin($typedPin);
             (new DocumentWorkflowService())->scanDocument($code, $user, (string) $pin);
             return null;
         } catch (\Exception $e) {
@@ -112,10 +112,10 @@ class PinRateLimitTest extends TestCase
         $_SESSION['user_id'] = $user->id;
 
         // A correct typed PIN issues a token; resolving it repeatedly records nothing
-        SecurityHelper::resolvePin(TestDatabase::PIN);
-        $token = $_SESSION[SecurityHelper::SESSION_ISSUED];
+        SecurityPinCache::resolvePin(TestDatabase::PIN);
+        $token = $_SESSION[SecurityPinCache::SESSION_ISSUED];
         for ($i = 0; $i < 4; $i++) {
-            $this->assertSame(TestDatabase::PIN, SecurityHelper::resolvePin($token));
+            $this->assertSame(TestDatabase::PIN, SecurityPinCache::resolvePin($token));
         }
 
         $key = AttemptThrottle::key('pin', (string) $user->id);

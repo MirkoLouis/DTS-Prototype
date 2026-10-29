@@ -3,7 +3,7 @@
 namespace App\Jobs;
 
 use App\Core\Database;
-use App\Core\IntegrityManager;
+use App\Integrity\HashChainMicroShardingBuilder;
 use Throwable;
 
 class CleanupStalePendingDocumentsJob
@@ -70,7 +70,7 @@ class CleanupStalePendingDocumentsJob
                 $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
 
                 // Append system-sealed cryptographic log entry
-                IntegrityManager::createLog(
+                HashChainMicroShardingBuilder::createLog(
                     (int) $document['id'],
                     null, // System-initiated action
                     'Document Declined',

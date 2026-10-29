@@ -3,13 +3,14 @@
 namespace Tests\Workflow;
 
 use App\Core\Database;
-use App\Core\IntegrityManager;
+use App\Integrity\DigitalSignature;
+use App\Integrity\HashChainMicroShardingBuilder;
 use Tests\Support\Fixtures;
 use Tests\Support\TestDatabase;
 use Tests\TestCase;
 
 /**
- * IntegrityManager memoizes key histories per process. A long-lived process that verifies across
+ * DigitalSignature memoizes key histories per process. A long-lived process that verifies across
  * a key reset must clear that cache (SecurityKeyController::store and UserController::resetSignature do).
  */
 class KeyCacheInvalidationTest extends TestCase
@@ -19,7 +20,7 @@ class KeyCacheInvalidationTest extends TestCase
         parent::setUp();
 
         // The database was just rebuilt, so drop key histories memoized by earlier tests
-        IntegrityManager::clearKeyCache();
+        DigitalSignature::clearKeyCache();
     }
 
     /**
@@ -71,7 +72,7 @@ class KeyCacheInvalidationTest extends TestCase
         $this->assertFalse($this->verifyRow($newest), 'A stale key cache must report the new entry as invalid.');
 
         // Clearing the cache repairs it
-        IntegrityManager::clearKeyCache();
+        DigitalSignature::clearKeyCache();
         $this->assertTrue($this->verifyRow($newest));
     }
 
@@ -99,16 +100,16 @@ class KeyCacheInvalidationTest extends TestCase
     // Rebuild the signed message from a log row and verify it the way the integrity audit does
     private function verifyRow(array $log): bool
     {
-        $message = IntegrityManager::signedMessage(
+        $message = HashChainMicroShardingBuilder::signedMessage(
             (int) $log['document_id'],
             (string) $log['action'],
-            IntegrityManager::logTimestamp((string) $log['created_at']),
+            HashChainMicroShardingBuilder::logTimestamp((string) $log['created_at']),
             (string) $log['previous_hash'],
             (string) $log['document_state_hash'],
             (string) $log['remarks']
         );
 
-        return IntegrityManager::verifySignature((int) $log['user_id'], (string) $log['created_at'], $message, $log['signature'])['valid'];
+        return DigitalSignature::verifySignature((int) $log['user_id'], (string) $log['created_at'], $message, $log['signature'])['valid'];
     }
 
     // Reproduce SecurityKeyController::store; $clearCache mirrors its clearKeyCache() call
@@ -146,7 +147,7 @@ class KeyCacheInvalidationTest extends TestCase
 
         // Drop the memoized key history, as the controller does right after the rows are written
         if ($clearCache) {
-            IntegrityManager::clearKeyCache();
+            DigitalSignature::clearKeyCache();
         }
     }
 }

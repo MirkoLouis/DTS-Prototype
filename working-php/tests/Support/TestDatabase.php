@@ -3,7 +3,6 @@
 namespace Tests\Support;
 
 use App\Core\Database;
-use App\Core\IntegrityManager;
 
 /**
  * Rebuilds and seeds the test database. Always runs TestGuard first.

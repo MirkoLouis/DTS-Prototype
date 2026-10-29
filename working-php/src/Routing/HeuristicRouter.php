@@ -1,12 +1,13 @@
 <?php
 
-namespace App\Services;
+namespace App\Routing;
 
 /**
- * Suggests routes for the intake form and decides when a finalized route should be learned.
+ * Heuristic routing: suggests routes for the intake form from each purpose's learned route and decides
+ * when a finalized route should be learned.
  * Non-official purposes (e.g. "Others") are never suggested and never learned.
  */
-class RouteSuggestionService
+class HeuristicRouter
 {
     /**
      * Build the suggested route shown at intake.

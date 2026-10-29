@@ -6,7 +6,7 @@
 
 ## 1. Overview & Role Summary
 
-As a **System Administrator** (`admin`), you possess full control and global visibility over the DepEd Division of Iligan City Document Tracking System (DTS). Your primary responsibilities include user account management, cryptographically monitoring system integrity, executing data backups/restores, analyzing division-wide processing bottlenecks, and resolving auto-frozen document tamper alerts.
+As a **System Administrator** (`admin`), you possess full control and global visibility over the DepEd Division of Iligan City Document Tracking System (DTS). Your primary responsibilities include user account management, cryptographically monitoring system integrity, executing data backups/restores, analyzing division-wide processing bottlenecks, and resolving automatically frozen document tamper alerts.
 
 ---
 
@@ -66,10 +66,10 @@ Every user action that mutates document state requires a cryptographically secur
 
 ### 4.3 Handling Tampered Documents & Auto-Resolve
 
-When raw database tampering is detected (e.g., unauthorized SQL updates bypassing application logic), the JIT **Active Guard** instantly blocks processing and triggers an **Auto-Freeze**.
+When raw database tampering is detected (e.g., unauthorized SQL updates bypassing application logic), the JIT **pre-action integrity check** instantly blocks processing and triggers **automatic freezing**.
 
 ```
-[Database Tampering] ──> [Active Guard Check Fails] ──> [Status: FROZEN] ──> [Admin Auto-Resolve]
+[Database Tampering] ──> [Pre-Action Integrity Check Fails] ──> [Status: FROZEN] ──> [Admin Auto-Resolve]
 ```
 
 1. **Identifying Frozen Documents:**

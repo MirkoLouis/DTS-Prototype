@@ -3,7 +3,7 @@
 namespace Tests\Http;
 
 use App\Core\Database;
-use App\Core\SecurityHelper;
+use App\Security\SecurityPinCache;
 use App\Services\DocumentWorkflowService;
 use Tests\Support\Fixtures;
 use Tests\Support\HttpClient;
@@ -64,10 +64,10 @@ class ThrottleTableMissingTest extends TestCase
         $_SESSION['user_id'] = $user->id;
 
         // A wrong PIN is not counted but must not crash resolution
-        $this->assertSame('000000', SecurityHelper::resolvePin('000000'));
+        $this->assertSame('000000', SecurityPinCache::resolvePin('000000'));
 
         // The correct PIN signs the receive
-        $pin = SecurityHelper::resolvePin(TestDatabase::PIN);
+        $pin = SecurityPinCache::resolvePin(TestDatabase::PIN);
         (new DocumentWorkflowService())->scanDocument($s['tracking_code'], $user, (string) $pin);
 
         $status = Database::getInstance()->query('SELECT status FROM documents WHERE id = :id', [':id' => $s['id']])->fetch()['status'];

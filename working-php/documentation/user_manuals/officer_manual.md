@@ -103,4 +103,4 @@ When a document finishes all departmental routing steps, its status advances to 
 - **Q: The QR camera scanner is not opening.**  
   *A:* Ensure your web browser has camera permissions granted for the DTS domain. Alternatively, type the tracking code into the manual input box.
 - **Q: An error says "Action Denied: Document failed integrity check".**  
-  *A:* The document's SHA-256 state hash does not match the ledger. The document has been auto-frozen by the Active Guard. Notify a System Administrator to run Auto-Resolve.
+  *A:* The document's SHA-256 state hash does not match the ledger. The document has been automatically frozen by the pre-action integrity check. Notify a System Administrator to run Auto-Resolve.

@@ -301,20 +301,20 @@ if (isset($_SESSION['user_id'])) {
     <?php endif; ?>
 
     <?php // Hand the encrypted PIN-cache token to the browser, or tell it to discard a stale one ?>
-    <?php if (isset($_SESSION[\App\Core\SecurityHelper::SESSION_ISSUED]) || isset($_SESSION[\App\Core\SecurityHelper::SESSION_CLEAR])): ?>
+    <?php if (isset($_SESSION[\App\Security\SecurityPinCache::SESSION_ISSUED]) || isset($_SESSION[\App\Security\SecurityPinCache::SESSION_CLEAR])): ?>
         <script>
             (function() {
                 try {
-                    <?php if (isset($_SESSION[\App\Core\SecurityHelper::SESSION_CLEAR])): ?>
+                    <?php if (isset($_SESSION[\App\Security\SecurityPinCache::SESSION_CLEAR])): ?>
                     sessionStorage.removeItem('dts_pin_token');
                     <?php endif; ?>
-                    <?php if (isset($_SESSION[\App\Core\SecurityHelper::SESSION_ISSUED])): ?>
-                    sessionStorage.setItem('dts_pin_token', <?= json_encode($_SESSION[\App\Core\SecurityHelper::SESSION_ISSUED]) ?>);
+                    <?php if (isset($_SESSION[\App\Security\SecurityPinCache::SESSION_ISSUED])): ?>
+                    sessionStorage.setItem('dts_pin_token', <?= json_encode($_SESSION[\App\Security\SecurityPinCache::SESSION_ISSUED]) ?>);
                     <?php endif; ?>
                 } catch (e) {}
             })();
         </script>
-        <?php unset($_SESSION[\App\Core\SecurityHelper::SESSION_ISSUED], $_SESSION[\App\Core\SecurityHelper::SESSION_CLEAR]); ?>
+        <?php unset($_SESSION[\App\Security\SecurityPinCache::SESSION_ISSUED], $_SESSION[\App\Security\SecurityPinCache::SESSION_CLEAR]); ?>
     <?php endif; ?>
 
     <?php if (isset($_SESSION['needs_security_key']) && $_SESSION['needs_security_key']): ?>

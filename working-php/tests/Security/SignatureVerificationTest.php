@@ -3,7 +3,8 @@
 namespace Tests\Security;
 
 use App\Core\Database;
-use App\Core\IntegrityManager;
+use App\Integrity\DigitalSignature;
+use App\Integrity\HashChainMicroShardingBuilder;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\Fixtures;
 use App\Research\ResultWriter;
@@ -172,7 +173,7 @@ class SignatureVerificationTest extends TestCase
         $oldCount = 0;
         $newCount = 0;
         foreach ($logs as $log) {
-            $resolved = IntegrityManager::publicKeyAt($cashId, $log['created_at']);
+            $resolved = DigitalSignature::publicKeyAt($cashId, $log['created_at']);
             if ($resolved === $oldKey) {
                 $oldCount++;
             } elseif ($resolved === $newKey) {
@@ -196,16 +197,16 @@ class SignatureVerificationTest extends TestCase
     // Rebuild the signed message from a log row and verify it the way the integrity audit does
     private function verifyRow(array $log): array
     {
-        $message = IntegrityManager::signedMessage(
+        $message = HashChainMicroShardingBuilder::signedMessage(
             (int) $log['document_id'],
             (string) $log['action'],
-            IntegrityManager::logTimestamp((string) $log['created_at']),
+            HashChainMicroShardingBuilder::logTimestamp((string) $log['created_at']),
             (string) $log['previous_hash'],
             (string) $log['document_state_hash'],
             (string) $log['remarks']
         );
 
-        return IntegrityManager::verifySignature($log['user_id'] === null ? null : (int) $log['user_id'], (string) $log['created_at'], $message, $log['signature']);
+        return DigitalSignature::verifySignature($log['user_id'] === null ? null : (int) $log['user_id'], (string) $log['created_at'], $message, $log['signature']);
     }
 
     // Reproduce SecurityKeyController::store: new keypair wrapped with the PIN, old periods closed, new period opened
@@ -242,10 +243,10 @@ class SignatureVerificationTest extends TestCase
         ]);
     }
 
-    // Empty IntegrityManager's private static key-history cache
+    // Empty DigitalSignature's private static key-history cache
     private function resetKeyCache(): void
     {
-        IntegrityManager::clearKeyCache();
+        DigitalSignature::clearKeyCache();
     }
 
     // Append one result row to signatures.csv

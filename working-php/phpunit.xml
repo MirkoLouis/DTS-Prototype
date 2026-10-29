@@ -13,6 +13,9 @@
         <testsuite name="concurrency"><directory>tests/Concurrency</directory></testsuite>
         <testsuite name="benchmark"><directory>tests/Benchmark</directory></testsuite>
     </testsuites>
+    <extensions>
+        <bootstrap class="Tests\Support\Results\ResultsExtension"/>
+    </extensions>
     <groups>
         <exclude>
             <group>benchmark</group>

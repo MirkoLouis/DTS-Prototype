@@ -3,7 +3,6 @@
 namespace App\Controllers;
 
 use App\Core\Database;
-use App\Core\IntegrityManager;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use chillerlan\QRCode\QRCode;
@@ -152,7 +151,7 @@ class DocumentController
         }
 
         // Official purposes get the stored route with the guest's unit injected; "Others" gets none
-        $suggestedRoute = (new \App\Services\RouteSuggestionService())->suggest(
+        $suggestedRoute = (new \App\Routing\HeuristicRouter())->suggest(
             ['is_official' => $document['is_official'] ?? 0, 'suggested_route' => $document['suggested_route'] ?? null],
             $document['department'] ?? null
         );
@@ -170,7 +169,7 @@ class DocumentController
     {
         $finalRouteJson = $_POST['final_route'] ?? '';
         $submittedPin = $_POST['pin'] ?? '';
-        $pin = \App\Core\SecurityHelper::resolvePin($submittedPin);
+        $pin = \App\Security\SecurityPinCache::resolvePin($submittedPin);
 
         if (empty($finalRouteJson) || empty($pin)) {
             $_SESSION['error'] = "Route and Security PIN are required.";
@@ -219,7 +218,7 @@ class DocumentController
     {
         $trackingCode = trim($_POST['tracking_code'] ?? '');
         $submittedPin = $_POST['pin'] ?? '';
-        $pin = \App\Core\SecurityHelper::resolvePin($submittedPin);
+        $pin = \App\Security\SecurityPinCache::resolvePin($submittedPin);
 
         if (empty($trackingCode)) {
             $_SESSION['error'] = "Tracking code is required.";
@@ -262,7 +261,7 @@ class DocumentController
         $documentId = $_POST['document_id'] ?? null;
         $reason = $_POST['reason'] ?? '';
         $submittedPin = $_POST['pin'] ?? '';
-        $pin = \App\Core\SecurityHelper::resolvePin($submittedPin);
+        $pin = \App\Security\SecurityPinCache::resolvePin($submittedPin);
         
         if (!$documentId || !$reason) {
             $_SESSION['error'] = 'Document ID and decline reason are required.';

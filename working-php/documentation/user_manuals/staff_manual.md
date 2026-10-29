@@ -71,7 +71,7 @@ After performing your required office work (e.g., verifying budget allocation, s
 1. On `/tasks`, locate the document and click **Complete Task** (or open document details at `/documents/{tracking_code}`).
 2. Enter your **Security PIN** when prompted. After the first correct PIN, the system remembers it in an encrypted, session-bound form for the configured period, so later actions do not prompt again.
 3. **What happens under the hood:**
-   - The Active Guard checks document integrity before proceeding.
+   - The pre-action integrity check checks document integrity before proceeding.
    - The document row is updated with an optimistic version check inside a database transaction; the row lock it takes ensures only one of two simultaneous completions succeeds.
    - It records a signed log entry ("Step processed by [Department]. In transit to [Next Department]."), increments the document's `current_step` counter, and updates the active department pointer to the next office in the routing chain.
 

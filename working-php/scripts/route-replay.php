@@ -1,8 +1,10 @@
 <?php
 
 // Usage: php scripts/route-replay.php "<dts_docroutes CSV>" [output dir] [--records-names="A|B"]
+define('BASE_PATH', dirname(__DIR__));
 require __DIR__ . '/../vendor/autoload.php';
 
+use App\Research\ResultWriter;
 use App\Research\RouteReplay;
 
 // Peak use is about 125 MB; keep headroom when the CLI limit is the 128M default
@@ -24,7 +26,9 @@ if (empty($args[0]) || !is_file($args[0])) {
     fwrite(STDERR, "Usage: php scripts/route-replay.php <csv> [output dir] [--records-names=\"A|B\"]\n");
     exit(1);
 }
-$outDir = $args[1] ?? dirname(__DIR__) . '/storage/test-results';
+// An explicit output directory wins; otherwise this run gets its own results folder
+$startedAt = date('c');
+$outDir = $args[1] ?? ResultWriter::dir();
 
 // Replay the export and write the result files
 $result = (new RouteReplay($names))->run(fn() => RouteReplay::readCsv($args[0]));
@@ -48,4 +52,5 @@ printf("Excluded (no prior):  %d\n", $result['excluded_no_prior']);
 printf("Scored:               %d\n", $scored);
 printf("Exact match:          %d (%.2f%%)\n", $result['exact_matches'], $scored ? $result['exact_matches'] / $scored * 100 : 0);
 printf("First-dept match:     %d (%.2f%%)\n", $result['first_dept_matches'], $scored ? $result['first_dept_matches'] / $scored * 100 : 0);
+ResultWriter::writeRunJson(['script' => 'route-replay', 'started_at' => $startedAt, 'input' => realpath($args[0])], $outDir);
 echo "Output: $outDir\n";

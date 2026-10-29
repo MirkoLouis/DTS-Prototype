@@ -3,7 +3,6 @@
 namespace App\Controllers;
 
 use App\Core\Database;
-use App\Core\IntegrityManager;
 
 class ReleasingController
 {
@@ -16,7 +15,7 @@ class ReleasingController
     {
         $db = Database::getInstance();
         $submittedPin = $_POST['pin'] ?? '';
-        $pin = \App\Core\SecurityHelper::resolvePin($submittedPin);
+        $pin = \App\Security\SecurityPinCache::resolvePin($submittedPin);
 
         if (empty($pin)) {
             $_SESSION['error'] = "Security PIN is required.";

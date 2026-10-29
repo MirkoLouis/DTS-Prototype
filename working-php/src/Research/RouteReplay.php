@@ -2,10 +2,10 @@
 
 namespace App\Research;
 
-use App\Services\RouteSuggestionService;
+use App\Routing\HeuristicRouter;
 
 /**
- * Replays the legacy DTS routing export through RouteSuggestionService.
+ * Replays the legacy DTS routing export through HeuristicRouter.
  * For every document it asks what the app would have suggested (the last finalized route
  * learned for the same purpose) and compares it with the route the Records Unit assigned.
  */
@@ -23,7 +23,7 @@ class RouteReplay
         'Records- Releasing',
     ];
 
-    private RouteSuggestionService $service;
+    private HeuristicRouter $service;
 
     /**
      * @param list<string> $recordsSections  names that mark the Records Unit step (R)
@@ -33,7 +33,7 @@ class RouteReplay
         private array $recordsSections = self::DEFAULT_RECORDS_SECTIONS,
         private array $trailingSections = self::DEFAULT_TRAILING_SECTIONS,
     ) {
-        $this->service = new RouteSuggestionService();
+        $this->service = new HeuristicRouter();
     }
 
     /**

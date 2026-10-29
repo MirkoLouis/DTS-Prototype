@@ -3,11 +3,11 @@
 namespace App\Policies;
 
 use App\Models\User;
-use App\Core\IntegrityManager;
+use App\Integrity\PreActionIntegrityCheck;
 use App\Core\Database;
 
 /**
- * Fine-Grained Authorization Policy & Active Guard Enforcement.
+ * Fine-Grained Authorization Policy & Pre-Action Integrity Check Enforcement.
  * 
  * Controls access to document actions based on user roles and real-time cryptographic hash-chain state checks.
  */
@@ -50,14 +50,14 @@ class DocumentPolicy
      * Determine whether the user can process the document.
      * 
      * Determines if a user can actively process (e.g., receive, complete task) a document. 
-     * Critically, this acts as the "Active Guard" by enforcing real-time cryptographic integrity checks 
+     * Critically, this acts as the "pre-action integrity check" by enforcing real-time cryptographic integrity checks 
      * before allowing state changes.
      */
     public function process(User $user, array $document): bool
     {
-        // 0. Pre-action Integrity Check (The "Active Guard"): Verify state hash against chain; auto-freeze on discrepancy to halt workflow on tampered data
-        if (!IntegrityManager::verifyCurrentState($document)) {
-            IntegrityManager::autoFreeze($document, 'Pre-Action Verification');
+        // 0. Pre-action integrity check: Verify state hash against chain; automatic freezing on discrepancy to halt workflow on tampered data
+        if (!PreActionIntegrityCheck::passes($document)) {
+            PreActionIntegrityCheck::freezeTampered($document, 'Pre-Action Verification');
             return false;
         }
 
@@ -101,10 +101,10 @@ class DocumentPolicy
         $db = Database::getInstance();
         $stmt = $db->query("SELECT id FROM document_logs WHERE document_id = :id LIMIT 1", [':id' => $document['id']]);
         
-        // Execute Active Guard state hash verification if audit logs already exist for this document
+        // Execute pre-action integrity check state hash verification if audit logs already exist for this document
         if ($stmt->fetch()) {
-            if (!IntegrityManager::verifyCurrentState($document)) {
-                IntegrityManager::autoFreeze($document, 'Pre-Management Verification');
+            if (!PreActionIntegrityCheck::passes($document)) {
+                PreActionIntegrityCheck::freezeTampered($document, 'Pre-Management Verification');
                 return false;
             }
         }

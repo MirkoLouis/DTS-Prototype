@@ -3,7 +3,9 @@
 namespace App\Services;
 
 use App\Core\Database;
-use App\Core\IntegrityManager;
+use App\Integrity\DigitalSignature;
+use App\Integrity\HashChainMicroShardingBuilder;
+use App\Routing\HeuristicRouter;
 use App\Core\TrackingCode;
 use App\Policies\DocumentPolicy;
 use App\Models\User;
@@ -23,7 +25,7 @@ class DocumentWorkflowService
     /**
      * Safely executes an action within a DB Transaction using Optimistic Locking (via version increment).
      * 
-     * Centralizes transaction management, error handling, and the "Active Guard" integrity checks.
+     * Centralizes transaction management, error handling, and the "pre-action integrity check" integrity checks.
      * Failing the policy check or encountering a concurrent modification will safely rollback.
      */
     private function executeInTransaction(string $idField, $idValue, ?User $user, ?string $policyMethod, callable $action)
@@ -40,10 +42,10 @@ class DocumentWorkflowService
                 throw new Exception("Document not found.");
             }
             
-            // Active Guard / Authorization Check: Verify the user has permission AND the document hasn't been tampered with
+            // Pre-action integrity check / Authorization Check: Verify the user has permission AND the document hasn't been tampered with
             if ($user && $policyMethod) {
                 if (!$this->policy->$policyMethod($user, $document)) {
-                    // Commit early here: if the policy failed due to tampering, the Active Guard might have logged an Auto-Freeze event
+                    // Commit early here: if the policy failed due to tampering, the pre-action integrity check might have logged an automatic freezing event
                     $conn->commit();
                     throw new Exception("Action Denied: Document failed integrity check or you lack permissions.");
                 }
@@ -143,7 +145,7 @@ class DocumentWorkflowService
                 ];
 
                 // Initialize the cryptographic hash chain with the first 'Submitted' log entry
-                IntegrityManager::createLog($documentId, null, 'Submitted', 'Document submitted by guest via the public portal.', $documentData);
+                HashChainMicroShardingBuilder::createLog($documentId, null, 'Submitted', 'Document submitted by guest via the public portal.', $documentData);
 
                 $conn->commit();
                 return ['tracking_code' => $trackingCode, 'document_id' => $documentId];
@@ -221,7 +223,7 @@ class DocumentWorkflowService
 
             // Learn the route only for official purposes and only when it actually changed
             $learnedRoute = $purpose
-                ? (new RouteSuggestionService())->learnedRoute($purpose, $routeNames, $document['department'] ?? null)
+                ? (new HeuristicRouter())->learnedRoute($purpose, $routeNames, $document['department'] ?? null)
                 : null;
             if ($learnedRoute !== null) {
                 $db->query("UPDATE purposes SET suggested_route = :route WHERE id = :id", [
@@ -245,7 +247,7 @@ class DocumentWorkflowService
             // Re-fetch document for hashing
             $updatedDocument = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
 
-            IntegrityManager::createLog(
+            HashChainMicroShardingBuilder::createLog(
                 $document['id'],
                 $officer->id,
                 'Accepted and Document Routing finalized',
@@ -281,7 +283,7 @@ class DocumentWorkflowService
                         ]);
                         if ($stmt->rowCount() === 0) throw new Exception("This document was just modified by another user. Please refresh.");
                         $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
-                        IntegrityManager::createLog($document['id'], $user->id, 'Ready for Releasing', 'All processing steps completed. Document received by Records Unit for final releasing.', $updatedDoc, $pin);
+                        HashChainMicroShardingBuilder::createLog($document['id'], $user->id, 'Ready for Releasing', 'All processing steps completed. Document received by Records Unit for final releasing.', $updatedDoc, $pin);
                         return 'releasing';
                     }
                 } else {
@@ -298,7 +300,7 @@ class DocumentWorkflowService
                         ]);
                         if ($stmt->rowCount() === 0) throw new Exception("This document was just modified by another user. Please refresh.");
                         $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
-                        IntegrityManager::createLog($document['id'], $user->id, 'Received', "Document received by {$dept['name']}.", $updatedDoc, $pin);
+                        HashChainMicroShardingBuilder::createLog($document['id'], $user->id, 'Received', "Document received by {$dept['name']}.", $updatedDoc, $pin);
                         return ($user->role === 'officer') ? 'officer.tasks' : 'staff.tasks';
                     }
                 }
@@ -377,7 +379,7 @@ class DocumentWorkflowService
                 $logRemarks .= " In transit to {$nextDeptName}.";
             }
 
-            IntegrityManager::createLog($document['id'], $user->id, 'Processing Complete', $logRemarks, $updatedDoc, $pin);
+            HashChainMicroShardingBuilder::createLog($document['id'], $user->id, 'Processing Complete', $logRemarks, $updatedDoc, $pin);
         });
     }
 
@@ -402,7 +404,7 @@ class DocumentWorkflowService
 
             $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
 
-            IntegrityManager::createLog($document['id'], $officer->id, 'Document Released', 'The document has been released to the client.', $updatedDoc, $pin);
+            HashChainMicroShardingBuilder::createLog($document['id'], $officer->id, 'Document Released', 'The document has been released to the client.', $updatedDoc, $pin);
         });
     }
 
@@ -427,7 +429,7 @@ class DocumentWorkflowService
 
             $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
 
-            IntegrityManager::createLog($document['id'], $officer->id, 'Document Declined', $reason, $updatedDoc, $pin);
+            HashChainMicroShardingBuilder::createLog($document['id'], $officer->id, 'Document Declined', $reason, $updatedDoc, $pin);
         });
     }
 
@@ -435,7 +437,7 @@ class DocumentWorkflowService
 
     /**
      * Halts all operations on a document. 
-     * Typically triggered automatically by the Active Guard when tampering is detected, or manually by an admin.
+     * Typically triggered automatically by the pre-action integrity check when tampering is detected, or manually by an admin.
      */
     public function freezeDocument(string $trackingCode, User $admin, string $pin): void
     {
@@ -443,7 +445,7 @@ class DocumentWorkflowService
             $stmt = $db->query("UPDATE documents SET status = 'frozen', updated_at = NOW(), version = version + 1 WHERE id = :id AND version = :version", [':id' => $document['id'], ':version' => $document['version']]);
             if ($stmt->rowCount() === 0) throw new Exception("This document was just modified by another user. Please refresh.");
             $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
-            IntegrityManager::createLog($document['id'], $admin->id, 'ADMIN: Document frozen.', 'An administrator has frozen this document, likely pending an integrity investigation.', $updatedDoc, $pin);
+            HashChainMicroShardingBuilder::createLog($document['id'], $admin->id, 'ADMIN: Document frozen.', 'An administrator has frozen this document, likely pending an integrity investigation.', $updatedDoc, $pin);
         });
     }
 
@@ -465,7 +467,7 @@ class DocumentWorkflowService
             if ($stmt->rowCount() === 0) throw new Exception("This document was just modified by another user. Please refresh.");
 
             $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
-            IntegrityManager::createLog($document['id'], $admin->id, 'ADMIN: Document unfrozen.', "An administrator has unfrozen this document, restoring its status to " . ucfirst($previousStatus) . ".", $updatedDoc, $pin);
+            HashChainMicroShardingBuilder::createLog($document['id'], $admin->id, 'ADMIN: Document unfrozen.', "An administrator has unfrozen this document, restoring its status to " . ucfirst($previousStatus) . ".", $updatedDoc, $pin);
             return $previousStatus;
         });
     }
@@ -477,7 +479,7 @@ class DocumentWorkflowService
     {
         return $this->executeInTransaction('tracking_code', $trackingCode, $admin, 'unfreeze', function ($document, $db) use ($admin, $pin) {
             // Tampered documents might not be in 'frozen' status if they were just flagged by verification
-            // and haven't triggered the Active Guard yet.
+            // and haven't triggered the pre-action integrity check yet.
 
             // Find the most recent real workflow log entry that contains a full data snapshot
             try {
@@ -526,7 +528,7 @@ class DocumentWorkflowService
             if ($stmt->rowCount() === 0) throw new Exception("This document was just modified by another user. Please refresh.");
 
             $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
-            IntegrityManager::createLog($document['id'], $admin->id, 'ADMIN: Document Unfrozen & Restored', "An administrator has executed Auto-resolve, restoring the document from its last valid snapshot and returning status to " . ucfirst($previousStatus) . ".", $updatedDoc, $pin);
+            HashChainMicroShardingBuilder::createLog($document['id'], $admin->id, 'ADMIN: Document Unfrozen & Restored', "An administrator has executed Auto-resolve, restoring the document from its last valid snapshot and returning status to " . ucfirst($previousStatus) . ".", $updatedDoc, $pin);
             
             return $previousStatus;
         });
@@ -539,7 +541,7 @@ class DocumentWorkflowService
     {
         $db = Database::getInstance();
 
-        // Skip every ADMIN action (freeze, unfreeze, restore) and the system auto-freeze
+        // Skip every ADMIN action (freeze, unfreeze, restore) and the system automatic freezing
         $sql = "SELECT * FROM document_logs WHERE document_id = :id AND action NOT LIKE 'ADMIN:%' AND action <> 'System Auto-Freeze'"
             . ($requireSnapshot ? " AND document_snapshot IS NOT NULL" : "")
             . " ORDER BY id DESC LIMIT 1";
@@ -575,13 +577,13 @@ class DocumentWorkflowService
     private function logRowIsAuthentic(array $log): bool
     {
         $userId = $log['user_id'] !== null ? (int) $log['user_id'] : null;
-        $epoch = IntegrityManager::logTimestamp($log['created_at']);
+        $epoch = HashChainMicroShardingBuilder::logTimestamp($log['created_at']);
         $remarks = (string) ($log['remarks'] ?? '');
         $previousHash = (string) $log['previous_hash'];
         $stateHash = (string) $log['document_state_hash'];
 
         // Step 1: the stored chain hash must equal the recomputed one
-        $recalculated = IntegrityManager::chainHash(
+        $recalculated = HashChainMicroShardingBuilder::chainHash(
             (int) $log['document_id'],
             $userId,
             $log['action'],
@@ -596,19 +598,19 @@ class DocumentWorkflowService
         }
 
         // Step 2: the signature over the rebuilt message must verify against the signer's key
-        $message = IntegrityManager::signedMessage((int) $log['document_id'], $log['action'], $epoch, $previousHash, $stateHash, $remarks);
-        return IntegrityManager::verifySignature($userId, $log['created_at'], $message, $log['signature'])['valid'];
+        $message = HashChainMicroShardingBuilder::signedMessage((int) $log['document_id'], $log['action'], $epoch, $previousHash, $stateHash, $remarks);
+        return DigitalSignature::verifySignature($userId, $log['created_at'], $message, $log['signature'])['valid'];
     }
 
     /**
-     * Checks a decoded snapshot against the recorded state hash, with the same finalized_route re-encoding fallback as verifyCurrentState().
+     * Checks a decoded snapshot against the recorded state hash, with the same finalized_route re-encoding fallback as PreActionIntegrityCheck::passes().
      */
     private function snapshotMatchesRecordedHash(array $snapshot, ?string $recordedHash): bool
     {
         if ($recordedHash === null) {
             return false;
         }
-        if (hash_equals($recordedHash, IntegrityManager::calculateStateHash($snapshot))) {
+        if (hash_equals($recordedHash, HashChainMicroShardingBuilder::calculateStateHash($snapshot))) {
             return true;
         }
 
@@ -618,7 +620,7 @@ class DocumentWorkflowService
             if ($decoded !== null) {
                 $alt = $snapshot;
                 $alt['finalized_route'] = json_encode($decoded);
-                return hash_equals($recordedHash, IntegrityManager::calculateStateHash($alt));
+                return hash_equals($recordedHash, HashChainMicroShardingBuilder::calculateStateHash($alt));
             }
         }
         return false;

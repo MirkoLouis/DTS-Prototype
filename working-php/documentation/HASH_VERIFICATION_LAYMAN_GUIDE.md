@@ -100,5 +100,5 @@ To avoid typing the PIN for every step during busy hours, the browser keeps a **
 | **SHA-256 Hash** | A one-way blender that turns data into a fixed 64-character recipe fingerprint. | **Integrity:** Proves data has not been modified since the fingerprint was generated. |
 | **Hash Recalculation** | Re-blending the raw table ingredients today and comparing the result to yesterday's fingerprint. | **Tamper Detection:** Catches direct SQL modifications to text, dates, or user IDs. |
 | **Ed25519 Digital Signature** | Pressing a personal wax stamp onto a specific sentence using a PIN-unlocked key. | **Authenticity & Non-Repudiation:** Proves *which specific user* approved the document state. |
-| **Active Guard** | Checking fingerprints *before* allowing the next user to receive or work on a document. | **Real-Time Protection:** Immediately freezes tampered documents before bad data spreads. |
+| **Pre-action integrity check** | Checking fingerprints *before* allowing the next user to receive or work on a document. | **Real-Time Protection:** Immediately freezes tampered documents before bad data spreads. |
 | **Chain-Head Checkpoint** | A signed list of every notebook's last page, kept outside the database. | **Deletion Detection:** Catches removal of the newest entries, which a hash chain alone cannot notice. |

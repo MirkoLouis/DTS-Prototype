@@ -3,7 +3,7 @@
 namespace Tests\Workflow;
 
 use App\Core\Database;
-use App\Core\IntegrityManager;
+use App\Integrity\DigitalSignature;
 use App\Core\TrackingCode;
 use App\Jobs\IntegrityCheckJob;
 use Tests\TestCase;
@@ -140,10 +140,10 @@ class SeederDuplicateRetryTest extends TestCase
         return $result;
     }
 
-    // Empty IntegrityManager's private static key-history cache
+    // Empty DigitalSignature's private static key-history cache
     private function resetKeyCache(): void
     {
-        IntegrityManager::clearKeyCache();
+        DigitalSignature::clearKeyCache();
     }
 
     // Queue and run one audit exactly as the System Health page does, and return its results

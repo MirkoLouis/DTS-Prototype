@@ -4,7 +4,8 @@ namespace App\Jobs;
 
 use App\Core\Config;
 use App\Core\Database;
-use App\Core\IntegrityManager;
+use App\Integrity\DigitalSignature;
+use App\Integrity\HashChainMicroShardingBuilder;
 
 /**
  * Chain-head checkpoints: external evidence for the per-document hash chains.
@@ -52,9 +53,9 @@ class ChainCheckpointJob
         }
 
         // Root over the ordered head list, signed together with the checkpoint time
-        $createdAt = (new \DateTimeImmutable('now', new \DateTimeZone(IntegrityManager::APP_TIMEZONE)))->format('Y-m-d H:i:s');
+        $createdAt = (new \DateTimeImmutable('now', new \DateTimeZone(HashChainMicroShardingBuilder::APP_TIMEZONE)))->format('Y-m-d H:i:s');
         $root = hash('sha256', json_encode($heads, self::JSON_FLAGS));
-        $signature = IntegrityManager::signAsSystem("checkpoint|{$createdAt}|{$root}");
+        $signature = DigitalSignature::signAsSystem("checkpoint|{$createdAt}|{$root}");
 
         // Write the checkpoint file
         if (!is_dir(self::directory())) {

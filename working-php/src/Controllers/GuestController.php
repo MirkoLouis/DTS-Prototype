@@ -3,7 +3,6 @@
 namespace App\Controllers;
 
 use App\Core\Database;
-use App\Core\IntegrityManager;
 use App\Core\Validator;
 use chillerlan\QRCode\QRCode;
 use chillerlan\QRCode\QROptions;

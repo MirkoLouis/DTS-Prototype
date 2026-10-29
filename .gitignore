@@ -167,6 +167,7 @@ homestead.vagrant
 /working-php/storage/checkpoints-test/
 
 # Thesis manuscript working files (kept local, not versioned)
+/Manuscript Revisions.md
 /Manuscript Revisions (M1-M6).txt
 /Manuscript Revisions (M7-M20).md
 /Copy of WORKING.md

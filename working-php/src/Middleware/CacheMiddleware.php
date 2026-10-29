@@ -69,7 +69,7 @@ class CacheMiddleware
 
         // Do not serve or create cache if there are pending flash messages
         if (isset($_SESSION['success']) || isset($_SESSION['error']) || isset($_SESSION['info'])
-            || isset($_SESSION[\App\Core\SecurityHelper::SESSION_ISSUED]) || isset($_SESSION[\App\Core\SecurityHelper::SESSION_CLEAR])) {
+            || isset($_SESSION[\App\Security\SecurityPinCache::SESSION_ISSUED]) || isset($_SESSION[\App\Security\SecurityPinCache::SESSION_CLEAR])) {
             return;
         }
 

@@ -2,7 +2,7 @@
 
 How the DepEd Iligan Document Tracking System (DTS) seals workflow history, why that design is proportionate for administrative documents, and how it differs from “just encryption.”
 
-Implementation reference (active codebase): `working-php/src/Core/IntegrityManager.php`, `working-php/src/Policies/DocumentPolicy.php`, `working-php/src/Services/DocumentWorkflowService.php`.
+Implementation reference (active codebase): `working-php/src/Integrity/HashChainMicroShardingBuilder.php`, `working-php/src/Integrity/DigitalSignature.php`, `working-php/src/Integrity/PreActionIntegrityCheck.php`, `working-php/src/Policies/DocumentPolicy.php`, `working-php/src/Services/DocumentWorkflowService.php`.
 
 Related historical diagrams (Laravel-era reference): `backup-laravel/documentation/HASH_CHAIN_VISUALIZATION.md`.
 
@@ -12,7 +12,7 @@ Related historical diagrams (Laravel-era reference): `backup-laravel/documentati
 
 This is not ordinary application logging (“user X clicked Y”). Each document maintains its **own** hash chain in `document_logs`. Chains are independent on purpose: a integrity failure on one folder freezes that document’s workflow, not the entire division.
 
-Whenever a custody-relevant action occurs (Submitted, route finalized, Received, Processing Complete, Released, System Auto-Freeze), `IntegrityManager::createLog` builds a sealed log entry (log format v2) in five steps:
+Whenever a custody-relevant action occurs (Submitted, route finalized, Received, Processing Complete, Released, System Auto-Freeze), `HashChainMicroShardingBuilder::createLog` builds a sealed log entry (log format v2) in five steps:
 
 1. **State hash**: SHA-256 over critical document fields (tracking code, title, guest info, district, department, purpose, finalized route). This fingerprints *what* the document claimed to be at that moment.
 2. **Parent lookup**: the hash of the document's newest log entry (`genesis_hash` for the first entry). It is read *before* signing, because the signature binds it.
@@ -20,9 +20,9 @@ Whenever a custody-relevant action occurs (Submitted, route finalized, Received,
 4. **Chain link**: the block hash is `sha256(json([document_id, user_id, action, epoch, previous_hash, state_hash, remarks, signature]))`. `epoch` is the Unix time of `created_at`, read explicitly in Asia/Manila time, so hashes do not depend on the server's timezone setting.
 5. **Snapshot**: the document payload is stored on the log so an admin can Auto-Resolve back to a known-good sealed state.
 
-Every writer (live workflow, seeders) and every verifier (integrity audit, hash debugger) builds these inputs through the same helpers: `IntegrityManager::signedMessage`, `chainHash` and `logTimestamp`.
+Every writer (live workflow, seeders) and every verifier (integrity audit, hash debugger) builds these inputs through the same helpers: `HashChainMicroShardingBuilder::signedMessage`, `chainHash` and `logTimestamp`.
 
-Before staff or officers can mutate a document, `DocumentPolicy::process` (and related manage checks) run **Active Guard**: recompute the live state hash and compare it to the last sealed `document_state_hash`. On mismatch, the system auto-freezes the document. Verification is operational at the next handoff, not deferred to a nightly audit.
+Before staff or officers can mutate a document, `DocumentPolicy::process` (and related manage checks) run the **pre-action integrity check**: recompute the live state hash and compare it to the last sealed `document_state_hash`. On mismatch, the system automatically freezes the document. Verification is operational at the next handoff, not deferred to a nightly audit.
 
 The full integrity audit (`IntegrityCheckJob`) re-derives every chain hash, verifies every signature against the key that was active at the time, compares live state, and checks the newest **chain-head checkpoint**. The checkpoint is a signed file in `storage/checkpoints/` listing every document's newest hash, written daily by the worker or manually with `php scripts/create-checkpoint.php`. If a listed hash no longer exists, entries were deleted. The audit only *reports*; freezing flagged documents stays an administrator decision ("Freeze All").
 
@@ -35,23 +35,23 @@ The full integrity audit (`IntegrityCheckJob`) re-derives every chain hash, veri
 | Receive | QR scan at department | Signed receive on current state |
 | Complete | Staff finishes step | Signed completion; chain advances |
 | Release | Officer releases | Signed completion of custody |
-| Tamper detected | Active Guard | System Auto-Freeze (halt workflow, signed by the server key) |
+| Tamper detected | Pre-action integrity check | System Auto-Freeze (halt workflow, signed by the server key) |
 
 ### Implementer map
 
 | Component | Role |
 | :--- | :--- |
-| `IntegrityManager::calculateStateHash` | Fingerprint of critical document fields |
-| `IntegrityManager::signedMessage` / `chainHash` / `logTimestamp` | The single definition of log format v2 |
-| `IntegrityManager::signAction` / `signAsSystem` | Ed25519 attestation by a user (PIN) or the server key |
-| `IntegrityManager::verifySignature` / `publicKeyAt` | Verify against the key active at the log's time |
-| `IntegrityManager::createLog` | Append hash-chained, signed log + snapshot |
-| `IntegrityManager::verifyCurrentState` | Live row vs last sealed state hash |
-| `IntegrityManager::autoFreeze` | Halt workflow on mismatch |
-| `DocumentPolicy::process` / `manage` | Active Guard before mutating actions |
+| `HashChainMicroShardingBuilder::calculateStateHash` | Fingerprint of critical document fields |
+| `HashChainMicroShardingBuilder::signedMessage` / `chainHash` / `logTimestamp` | The single definition of log format v2 |
+| `DigitalSignature::signAction` / `signAsSystem` | Ed25519 attestation by a user (PIN) or the server key |
+| `DigitalSignature::verifySignature` / `publicKeyAt` | Verify against the key active at the log's time |
+| `HashChainMicroShardingBuilder::createLog` | Append hash-chained, signed log + snapshot |
+| `PreActionIntegrityCheck::passes` | Live row vs last sealed state hash |
+| `PreActionIntegrityCheck::freezeTampered` | Halt workflow on mismatch |
+| `DocumentPolicy::process` / `manage` | Pre-action integrity check before mutating actions |
 | `ChainCheckpointJob` | Signed chain-head checkpoints; detects deleted entries |
 | `users.private_key` + PIN | Encrypted key wrap (confidentiality only) |
-| `SecurityHelper::resolvePin` | Encrypted, session-bound PIN-cache token (`PIN_CACHE_DURATION`) |
+| `SecurityPinCache::resolvePin` | Encrypted, session-bound PIN-cache token (`PIN_CACHE_DURATION`) |
 
 ---
 
@@ -70,7 +70,7 @@ A birth certificate is not “proof a person is real” in one magical form. It 
 
 Each step means: *this claim was accepted by this authority, at this time, under this identity*. Lose the chain and you lose the ability to prove the claim was not rewritten later.
 
-DepEd documents (appointments, payroll packets, school credentials, and similar administrative instruments) work the same way. Their value is not a status enum (`pending` → `processing` → `completed`). Their value is a **verifiable sequence of custody steps**. Hash chaining makes that sequence tamper-evident; signatures make steps attributable; Active Guard makes verification part of daily operations.
+DepEd documents (appointments, payroll packets, school credentials, and similar administrative instruments) work the same way. Their value is not a status enum (`pending` → `processing` → `completed`). Their value is a **verifiable sequence of custody steps**. Hash chaining makes that sequence tamper-evident; signatures make steps attributable; the pre-action integrity check makes verification part of daily operations.
 
 ### Proportionate design vs overengineering
 
@@ -83,7 +83,7 @@ Overengineering would look like public L1 blockchains, zero-knowledge proofs for
 | Seal / wet signature | Ed25519 + PIN |
 | Serial + prior stamps | `previous_hash` chain |
 | “Does this copy match the registry?” | state hash vs live row |
-| Impound forged packet | auto-freeze |
+| Impound forged packet | automatic freezing |
 | Reissue from registry copy | snapshot Auto-Resolve |
 
 The PIN is the digital wet-signature ceremony: the actor attests that a receive/complete happened while the folder matched the sealed state. Without that ceremony, the log is only a blog post the server wrote about itself.
@@ -117,7 +117,7 @@ A lone SHA-256 of a row is only a strong checksum. The protocol becomes cryptogr
 1. binds each step to prior steps (`previous_hash`)
 2. binds each step to document meaning (`document_state_hash`)
 3. binds each step to an identity (Ed25519 over document, action, time, parent hash, state and remarks)
-4. verifies that binding before further state changes (Active Guard)
+4. verifies that binding before further state changes (pre-action integrity check)
 
 Those four bindings deliver integrity, authenticity, and practical non-repudiation. Encryption never enters those steps — it only protects the pen (private key) so it is not left on the desk.
 

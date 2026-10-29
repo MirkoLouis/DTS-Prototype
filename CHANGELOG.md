@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-10-29 06:45
+
+**Version:** 2.4.0-Release+202610290645
+
+### Changed
+- Core modules renamed so each file name says what it does and matches the module names in the paper. Code moved verbatim; log format v2 (`signedMessage`, `chainHash`, `calculateStateHash`) is byte-identical and existing chains still verify:
+    - `Core/IntegrityManager` (constants, `calculateStateHash`, `logTimestamp`, `signedMessage`, `chainHashInput`, `chainHash`, `createLog`) → `Integrity/HashChainMicroShardingBuilder` (SHA-256 hash-chain micro-sharding builder)
+    - `Core/IntegrityManager` (`signAsSystem`, `decryptPrivateKey`, `signAction`, `publicKeyAt`, `verifySignature`, `clearKeyCache`) → `Integrity/DigitalSignature` (non-repudiation, Ed25519 + Argon2id)
+    - `Core/IntegrityManager::verifyCurrentState` → `Integrity/PreActionIntegrityCheck::passes` (pre-action integrity check)
+    - `Core/IntegrityManager::autoFreeze` → `Integrity/PreActionIntegrityCheck::freezeTampered` (automatic freezing of tampered documents)
+    - `Core/SecurityHelper` → `Security/SecurityPinCache` (same public API)
+    - `Services/RouteSuggestionService` → `Routing/HeuristicRouter` (heuristic routing); `RouteSuggestionServiceTest` → `HeuristicRouterTest`
+- New auto-freeze log entries read "Document automatically frozen by the pre-action integrity check due to an integrity mismatch detected during {reason}." instead of "...by the Trust Builder system...". Stored action strings (`System Auto-Freeze`, `ADMIN: …`, `Submitted`, …) are unchanged.
+
+### Added
+- `CoreModuleStructureTest`: golden vectors for log format v2, removal of the old classes, and the new freeze remark.
+
+### Removed
+- `Middleware/DocumentPolicyMiddleware.php` (unused). No compatibility shims for the old class names.
+
+## 2026-10-29 05:41
+
+**Version:** 2.3.0-Release+202610290541
+
+### Added
+- One results folder per run, `working-php/storage/test-results/<run_id>/`, plus a `latest` symlink that is replaced atomically. `ResultWriter::dir()` creates it once per process (`DTS_RESULTS_DIR` is exported to forked children and subprocesses; `DTS_RUN_ID` overrides the id).
+- PHPUnit extension (`tests/Support/Results/`) that writes `test-outcomes.csv` (one row per test), `summary.csv` (one row per suite plus `all`) and `run.json` (commit, PHP, CPU, RAM, arguments, file list) for every run; only the parent process writes them.
+- `ResultsExtensionTest` (runs PHPUnit on a three-test fixture suite) and `ResultWriterTest`.
+
+### Changed
+- `ResultWriter`, the benchmark (`benchmark.csv`), `composer replay` and `composer manual:live-concurrency` write into the run folder instead of the `storage/test-results/` root and `storage/benchmarks/`. An explicit replay output directory still wins. Existing CSVs are left in place.
+
 ## 2026-10-28 03:56
 
 **Version:** 2.2.0-Release+202610280356

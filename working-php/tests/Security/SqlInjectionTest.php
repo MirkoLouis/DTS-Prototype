@@ -3,7 +3,7 @@
 namespace Tests\Security;
 
 use App\Core\Database;
-use App\Core\IntegrityManager;
+use App\Integrity\DigitalSignature;
 use App\Jobs\IntegrityCheckJob;
 use Tests\Support\HttpClient;
 use App\Research\ResultWriter;
@@ -268,7 +268,7 @@ class SqlInjectionTest extends TestCase
     private function auditVerifiedPercentage(): float
     {
         // The audit reloads key history from the database, so clear the per-process cache first
-        IntegrityManager::clearKeyCache();
+        DigitalSignature::clearKeyCache();
 
         $db = Database::getInstance();
         $id = bin2hex(random_bytes(16));

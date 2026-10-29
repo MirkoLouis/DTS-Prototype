@@ -8,7 +8,7 @@ $_ENV['APP_ENV'] = 'testing';
 
 define('BASE_PATH', dirname(__DIR__));
 require BASE_PATH . '/vendor/autoload.php';
-date_default_timezone_set(\App\Core\IntegrityManager::APP_TIMEZONE);
+date_default_timezone_set(\App\Integrity\HashChainMicroShardingBuilder::APP_TIMEZONE);
 
 // Without .env.testing the config would be empty; stop before any connection is attempted
 if (!file_exists(BASE_PATH . '/.env.testing')) {
@@ -25,6 +25,9 @@ try {
     fwrite(STDERR, $e->getMessage() . "\n");
     exit(1);
 }
+
+// One results folder per run, exported so forked children and subprocesses inherit it
+\App\Research\ResultWriter::dir();
 
 // System-initiated log entries need the server key in .env.testing
 if ($config['app']['system_signing_secret'] === '') {

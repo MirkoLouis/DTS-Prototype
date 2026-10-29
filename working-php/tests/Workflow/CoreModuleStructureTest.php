@@ -1,0 +1,112 @@
+<?php
+
+namespace Tests\Workflow;
+
+use App\Core\Database;
+use App\Integrity\DigitalSignature;
+use App\Integrity\HashChainMicroShardingBuilder;
+use App\Integrity\PreActionIntegrityCheck;
+use Tests\Support\Fixtures;
+use Tests\TestCase;
+
+/**
+ * Guards the 2.4.0 core-module rename: the paper's module names map to real classes, the old
+ * classes are gone, and log format v2 stays byte-identical to the values the old IntegrityManager produced.
+ */
+class CoreModuleStructureTest extends TestCase
+{
+    // Fixed document used by the golden vectors (non-ASCII and slashes exercise the JSON flags)
+    private function goldenDocument(): array
+    {
+        return [
+            'tracking_code' => 'DTS-2026-ÄB/1',
+            'title' => 'Payroll / März',
+            'guest_info' => json_encode(['name' => 'Juan Dela Cruz', 'email' => 'j@x.ph', 'phone' => '0917']),
+            'district' => 'North',
+            'department' => 'Cash Unit',
+            'purpose_id' => 7,
+            'finalized_route' => [['name' => 'Cash Unit'], ['name' => 'Records Unit']],
+        ];
+    }
+
+    // Old class names must no longer resolve, so no hidden shim exists
+    public function test_old_classes_are_removed(): void
+    {
+        // Each retired class must be unknown to the autoloader
+        foreach (['App\Core\IntegrityManager', 'App\Core\SecurityHelper', 'App\Services\RouteSuggestionService', 'App\Middleware\DocumentPolicyMiddleware'] as $old) {
+            $this->assertFalse(class_exists($old), "{$old} should have been removed");
+        }
+    }
+
+    // Every new module exposes the methods the spec moves into it
+    public function test_new_modules_expose_moved_methods(): void
+    {
+        $expected = [
+            HashChainMicroShardingBuilder::class => ['calculateStateHash', 'logTimestamp', 'signedMessage', 'chainHashInput', 'chainHash', 'createLog'],
+            DigitalSignature::class => ['signAsSystem', 'decryptPrivateKey', 'signAction', 'publicKeyAt', 'verifySignature', 'clearKeyCache'],
+            PreActionIntegrityCheck::class => ['passes', 'freezeTampered'],
+            'App\Security\SecurityPinCache' => ['resolvePin'],
+            'App\Routing\HeuristicRouter' => ['suggest', 'learnedRoute'],
+        ];
+
+        // Check each class and each of its methods
+        foreach ($expected as $class => $methods) {
+            $this->assertTrue(class_exists($class), "{$class} is missing");
+            foreach ($methods as $method) {
+                $this->assertTrue(method_exists($class, $method), "{$class}::{$method} is missing");
+            }
+        }
+
+        // Public constants keep their values
+        $this->assertSame('Asia/Manila', HashChainMicroShardingBuilder::APP_TIMEZONE);
+        $this->assertSame('genesis_hash', HashChainMicroShardingBuilder::GENESIS_HASH);
+        $this->assertSame('pt1.', \App\Security\SecurityPinCache::TOKEN_PREFIX);
+    }
+
+    // Golden vectors computed with the pre-rename IntegrityManager: log format v2 must not change
+    public function test_log_format_v2_is_byte_identical(): void
+    {
+        $stateHash = HashChainMicroShardingBuilder::calculateStateHash($this->goldenDocument());
+        $this->assertSame('be5ffcca318b6a33b12b8858118f5955dd094389e47b165fd7470579c00c4204', $stateHash);
+
+        $epoch = HashChainMicroShardingBuilder::logTimestamp('2026-03-01 08:15:30');
+        $this->assertSame(1772324130, $epoch);
+
+        $this->assertSame(
+            '[42,"ADMIN: Document frozen.",1772324130,"genesis_hash","' . $stateHash . '","Remarks / ñ \"q\""]',
+            HashChainMicroShardingBuilder::signedMessage(42, 'ADMIN: Document frozen.', $epoch, 'genesis_hash', $stateHash, 'Remarks / ñ "q"')
+        );
+        $this->assertSame(
+            '1d3a78bbc2a31d9e492201e9e1498510cbe61314a71a08a3c6f0059ee021667a',
+            HashChainMicroShardingBuilder::chainHash(42, null, 'System Auto-Freeze', $epoch, 'genesis_hash', $stateHash, 'Remarks / ñ', 'c2ln')
+        );
+        $this->assertSame(
+            'e1aac74e35ebf7e4227550ed4ccf061ec16612171fad26f49e12d4612a370650',
+            HashChainMicroShardingBuilder::chainHash(42, 5, 'Submitted', $epoch, 'abc', $stateHash, 'r', 'c2ln')
+        );
+    }
+
+    // A tampered row fails the pre-action check, and freezing writes a signed log with the new remark wording
+    public function test_tampered_document_is_frozen_with_new_remark(): void
+    {
+        $db = Database::getInstance();
+        $s = Fixtures::submit();
+        $db->query('UPDATE documents SET title = :t WHERE id = :id', [':t' => 'Tampered', ':id' => $s['id']]);
+        $doc = $db->query('SELECT * FROM documents WHERE id = :id', [':id' => $s['id']])->fetch();
+
+        // Detect the mismatch and freeze
+        $this->assertFalse(PreActionIntegrityCheck::passes($doc));
+        PreActionIntegrityCheck::freezeTampered($doc, 'Pre-Action Verification');
+
+        // The stored action string is unchanged; only the remark wording is new
+        $log = $db->query('SELECT * FROM document_logs WHERE document_id = :id ORDER BY id DESC LIMIT 1', [':id' => $s['id']])->fetch();
+        $this->assertSame('System Auto-Freeze', $log['action']);
+        $this->assertSame('Document automatically frozen by the pre-action integrity check due to an integrity mismatch detected during Pre-Action Verification.', $log['remarks']);
+        $this->assertSame('frozen', $db->query('SELECT status FROM documents WHERE id = :id', [':id' => $s['id']])->fetch()['status']);
+
+        // The freeze entry verifies against the system key
+        DigitalSignature::clearKeyCache();
+        $message = HashChainMicroShardingBuilder::signedMessage((int) $s['id'], $log['action'], HashChainMicroShardingBuilder::logTimestamp($log['created_at']), $log['previous_hash'], $log['document_state_hash'], $log['remarks']);
+        $this->assertTrue(DigitalSignature::verifySignature(null, $log['created_at'], $message, $log['signature'])['valid']);
+    }
+}

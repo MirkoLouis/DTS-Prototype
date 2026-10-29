@@ -1,16 +1,22 @@
 <?php
 
-namespace App\Core;
+namespace App\Security;
+
+use App\Core\AttemptThrottle;
+use App\Core\Config;
+use App\Core\Database;
+use App\Integrity\DigitalSignature;
 
 /**
- * Security PIN resolution and the encrypted browser-side PIN cache.
+ * Security PIN cache (part of the non-repudiation module, Ed25519 + Argon2id): resolves the submitted
+ * Security PIN and keeps the encrypted, session-bound browser-side PIN cache.
  *
  * The browser never stores the PIN. After the first correct PIN entry the server issues a
  * token: the PIN sealed with XSalsa20-Poly1305 (sodium secretbox) under a random key that
  * exists only in this user's PHP session. The token is useless after logout (key destroyed),
  * for another user (user ID is sealed inside), or after PIN_CACHE_DURATION seconds.
  */
-class SecurityHelper
+class SecurityPinCache
 {
     // Prefix that distinguishes a cached PIN token from a typed PIN
     public const TOKEN_PREFIX = 'pt1.';
@@ -49,7 +55,7 @@ class SecurityHelper
             return $submittedPin;
         }
 
-        // While timed out, neither verify nor count the PIN; IntegrityManager::signAction() refuses it
+        // While timed out, neither verify nor count the PIN; DigitalSignature::signAction() refuses it
         $throttleKey = AttemptThrottle::key('pin', (string) $userId);
         if (AttemptThrottle::secondsLocked($throttleKey, time()) > 0) {
             return $submittedPin;
@@ -82,7 +88,7 @@ class SecurityHelper
 
         // decryptPrivateKey throws on a wrong PIN
         try {
-            IntegrityManager::decryptPrivateKey($user['private_key'], $pin);
+            DigitalSignature::decryptPrivateKey($user['private_key'], $pin);
             return true;
         } catch (\Exception $e) {
             return false;

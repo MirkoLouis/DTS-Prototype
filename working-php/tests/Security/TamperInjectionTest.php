@@ -3,7 +3,7 @@
 namespace Tests\Security;
 
 use App\Core\Database;
-use App\Core\IntegrityManager;
+use App\Integrity\DigitalSignature;
 use App\Jobs\ChainCheckpointJob;
 use App\Jobs\IntegrityCheckJob;
 use App\Models\User;
@@ -18,7 +18,7 @@ use Tests\TestCase;
 /**
  * Tamper-injection matrix: direct-database tactics against a completed lifecycle document.
  *
- * For each tactic it records whether the Active Guard (DocumentPolicy::process) blocks and freezes
+ * For each tactic it records whether the pre-action integrity check (DocumentPolicy::process) blocks and freezes
  * the document, and whether a fresh IntegrityCheckJob audit flags the document, one of its log
  * entries or the checkpoint. A mismatch on a non-null expectation is a finding and fails the case;
  * null expectations are observe-only. Rows go to storage/test-results/tamper-matrix.csv.
@@ -41,7 +41,7 @@ class TamperInjectionTest extends TestCase
         }
 
         // The real audit runs in a fresh runner.php process, so start with an empty key-history cache
-        IntegrityManager::clearKeyCache();
+        DigitalSignature::clearKeyCache();
     }
 
     /**
@@ -90,7 +90,7 @@ class TamperInjectionTest extends TestCase
         // 3. The tactic, with raw PDO
         Tamper::{self::method($tactic)}(Database::getInstance()->getConnection(), $document['id']);
 
-        // 4 and 5. Active Guard first (as on the next user action), then a fresh audit
+        // 4 and 5. Pre-action integrity check first (as on the next user action), then a fresh audit
         $detectedGuard = $this->guardDetects($document['id']);
         [$detectedAudit, $channels] = $this->auditDetects($document['id'], $document['tracking_code']);
 
@@ -135,7 +135,7 @@ class TamperInjectionTest extends TestCase
         $this->record('none_untouched_control', 'none', false, $guardAlarms > 0, false, $flagged > 0);
 
         // Whole-system figures the System Health page shows
-        $this->assertSame(0, $guardAlarms, 'Active Guard flagged an untouched document');
+        $this->assertSame(0, $guardAlarms, 'Pre-action integrity check flagged an untouched document');
         $this->assertEquals(100.0, $results['verified_percentage']);
         $this->assertSame(0, $results['invalid_logs']);
         $this->assertSame(0, $results['invalid_signatures']);

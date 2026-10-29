@@ -48,7 +48,8 @@ Framework-heavy commercial solutions often impose recurring license fees, propri
 +---------------------------------------v---------------------------------------+
 |                            VANILLA PHP 8.3 CORE                               |
 |  Front Controller (index.php) -> Custom Regex Router -> Middleware Pipeline    |
-|  [Auth Guard] -> [RBAC Guard] -> [Active Guard Policy] -> [Response Cache]    |
+|  [Auth Guard] -> [RBAC Guard] -> [Pre-Action Integrity Check Policy] ->       |
+|  [Response Cache]                                                             |
 +-------------------+---------------------------------------+-------------------+
                     |                                       |
 +-------------------v-------------------+       +-----------v-------------------+
@@ -85,7 +86,7 @@ The background daemon (`console.php`) operates without relying on host system `c
 
 *Target Audience: Cryptographers, Security Auditors, Information Security Officers, Compliance Officers.*
 
-### Key Message: Provenance by Design, Cryptographic Binding, and Active Guard Enforcement
+### Key Message: Provenance by Design, Cryptographic Binding, and Pre-Action Integrity Check Enforcement
 
 ```
 +-----------------------------------------------------------------------------------+
@@ -122,7 +123,7 @@ Unlike public blockchains (e.g., Ethereum, Hyperledger) that suffer from global 
 - **Performance:** Appending a log entry requires zero cross-document locking, executing in **< 1 millisecond**.
 - **Failure Isolation:** If a single document's history is tampered with, only that document's workflow is frozen; the rest of the agency continues operating normally.
 
-#### 4. The "Active Guard" Protocol & Automated Containment
+#### 4. The "Pre-Action Integrity Check" Protocol & Automated Containment
 Security verification is not deferred to an offline audit script; it is embedded directly into daily operational workflows:
 1. **Pre-Action Verification:** Before any state-mutating operation (`Intake`, `Receive`, `Complete Task`, `Release`), `DocumentPolicy` recomputes the live document state hash and compares it against the last cryptographically sealed state hash in `document_logs`.
 2. **System Auto-Freeze:** If the live row does not match the sealed hash (indicating direct database manipulation or tampering), the system **instantly freezes the document**, appends a system-signed freeze block to the log, and denies the user's action.
@@ -214,7 +215,7 @@ Citizens have full visibility into how long their document has been at its curre
 | **Trust Model** | Physical trust / Signatures | Policy-Based (Trusted DB Admin) | **Mathematical-Based (Cryptographic Proofs)** |
 | **Audit Trail Mechanism** | Handwritten Ledgers | Standard DB `created_at` logs | **SHA-256 Micro-Sharded Hash-Chains** |
 | **Non-Repudiation** | Wet Signatures | Simple User Login Sessions | **Ed25519 Elliptic Curve Signatures (PIN-gated)** |
-| **Tamper Detection** | Physical Inspection | None (DB records easily altered) | **Active Guard (Real-Time Pre-Action JIT Verification)** |
+| **Tamper Detection** | Physical Inspection | None (DB records easily altered) | **Pre-Action Integrity Check (Real-Time Pre-Action JIT Verification)** |
 | **Tamper Recovery** | Manual Re-entry | Database Restores (Data Loss) | **1-Click Snapshot Auto-Resolve (Zero Data Loss)** |
 | **High-Volume Concurrency** | Physical Bottleneck | Vulnerable to Race Conditions | **Optimistic Versioning under InnoDB Row Locks** |
 | **Framework Overhead** | N/A | High (Laravel/Symfony Bootstrap) | **Zero (Pure Vanilla PHP 8.3 & Native PDO)** |
