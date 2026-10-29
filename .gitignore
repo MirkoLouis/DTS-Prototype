@@ -171,3 +171,6 @@ homestead.vagrant
 /Manuscript Revisions (M1-M6).txt
 /Manuscript Revisions (M7-M20).md
 /Copy of WORKING.md
+
+# Private legacy DTS export (DepEd data): local only, never committed
+/from_dts/
