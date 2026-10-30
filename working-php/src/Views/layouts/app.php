@@ -16,7 +16,7 @@ if (isset($_SESSION['info'])) {
 }
 
 if (isset($_SESSION['user_id'])) {
-    $notifService = new \App\Core\NotificationService();
+    $notifService = new \App\Modules\Notifications\NotificationService();
     
     // Convert flash alerts into persistent notifications for this user
     foreach ($sessionAlerts as $alert) {

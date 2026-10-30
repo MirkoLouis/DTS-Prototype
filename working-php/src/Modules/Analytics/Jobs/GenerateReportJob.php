@@ -83,7 +83,7 @@ class GenerateReportJob
             ]);
 
             // Dispatch notification to user for header bell and toasts
-            $notifService = new \App\Core\NotificationService();
+            $notifService = new \App\Modules\Notifications\NotificationService();
             $notifService->notifyUser(
                 $this->userId,
                 'Report Ready',
@@ -105,7 +105,7 @@ class GenerateReportJob
                 'id' => $this->reportJobId
             ]);
 
-            $notifService = new \App\Core\NotificationService();
+            $notifService = new \App\Modules\Notifications\NotificationService();
             $notifService->notifyUser(
                 $this->userId,
                 'Report Generation Failed',

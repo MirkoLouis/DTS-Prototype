@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Core;
+namespace App\Modules\Notifications;
 
 use PDO;
 use App\Common\Database\Database;

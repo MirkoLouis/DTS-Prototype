@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Controllers;
+namespace App\Modules\Notifications;
 
-use App\Core\NotificationService;
+use App\Modules\Notifications\NotificationService;
 
 class NotificationController
 {

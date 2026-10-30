@@ -60,6 +60,8 @@ class CoreModuleStructureTest extends TestCase
             // 2.6.0: System
             'App\Controllers\SystemHealthController', 'App\Controllers\BackupManagerController', 'App\Services\DatabasePerformanceService',
             'App\Jobs\CreateBackupJob', 'App\Jobs\RestoreBackupJob',
+            // 2.6.0: Notifications
+            'App\Controllers\NotificationController', 'App\Core\NotificationService',
         ];
         foreach ($retired as $old) {
             $this->assertFalse(class_exists($old), "{$old} should have been removed");
@@ -125,6 +127,9 @@ class CoreModuleStructureTest extends TestCase
             'App\Modules\System\DatabasePerformanceService' => [],
             'App\Modules\System\Jobs\CreateBackupJob' => [],
             'App\Modules\System\Jobs\RestoreBackupJob' => [],
+            // 2.6.0: Notifications
+            'App\Modules\Notifications\NotificationController' => [],
+            'App\Modules\Notifications\NotificationService' => [],
         ];
 
         // Check each class and each of its methods
