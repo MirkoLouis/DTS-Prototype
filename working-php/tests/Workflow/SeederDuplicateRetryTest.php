@@ -124,7 +124,7 @@ class SeederDuplicateRetryTest extends TestCase
         // Replace the memoized config with one whose app.env is $env, then exercise both override paths
         $code = 'define("BASE_PATH", ' . var_export(BASE_PATH, true) . ');'
             . 'require BASE_PATH . "/vendor/autoload.php";'
-            . '$cfg = require BASE_PATH . "/src/Common/Config/config.php";'
+            . '$cfg = require BASE_PATH . "/src/Common/Config/app.config.php";'
             . '$cfg["app"]["env"] = ' . var_export($env, true) . ';'
             . '$p = new ReflectionProperty(App\Common\Config\Config::class, "config"); $p->setValue(null, $cfg);'
             . '$first = App\Modules\Documents\TrackingCodeUtil::generate(); $second = App\Modules\Documents\TrackingCodeUtil::generate();'

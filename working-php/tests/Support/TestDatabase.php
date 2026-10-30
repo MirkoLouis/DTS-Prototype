@@ -66,7 +66,7 @@ class TestDatabase
     private static function guardedDb(): Database
     {
         // Check the same values the connection is about to use, before connecting
-        $config = require BASE_PATH . '/src/Common/Config/config.php';
+        $config = require BASE_PATH . '/src/Common/Config/app.config.php';
         TestGuard::assertSafe((string) $config['app']['env'], (string) $config['database']['dbname']);
 
         return Database::getInstance();

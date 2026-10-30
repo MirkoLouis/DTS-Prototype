@@ -110,7 +110,7 @@ class PerformanceBenchmarkTest extends TestCase
     public function test_operations_meet_sub_second_target(): void
     {
         // Same guard as the rest of the suite: never touch a non-test database
-        $config = require BASE_PATH . '/src/Common/Config/config.php';
+        $config = require BASE_PATH . '/src/Common/Config/app.config.php';
         TestGuard::assertSafe((string) $config['app']['env'], (string) $config['database']['dbname']);
 
         $docsTarget = self::knob('BENCH_DOCS', 1000000);

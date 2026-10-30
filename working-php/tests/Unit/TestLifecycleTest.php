@@ -23,7 +23,7 @@ class TestLifecycleTest extends TestCase
     protected function setUp(): void
     {
         // Same server and credentials as the suite, but a separate throwaway database name
-        $config = require BASE_PATH . '/src/Common/Config/config.php';
+        $config = require BASE_PATH . '/src/Common/Config/app.config.php';
         $this->config = $config['database'];
         $this->config['dbname'] = self::THROWAWAY_DB;
     }
