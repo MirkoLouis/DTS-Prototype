@@ -134,7 +134,7 @@ Comprehensive user manuals are provided in [working-php/documentation/user_manua
 | `composer run test` / `test:security` / `test:concurrency` | PHPUnit suites, see [Testing](#-testing-working-php). |
 | `composer run bench` | Performance benchmark (state/chain hashing, log reads, pre-action integrity check, Argon2id, AES unwrap, Ed25519, HTTP timings); writes `benchmark.csv` into the run folder under `storage/test-results/`. Replaces the former `benchmark-crypto.php`. |
 | `composer run replay -- <csv>` | Runs [scripts/route-replay.php](working-php/scripts/route-replay.php) to replay the legacy routing export against the route suggester. |
-| `scripts/migrations/*.sql` | One-off SQL migrations for existing databases (see the migration notice under Testing). |
+| `scripts/migrations/master-migration.sql` | The single, idempotent migration for existing databases; new schema changes are appended to it (see the migration notice under Testing). |
 
 ---
 
@@ -187,7 +187,7 @@ Not applicable on an offline LAN (`ThreatActor::NOT_APPLICABLE`): botnet DDoS, i
 
 **Known limitation: the fully privileged insider.** The audit trail is tamper-evident, not tamper-proof. Anyone without the users' PINs and the server signing key cannot alter, delete or reorder log entries undetected. However, the tamper matrix shows that someone with database access can register their own key pair in `user_public_key_histories` and append a properly signed entry, and nothing detects it, because public keys are trusted from the same database. Someone who also controls the server holds the server signing key and can re-sign entries and checkpoints. No mechanism stored on the same machine can detect such an insider. The defence is organizational: separation of duties between server and database administration, restricted and logged administrator access, and copying the daily signed checkpoint (`storage/checkpoints/`) off the server. Certifying user public keys with an offline key is future work.
 
-**Migration notice.** Existing databases must run `working-php/scripts/migrations/2026_10_27_add_attempt_throttles.sql` to enable login and PIN attempt limiting (3 failures within 1 minute trigger a 1-minute timeout). Until it is run, limiting is off and a line is written to `error_log` (fail-open). Fresh databases built from `database.sql` already include the table.
+**Migration notice.** Existing databases must run `working-php/scripts/migrations/master-migration.sql` to enable login and PIN attempt limiting (3 failures within 1 minute trigger a 1-minute timeout). Until it is run, limiting is off and a line is written to `error_log` (fail-open). Fresh databases built from `database.sql` already include the table.
 
 **Fixed findings.** F1 (finalizing a route accepted an unknown department), F2 (staff could view documents outside their route through `DocumentController::show`) and F3 (`CacheMiddleware` wrote cached pages non-atomically, so a cold-cache kiosk burst could get pages without a CSRF token) are fixed. The former finding tests remain as regression tests, and the default `vendor/bin/phpunit` ends with 0 failures.
 

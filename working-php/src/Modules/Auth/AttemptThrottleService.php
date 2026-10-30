@@ -117,6 +117,6 @@ class AttemptThrottleService
             throw $e;
         }
 
-        error_log('attempt_throttles table missing: run scripts/migrations/2026_10_27_add_attempt_throttles.sql');
+        error_log('attempt_throttles table missing: run scripts/migrations/master-migration.sql');
     }
 }
