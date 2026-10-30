@@ -42,6 +42,8 @@ class CoreModuleStructureTest extends TestCase
             // 2.6.0: Integrity
             'App\Integrity\HashChainMicroShardingBuilder', 'App\Integrity\DigitalSignature', 'App\Integrity\PreActionIntegrityCheck',
             'App\Controllers\IntegrityMonitorController', 'App\Jobs\IntegrityCheckJob', 'App\Jobs\ChainCheckpointJob', 'App\Events\IntegrityCheckFailed',
+            // 2.6.0: Routing
+            'App\Routing\HeuristicRouter',
         ];
         foreach ($retired as $old) {
             $this->assertFalse(class_exists($old), "{$old} should have been removed");
@@ -56,7 +58,7 @@ class CoreModuleStructureTest extends TestCase
             DigitalSignatureService::class => ['signAsSystem', 'decryptPrivateKey', 'signAction', 'publicKeyAt', 'verifySignature', 'clearKeyCache'],
             PreActionIntegrityService::class => ['passes', 'freezeTampered'],
             'App\Security\SecurityPinCache' => ['resolvePin'],
-            'App\Routing\HeuristicRouter' => ['suggest', 'learnedRoute'],
+            'App\Modules\Routing\HeuristicRoutingService' => ['suggest', 'learnedRoute'],
             // 2.6.0 layer-convention rename: Common
             'App\Common\Http\Router' => ['add', 'get', 'post', 'dispatch'],
             'App\Common\Database\Database' => [],

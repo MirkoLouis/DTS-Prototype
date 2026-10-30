@@ -2,10 +2,10 @@
 
 namespace App\Research;
 
-use App\Routing\HeuristicRouter;
+use App\Modules\Routing\HeuristicRoutingService;
 
 /**
- * Replays the legacy DTS routing export through HeuristicRouter.
+ * Replays the legacy DTS routing export through HeuristicRoutingService.
  * For every document it asks what the app would have suggested (the last finalized route
  * learned for the same purpose) and compares it with the route the Records Unit assigned.
  */
@@ -26,7 +26,7 @@ class RouteReplay
     /** Strategy keys reported side by side (static_hindsight looks ahead by design). */
     public const STRATEGIES = ['heuristic', 'none', 'frequent_so_far', 'static_hindsight'];
 
-    private HeuristicRouter $service;
+    private HeuristicRoutingService $service;
 
     /**
      * @param list<string> $recordsSections  names that mark the Records Unit step (R)
@@ -36,7 +36,7 @@ class RouteReplay
         private array $recordsSections = self::DEFAULT_RECORDS_SECTIONS,
         private array $trailingSections = self::DEFAULT_TRAILING_SECTIONS,
     ) {
-        $this->service = new HeuristicRouter();
+        $this->service = new HeuristicRoutingService();
     }
 
     /**

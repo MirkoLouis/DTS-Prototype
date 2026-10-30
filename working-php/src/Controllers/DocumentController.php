@@ -151,7 +151,7 @@ class DocumentController
         }
 
         // Official purposes get the stored route with the guest's unit injected; "Others" gets none
-        $suggestedRoute = (new \App\Routing\HeuristicRouter())->suggest(
+        $suggestedRoute = (new \App\Modules\Routing\HeuristicRoutingService())->suggest(
             ['is_official' => $document['is_official'] ?? 0, 'suggested_route' => $document['suggested_route'] ?? null],
             $document['department'] ?? null
         );

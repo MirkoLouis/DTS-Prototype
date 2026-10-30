@@ -5,7 +5,7 @@ namespace App\Services;
 use App\Common\Database\Database;
 use App\Modules\Integrity\DigitalSignatureService;
 use App\Modules\Integrity\HashChainService;
-use App\Routing\HeuristicRouter;
+use App\Modules\Routing\HeuristicRoutingService;
 use App\Core\TrackingCode;
 use App\Policies\DocumentPolicy;
 use App\Models\User;
@@ -223,7 +223,7 @@ class DocumentWorkflowService
 
             // Learn the route only for official purposes and only when it actually changed
             $learnedRoute = $purpose
-                ? (new HeuristicRouter())->learnedRoute($purpose, $routeNames, $document['department'] ?? null)
+                ? (new HeuristicRoutingService())->learnedRoute($purpose, $routeNames, $document['department'] ?? null)
                 : null;
             if ($learnedRoute !== null) {
                 $db->query("UPDATE purposes SET suggested_route = :route WHERE id = :id", [
