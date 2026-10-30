@@ -96,3 +96,23 @@ if (!function_exists('clear_form_flash')) {
         unset($_SESSION['old'], $_SESSION['field_errors']);
     }
 }
+
+if (!function_exists('document_message')) {
+    /**
+     * Prefix a toast message with the document's tracking code, unless the message already names it.
+     *
+     * Toasts are escaped when rendered (components/notification-alert.php), so the code is inserted as plain text.
+     *
+     * @param string $trackingCode
+     * @param string $message
+     * @return string
+     */
+    function document_message(string $trackingCode, string $message): string
+    {
+        // Leave messages without a known code, or that already name the document, unchanged
+        if ($trackingCode === '' || str_contains($message, $trackingCode)) {
+            return $message;
+        }
+        return "Document {$trackingCode}: {$message}";
+    }
+}

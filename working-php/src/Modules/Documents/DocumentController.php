@@ -77,7 +77,7 @@ class DocumentController
         }
 
         // Deny with a flash message and no document data in the response
-        $_SESSION['error'] = 'You do not have access to this document.';
+        $_SESSION['error'] = "You do not have access to document {$document['tracking_code']}.";
         header('Location: /dashboard');
         exit;
     }
@@ -112,19 +112,19 @@ class DocumentController
 
             case 'processing':
             case 'in_transit':
-                $_SESSION['info'] = "This document is already in process and cannot be intaked again.";
+                $_SESSION['info'] = "Document {$document['tracking_code']} is already in process and cannot be intaked again.";
                 header("Location: /intake");
                 exit;
 
             case 'ready_for_release':
             case 'completed':
             case 'declined':
-                $_SESSION['info'] = "This document has already been released, please check your tracking code again.";
+                $_SESSION['info'] = "Document {$document['tracking_code']} has already been released, please check your tracking code again.";
                 header("Location: /intake");
                 exit;
 
             default:
-                $_SESSION['error'] = "This document cannot be processed at this time. Its current status is: " . ucfirst($document['status']);
+                $_SESSION['error'] = "Document {$document['tracking_code']} cannot be processed at this time. Its current status is: " . ucfirst($document['status']);
                 header("Location: /intake");
                 exit;
         }
@@ -192,19 +192,21 @@ class DocumentController
             exit;
         }
 
+        // Resolve the tracking code first, so success and error toasts both name the document
+        $doc = \App\Modules\Documents\DocumentModel::findById((int)$id);
+        $trackingCode = $doc ? $doc->tracking_code : '';
+
         try {
             $workflow = new \App\Modules\Documents\DocumentWorkflowService();
             $officer = \App\Modules\Users\UserModel::findById($_SESSION['user_id']);
             $workflow->finalizeIntake((int)$id, $routeNames, $officer, $pin);
             
-            $doc = \App\Modules\Documents\DocumentModel::findById((int)$id);
-            $trackingCode = $doc ? $doc->tracking_code : '';
             $_SESSION['success'] = "Document {$trackingCode} accepted and is now in transit!";
         } catch (\Exception $e) {
             if (str_contains($e->getMessage(), 'Action Denied')) {
                 $_SESSION['console_error'] = $e->getMessage();
             } else {
-                $_SESSION['error'] = $e->getMessage();
+                $_SESSION['error'] = document_message($trackingCode, $e->getMessage());
             }
             header("Location: /documents/{$id}/manage");
             exit;
@@ -248,7 +250,7 @@ class DocumentController
             if (str_contains($e->getMessage(), 'Action Denied')) {
                 $_SESSION['console_error'] = $e->getMessage();
             } else {
-                $_SESSION['error'] = $e->getMessage();
+                $_SESSION['error'] = document_message($trackingCode, $e->getMessage());
             }
             header("Location: " . ($_SERVER['HTTP_REFERER'] ?? '/'));
         }
@@ -275,20 +277,25 @@ class DocumentController
             exit;
         }
 
+        // Resolve the tracking code first, so success and error toasts both name the document
+        $doc = \App\Modules\Documents\DocumentModel::findById((int)$documentId);
+        $trackingCode = $doc ? $doc->tracking_code : '';
+
         try {
             $workflow = new \App\Modules\Documents\DocumentWorkflowService();
             $officer = \App\Modules\Users\UserModel::findById($_SESSION['user_id']);
             
-            $doc = \App\Modules\Documents\DocumentModel::findById((int)$documentId);
-            $trackingCode = $doc ? $doc->tracking_code : '';
             $workflow->declineDocument((int)$documentId, $reason, $officer, $pin);
-            
+
+            // A declined document can no longer be managed, so leave its page for the role dashboard
             $_SESSION['success'] = "Document {$trackingCode} successfully declined.";
+            header('Location: /dashboard');
+            exit;
         } catch (\Exception $e) {
             if (str_contains($e->getMessage(), 'Action Denied')) {
                 $_SESSION['console_error'] = $e->getMessage();
             } else {
-                $_SESSION['error'] = $e->getMessage();
+                $_SESSION['error'] = document_message($trackingCode, $e->getMessage());
             }
         }
         

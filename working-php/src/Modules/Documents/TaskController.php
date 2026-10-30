@@ -25,18 +25,20 @@ class TaskController
 
         $currentUser = \App\Modules\Users\UserModel::findById($_SESSION['user_id'] ?? 0);
 
+        // Resolve the tracking code first, so success and error toasts both name the document
+        $doc = \App\Modules\Documents\DocumentModel::findById((int)$id);
+        $trackingCode = $doc ? $doc->tracking_code : '';
+
         try {
             $workflow = new \App\Modules\Documents\DocumentWorkflowService();
             $workflow->completeTask((int)$id, '', $currentUser, $pin);
             
-            $doc = \App\Modules\Documents\DocumentModel::findById((int)$id);
-            $trackingCode = $doc ? $doc->tracking_code : 'Unknown';
             $_SESSION['success'] = "Document $trackingCode is now in transit.";
         } catch (\Exception $e) {
             if (str_contains($e->getMessage(), 'Action Denied')) {
                 $_SESSION['console_error'] = $e->getMessage();
             } else {
-                $_SESSION['error'] = $e->getMessage();
+                $_SESSION['error'] = document_message($trackingCode, $e->getMessage());
             }
         }
         
