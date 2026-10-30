@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-10-30 16:54
+
+**Version:** 2.6.2-Release+202610301654
+
+### Fixed
+- Worker restarts no longer postpone scheduled tasks. The last-run time of each task (checkpoint, metrics sampling, backfill, rollup, cache cleanup, stale-document cleanup) is stored in the new `worker_schedule` table (`WorkerScheduleService`) instead of process memory. Before, every restart (including the planned re-exec after 100 jobs) pushed each daily task back 24 hours, so a worker that restarted more than once a day never wrote a checkpoint. A task that has never run is due immediately; after downtime a task runs once.
+- `composer run dev` keeps the worker running: a watchdog relaunches it within about 5 seconds if it exits, and Ctrl+C now stops the worker too. Before, the worker started with `&` ignored Ctrl+C and kept running, and a crashed worker stayed down. Workers are found by script path (`workerPids()`), so a worker after its planned re-exec (`/usr/bin/php8.x console.php`) is recognised and never duplicated.
+- The worker log is opened in append mode (`>>`), so logrotate's `copytruncate` can empty it without leaving a sparse file.
+
+### Added
+- `deploy/dts-worker.service` (systemd unit: start at boot, restart on exit) and `deploy/dts.logrotate` (worker log rotation).
+- README section "Running Continuously on Linux": what the app, the operating system and the administrator each keep bounded; installing the worker service; making sure logrotate and the PHP session cleaner actually run (systemd timers, or cron in containers, Distrobox and WSL); disk planning for what is kept forever. Admin manual section 4.5 states these deployment requirements.
+
+### Changed
+- Checkpoints are kept forever (documented): about 8.5 MB per day at 100,000 documents.
+
+### Upgrade note
+- Existing databases: run `scripts/migrations/master-migration.sql` (adds `worker_schedule`) before starting the new worker; without the table the worker exits at start-up.
+
 ## 2026-10-30 15:36
 
 **Version:** 2.6.1-Release+202610301536

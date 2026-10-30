@@ -1,0 +1,28 @@
+# =============================================================================
+# DTS queue worker (console.php) as a systemd service.
+# Keeps the worker running forever: starts at boot, restarts within 5 s after a crash.
+# Replace __PROJECT_ROOT__ (absolute path to working-php, preferably without spaces, e.g. /opt/dts/working-php)
+# and __USER__ (the account that owns the project files), then see README "Running continuously on Linux".
+# =============================================================================
+[Unit]
+Description=DepEd DTS queue worker (console.php)
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=__USER__
+WorkingDirectory=__PROJECT_ROOT__
+ExecStart=/usr/bin/php __PROJECT_ROOT__/console.php
+# Restart after a crash, an OOM kill or a database outage that made the worker exit
+Restart=always
+RestartSec=5
+# SIGTERM lets the worker finish its current job before it exits
+KillSignal=SIGTERM
+TimeoutStopSec=120
+# Append (not truncate) so logrotate's copytruncate works on worker.log
+StandardOutput=append:__PROJECT_ROOT__/storage/logs/worker.log
+StandardError=append:__PROJECT_ROOT__/storage/logs/worker.log
+
+[Install]
+WantedBy=multi-user.target
