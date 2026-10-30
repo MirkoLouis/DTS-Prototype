@@ -27,7 +27,9 @@ All notable changes to this project will be documented in this file.
 - Tests renamed with their subject: `HeuristicRoutingServiceTest`, `AttemptThrottleServiceTest`, `TrackingCodeUtilTest`. `CoreModuleStructureTest` checks that every old class name is gone and every new one exists.
 
 ### Upgrade note
-- Let the `jobs` queue empty and stop the worker before pulling this build: queued jobs store their class name, and a job queued under an old name fails with "Job class … not found". Restart `composer run dev` afterwards so PHP-FPM's OPcache is flushed.
+- Let the `jobs` queue empty and stop the worker before pulling this build: queued jobs store their class name, and a job queued under an old name fails with "Job class … not found".
+- After pulling, run `composer dump-autoload` (or `composer install`) in `working-php/`. `vendor/` is not committed, and the old autoloader still requires `src/helpers.php`, so every page and script fails until it is regenerated.
+- Then restart `composer run dev` so PHP-FPM's OPcache is flushed.
 
 ## 2026-10-29 09:36
 
