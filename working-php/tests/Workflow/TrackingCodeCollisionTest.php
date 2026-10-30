@@ -3,14 +3,14 @@
 namespace Tests\Workflow;
 
 use App\Common\Database\Database;
-use App\Core\TrackingCode;
-use App\Services\DocumentWorkflowService;
+use App\Modules\Documents\TrackingCodeUtil;
+use App\Modules\Documents\DocumentWorkflowService;
 use Tests\Support\Fixtures;
 use Tests\TestCase;
 
 /**
  * Test-only subclass: replaces the generator hook with a scripted sequence of codes.
- * Production code is unchanged; the hook just delegates to TrackingCode::generate().
+ * Production code is unchanged; the hook just delegates to TrackingCodeUtil::generate().
  */
 class ScriptedCodeWorkflowService extends DocumentWorkflowService
 {
@@ -44,7 +44,7 @@ class TrackingCodeCollisionTest extends TestCase
         // Succeeded with a different valid code and exactly one new row
         $after = (int) Database::getInstance()->query('SELECT COUNT(*) c FROM documents')->fetch()['c'];
         $this->assertNotSame($taken['tracking_code'], $result['tracking_code']);
-        $this->assertMatchesRegularExpression(TrackingCode::PATTERN, $result['tracking_code']);
+        $this->assertMatchesRegularExpression(TrackingCodeUtil::PATTERN, $result['tracking_code']);
         $this->assertSame($before + 1, $after);
     }
 
@@ -62,7 +62,7 @@ class TrackingCodeCollisionTest extends TestCase
 
         // Every code matches the pattern
         foreach ($codes as $code) {
-            $this->assertMatchesRegularExpression(TrackingCode::PATTERN, $code);
+            $this->assertMatchesRegularExpression(TrackingCodeUtil::PATTERN, $code);
         }
     }
 }

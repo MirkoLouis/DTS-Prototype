@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controllers;
+namespace App\Modules\Documents;
 
 use App\Common\Database\Database;
 use App\Common\Cache\Cache;
@@ -63,7 +63,7 @@ class DashboardController
      */
     public function adminAllDocuments()
     {
-        $queryService = new \App\Services\DocumentQueryService();
+        $queryService = new \App\Modules\Documents\DocumentQueryService();
         
         [$documents, $paginator] = $queryService->getPaginatedAdminDocuments($_GET);
         $allPurposes = $queryService->getAllPurposes();
@@ -96,7 +96,7 @@ class DashboardController
     public function officerIntake()
     {
         $officerId = $_SESSION['user_id'] ?? 0;
-        $queryService = new \App\Services\DocumentQueryService();
+        $queryService = new \App\Modules\Documents\DocumentQueryService();
         
         [$documents, $paginator] = $queryService->getPaginatedOfficerIntake($officerId, $_GET);
         $allPurposes = $queryService->getAllPurposes();
@@ -110,7 +110,7 @@ class DashboardController
     public function staffTasks()
     {
         $departmentId = $_SESSION['department_id'] ?? 0;
-        $queryService = new \App\Services\DocumentQueryService();
+        $queryService = new \App\Modules\Documents\DocumentQueryService();
         
         [$documents, $paginator] = $queryService->getPaginatedStaffTasks($departmentId, $_GET);
         $allPurposes = $queryService->getAllPurposes();
@@ -124,7 +124,7 @@ class DashboardController
     public function officerCompletedTasks()
     {
         $officerId = $_SESSION['user_id'] ?? 0;
-        $queryService = new \App\Services\DocumentQueryService();
+        $queryService = new \App\Modules\Documents\DocumentQueryService();
         
         [$documents, $paginator] = $queryService->getPaginatedOfficerCompletedTasks($officerId, $_GET);
         $allPurposes = $queryService->getAllPurposes();
@@ -137,7 +137,7 @@ class DashboardController
      */
     public function officerReleasing()
     {
-        $queryService = new \App\Services\DocumentQueryService();
+        $queryService = new \App\Modules\Documents\DocumentQueryService();
         
         [$documents, $paginator] = $queryService->getPaginatedOfficerReleasing($_GET);
         $allPurposes = $queryService->getAllPurposes();
@@ -156,7 +156,7 @@ class DashboardController
 
         if ($userRole === 'officer') {
             $departmentId = $_SESSION['department_id'] ?? 0;
-            $queryService = new \App\Services\DocumentQueryService();
+            $queryService = new \App\Modules\Documents\DocumentQueryService();
             
             [$documents, $paginator] = $queryService->getPaginatedStatistics($departmentId, $_GET);
             

@@ -1,5 +1,5 @@
 <?php
-namespace App\Services;
+namespace App\Modules\Documents;
 
 use App\Common\Database\Database;
 use App\Common\Cache\Cache;

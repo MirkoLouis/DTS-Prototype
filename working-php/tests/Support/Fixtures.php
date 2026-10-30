@@ -4,7 +4,7 @@ namespace Tests\Support;
 
 use App\Common\Database\Database;
 use App\Models\User;
-use App\Services\DocumentWorkflowService;
+use App\Modules\Documents\DocumentWorkflowService;
 use InvalidArgumentException;
 
 /**

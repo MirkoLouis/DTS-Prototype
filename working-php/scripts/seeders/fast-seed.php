@@ -7,7 +7,7 @@ use App\Common\Config\Config;
 use App\Common\Database\Database;
 use App\Modules\Integrity\DigitalSignatureService;
 use App\Modules\Integrity\HashChainService;
-use App\Core\TrackingCode;
+use App\Modules\Documents\TrackingCodeUtil;
 use App\Common\Middleware\CacheMiddleware;
 
 class WeightedNameGenerator {
@@ -476,7 +476,7 @@ function buildChunk(int $startIndex, int $count, array $ctx): array {
         $dept = $departments[array_rand($departments)];
         
         // CSPRNG code; uniqueness is enforced by the UNIQUE index at INSERT time (1062 triggers a rebuild)
-        $trackingCode = TrackingCode::generate();
+        $trackingCode = TrackingCodeUtil::generate();
         $person = $nameGenerator->getRandomPerson();
         $guestInfo = json_encode(['name' => $person['fullName'], 'email' => $person['email'], 'phone' => $person['phone']]);
         

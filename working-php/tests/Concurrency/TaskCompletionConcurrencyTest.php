@@ -5,7 +5,7 @@ namespace Tests\Concurrency;
 use App\Common\Database\Database;
 use App\Modules\Integrity\Jobs\IntegrityCheckJob;
 use App\Models\User;
-use App\Services\DocumentWorkflowService;
+use App\Modules\Documents\DocumentWorkflowService;
 use PHPUnit\Framework\Attributes\Group;
 use App\Research\Barrier;
 use Tests\Support\Fixtures;

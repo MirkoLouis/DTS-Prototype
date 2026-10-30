@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controllers;
+namespace App\Modules\Documents;
 
 use App\Common\Database\Database;
 
@@ -26,10 +26,10 @@ class ReleasingController
         $currentUser = \App\Models\User::findById($_SESSION['user_id'] ?? 0);
 
         try {
-            $workflow = new \App\Services\DocumentWorkflowService();
+            $workflow = new \App\Modules\Documents\DocumentWorkflowService();
             $workflow->releaseDocument((int)$id, $currentUser, $pin);
             
-            $doc = \App\Models\Document::findById((int)$id);
+            $doc = \App\Modules\Documents\DocumentModel::findById((int)$id);
             $trackingCode = $doc ? $doc->tracking_code : '';
             $_SESSION['success'] = "Document {$trackingCode} marked as completed and released.";
         } catch (\Exception $e) {

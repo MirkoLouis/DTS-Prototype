@@ -115,7 +115,7 @@ function runScheduledTasks(int &$lastSampleTime, int &$lastBackfillTime, int &$l
         $lastStaleCleanupTime = $now;
         echo "⏰ [Worker Scheduler] Running stale pending documents cleanup...\n";
         try {
-            $job = new \App\Jobs\CleanupStalePendingDocumentsJob();
+            $job = new \App\Modules\Documents\Jobs\CleanupStalePendingDocumentsJob();
             $expiredCount = $job->handle(3);
             echo "⏰ [Worker Scheduler] Stale pending cleanup finished. Expired {$expiredCount} document(s).\n";
         } catch (\Throwable $e) {

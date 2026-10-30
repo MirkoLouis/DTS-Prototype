@@ -176,7 +176,7 @@ class IntegrityCheckJob
                                 if (count($mismatchedDocumentTrackingCodes) < self::MAX_TRACKED_MISMATCHES) {
                                     $mismatchedDocumentTrackingCodes[] = $documentData['tracking_code'];
                                 }
-                                $documentObj = \App\Models\Document::findById($documentData['id']);
+                                $documentObj = \App\Modules\Documents\DocumentModel::findById($documentData['id']);
                                 EventDispatcher::dispatch(new IntegrityCheckFailedEvent($documentObj, 'Verification Scan'));
                             }
                         }

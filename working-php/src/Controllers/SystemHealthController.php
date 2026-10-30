@@ -291,7 +291,7 @@ class SystemHealthController
         }
 
         try {
-            $workflow = new \App\Services\DocumentWorkflowService();
+            $workflow = new \App\Modules\Documents\DocumentWorkflowService();
             $workflow->freezeDocument($tracking_code, $currentUser, $pin);
             
             $_SESSION['success'] = 'Document has been frozen successfully.';
@@ -321,7 +321,7 @@ class SystemHealthController
         }
 
         try {
-            $workflow = new \App\Services\DocumentWorkflowService();
+            $workflow = new \App\Modules\Documents\DocumentWorkflowService();
             $previousStatus = $workflow->unfreezeDocument($tracking_code, $currentUser, $pin);
             
             $_SESSION['success'] = "Document has been unfrozen and restored to " . ucfirst($previousStatus) . ".";
@@ -351,7 +351,7 @@ class SystemHealthController
         }
 
         $db = Database::getInstance();
-        $workflow = new \App\Services\DocumentWorkflowService();
+        $workflow = new \App\Modules\Documents\DocumentWorkflowService();
         
         $integrityCheckResult = [];
         if (file_exists(\App\Modules\Integrity\Jobs\IntegrityCheckJob::resultPath())) {
@@ -422,7 +422,7 @@ class SystemHealthController
         }
 
         try {
-            $workflow = new \App\Services\DocumentWorkflowService();
+            $workflow = new \App\Modules\Documents\DocumentWorkflowService();
             $previousStatus = $workflow->autoResolveDocument($tracking_code, $currentUser, $pin);
             $_SESSION['success'] = "Document auto-resolved successfully. Restored from snapshot and unfrozen (Status: " . ucfirst($previousStatus) . ").";
         } catch (\Exception $e) {

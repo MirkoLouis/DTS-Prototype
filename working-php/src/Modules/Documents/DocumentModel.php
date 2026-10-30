@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Models;
+namespace App\Modules\Documents;
 
 use App\Common\Database\Database;
 
-class Document
+class DocumentModel
 {
     public $id;
     public $tracking_code;

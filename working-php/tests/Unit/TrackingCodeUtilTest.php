@@ -2,24 +2,24 @@
 
 namespace Tests\Unit;
 
-use App\Core\TrackingCode;
+use App\Modules\Documents\TrackingCodeUtil;
 use PHPUnit\Framework\TestCase;
 
-class TrackingCodeTest extends TestCase
+class TrackingCodeUtilTest extends TestCase
 {
     // Every generated code must match the agreed DEPED-XXXXXXXXXX format
     public function test_format_matches_pattern(): void
     {
         // Generate a thousand codes and check each against the shared pattern
         for ($i = 0; $i < 1000; $i++) {
-            $this->assertMatchesRegularExpression(TrackingCode::PATTERN, TrackingCode::generate());
+            $this->assertMatchesRegularExpression(TrackingCodeUtil::PATTERN, TrackingCodeUtil::generate());
         }
     }
 
     // The generator must draw from the CSPRNG only, never from the clock
     public function test_no_time_based_input(): void
     {
-        $source = file_get_contents(BASE_PATH . '/src/Core/TrackingCode.php');
+        $source = file_get_contents(BASE_PATH . '/src/Modules/Documents/TrackingCodeUtil.php');
 
         // Strip comments so explanatory text cannot trip the check
         $code = '';

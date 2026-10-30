@@ -44,6 +44,11 @@ class CoreModuleStructureTest extends TestCase
             'App\Controllers\IntegrityMonitorController', 'App\Jobs\IntegrityCheckJob', 'App\Jobs\ChainCheckpointJob', 'App\Events\IntegrityCheckFailed',
             // 2.6.0: Routing
             'App\Routing\HeuristicRouter',
+            // 2.6.0: Documents
+            'App\Controllers\DocumentController', 'App\Controllers\GuestController', 'App\Controllers\IntakeController',
+            'App\Controllers\TaskController', 'App\Controllers\ReleasingController', 'App\Controllers\DashboardController',
+            'App\Services\DocumentWorkflowService', 'App\Services\DocumentQueryService', 'App\Models\Document',
+            'App\Policies\DocumentPolicy', 'App\Core\TrackingCode', 'App\Jobs\CleanupStalePendingDocumentsJob',
         ];
         foreach ($retired as $old) {
             $this->assertFalse(class_exists($old), "{$old} should have been removed");
@@ -76,6 +81,19 @@ class CoreModuleStructureTest extends TestCase
             'App\Modules\Integrity\Jobs\IntegrityCheckJob' => [],
             'App\Modules\Integrity\Jobs\ChainCheckpointJob' => [],
             'App\Modules\Integrity\Events\IntegrityCheckFailedEvent' => [],
+            // 2.6.0: Documents
+            'App\Modules\Documents\DocumentController' => [],
+            'App\Modules\Documents\GuestController' => [],
+            'App\Modules\Documents\IntakeController' => [],
+            'App\Modules\Documents\TaskController' => [],
+            'App\Modules\Documents\ReleasingController' => [],
+            'App\Modules\Documents\DashboardController' => [],
+            'App\Modules\Documents\DocumentWorkflowService' => ['submitDocument', 'finalizeIntake', 'scanDocument', 'completeTask'],
+            'App\Modules\Documents\DocumentQueryService' => [],
+            'App\Modules\Documents\DocumentModel' => ['findById'],
+            'App\Modules\Documents\DocumentPolicy' => ['view', 'process', 'manage', 'freeze', 'unfreeze'],
+            'App\Modules\Documents\TrackingCodeUtil' => ['generate'],
+            'App\Modules\Documents\Jobs\CleanupStalePendingDocumentsJob' => [],
         ];
 
         // Check each class and each of its methods

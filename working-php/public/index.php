@@ -58,14 +58,14 @@ $router->post('/login', [App\Controllers\AuthController::class, 'login']);
 $router->post('/logout', [App\Controllers\AuthController::class, 'logout']);
 
 // --- Guest / Public Routes ---
-$router->get('/', [App\Controllers\GuestController::class, 'welcome'], [
+$router->get('/', [App\Modules\Documents\GuestController::class, 'welcome'], [
     App\Common\Middleware\CacheMiddleware::class . ':55'
 ]);
-$router->post('/submit-document', [App\Controllers\GuestController::class, 'store']);
-$router->get('/success', [App\Controllers\GuestController::class, 'success']);
-$router->get('/track', [App\Controllers\GuestController::class, 'track']);
-$router->get('/api/track/module/(?P<tracking_code>[A-Za-z0-9\-]+)', [App\Controllers\GuestController::class, 'getTrackedDocumentModule']);
-$router->get('/api/track/status', [App\Controllers\GuestController::class, 'getStatusUpdates']);
+$router->post('/submit-document', [App\Modules\Documents\GuestController::class, 'store']);
+$router->get('/success', [App\Modules\Documents\GuestController::class, 'success']);
+$router->get('/track', [App\Modules\Documents\GuestController::class, 'track']);
+$router->get('/api/track/module/(?P<tracking_code>[A-Za-z0-9\-]+)', [App\Modules\Documents\GuestController::class, 'getTrackedDocumentModule']);
+$router->get('/api/track/status', [App\Modules\Documents\GuestController::class, 'getStatusUpdates']);
 
 // Role-based dashboard redirect — routes each role to its dedicated landing page.
 $router->get('/dashboard', function() {
@@ -262,30 +262,30 @@ $router->post('/users/(?P<id>\d+)/reset-signature', [App\Controllers\UserControl
 ]);
 
 // Officer Routes
-$router->get('/intake', [App\Controllers\IntakeController::class, 'index'], [
+$router->get('/intake', [App\Modules\Documents\IntakeController::class, 'index'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':officer'
 ]);
 
-$router->post('/intake/find', [App\Controllers\DocumentController::class, 'find'], [
+$router->post('/intake/find', [App\Modules\Documents\DocumentController::class, 'find'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':officer'
 ]);
 
-$router->get('/documents/(?P<id>\d+)/manage', [App\Controllers\DocumentController::class, 'manage'], [
+$router->get('/documents/(?P<id>\d+)/manage', [App\Modules\Documents\DocumentController::class, 'manage'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':officer'
 ]);
 
-$router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)', [App\Controllers\DocumentController::class, 'show'], [
+$router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)', [App\Modules\Documents\DocumentController::class, 'show'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin,officer,staff'
 ]);
-$router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/hash-chain', [App\Controllers\DocumentController::class, 'showHashChain'], [
+$router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/hash-chain', [App\Modules\Documents\DocumentController::class, 'showHashChain'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin,officer,staff'
 ]);
-$router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/print-tracking-form', [App\Controllers\DocumentController::class, 'printTrackingForm']);
+$router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/print-tracking-form', [App\Modules\Documents\DocumentController::class, 'printTrackingForm']);
 
 $router->post('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/freeze', [App\Controllers\SystemHealthController::class, 'freeze'], [
     App\Common\Middleware\AuthMiddleware::class,
@@ -300,27 +300,27 @@ $router->post('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/autoresolve', [App\C
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
-$router->post('/documents/(?P<id>\d+)/finalize', [App\Controllers\DocumentController::class, 'finalize'], [
+$router->post('/documents/(?P<id>\d+)/finalize', [App\Modules\Documents\DocumentController::class, 'finalize'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin,officer'
 ]);
 
-$router->post('/documents/decline', [App\Controllers\DocumentController::class, 'decline'], [
+$router->post('/documents/decline', [App\Modules\Documents\DocumentController::class, 'decline'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin,officer'
 ]);
 
-$router->get('/tasks/completed', [App\Controllers\DashboardController::class, 'officerCompletedTasks'], [
+$router->get('/tasks/completed', [App\Modules\Documents\DashboardController::class, 'officerCompletedTasks'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':officer,staff'
 ]);
 
-$router->get('/releasing', [App\Controllers\DashboardController::class, 'officerReleasing'], [
+$router->get('/releasing', [App\Modules\Documents\DashboardController::class, 'officerReleasing'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':officer'
 ]);
 
-$router->post('/releasing/(?P<id>\d+)/complete', [App\Controllers\ReleasingController::class, 'complete'], [
+$router->post('/releasing/(?P<id>\d+)/complete', [App\Modules\Documents\ReleasingController::class, 'complete'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':officer'
 ]);
@@ -358,18 +358,18 @@ $router->get('/api/statistics/past-reports', [App\Controllers\StatisticsControll
 ]);
 
 // Staff Routes (Officers also have access to tasks)
-$router->get('/tasks', [App\Controllers\DashboardController::class, 'staffTasks'], [
+$router->get('/tasks', [App\Modules\Documents\DashboardController::class, 'staffTasks'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':staff,officer'
 ]);
 
-$router->post('/tasks/(?P<id>\d+)/complete', [App\Controllers\TaskController::class, 'complete'], [
+$router->post('/tasks/(?P<id>\d+)/complete', [App\Modules\Documents\TaskController::class, 'complete'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':staff,officer'
 ]);
 
 // Global Scan Receiver (For both staff and officers)
-$router->post('/documents/scan', [App\Controllers\DocumentController::class, 'scan'], [
+$router->post('/documents/scan', [App\Modules\Documents\DocumentController::class, 'scan'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':staff,officer'
 ]);

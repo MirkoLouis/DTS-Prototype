@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controllers;
+namespace App\Modules\Documents;
 
 use App\Common\Database\Database;
 use App\Common\Validation\Validator;
@@ -27,9 +27,9 @@ class GuestController
         }
 
         ob_start();
-        require __DIR__ . '/../Views/guest/welcome.php';
+        require __DIR__ . '/../../Views/guest/welcome.php';
         $content = ob_get_clean();
-        require __DIR__ . '/../Views/layouts/guest.php';
+        require __DIR__ . '/../../Views/layouts/guest.php';
     }
 
     // Processes the public submission form and delegates creation to the secure workflow service.
@@ -69,7 +69,7 @@ class GuestController
 
 
         try {
-            $workflow = new \App\Services\DocumentWorkflowService();
+            $workflow = new \App\Modules\Documents\DocumentWorkflowService();
             // Pass the validated data directly; the service depends on exact array keys to construct the initial state hash
             $result = $workflow->submitDocument($validated);
             
@@ -106,9 +106,9 @@ class GuestController
         $qrCodeImage = (string) $qrcode->render($tracking_code);
 
         ob_start();
-        require __DIR__ . '/../Views/guest/success.php';
+        require __DIR__ . '/../../Views/guest/success.php';
         $content = ob_get_clean();
-        require __DIR__ . '/../Views/layouts/guest.php';
+        require __DIR__ . '/../../Views/layouts/guest.php';
     }
 
     // Aggregates tracking data and full audit logs for one or more documents requested by a guest.
@@ -123,19 +123,19 @@ class GuestController
             exit;
         }
 
-        $service = new \App\Services\DocumentQueryService();
+        $service = new \App\Modules\Documents\DocumentQueryService();
         $documents = $service->getMultipleWithLogs($trackingCodes);
 
         ob_start();
-        require __DIR__ . '/../Views/guest/track.php';
+        require __DIR__ . '/../../Views/guest/track.php';
         $content = ob_get_clean();
-        require __DIR__ . '/../Views/layouts/guest.php';
+        require __DIR__ . '/../../Views/layouts/guest.php';
     }
 
     public function getTrackedDocumentModule($tracking_code)
     {
         $tracking_code = trim($tracking_code);
-        $service = new \App\Services\DocumentQueryService();
+        $service = new \App\Modules\Documents\DocumentQueryService();
         $document = $service->findByTrackingCode($tracking_code, 'DESC');
 
         if (!$document) {
@@ -145,7 +145,7 @@ class GuestController
         }
 
         ob_start();
-        require __DIR__ . '/../Views/guest/partials/document-card.php';
+        require __DIR__ . '/../../Views/guest/partials/document-card.php';
         echo ob_get_clean();
     }
 

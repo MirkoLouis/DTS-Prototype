@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Core;
+namespace App\Modules\Documents;
 
 use App\Common\Config\Config;
 
@@ -9,7 +9,7 @@ use App\Common\Config\Config;
  * Format: DEPED- plus 10 uppercase hex characters (40 bits) from the OS CSPRNG.
  * Uniqueness is enforced by the UNIQUE index on documents.tracking_code; callers retry on MySQL 1062.
  */
-class TrackingCode
+class TrackingCodeUtil
 {
     public const PATTERN = '/^DEPED-[0-9A-F]{10}$/';
 

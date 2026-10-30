@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Policies;
+namespace App\Modules\Documents;
 
 use App\Models\User;
 use App\Modules\Integrity\PreActionIntegrityService;

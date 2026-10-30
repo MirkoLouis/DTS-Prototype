@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controllers;
+namespace App\Modules\Documents;
 
 use App\Common\Database\Database;
 use Dompdf\Dompdf;
@@ -17,7 +17,7 @@ class DocumentController
      */
     public function show($tracking_code)
     {
-        $service = new \App\Services\DocumentQueryService();
+        $service = new \App\Modules\Documents\DocumentQueryService();
         $document = $service->findByTrackingCode($tracking_code, 'ASC');
 
         if (!$document) {
@@ -48,7 +48,7 @@ class DocumentController
      */
     public function showHashChain($tracking_code)
     {
-        $service = new \App\Services\DocumentQueryService();
+        $service = new \App\Modules\Documents\DocumentQueryService();
         $document = $service->findByTrackingCode($tracking_code, 'ASC');
 
         if (!$document) {
@@ -72,7 +72,7 @@ class DocumentController
     {
         // Resolve the logged-in user and ask the policy
         $user = \App\Models\User::findById($_SESSION['user_id'] ?? 0);
-        if ($user && (new \App\Policies\DocumentPolicy())->view($user, $document)) {
+        if ($user && (new \App\Modules\Documents\DocumentPolicy())->view($user, $document)) {
             return;
         }
 
@@ -193,11 +193,11 @@ class DocumentController
         }
 
         try {
-            $workflow = new \App\Services\DocumentWorkflowService();
+            $workflow = new \App\Modules\Documents\DocumentWorkflowService();
             $officer = \App\Models\User::findById($_SESSION['user_id']);
             $workflow->finalizeIntake((int)$id, $routeNames, $officer, $pin);
             
-            $doc = \App\Models\Document::findById((int)$id);
+            $doc = \App\Modules\Documents\DocumentModel::findById((int)$id);
             $trackingCode = $doc ? $doc->tracking_code : '';
             $_SESSION['success'] = "Document {$trackingCode} accepted and is now in transit!";
         } catch (\Exception $e) {
@@ -233,7 +233,7 @@ class DocumentController
         }
 
         try {
-            $workflow = new \App\Services\DocumentWorkflowService();
+            $workflow = new \App\Modules\Documents\DocumentWorkflowService();
             $user = \App\Models\User::findById($_SESSION['user_id']);
             $redirectRouteKey = $workflow->scanDocument($trackingCode, $user, $pin);
             
@@ -276,10 +276,10 @@ class DocumentController
         }
 
         try {
-            $workflow = new \App\Services\DocumentWorkflowService();
+            $workflow = new \App\Modules\Documents\DocumentWorkflowService();
             $officer = \App\Models\User::findById($_SESSION['user_id']);
             
-            $doc = \App\Models\Document::findById((int)$documentId);
+            $doc = \App\Modules\Documents\DocumentModel::findById((int)$documentId);
             $trackingCode = $doc ? $doc->tracking_code : '';
             $workflow->declineDocument((int)$documentId, $reason, $officer, $pin);
             

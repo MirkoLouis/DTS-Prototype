@@ -5,7 +5,7 @@ namespace Tests\Workflow;
 use App\Core\AttemptThrottle;
 use App\Common\Database\Database;
 use App\Security\SecurityPinCache;
-use App\Services\DocumentWorkflowService;
+use App\Modules\Documents\DocumentWorkflowService;
 use Tests\Support\Fixtures;
 use Tests\Support\TestDatabase;
 use Tests\TestCase;

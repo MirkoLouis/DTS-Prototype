@@ -4,7 +4,7 @@ namespace Tests\Workflow;
 
 use App\Common\Database\Database;
 use App\Modules\Integrity\DigitalSignatureService;
-use App\Core\TrackingCode;
+use App\Modules\Documents\TrackingCodeUtil;
 use App\Modules\Integrity\Jobs\IntegrityCheckJob;
 use Tests\TestCase;
 
@@ -39,7 +39,7 @@ class SeederDuplicateRetryTest extends TestCase
         $this->assertCount(20, $codes);
         $this->assertCount(20, array_unique($codes));
         foreach ($codes as $code) {
-            $this->assertMatchesRegularExpression(TrackingCode::PATTERN, $code);
+            $this->assertMatchesRegularExpression(TrackingCodeUtil::PATTERN, $code);
         }
 
         // Every rebuilt chain must verify: hashes, signatures and live state
@@ -62,7 +62,7 @@ class SeederDuplicateRetryTest extends TestCase
         $production = $this->probe('production');
         $this->assertNotSame($production['first'], $production['second']);
         $this->assertNotSame('DEPED-0000000000', $production['explicit']);
-        $this->assertMatchesRegularExpression(TrackingCode::PATTERN, $production['explicit']);
+        $this->assertMatchesRegularExpression(TrackingCodeUtil::PATTERN, $production['explicit']);
     }
 
     // R20: a seed under testing must not delete real session files or the operational response cache
@@ -115,7 +115,7 @@ class SeederDuplicateRetryTest extends TestCase
         }
 
         $this->assertSame([], $hits);
-        $this->assertFalse(method_exists(TrackingCode::class, 'generateUnique'));
+        $this->assertFalse(method_exists(TrackingCodeUtil::class, 'generateUnique'));
     }
 
     // Run generate() in a fresh process whose Config reports $env, with DTS_TEST_FORCE_DUPLICATE=1 set
@@ -127,9 +127,9 @@ class SeederDuplicateRetryTest extends TestCase
             . '$cfg = require BASE_PATH . "/src/Common/Config/config.php";'
             . '$cfg["app"]["env"] = ' . var_export($env, true) . ';'
             . '$p = new ReflectionProperty(App\Common\Config\Config::class, "config"); $p->setValue(null, $cfg);'
-            . '$first = App\Core\TrackingCode::generate(); $second = App\Core\TrackingCode::generate();'
-            . 'App\Core\TrackingCode::setTestOverride(fn() => "DEPED-0000000000");'
-            . '$explicit = App\Core\TrackingCode::generate();'
+            . '$first = App\Modules\Documents\TrackingCodeUtil::generate(); $second = App\Modules\Documents\TrackingCodeUtil::generate();'
+            . 'App\Modules\Documents\TrackingCodeUtil::setTestOverride(fn() => "DEPED-0000000000");'
+            . '$explicit = App\Modules\Documents\TrackingCodeUtil::generate();'
             . 'echo json_encode(compact("first", "second", "explicit"));';
         $cmd = 'APP_ENV=testing DTS_TEST_FORCE_DUPLICATE=1 ' . escapeshellarg(PHP_BINARY) . ' -r ' . escapeshellarg($code) . ' 2>&1';
         exec($cmd, $out, $exit);

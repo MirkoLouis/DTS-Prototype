@@ -9,7 +9,7 @@ date_default_timezone_set('Asia/Manila');
 use App\Common\Database\Database;
 use App\Modules\Integrity\DigitalSignatureService;
 use App\Modules\Integrity\HashChainService;
-use App\Core\TrackingCode;
+use App\Modules\Documents\TrackingCodeUtil;
 
 class WeightedNameGenerator {
     private array $firstNames = [];
@@ -355,7 +355,7 @@ function buildLegacyDocument(int $globalDocIndex, array $actions, array $ctx, ar
     $finalizedRoute = json_encode(array_map(function($n) { return ['name' => $n, 'type' => 'initial']; }, $routeNames));
     
     // CSPRNG code; uniqueness is enforced by the UNIQUE index at INSERT time (1062 triggers a chunk rebuild)
-    $trackingCode = TrackingCode::generate();
+    $trackingCode = TrackingCodeUtil::generate();
     
     $createdAtTs = strtotime($firstAction['datetime_forwarded']);
     if (!$createdAtTs) $createdAtTs = time();

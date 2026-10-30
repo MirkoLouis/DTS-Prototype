@@ -16,7 +16,7 @@ class StatisticsController
 
         if ($userRole === 'officer' || $userRole === 'staff') {
             $departmentId = $_SESSION['department_id'] ?? 0;
-            $queryService = new \App\Services\DocumentQueryService();
+            $queryService = new \App\Modules\Documents\DocumentQueryService();
 
             [$documents, $paginator] = $queryService->getPaginatedStatistics($departmentId, $_GET);
 

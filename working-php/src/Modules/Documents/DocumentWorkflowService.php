@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Services;
+namespace App\Modules\Documents;
 
 use App\Common\Database\Database;
 use App\Modules\Integrity\DigitalSignatureService;
 use App\Modules\Integrity\HashChainService;
 use App\Modules\Routing\HeuristicRoutingService;
-use App\Core\TrackingCode;
-use App\Policies\DocumentPolicy;
+use App\Modules\Documents\TrackingCodeUtil;
+use App\Modules\Documents\DocumentPolicy;
 use App\Models\User;
 use Exception;
 
@@ -76,7 +76,7 @@ class DocumentWorkflowService
      */
     protected function newTrackingCode(): string
     {
-        return TrackingCode::generate();
+        return TrackingCodeUtil::generate();
     }
 
     public function submitDocument(array $data): array

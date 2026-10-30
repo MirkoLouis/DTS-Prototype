@@ -7,7 +7,7 @@ use App\Modules\Integrity\DigitalSignatureService;
 use App\Modules\Integrity\Jobs\ChainCheckpointJob;
 use App\Modules\Integrity\Jobs\IntegrityCheckJob;
 use App\Models\User;
-use App\Policies\DocumentPolicy;
+use App\Modules\Documents\DocumentPolicy;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\Fixtures;
 use App\Research\ResultWriter;

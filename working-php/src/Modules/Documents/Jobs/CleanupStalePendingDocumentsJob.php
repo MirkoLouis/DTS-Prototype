@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Jobs;
+namespace App\Modules\Documents\Jobs;
 
 use App\Common\Database\Database;
 use App\Modules\Integrity\HashChainService;
