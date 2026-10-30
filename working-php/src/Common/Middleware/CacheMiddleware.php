@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Middleware;
+namespace App\Common\Middleware;
 
 class CacheMiddleware
 {
@@ -15,7 +15,7 @@ class CacheMiddleware
      */
     public static function cacheDir(): string
     {
-        return BASE_PATH . (\App\Core\Config::get('app', 'env') === 'testing' ? '/cache/responses-test' : '/cache/responses');
+        return BASE_PATH . (\App\Common\Config\Config::get('app', 'env') === 'testing' ? '/cache/responses-test' : '/cache/responses');
     }
 
     /**

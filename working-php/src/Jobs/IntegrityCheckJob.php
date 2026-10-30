@@ -2,11 +2,11 @@
 
 namespace App\Jobs;
 
-use App\Core\Database;
+use App\Common\Database\Database;
 use App\Integrity\DigitalSignature;
 use App\Integrity\HashChainMicroShardingBuilder;
 use App\Events\IntegrityCheckFailed;
-use App\Core\EventDispatcher;
+use App\Common\Events\EventDispatcher;
 
 class IntegrityCheckJob
 {
@@ -25,7 +25,7 @@ class IntegrityCheckJob
     // The test suite (app.env = testing) writes its own file so test audits never replace the real result.
     public static function resultPath(): string
     {
-        return BASE_PATH . (\App\Core\Config::get('app', 'env') === 'testing' ? '/cache/integrity-check-result-test.json' : '/cache/integrity-check-result.json');
+        return BASE_PATH . (\App\Common\Config\Config::get('app', 'env') === 'testing' ? '/cache/integrity-check-result-test.json' : '/cache/integrity-check-result.json');
     }
 
     // Executes a full cryptographic audit of the system. Verifies the SHA-256 hash chain, 

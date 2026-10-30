@@ -4,7 +4,7 @@ namespace App\Policies;
 
 use App\Models\User;
 use App\Integrity\PreActionIntegrityCheck;
-use App\Core\Database;
+use App\Common\Database\Database;
 
 /**
  * Fine-Grained Authorization Policy & Pre-Action Integrity Check Enforcement.

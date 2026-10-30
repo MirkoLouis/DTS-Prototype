@@ -25,14 +25,14 @@ define('BASE_PATH', dirname(__DIR__));
 require BASE_PATH . '/vendor/autoload.php';
 
 // Error reporting: always log everything, but only print errors to the page when APP_DEBUG=true
-$appDebug = \App\Core\Config::get('app', 'debug', false);
+$appDebug = \App\Common\Config\Config::get('app', 'debug', false);
 ini_set('display_errors', $appDebug ? '1' : '0');
 ini_set('display_startup_errors', $appDebug ? '1' : '0');
 ini_set('log_errors', '1');
 error_reporting(E_ALL);
-require BASE_PATH . '/src/helpers.php';
+require BASE_PATH . '/src/Common/Utils/helpers.php';
 
-use App\Core\Router;
+use App\Common\Http\Router;
 
 // Initialize the Custom Router
 $router = new Router();
@@ -40,12 +40,12 @@ $router = new Router();
 // --- Define Routes Below ---
 
 // Test-only environment probe: registered only under APP_ENV=testing, so production 404s it like any unknown route
-if (\App\Core\Config::get('app', 'env') === 'testing') {
+if (\App\Common\Config\Config::get('app', 'env') === 'testing') {
     $router->get('/__test/env', function () {
         header('Content-Type: application/json');
         echo json_encode([
-            'env' => \App\Core\Config::get('app', 'env'),
-            'db' => \App\Core\Config::get('database', 'dbname'),
+            'env' => \App\Common\Config\Config::get('app', 'env'),
+            'db' => \App\Common\Config\Config::get('database', 'dbname'),
         ]);
     });
 }
@@ -59,7 +59,7 @@ $router->post('/logout', [App\Controllers\AuthController::class, 'logout']);
 
 // --- Guest / Public Routes ---
 $router->get('/', [App\Controllers\GuestController::class, 'welcome'], [
-    App\Middleware\CacheMiddleware::class . ':55'
+    App\Common\Middleware\CacheMiddleware::class . ':55'
 ]);
 $router->post('/submit-document', [App\Controllers\GuestController::class, 'store']);
 $router->get('/success', [App\Controllers\GuestController::class, 'success']);
@@ -78,88 +78,88 @@ $router->get('/dashboard', function() {
     header('Location: ' . ($destinations[$role] ?? '/tasks'));
     exit;
 }, [
-    App\Middleware\AuthMiddleware::class,
+    App\Common\Middleware\AuthMiddleware::class,
 ]);
 
 $router->get('/statistics', [App\Controllers\StatisticsController::class, 'index'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin,officer,staff',
-    App\Middleware\CacheMiddleware::class . ':55'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin,officer,staff',
+    App\Common\Middleware\CacheMiddleware::class . ':55'
 ]);
 
 // --- Protected Routes ---
 
 $router->get('/system-overview', [App\Controllers\SystemHealthController::class, 'index'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
 $router->get('/all-documents', [App\Controllers\IntegrityMonitorController::class, 'index'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
 
 $router->post('/system-health/run-check', [App\Controllers\SystemHealthController::class, 'runIntegrityCheck'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 $router->get('/system-health/debug-log/(?P<id>\d+)', [App\Controllers\SystemHealthController::class, 'debugLog'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 $router->get('/api/system-health/integrity-status/(?P<jobId>[a-zA-Z0-9_-]+)', [App\Controllers\SystemHealthController::class, 'getIntegrityCheckStatus'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 $router->post('/api/system-health/integrity-cancel/(?P<jobId>[a-zA-Z0-9_-]+)', [App\Controllers\SystemHealthController::class, 'cancelIntegrityCheck'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 $router->get('/system-health/results', [App\Controllers\SystemHealthController::class, 'getIntegrityCheckResults'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 $router->get('/api/system-health/db-performance', [App\Controllers\SystemHealthController::class, 'getDbPerformanceData'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 $router->get('/admin/system-health/export-db-metrics', [App\Controllers\SystemHealthController::class, 'exportDbPerformanceMetrics'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 $router->post('/system-health/failed-jobs/(?P<id>\d+)/delete', [App\Controllers\SystemHealthController::class, 'deleteFailedJob'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 $router->post('/system-health/failed-jobs/delete-all', [App\Controllers\SystemHealthController::class, 'deleteAllFailedJobs'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 $router->post('/system-health/freeze-all', [App\Controllers\SystemHealthController::class, 'freezeAll'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
 $router->get('/system/backups', [App\Controllers\BackupManagerController::class, 'index'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 $router->post('/system/backups/create', [App\Controllers\BackupManagerController::class, 'create'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 $router->post('/system/backups/restore/(?P<fileName>.+)', [App\Controllers\BackupManagerController::class, 'restore'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 $router->post('/system/backups/delete/(?P<fileName>.+)', [App\Controllers\BackupManagerController::class, 'delete'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 $router->get('/system/backups/download/(?P<fileName>.+)', [App\Controllers\BackupManagerController::class, 'download'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
 // Legacy route alias redirecting to primary documents & integrity monitor view
@@ -167,211 +167,211 @@ $router->get('/integrity-monitor', function() {
     header('Location: /all-documents', true, 301);
     exit;
 }, [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
 // Profile & Security
 $router->get('/profile', [App\Controllers\ProfileController::class, 'edit'], [
-    App\Middleware\AuthMiddleware::class
+    App\Common\Middleware\AuthMiddleware::class
 ]);
 $router->post('/profile/update', [App\Controllers\ProfileController::class, 'update'], [
-    App\Middleware\AuthMiddleware::class
+    App\Common\Middleware\AuthMiddleware::class
 ]);
 $router->post('/security-key', [App\Controllers\SecurityKeyController::class, 'store'], [
-    App\Middleware\AuthMiddleware::class
+    App\Common\Middleware\AuthMiddleware::class
 ]);
 
 // Admin Dashboard Routes
 $router->get('/admin-dashboard', [\App\Controllers\AdminDashboardController::class, 'index'], [
-    App\Middleware\AuthMiddleware::class, 
-    App\Middleware\RoleMiddleware::class . ':admin',
-    App\Middleware\CacheMiddleware::class . ':55'
+    App\Common\Middleware\AuthMiddleware::class, 
+    App\Common\Guards\RoleGuard::class . ':admin',
+    App\Common\Middleware\CacheMiddleware::class . ':55'
 ]);
 $router->post('/admin-dashboard/clear-cache', [\App\Controllers\AdminDashboardController::class, 'clearCache'], [
-    App\Middleware\AuthMiddleware::class, 
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class, 
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 $router->post('/clear-personal-cache', [App\Controllers\SystemHealthController::class, 'clearPersonalCache'], [
-    App\Middleware\AuthMiddleware::class
+    App\Common\Middleware\AuthMiddleware::class
 ]);
 
 // Admin Dashboard API Routes
-$router->get('/api/admin-dashboard/current-load', [\App\Controllers\AdminDashboardController::class, 'getCurrentLoadData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
-$router->get('/api/admin-dashboard/throughput', [\App\Controllers\AdminDashboardController::class, 'getThroughputData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
-$router->get('/api/admin-dashboard/decline-trends', [\App\Controllers\AdminDashboardController::class, 'getDeclineTrendData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
-$router->get('/api/admin-dashboard/status-distribution', [\App\Controllers\AdminDashboardController::class, 'getDocumentStatusDistributionData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
-$router->get('/api/admin-dashboard/processing-hotspots', [\App\Controllers\AdminDashboardController::class, 'getProcessingHotspotsData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
-$router->get('/api/admin-dashboard/submission-districts', [\App\Controllers\AdminDashboardController::class, 'getSubmissionDistrictsData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
-$router->get('/api/admin-dashboard/avg-step-time', [\App\Controllers\AdminDashboardController::class, 'getAvgStepTimeByDepartmentData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
-$router->get('/api/admin-dashboard/department-load-vs-time', [\App\Controllers\AdminDashboardController::class, 'getDepartmentalLoadVsTimeData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
-$router->get('/api/admin-dashboard/peak-intake-hours', [\App\Controllers\AdminDashboardController::class, 'getPeakIntakeHoursData'], [App\Middleware\AuthMiddleware::class, App\Middleware\RoleMiddleware::class . ':admin']);
+$router->get('/api/admin-dashboard/current-load', [\App\Controllers\AdminDashboardController::class, 'getCurrentLoadData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
+$router->get('/api/admin-dashboard/throughput', [\App\Controllers\AdminDashboardController::class, 'getThroughputData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
+$router->get('/api/admin-dashboard/decline-trends', [\App\Controllers\AdminDashboardController::class, 'getDeclineTrendData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
+$router->get('/api/admin-dashboard/status-distribution', [\App\Controllers\AdminDashboardController::class, 'getDocumentStatusDistributionData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
+$router->get('/api/admin-dashboard/processing-hotspots', [\App\Controllers\AdminDashboardController::class, 'getProcessingHotspotsData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
+$router->get('/api/admin-dashboard/submission-districts', [\App\Controllers\AdminDashboardController::class, 'getSubmissionDistrictsData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
+$router->get('/api/admin-dashboard/avg-step-time', [\App\Controllers\AdminDashboardController::class, 'getAvgStepTimeByDepartmentData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
+$router->get('/api/admin-dashboard/department-load-vs-time', [\App\Controllers\AdminDashboardController::class, 'getDepartmentalLoadVsTimeData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
+$router->get('/api/admin-dashboard/peak-intake-hours', [\App\Controllers\AdminDashboardController::class, 'getPeakIntakeHoursData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
 
 // Notifications
 $router->get('/api/notifications/unread', [App\Controllers\NotificationController::class, 'getUnread'], [
-    App\Middleware\AuthMiddleware::class
+    App\Common\Middleware\AuthMiddleware::class
 ]);
 $router->post('/api/notifications/mark-read', [App\Controllers\NotificationController::class, 'markAsRead'], [
-    App\Middleware\AuthMiddleware::class
+    App\Common\Middleware\AuthMiddleware::class
 ]);
 
 // Users Management (RESTful & Form POST aliases)
 $router->get('/users', [App\Controllers\UserController::class, 'index'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
 $router->get('/users/create', [App\Controllers\UserController::class, 'create'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
 $router->post('/users', [App\Controllers\UserController::class, 'store'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
 $router->get('/users/(?P<id>\d+)/edit', [App\Controllers\UserController::class, 'edit'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
 $router->post('/users/(?P<id>\d+)/update', [App\Controllers\UserController::class, 'update'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
 $router->add('PUT', '/users/(?P<id>\d+)', [App\Controllers\UserController::class, 'update'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
 $router->post('/users/(?P<id>\d+)/delete', [App\Controllers\UserController::class, 'destroy'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
 $router->add('DELETE', '/users/(?P<id>\d+)', [App\Controllers\UserController::class, 'destroy'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
 $router->post('/users/(?P<id>\d+)/reset-signature', [App\Controllers\UserController::class, 'resetSignature'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
 // Officer Routes
 $router->get('/intake', [App\Controllers\IntakeController::class, 'index'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':officer'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':officer'
 ]);
 
 $router->post('/intake/find', [App\Controllers\DocumentController::class, 'find'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':officer'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':officer'
 ]);
 
 $router->get('/documents/(?P<id>\d+)/manage', [App\Controllers\DocumentController::class, 'manage'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':officer'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':officer'
 ]);
 
 $router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)', [App\Controllers\DocumentController::class, 'show'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin,officer,staff'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin,officer,staff'
 ]);
 $router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/hash-chain', [App\Controllers\DocumentController::class, 'showHashChain'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin,officer,staff'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin,officer,staff'
 ]);
 $router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/print-tracking-form', [App\Controllers\DocumentController::class, 'printTrackingForm']);
 
 $router->post('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/freeze', [App\Controllers\SystemHealthController::class, 'freeze'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 $router->post('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/unfreeze', [App\Controllers\SystemHealthController::class, 'unfreeze'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 $router->post('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/autoresolve', [App\Controllers\SystemHealthController::class, 'autoResolve'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
 $router->post('/documents/(?P<id>\d+)/finalize', [App\Controllers\DocumentController::class, 'finalize'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin,officer'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin,officer'
 ]);
 
 $router->post('/documents/decline', [App\Controllers\DocumentController::class, 'decline'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':admin,officer'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin,officer'
 ]);
 
 $router->get('/tasks/completed', [App\Controllers\DashboardController::class, 'officerCompletedTasks'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':officer,staff'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':officer,staff'
 ]);
 
 $router->get('/releasing', [App\Controllers\DashboardController::class, 'officerReleasing'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':officer'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':officer'
 ]);
 
 $router->post('/releasing/(?P<id>\d+)/complete', [App\Controllers\ReleasingController::class, 'complete'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':officer'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':officer'
 ]);
 
 
 $router->post('/statistics/report', [App\Controllers\StatisticsController::class, 'generateReport'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':officer,staff'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':officer,staff'
 ]);
 $router->get('/statistics/report/status', [App\Controllers\StatisticsController::class, 'getReportStatus'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':officer,staff'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':officer,staff'
 ]);
 $router->post('/statistics/report/cancel', [App\Controllers\StatisticsController::class, 'cancelReport'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':officer,staff'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':officer,staff'
 ]);
 $router->get('/statistics/report/download/(?P<jobId>[a-zA-Z0-9_-]+)', [App\Controllers\StatisticsController::class, 'downloadReport'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':officer,staff'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':officer,staff'
 ]);
 
 // Chart API Routes
 $router->get('/api/statistics/current-load', [App\Controllers\StatisticsController::class, 'getCurrentLoadData'], [
-    App\Middleware\AuthMiddleware::class
+    App\Common\Middleware\AuthMiddleware::class
 ]);
 $router->get('/api/statistics/throughput', [App\Controllers\StatisticsController::class, 'getThroughputData'], [
-    App\Middleware\AuthMiddleware::class
+    App\Common\Middleware\AuthMiddleware::class
 ]);
 $router->get('/api/statistics/avg-processing-time', [App\Controllers\StatisticsController::class, 'getAverageProcessingTimeData'], [
-    App\Middleware\AuthMiddleware::class
+    App\Common\Middleware\AuthMiddleware::class
 ]);
 $router->get('/api/statistics/past-reports', [App\Controllers\StatisticsController::class, 'getPastReports'], [
-    App\Middleware\AuthMiddleware::class
+    App\Common\Middleware\AuthMiddleware::class
 ]);
 
 // Staff Routes (Officers also have access to tasks)
 $router->get('/tasks', [App\Controllers\DashboardController::class, 'staffTasks'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':staff,officer'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':staff,officer'
 ]);
 
 $router->post('/tasks/(?P<id>\d+)/complete', [App\Controllers\TaskController::class, 'complete'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':staff,officer'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':staff,officer'
 ]);
 
 // Global Scan Receiver (For both staff and officers)
 $router->post('/documents/scan', [App\Controllers\DocumentController::class, 'scan'], [
-    App\Middleware\AuthMiddleware::class,
-    App\Middleware\RoleMiddleware::class . ':staff,officer'
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':staff,officer'
 ]);
 
 // ---------------------------

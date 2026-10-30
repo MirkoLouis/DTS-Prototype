@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Core\Database;
+use App\Common\Database\Database;
 
 /**
  * Reads the samples written by scripts/sample-db-metrics.php for the System Overview chart.

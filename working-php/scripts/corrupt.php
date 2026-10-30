@@ -4,7 +4,7 @@
 define('BASE_PATH', dirname(__DIR__));
 require BASE_PATH . '/vendor/autoload.php';
 
-use App\Core\Database;
+use App\Common\Database\Database;
 
 if ($argc < 2) {
     echo "Usage: php scripts/corrupt.php <tracking_code>\n";

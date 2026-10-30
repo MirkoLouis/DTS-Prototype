@@ -2,7 +2,7 @@
 
 namespace Tests\Concurrency;
 
-use App\Core\Database;
+use App\Common\Database\Database;
 use PHPUnit\Framework\Attributes\Group;
 use App\Research\Barrier;
 use Tests\Support\HttpClient;
@@ -81,7 +81,7 @@ class GuestSubmissionConcurrencyTest extends TestCase
         // Each repetition is one simultaneous batch
         for ($run = 1; $run <= $runs; $run++) {
             // Clear the response cache right before forking so GET / is cold for every kiosk
-            foreach (glob(\App\Middleware\CacheMiddleware::cacheDir() . '/*') ?: [] as $cached) {
+            foreach (glob(\App\Common\Middleware\CacheMiddleware::cacheDir() . '/*') ?: [] as $cached) {
                 @unlink($cached);
             }
             $before = (int) $db->query('SELECT COUNT(*) c FROM documents')->fetch()['c'];

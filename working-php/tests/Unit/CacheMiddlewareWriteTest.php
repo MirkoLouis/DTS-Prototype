@@ -2,7 +2,7 @@
 
 namespace Tests\Unit;
 
-use App\Middleware\CacheMiddleware;
+use App\Common\Middleware\CacheMiddleware;
 use App\Research\Barrier;
 use Tests\Support\HttpClient;
 use Tests\TestCase;

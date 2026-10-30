@@ -2,8 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Core\Config;
-use App\Core\Database;
+use App\Common\Config\Config;
+use App\Common\Database\Database;
 use App\Integrity\DigitalSignature;
 use App\Integrity\HashChainMicroShardingBuilder;
 

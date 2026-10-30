@@ -2,7 +2,7 @@
 
 namespace Tests\Security;
 
-use App\Core\Database;
+use App\Common\Database\Database;
 use App\Integrity\DigitalSignature;
 use App\Integrity\HashChainMicroShardingBuilder;
 use PHPUnit\Framework\Attributes\DataProvider;

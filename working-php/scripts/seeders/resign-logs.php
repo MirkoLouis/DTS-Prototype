@@ -16,7 +16,7 @@ define('BASE_PATH', dirname(dirname(__DIR__)));
 require BASE_PATH . '/vendor/autoload.php';
 date_default_timezone_set(\App\Integrity\HashChainMicroShardingBuilder::APP_TIMEZONE);
 
-use App\Core\Database;
+use App\Common\Database\Database;
 use App\Integrity\DigitalSignature;
 use App\Integrity\HashChainMicroShardingBuilder;
 

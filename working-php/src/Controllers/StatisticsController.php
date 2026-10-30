@@ -2,8 +2,8 @@
 
 namespace App\Controllers;
 
-use App\Core\Database;
-use App\Core\Cache;
+use App\Common\Database\Database;
+use App\Common\Cache\Cache;
 
 class StatisticsController
 {

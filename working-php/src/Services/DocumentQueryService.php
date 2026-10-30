@@ -1,8 +1,8 @@
 <?php
 namespace App\Services;
 
-use App\Core\Database;
-use App\Core\Cache;
+use App\Common\Database\Database;
+use App\Common\Cache\Cache;
 
 class DocumentQueryService
 {
@@ -190,7 +190,7 @@ class DocumentQueryService
             $nextCursor = $documents[$perPage - 1]['created_at'] . '_' . $documents[$perPage - 1]['id'];
         }
         
-        $paginator = new \App\Utils\CursorPaginator($documents, $perPage, $nextCursor, $totalItems, '?' . http_build_query(array_diff_key($requestParams, ['cursor' => ''])));
+        $paginator = new \App\Common\Utils\CursorPaginator($documents, $perPage, $nextCursor, $totalItems, '?' . http_build_query(array_diff_key($requestParams, ['cursor' => ''])));
         $documents = $paginator->getItems();
         
         $this->normalizeGuestInfo($documents);
@@ -256,7 +256,7 @@ class DocumentQueryService
             $nextCursor = $documents[$perPage - 1]['handled_at'] . '_' . $documents[$perPage - 1]['id'];
         }
         
-        $paginator = new \App\Utils\CursorPaginator($documents, $perPage, $nextCursor, $totalItems, '?' . http_build_query(array_diff_key($requestParams, ['cursor' => ''])));
+        $paginator = new \App\Common\Utils\CursorPaginator($documents, $perPage, $nextCursor, $totalItems, '?' . http_build_query(array_diff_key($requestParams, ['cursor' => ''])));
         $documents = $paginator->getItems();
         
         $this->normalizeGuestInfo($documents);
@@ -301,7 +301,7 @@ class DocumentQueryService
             $nextCursor = $documents[$perPage - 1]['id'];
         }
         
-        $paginator = new \App\Utils\CursorPaginator($documents, $perPage, $nextCursor, $totalItems, '?' . http_build_query(array_diff_key($requestParams, ['cursor' => ''])));
+        $paginator = new \App\Common\Utils\CursorPaginator($documents, $perPage, $nextCursor, $totalItems, '?' . http_build_query(array_diff_key($requestParams, ['cursor' => ''])));
         $documents = $paginator->getItems();
         
         $this->normalizeGuestInfo($documents);
@@ -367,7 +367,7 @@ class DocumentQueryService
             $nextCursor = $documents[$perPage - 1]['handled_at'] . '_' . $documents[$perPage - 1]['id'];
         }
         
-        $paginator = new \App\Utils\CursorPaginator($documents, $perPage, $nextCursor, $totalItems, '?' . http_build_query(array_diff_key($requestParams, ['cursor' => ''])));
+        $paginator = new \App\Common\Utils\CursorPaginator($documents, $perPage, $nextCursor, $totalItems, '?' . http_build_query(array_diff_key($requestParams, ['cursor' => ''])));
         $documents = $paginator->getItems();
 
         $this->normalizeGuestInfo($documents);
@@ -410,7 +410,7 @@ class DocumentQueryService
             $nextCursor = $documents[$perPage - 1]['id'];
         }
         
-        $paginator = new \App\Utils\CursorPaginator($documents, $perPage, $nextCursor, $totalItems, '?' . http_build_query(array_diff_key($requestParams, ['cursor' => ''])));
+        $paginator = new \App\Common\Utils\CursorPaginator($documents, $perPage, $nextCursor, $totalItems, '?' . http_build_query(array_diff_key($requestParams, ['cursor' => ''])));
         $documents = $paginator->getItems();
 
         $this->normalizeGuestInfo($documents);
@@ -490,7 +490,7 @@ class DocumentQueryService
             $nextCursor = $documents[$perPage - 1]['released_at'] . '_' . $documents[$perPage - 1]['id'];
         }
         
-        $paginator = new \App\Utils\CursorPaginator($documents, $perPage, $nextCursor, $totalItems, '?' . http_build_query(array_diff_key($requestParams, ['cursor' => ''])));
+        $paginator = new \App\Common\Utils\CursorPaginator($documents, $perPage, $nextCursor, $totalItems, '?' . http_build_query(array_diff_key($requestParams, ['cursor' => ''])));
         $documents = $paginator->getItems();
         
         foreach ($documents as &$doc) {

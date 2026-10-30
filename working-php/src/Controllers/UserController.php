@@ -2,8 +2,8 @@
 
 namespace App\Controllers;
 
-use App\Core\Database;
-use App\Core\Validator;
+use App\Common\Database\Database;
+use App\Common\Validation\Validator;
 
 class UserController
 {
@@ -31,7 +31,7 @@ class UserController
         $countStmt = $db->query($countSql, $params);
         $totalItems = $countStmt->fetch()['total'] ?? 0;
         
-        $paginator = new \App\Utils\Paginator($totalItems, 15, $page, '?page=(:num)&' . http_build_query(array_diff_key($_GET, ['page' => ''])));
+        $paginator = new \App\Common\Utils\Paginator($totalItems, 15, $page, '?page=(:num)&' . http_build_query(array_diff_key($_GET, ['page' => ''])));
         
         $sql = "SELECT id, name, email, role, department_id, created_at, public_key FROM users $whereSql ORDER BY name ASC LIMIT {$paginator->getLimit()} OFFSET {$paginator->getOffset()}";
         $stmt = $db->query($sql, $params);
@@ -224,7 +224,7 @@ class UserController
         
         // Clear the user's personal page cache so they see the setup modal immediately on their next request
         $prefix = "cache_user_{$id}";
-        $cacheDir = \App\Middleware\CacheMiddleware::cacheDir() . '/';
+        $cacheDir = \App\Common\Middleware\CacheMiddleware::cacheDir() . '/';
         if (is_dir($cacheDir)) {
             $files = glob($cacheDir . $prefix . '_*.html');
             if ($files) {

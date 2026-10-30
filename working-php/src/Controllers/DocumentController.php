@@ -2,7 +2,7 @@
 
 namespace App\Controllers;
 
-use App\Core\Database;
+use App\Common\Database\Database;
 use Dompdf\Dompdf;
 use Dompdf\Options;
 use chillerlan\QRCode\QRCode;
@@ -257,7 +257,7 @@ class DocumentController
 
     public function decline()
     {
-        $db = \App\Core\Database::getInstance();
+        $db = \App\Common\Database\Database::getInstance();
         $documentId = $_POST['document_id'] ?? null;
         $reason = $_POST['reason'] ?? '';
         $submittedPin = $_POST['pin'] ?? '';

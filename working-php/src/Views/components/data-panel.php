@@ -8,7 +8,7 @@
  * @var string $panelActionHtml (Optional) Raw HTML for action buttons in the header
  * @var array  $filterConfig    (Optional) Configuration array for table-filters.php
  * @var array  $tableConfig     Configuration array for table.php
- * @var \App\Utils\Paginator $paginator (Optional) Paginator object for pagination.php
+ * @var \App\Common\Utils\Paginator $paginator (Optional) Paginator object for pagination.php
  */
 
 $panelTitle = $panelTitle ?? 'Documents';
@@ -36,7 +36,7 @@ $panelTitle = $panelTitle ?? 'Documents';
         <?php if (isset($paginator)): ?>
             <div class="mt-4">
                 <?php 
-                    if ($paginator instanceof \App\Utils\CursorPaginator) {
+                    if ($paginator instanceof \App\Common\Utils\CursorPaginator) {
                         require BASE_PATH . '/src/Views/components/cursor-pagination.php';
                     } else {
                         require BASE_PATH . '/src/Views/components/pagination.php';

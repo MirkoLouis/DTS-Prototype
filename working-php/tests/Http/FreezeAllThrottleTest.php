@@ -3,7 +3,7 @@
 namespace Tests\Http;
 
 use App\Core\AttemptThrottle;
-use App\Core\Database;
+use App\Common\Database\Database;
 use App\Jobs\IntegrityCheckJob;
 use Tests\Support\Fixtures;
 use Tests\Support\HttpClient;

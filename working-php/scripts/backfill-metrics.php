@@ -1,7 +1,7 @@
 <?php
 define('BASE_PATH', dirname(__DIR__));
 require BASE_PATH . '/vendor/autoload.php';
-use App\Core\Database;
+use App\Common\Database\Database;
 
 echo "Starting Daily Department Metrics Backfill...\n";
 
@@ -87,7 +87,7 @@ $db->query("
 ");
 
 // Clear application cache so dashboard charts reflect newly backfilled metrics
-\App\Core\Cache::clear();
+\App\Common\Cache\Cache::clear();
 echo "Cache cleared.\n";
 
 echo "Backfill complete.\n";

@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Core\Database;
+use App\Common\Database\Database;
 use App\Integrity\HashChainMicroShardingBuilder;
 use Throwable;
 

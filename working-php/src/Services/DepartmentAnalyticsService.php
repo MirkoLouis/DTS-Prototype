@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use App\Core\Database;
+use App\Common\Database\Database;
 
 class DepartmentAnalyticsService
 {

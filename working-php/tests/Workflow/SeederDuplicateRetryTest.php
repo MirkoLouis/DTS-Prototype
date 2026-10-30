@@ -2,7 +2,7 @@
 
 namespace Tests\Workflow;
 
-use App\Core\Database;
+use App\Common\Database\Database;
 use App\Integrity\DigitalSignature;
 use App\Core\TrackingCode;
 use App\Jobs\IntegrityCheckJob;
@@ -124,9 +124,9 @@ class SeederDuplicateRetryTest extends TestCase
         // Replace the memoized config with one whose app.env is $env, then exercise both override paths
         $code = 'define("BASE_PATH", ' . var_export(BASE_PATH, true) . ');'
             . 'require BASE_PATH . "/vendor/autoload.php";'
-            . '$cfg = require BASE_PATH . "/src/Config/config.php";'
+            . '$cfg = require BASE_PATH . "/src/Common/Config/config.php";'
             . '$cfg["app"]["env"] = ' . var_export($env, true) . ';'
-            . '$p = new ReflectionProperty(App\Core\Config::class, "config"); $p->setValue(null, $cfg);'
+            . '$p = new ReflectionProperty(App\Common\Config\Config::class, "config"); $p->setValue(null, $cfg);'
             . '$first = App\Core\TrackingCode::generate(); $second = App\Core\TrackingCode::generate();'
             . 'App\Core\TrackingCode::setTestOverride(fn() => "DEPED-0000000000");'
             . '$explicit = App\Core\TrackingCode::generate();'

@@ -2,7 +2,7 @@
 
 namespace Tests\Http;
 
-use App\Core\Database;
+use App\Common\Database\Database;
 use Tests\Support\HttpClient;
 use Tests\TestCase;
 

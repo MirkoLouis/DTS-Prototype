@@ -3,7 +3,7 @@
  * Reusable Pagination Component
  * 
  * Expected variables:
- * @var App\Utils\Paginator $paginator
+ * @var App\Common\Utils\Paginator $paginator
  */
 $totalPages = $paginator->getTotalPages();
 $currentPage = $paginator->getCurrentPage();

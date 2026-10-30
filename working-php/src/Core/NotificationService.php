@@ -3,6 +3,7 @@
 namespace App\Core;
 
 use PDO;
+use App\Common\Database\Database;
 
 class NotificationService
 {

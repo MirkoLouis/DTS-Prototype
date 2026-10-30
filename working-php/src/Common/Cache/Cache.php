@@ -1,6 +1,8 @@
 <?php
 
-namespace App\Core;
+namespace App\Common\Cache;
+
+use App\Common\Database\Database;
 
 class Cache
 {

@@ -2,7 +2,7 @@
 
 namespace Tests\Security;
 
-use App\Core\Database;
+use App\Common\Database\Database;
 use Tests\Support\Fixtures;
 use Tests\Support\HttpClient;
 use App\Research\ResultWriter;
@@ -174,7 +174,7 @@ class FrontendAttackTest extends TestCase
     }
 
     /**
-     * A staff member cannot reach admin-only routes (403 from RoleMiddleware).
+     * A staff member cannot reach admin-only routes (403 from RoleGuard).
      */
     public function test_staff_cannot_reach_admin_routes(): void
     {

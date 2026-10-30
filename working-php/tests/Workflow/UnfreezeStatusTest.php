@@ -2,7 +2,7 @@
 
 namespace Tests\Workflow;
 
-use App\Core\Database;
+use App\Common\Database\Database;
 use App\Integrity\HashChainMicroShardingBuilder;
 use App\Integrity\PreActionIntegrityCheck;
 use App\Jobs\CleanupStalePendingDocumentsJob;

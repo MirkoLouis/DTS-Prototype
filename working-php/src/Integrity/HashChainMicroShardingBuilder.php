@@ -2,7 +2,7 @@
 
 namespace App\Integrity;
 
-use App\Core\Database;
+use App\Common\Database\Database;
 
 /**
  * SHA-256 hash-chain micro-sharding builder: each document keeps its own independent hash chain

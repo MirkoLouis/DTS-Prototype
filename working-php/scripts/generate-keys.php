@@ -7,7 +7,7 @@ require_once BASE_PATH . '/vendor/autoload.php';
 // Key periods must use the same clock as log timestamps
 date_default_timezone_set(\App\Integrity\HashChainMicroShardingBuilder::APP_TIMEZONE);
 
-use App\Core\Database;
+use App\Common\Database\Database;
 
 /**
  * Write or replace KEY=value lines in .env, keeping every other line untouched.
@@ -37,7 +37,7 @@ function writeEnvValues(string $envPath, array $values): void
 // --system: create the server's Ed25519 key for system-initiated log entries (skips if one exists)
 if (PHP_SAPI === 'cli' && realpath($_SERVER['SCRIPT_FILENAME'] ?? '') === __FILE__ && in_array('--system', $argv ?? [], true)) {
     $force = in_array('--force', $argv, true);
-    $existing = \App\Core\Config::get('app', 'system_signing_secret', '');
+    $existing = \App\Common\Config\Config::get('app', 'system_signing_secret', '');
 
     if ($existing !== '' && !$force) {
         echo "System signing key already present in .env (use --force to replace it; old logs will then fail verification).\n";

@@ -2,7 +2,7 @@
 
 namespace Tests\Support;
 
-use App\Core\Database;
+use App\Common\Database\Database;
 
 /**
  * Rebuilds and seeds the test database. Always runs TestGuard first.
@@ -66,7 +66,7 @@ class TestDatabase
     private static function guardedDb(): Database
     {
         // Check the same values the connection is about to use, before connecting
-        $config = require BASE_PATH . '/src/Config/config.php';
+        $config = require BASE_PATH . '/src/Common/Config/config.php';
         TestGuard::assertSafe((string) $config['app']['env'], (string) $config['database']['dbname']);
 
         return Database::getInstance();

@@ -6,7 +6,7 @@ require BASE_PATH . '/vendor/autoload.php';
 // Same clock as the live system and the database session (+08:00)
 date_default_timezone_set('Asia/Manila');
 
-use App\Core\Database;
+use App\Common\Database\Database;
 use App\Integrity\DigitalSignature;
 use App\Integrity\HashChainMicroShardingBuilder;
 use App\Core\TrackingCode;

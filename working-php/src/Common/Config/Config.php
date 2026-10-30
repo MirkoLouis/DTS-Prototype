@@ -1,9 +1,9 @@
 <?php
 
-namespace App\Core;
+namespace App\Common\Config;
 
 /**
- * Read-only accessor for values parsed from .env by src/Config/config.php.
+ * Read-only accessor for values parsed from .env by src/Common/Config/config.php.
  */
 class Config
 {
@@ -16,7 +16,7 @@ class Config
     {
         // Lazily load and memoize the parsed configuration array
         if (self::$config === null) {
-            self::$config = require BASE_PATH . '/src/Config/config.php';
+            self::$config = require BASE_PATH . '/src/Common/Config/config.php';
         }
 
         return self::$config[$section][$key] ?? $default;

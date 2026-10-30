@@ -10,7 +10,7 @@ class CreateBackupJob
         set_time_limit(1200);
 
         // Simple mysqldump wrapper
-        $config = require BASE_PATH . '/src/Config/config.php';
+        $config = require BASE_PATH . '/src/Common/Config/config.php';
         $dbConfig = $config['database'];
         $host = escapeshellarg($dbConfig['host']);
         $user = escapeshellarg($dbConfig['user']);
@@ -20,7 +20,7 @@ class CreateBackupJob
         $backupDir = BASE_PATH . '/storage/app/backups';
         if (!is_dir($backupDir)) mkdir($backupDir, 0777, true);
 
-        $db = \App\Core\Database::getInstance();
+        $db = \App\Common\Database\Database::getInstance();
         $docCount = $db->query("SELECT COUNT(*) as count FROM documents")->fetch()['count'] ?? 0;
 
         $filename = 'deped_dts_' . date('Y_m_d_His') . '_' . $docCount . '.sql';

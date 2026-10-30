@@ -2,7 +2,7 @@
 
 namespace App\Integrity;
 
-use App\Core\Database;
+use App\Common\Database\Database;
 
 /**
  * Pre-action integrity check and automatic freezing of tampered documents: before a mutating action,

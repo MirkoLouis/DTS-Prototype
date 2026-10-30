@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Core;
+namespace App\Common\Http;
 
 /**
  * Lightweight Custom HTTP Request Router & Middleware Dispatcher.

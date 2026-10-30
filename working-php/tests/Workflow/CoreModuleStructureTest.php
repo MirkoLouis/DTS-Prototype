@@ -2,7 +2,7 @@
 
 namespace Tests\Workflow;
 
-use App\Core\Database;
+use App\Common\Database\Database;
 use App\Integrity\DigitalSignature;
 use App\Integrity\HashChainMicroShardingBuilder;
 use App\Integrity\PreActionIntegrityCheck;
@@ -33,7 +33,14 @@ class CoreModuleStructureTest extends TestCase
     public function test_old_classes_are_removed(): void
     {
         // Each retired class must be unknown to the autoloader
-        foreach (['App\Core\IntegrityManager', 'App\Core\SecurityHelper', 'App\Services\RouteSuggestionService', 'App\Middleware\DocumentPolicyMiddleware'] as $old) {
+        $retired = [
+            'App\Core\IntegrityManager', 'App\Core\SecurityHelper', 'App\Services\RouteSuggestionService', 'App\Middleware\DocumentPolicyMiddleware',
+            // 2.6.0 layer-convention rename: Common
+            'App\Core\Router', 'App\Core\Database', 'App\Core\Cache', 'App\Core\Config', 'App\Core\Validator', 'App\Core\EventDispatcher',
+            'App\Middleware\AuthMiddleware', 'App\Middleware\CacheMiddleware', 'App\Middleware\RoleMiddleware',
+            'App\Utils\Paginator', 'App\Utils\CursorPaginator',
+        ];
+        foreach ($retired as $old) {
             $this->assertFalse(class_exists($old), "{$old} should have been removed");
         }
     }
@@ -47,6 +54,18 @@ class CoreModuleStructureTest extends TestCase
             PreActionIntegrityCheck::class => ['passes', 'freezeTampered'],
             'App\Security\SecurityPinCache' => ['resolvePin'],
             'App\Routing\HeuristicRouter' => ['suggest', 'learnedRoute'],
+            // 2.6.0 layer-convention rename: Common
+            'App\Common\Http\Router' => ['add', 'get', 'post', 'dispatch'],
+            'App\Common\Database\Database' => [],
+            'App\Common\Cache\Cache' => [],
+            'App\Common\Config\Config' => [],
+            'App\Common\Validation\Validator' => [],
+            'App\Common\Events\EventDispatcher' => [],
+            'App\Common\Middleware\AuthMiddleware' => [],
+            'App\Common\Middleware\CacheMiddleware' => [],
+            'App\Common\Guards\RoleGuard' => [],
+            'App\Common\Utils\Paginator' => [],
+            'App\Common\Utils\CursorPaginator' => [],
         ];
 
         // Check each class and each of its methods

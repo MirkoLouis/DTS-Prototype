@@ -2,7 +2,7 @@
 
 namespace App\Controllers;
 
-use App\Core\Database;
+use App\Common\Database\Database;
 use App\Integrity\DigitalSignature;
 use App\Integrity\HashChainMicroShardingBuilder;
 
@@ -67,7 +67,7 @@ class SystemHealthController
 
         $page = $_GET['page'] ?? 1;
         $totalItems = count($issues);
-        $paginator = new \App\Utils\Paginator($totalItems, 10, $page, '?page=(:num)&' . http_build_query(array_diff_key($_GET, ['page' => ''])));
+        $paginator = new \App\Common\Utils\Paginator($totalItems, 10, $page, '?page=(:num)&' . http_build_query(array_diff_key($_GET, ['page' => ''])));
         
         $paginatedIssues = array_slice($issues, $paginator->getOffset(), $paginator->getLimit());
 
@@ -85,7 +85,7 @@ class SystemHealthController
 
         // 2. Failed Jobs
         $failedJobsCount = $db->query("SELECT COUNT(*) as count FROM failed_jobs")->fetch()['count'];
-        $fjPaginator = new \App\Utils\Paginator($failedJobsCount, 10, $fjPage, '?fj_page=(:num)&' . http_build_query(array_diff_key($_GET, ['fj_page' => ''])));
+        $fjPaginator = new \App\Common\Utils\Paginator($failedJobsCount, 10, $fjPage, '?fj_page=(:num)&' . http_build_query(array_diff_key($_GET, ['fj_page' => ''])));
         
         $limit = $fjPaginator->getLimit();
         $offset = $fjPaginator->getOffset();
@@ -102,8 +102,8 @@ class SystemHealthController
     private function checkCacheHealth(): bool
     {
         try {
-            \App\Core\Cache::put('system_health_check', 'ok', 10);
-            $val = \App\Core\Cache::get('system_health_check');
+            \App\Common\Cache\Cache::put('system_health_check', 'ok', 10);
+            $val = \App\Common\Cache\Cache::get('system_health_check');
             $isWritable = is_writable(BASE_PATH . '/cache');
             return ($val === 'ok' && $isWritable);
         } catch (\Throwable $e) {
@@ -437,7 +437,7 @@ class SystemHealthController
         $userId = $_SESSION['user_id'] ?? 'guest';
         $prefix = "cache_" . ($userId === 'guest' ? 'guest' : "user_{$userId}");
         
-        $cacheDir = \App\Middleware\CacheMiddleware::cacheDir() . '/';
+        $cacheDir = \App\Common\Middleware\CacheMiddleware::cacheDir() . '/';
         if (is_dir($cacheDir)) {
             $files = glob($cacheDir . $prefix . '_*.html');
             foreach ($files as $file) {

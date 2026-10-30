@@ -2,7 +2,7 @@
 
 namespace App\Controllers;
 
-use App\Core\Database;
+use App\Common\Database\Database;
 
 class SecurityKeyController
 {
@@ -80,7 +80,7 @@ class SecurityKeyController
         // Fix: Clear the user's personal page cache. If we don't, CacheMiddleware might serve an old cached version 
         // of the dashboard containing the setup modal, causing it to pop up infinitely.
         $prefix = "cache_user_{$userId}";
-        $cacheDir = \App\Middleware\CacheMiddleware::cacheDir() . '/';
+        $cacheDir = \App\Common\Middleware\CacheMiddleware::cacheDir() . '/';
         if (is_dir($cacheDir)) {
             $files = glob($cacheDir . $prefix . '_*.html');
             if ($files) {

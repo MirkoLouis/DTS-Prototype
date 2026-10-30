@@ -2,7 +2,7 @@
 
 namespace Tests\Workflow;
 
-use App\Core\Database;
+use App\Common\Database\Database;
 use App\Integrity\DigitalSignature;
 use App\Integrity\HashChainMicroShardingBuilder;
 use Tests\Support\Fixtures;

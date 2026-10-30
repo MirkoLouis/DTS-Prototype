@@ -2,7 +2,7 @@
 
 namespace App\Jobs;
 
-use App\Core\Database;
+use App\Common\Database\Database;
 use OpenSpout\Writer\XLSX\Writer;
 use OpenSpout\Common\Entity\Style\Style;
 use OpenSpout\Common\Entity\Row;
@@ -92,7 +92,7 @@ class GenerateReportJob
             );
 
             // Clear the user's response cache so subsequent page loads fetch fresh report listings
-            $cacheFiles = glob(\App\Middleware\CacheMiddleware::cacheDir() . "/cache_user_{$this->userId}_*.html");
+            $cacheFiles = glob(\App\Common\Middleware\CacheMiddleware::cacheDir() . "/cache_user_{$this->userId}_*.html");
             if ($cacheFiles) {
                 foreach ($cacheFiles as $f) {
                     @unlink($f);

@@ -2,7 +2,7 @@
 
 namespace Tests\Security;
 
-use App\Core\Database;
+use App\Common\Database\Database;
 use App\Integrity\DigitalSignature;
 use App\Jobs\ChainCheckpointJob;
 use App\Jobs\IntegrityCheckJob;

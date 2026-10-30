@@ -2,7 +2,7 @@
 
 namespace Tests\Concurrency;
 
-use App\Core\Database;
+use App\Common\Database\Database;
 use App\Jobs\IntegrityCheckJob;
 use App\Models\User;
 use App\Services\DocumentWorkflowService;

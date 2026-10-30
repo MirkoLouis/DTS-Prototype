@@ -2,7 +2,7 @@
 
 namespace App\Controllers;
 
-use App\Core\Database;
+use App\Common\Database\Database;
 
 class ReleasingController
 {

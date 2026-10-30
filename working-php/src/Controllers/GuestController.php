@@ -2,8 +2,8 @@
 
 namespace App\Controllers;
 
-use App\Core\Database;
-use App\Core\Validator;
+use App\Common\Database\Database;
+use App\Common\Validation\Validator;
 use chillerlan\QRCode\QRCode;
 use chillerlan\QRCode\QROptions;
 

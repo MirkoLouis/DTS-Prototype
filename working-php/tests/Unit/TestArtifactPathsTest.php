@@ -4,7 +4,7 @@ namespace Tests\Unit;
 
 use App\Jobs\ChainCheckpointJob;
 use App\Jobs\IntegrityCheckJob;
-use App\Middleware\CacheMiddleware;
+use App\Common\Middleware\CacheMiddleware;
 use PHPUnit\Framework\TestCase;
 
 /**

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Utils;
+namespace App\Common\Utils;
 
 class CursorPaginator
 {

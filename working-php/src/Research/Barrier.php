@@ -2,7 +2,7 @@
 
 namespace App\Research;
 
-use App\Core\Database;
+use App\Common\Database\Database;
 use RuntimeException;
 
 /**

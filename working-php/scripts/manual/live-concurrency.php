@@ -16,7 +16,7 @@ define('BASE_PATH', dirname(__DIR__, 2));
 require BASE_PATH . '/vendor/autoload.php';
 date_default_timezone_set(\App\Integrity\HashChainMicroShardingBuilder::APP_TIMEZONE);
 
-use App\Core\Database;
+use App\Common\Database\Database;
 use App\Research\Barrier;
 use App\Research\BarrierWorkerException;
 use App\Research\HttpSession;
@@ -63,7 +63,7 @@ if (!$options['confirm-live']) {
 if (getenv('APP_ENV') === 'testing') {
     refuse("APP_ENV=testing is set. This script is for the live server only; for the test database run: composer test:concurrency");
 }
-$config = require BASE_PATH . '/src/Config/config.php';
+$config = require BASE_PATH . '/src/Common/Config/config.php';
 if ($config['app']['env'] === 'testing') {
     refuse(".env has APP_ENV=testing. This script is for the live server only; for the test database run: composer test:concurrency");
 }

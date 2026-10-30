@@ -2,8 +2,8 @@
 
 namespace App\Controllers;
 
-use App\Core\Database;
-use App\Core\Cache;
+use App\Common\Database\Database;
+use App\Common\Cache\Cache;
 
 class IntegrityMonitorController
 {
@@ -88,7 +88,7 @@ class IntegrityMonitorController
             $nextCursor = $documents[$perPage - 1]['id'];
         }
         
-        $paginator = new \App\Utils\CursorPaginator($documents, $perPage, $nextCursor, $totalItems, '?' . http_build_query(array_diff_key($_GET, ['cursor' => ''])));
+        $paginator = new \App\Common\Utils\CursorPaginator($documents, $perPage, $nextCursor, $totalItems, '?' . http_build_query(array_diff_key($_GET, ['cursor' => ''])));
         $documents = $paginator->getItems();
 
         // Process guest_info

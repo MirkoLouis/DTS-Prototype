@@ -2,7 +2,7 @@
 
 namespace Tests\Unit;
 
-use App\Core\Database;
+use App\Common\Database\Database;
 use App\Research\LiveRunCleanup;
 use InvalidArgumentException;
 use Tests\Support\Fixtures;

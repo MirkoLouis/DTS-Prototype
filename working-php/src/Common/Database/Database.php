@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Core;
+namespace App\Common\Database;
 
 use PDO;
 use PDOException;
@@ -17,7 +17,7 @@ class Database
      */
     private function __construct()
     {
-        $config = require BASE_PATH . '/src/Config/config.php';
+        $config = require BASE_PATH . '/src/Common/Config/config.php';
         $dbConfig = $config['database'];
 
         $dsn = "mysql:host={$dbConfig['host']};port={$dbConfig['port']};dbname={$dbConfig['dbname']};charset={$dbConfig['charset']}";

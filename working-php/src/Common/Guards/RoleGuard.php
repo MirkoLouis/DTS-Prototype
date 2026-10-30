@@ -1,13 +1,13 @@
 <?php
 
-namespace App\Middleware;
+namespace App\Common\Guards;
 
 /**
  * Role-Based Access Control (RBAC) Enforcement Middleware.
  * 
  * Verifies that authenticated users possess appropriate privilege tiers before dispatching protected routes.
  */
-class RoleMiddleware
+class RoleGuard
 {
     /**
      * Handle the role verification.

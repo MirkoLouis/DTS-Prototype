@@ -23,7 +23,7 @@ class RestoreBackupJob
             return;
         }
 
-        $config = require BASE_PATH . '/src/Config/config.php';
+        $config = require BASE_PATH . '/src/Common/Config/config.php';
         $dbConfig = $config['database'];
         $host = escapeshellarg($dbConfig['host']);
         $user = escapeshellarg($dbConfig['user']);

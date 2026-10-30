@@ -2,6 +2,8 @@
 
 namespace App\Core;
 
+use App\Common\Config\Config;
+
 /**
  * Single source of tracking codes for the app and the seeders.
  * Format: DEPED- plus 10 uppercase hex characters (40 bits) from the OS CSPRNG.

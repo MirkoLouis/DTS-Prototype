@@ -3,8 +3,8 @@
 namespace App\Integrity;
 
 use App\Core\AttemptThrottle;
-use App\Core\Config;
-use App\Core\Database;
+use App\Common\Config\Config;
+use App\Common\Database\Database;
 
 /**
  * Non-repudiation (Ed25519 + Argon2id): signs log entries with the user's PIN-protected Ed25519 key

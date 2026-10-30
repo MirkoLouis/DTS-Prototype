@@ -1,8 +1,8 @@
 <?php
 
-namespace App\Middleware;
+namespace App\Common\Middleware;
 
-use App\Core\Database;
+use App\Common\Database\Database;
 
 /**
  * Authentication and Key Setup Guard Middleware.

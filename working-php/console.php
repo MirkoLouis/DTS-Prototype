@@ -11,7 +11,7 @@ require __DIR__ . '/vendor/autoload.php';
 // Match Laravel's default timezone so background hash generation aligns properly
 date_default_timezone_set('Asia/Manila');
 
-use App\Core\Database;
+use App\Common\Database\Database;
 
 define('BASE_PATH', __DIR__);
 
@@ -88,7 +88,7 @@ function runScheduledTasks(int &$lastSampleTime, int &$lastBackfillTime, int &$l
     if ($now - $lastGcTime >= 3600) {
         $lastGcTime = $now;
 
-        $cacheDir = \App\Middleware\CacheMiddleware::cacheDir();
+        $cacheDir = \App\Common\Middleware\CacheMiddleware::cacheDir();
         $purged = 0;
         if (is_dir($cacheDir)) {
             foreach (glob($cacheDir . '/*.html') as $file) {

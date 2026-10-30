@@ -2,6 +2,8 @@
 
 namespace App\Core;
 
+use App\Common\Database\Database;
+
 /**
  * Failed-attempt limiting for login and Security PIN entry.
  *

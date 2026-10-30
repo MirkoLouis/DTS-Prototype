@@ -2,7 +2,7 @@
 
 namespace Tests\Security;
 
-use App\Core\Database;
+use App\Common\Database\Database;
 use Tests\Support\Fixtures;
 use Tests\Support\HttpClient;
 use App\Research\ResultWriter;
