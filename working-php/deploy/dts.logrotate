@@ -1,0 +1,19 @@
+# =============================================================================
+# logrotate rules for the DTS worker log. Install as /etc/logrotate.d/dts after
+# replacing __PROJECT_ROOT__ (absolute path to working-php) and __USER__.
+# nginx (dts_access.log, dts_error.log) and PHP-FPM logs are already covered by
+# /etc/logrotate.d/nginx and /etc/logrotate.d/php<version>-fpm.
+# =============================================================================
+"__PROJECT_ROOT__/storage/logs/worker.log" {
+    # Rotate weekly, or earlier once the file passes 50 MB
+    weekly
+    maxsize 50M
+    rotate 8
+    compress
+    delaycompress
+    missingok
+    notifempty
+    # The worker keeps the file open, so copy it and empty it in place
+    copytruncate
+    su __USER__ __USER__
+}

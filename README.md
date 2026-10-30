@@ -126,7 +126,7 @@ Comprehensive user manuals are provided in [working-php/documentation/user_manua
 | Command / Script | Purpose |
 | :--- | :--- |
 | `composer run worker` | Runs [console.php](working-php/console.php) background job processor and telemetry scheduler. |
-| `composer run dev` | Runs [scripts/dev.php](working-php/scripts/dev.php) to start local dev server & Tailwind watcher. |
+| `composer run dev` | Runs [scripts/dev.php](working-php/scripts/dev.php) to start local dev server & Tailwind watcher, plus the queue worker with a watchdog that restarts it if it exits (Ctrl+C stops it too). |
 | `composer run corrupt` | Runs [scripts/corrupt.php](working-php/scripts/corrupt.php) to simulate database tampering and test the JIT pre-action integrity check and automatic freezing. |
 | `php scripts/tune-database.php` | Analyzes system memory and outputs optimal MySQL `my.cnf` buffer pool configurations. |
 | `php scripts/generate-keys.php` | CLI tool for generating missing Ed25519 digital signature keypairs. `--system` creates the server key used to sign system actions (`SYSTEM_SIGNING_SECRET` / `SYSTEM_SIGNING_PUBLIC` in `.env`). |
@@ -137,6 +137,68 @@ Comprehensive user manuals are provided in [working-php/documentation/user_manua
 | `scripts/migrations/master-migration.sql` | The single, idempotent migration for existing databases; new schema changes are appended to it (see the migration notice under Testing). |
 
 ---
+
+## 🔁 Running Continuously on Linux (`working-php`)
+
+The DTS is meant to run without stopping. Everything that grows over time falls into one of three groups:
+
+| Group | What | Who keeps it bounded |
+| :--- | :--- | :--- |
+| Handled by the app | Page cache (purged hourly), `database_metrics` (rolled up to hourly after 24 h), notifications (newest 10 per user/department), `navigation.log` (renamed at 50 MB) | The worker's scheduler (`console.php`) |
+| Handled by the operating system | nginx logs (`/var/log/nginx/dts_*.log`), PHP-FPM log (`/var/log/php<version>-fpm.log`), PHP session files (`/var/lib/php/sessions`), `storage/logs/worker.log` | logrotate and the PHP session cleaner, which must actually run (below) |
+| Kept forever | `documents`, `document_logs`, `user_public_key_histories` (the audit trail) and the signed checkpoints in `storage/checkpoints/` | Nobody: plan disk capacity instead (below) |
+
+### 1. Keep the queue worker running
+
+The worker runs the scheduler (daily checkpoint, metrics, cache cleanup, stale-document cleanup) and the background jobs. Its last-run times are stored in the `worker_schedule` table, so a restart never postpones a daily task. It still has to be restarted when it exits. `composer run dev` does this itself (a watchdog relaunches it within about 5 seconds). On a server, run it as a systemd service, which also starts it at boot:
+
+```bash
+cd /opt/dts/working-php                       # your project path (preferably without spaces)
+sed -e "s#__PROJECT_ROOT__#$PWD#g" -e "s#__USER__#$USER#g" deploy/dts-worker.service \
+    | sudo tee /etc/systemd/system/dts-worker.service > /dev/null
+sudo systemctl daemon-reload
+sudo systemctl enable --now dts-worker.service
+systemctl status dts-worker.service           # should say "active (running)"
+journalctl -u dts-worker.service -n 50        # worker start-up messages (output also goes to storage/logs/worker.log)
+```
+
+Serve the site with `composer run prod` on that server, not `composer run dev`. `dev` starts and watches its own worker, which would duplicate the service. Existing databases need `scripts/migrations/master-migration.sql` for the `worker_schedule` table.
+
+### 2. Make sure the operating system rotates logs and cleans PHP sessions
+
+Ubuntu and Debian already install the rules: `/etc/logrotate.d/nginx` (daily, keep 14, compressed), `/etc/logrotate.d/php<version>-fpm` (weekly, keep 12), and a PHP session cleaner (`/etc/cron.d/php` and `phpsessionclean.timer`; `php.ini` sets `session.gc_probability = 0`, so PHP itself never deletes old session files). The rules only help if logrotate is installed and something runs it. Minimal images (containers, Distrobox) often lack the `logrotate` package itself:
+
+```bash
+command -v logrotate || sudo apt install logrotate     # installs logrotate.timer and /etc/cron.daily/logrotate
+```
+
+**On a machine with systemd** (a normal server or desktop install), check that both timers are active:
+
+```bash
+systemctl list-timers logrotate.timer phpsessionclean.timer
+sudo systemctl enable --now logrotate.timer phpsessionclean.timer    # if either is missing or inactive
+```
+
+**On a machine without systemd as PID 1** (Docker, Distrobox, WSL), timers never fire. Install and start cron, which runs `/etc/cron.daily/logrotate` and `/etc/cron.d/php`:
+
+```bash
+sudo apt install cron
+sudo service cron start            # start it again after every container or WSL restart
+```
+
+**Add the worker log** (the systemd unit and `composer run dev` both append to it):
+
+```bash
+cd /opt/dts/working-php
+sed -e "s#__PROJECT_ROOT__#$PWD#g" -e "s#__USER__#$USER#g" deploy/dts.logrotate \
+    | sudo tee /etc/logrotate.d/dts > /dev/null
+sudo logrotate -d /etc/logrotate.d/dts                 # dry run: shows what would be rotated, changes nothing
+sudo logrotate -d /etc/logrotate.d/nginx
+```
+
+### 3. Plan disk space for what is kept forever
+
+The audit trail and the checkpoints are never deleted, because removing either would weaken tamper detection. Each daily checkpoint lists every document's chain head, so it grows with the number of documents: about **8.5 MB per day at 100,000 documents** (about 3 GB per year), and about 25 MB per day at 300,000 documents. Copy checkpoints off the server regularly (USB, another machine), as the admin manual describes. That copy is what lets you detect deletions even if the server itself is compromised. Backups in `storage/app/backups/` are not deleted automatically either.
 
 ## 🧪 Testing (`working-php`)
 
