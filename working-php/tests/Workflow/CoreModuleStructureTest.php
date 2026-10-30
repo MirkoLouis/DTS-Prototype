@@ -62,6 +62,8 @@ class CoreModuleStructureTest extends TestCase
             'App\Jobs\CreateBackupJob', 'App\Jobs\RestoreBackupJob',
             // 2.6.0: Notifications
             'App\Controllers\NotificationController', 'App\Core\NotificationService',
+            // 2.6.1: profile editing was removed from the UI; its controller is gone too
+            'App\Modules\Users\ProfileController',
         ];
         foreach ($retired as $old) {
             $this->assertFalse(class_exists($old), "{$old} should have been removed");
@@ -109,7 +111,6 @@ class CoreModuleStructureTest extends TestCase
             'App\Modules\Documents\Jobs\CleanupStalePendingDocumentsJob' => [],
             // 2.6.0: Users
             'App\Modules\Users\UserController' => [],
-            'App\Modules\Users\ProfileController' => [],
             'App\Modules\Users\SecurityKeyController' => [],
             'App\Modules\Users\UserModel' => ['findById'],
             // 2.6.0: Auth
