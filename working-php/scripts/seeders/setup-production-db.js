@@ -74,7 +74,8 @@ async function setupDatabase() {
             'Schools Division Superintendent Office',
             'Assistant Schools Division Superintendent Office',
             'Curriculum Implementation Division',
-            'School Governance and Operations Division'
+            'School Governance and Operations Division',
+            'ICT Unit'
         ];
 
         for (const dept of departments) {

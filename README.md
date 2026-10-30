@@ -115,7 +115,7 @@ Comprehensive user manuals are provided in [working-php/documentation/user_manua
 
 ## 🌱 Database Seeding Commands (`working-php/scripts/seeders`)
 
-- **Production Setup (`composer run seed:prod` / `node scripts/seeders/setup-production-db.js`):** Builds database tables from `database.sql` and seeds 14 DepEd departments, baseline document purposes, and initial user accounts.
+- **Production Setup (`composer run seed:prod` / `node scripts/seeders/setup-production-db.js`):** Builds database tables from `database.sql` and seeds 15 DepEd departments (including the ICT Unit), baseline document purposes, and initial user accounts.
 - **High-Speed Direct Database Seeder (`composer run seed:fast [docs]` / `php scripts/seeders/fast-seed.php`):** Generates up to 50,000+ document logs directly in MySQL in seconds by pre-decrypting Ed25519 keys into RAM.
 - **Slow-Speed API Seeder (`composer run seed:dev [docs] [chunk] [concurrency]` / `node scripts/seeders/seed.js`):** Dispatches live HTTP requests against the web server to simulate multi-user traffic and session handling, also functions as a concurrency test.
 
@@ -232,6 +232,7 @@ COMPOSER_PROCESS_TIMEOUT=0 composer manual:live-concurrency -- --base-url=https:
 | **Staff: ASDS Office** | `assistant.schools.division.superintendent.office` |
 | **Staff: CID** | `curriculum.implementation.division` |
 | **Staff: SGOD** | `school.governance.and.operations.division` |
+| **Staff: ICT Unit** | `ict.unit` |
 
 ---
 
