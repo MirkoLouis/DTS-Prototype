@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controllers;
+namespace App\Modules\System;
 
 use App\Common\Database\Database;
 
@@ -53,7 +53,7 @@ class BackupManagerController
     public function create()
     {
         $db = Database::getInstance();
-        $payload = json_encode(['class' => \App\Jobs\CreateBackupJob::class, 'data' => []]);
+        $payload = json_encode(['class' => \App\Modules\System\Jobs\CreateBackupJob::class, 'data' => []]);
         $db->query("INSERT INTO jobs (queue, payload, attempts, available_at, created_at) VALUES ('default', :payload, 0, UNIX_TIMESTAMP(), UNIX_TIMESTAMP())", [
             'payload' => $payload
         ]);
@@ -101,7 +101,7 @@ class BackupManagerController
     {
         $db = Database::getInstance();
         $safeFileName = basename($fileName);
-        $payload = json_encode(['class' => \App\Jobs\RestoreBackupJob::class, 'data' => [$safeFileName]]);
+        $payload = json_encode(['class' => \App\Modules\System\Jobs\RestoreBackupJob::class, 'data' => [$safeFileName]]);
         $db->query("INSERT INTO jobs (queue, payload, attempts, available_at, created_at) VALUES ('default', :payload, 0, UNIX_TIMESTAMP(), UNIX_TIMESTAMP())", [
             'payload' => $payload
         ]);

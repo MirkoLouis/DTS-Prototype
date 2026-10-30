@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Jobs;
+namespace App\Modules\System\Jobs;
 
 class RestoreBackupJob
 {

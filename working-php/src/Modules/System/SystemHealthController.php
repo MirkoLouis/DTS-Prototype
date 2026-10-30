@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controllers;
+namespace App\Modules\System;
 
 use App\Common\Database\Database;
 use App\Modules\Integrity\DigitalSignatureService;
@@ -246,7 +246,7 @@ class SystemHealthController
 
     public function getDbPerformanceData()
     {
-        $service = new \App\Services\DatabasePerformanceService();
+        $service = new \App\Modules\System\DatabasePerformanceService();
         $period = $_GET['period'] ?? 'daily';
         
         header('Content-Type: application/json');

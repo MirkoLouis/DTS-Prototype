@@ -89,7 +89,7 @@ $router->get('/statistics', [App\Modules\Analytics\StatisticsController::class, 
 
 // --- Protected Routes ---
 
-$router->get('/system-overview', [App\Controllers\SystemHealthController::class, 'index'], [
+$router->get('/system-overview', [App\Modules\System\SystemHealthController::class, 'index'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
@@ -100,64 +100,64 @@ $router->get('/all-documents', [App\Modules\Integrity\IntegrityMonitorController
 ]);
 
 
-$router->post('/system-health/run-check', [App\Controllers\SystemHealthController::class, 'runIntegrityCheck'], [
+$router->post('/system-health/run-check', [App\Modules\System\SystemHealthController::class, 'runIntegrityCheck'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
-$router->get('/system-health/debug-log/(?P<id>\d+)', [App\Controllers\SystemHealthController::class, 'debugLog'], [
+$router->get('/system-health/debug-log/(?P<id>\d+)', [App\Modules\System\SystemHealthController::class, 'debugLog'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
-$router->get('/api/system-health/integrity-status/(?P<jobId>[a-zA-Z0-9_-]+)', [App\Controllers\SystemHealthController::class, 'getIntegrityCheckStatus'], [
+$router->get('/api/system-health/integrity-status/(?P<jobId>[a-zA-Z0-9_-]+)', [App\Modules\System\SystemHealthController::class, 'getIntegrityCheckStatus'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
-$router->post('/api/system-health/integrity-cancel/(?P<jobId>[a-zA-Z0-9_-]+)', [App\Controllers\SystemHealthController::class, 'cancelIntegrityCheck'], [
+$router->post('/api/system-health/integrity-cancel/(?P<jobId>[a-zA-Z0-9_-]+)', [App\Modules\System\SystemHealthController::class, 'cancelIntegrityCheck'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
-$router->get('/system-health/results', [App\Controllers\SystemHealthController::class, 'getIntegrityCheckResults'], [
+$router->get('/system-health/results', [App\Modules\System\SystemHealthController::class, 'getIntegrityCheckResults'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
-$router->get('/api/system-health/db-performance', [App\Controllers\SystemHealthController::class, 'getDbPerformanceData'], [
+$router->get('/api/system-health/db-performance', [App\Modules\System\SystemHealthController::class, 'getDbPerformanceData'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
-$router->get('/admin/system-health/export-db-metrics', [App\Controllers\SystemHealthController::class, 'exportDbPerformanceMetrics'], [
+$router->get('/admin/system-health/export-db-metrics', [App\Modules\System\SystemHealthController::class, 'exportDbPerformanceMetrics'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
-$router->post('/system-health/failed-jobs/(?P<id>\d+)/delete', [App\Controllers\SystemHealthController::class, 'deleteFailedJob'], [
+$router->post('/system-health/failed-jobs/(?P<id>\d+)/delete', [App\Modules\System\SystemHealthController::class, 'deleteFailedJob'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
-$router->post('/system-health/failed-jobs/delete-all', [App\Controllers\SystemHealthController::class, 'deleteAllFailedJobs'], [
+$router->post('/system-health/failed-jobs/delete-all', [App\Modules\System\SystemHealthController::class, 'deleteAllFailedJobs'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
-$router->post('/system-health/freeze-all', [App\Controllers\SystemHealthController::class, 'freezeAll'], [
+$router->post('/system-health/freeze-all', [App\Modules\System\SystemHealthController::class, 'freezeAll'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
-$router->get('/system/backups', [App\Controllers\BackupManagerController::class, 'index'], [
+$router->get('/system/backups', [App\Modules\System\BackupManagerController::class, 'index'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
-$router->post('/system/backups/create', [App\Controllers\BackupManagerController::class, 'create'], [
+$router->post('/system/backups/create', [App\Modules\System\BackupManagerController::class, 'create'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
-$router->post('/system/backups/restore/(?P<fileName>.+)', [App\Controllers\BackupManagerController::class, 'restore'], [
+$router->post('/system/backups/restore/(?P<fileName>.+)', [App\Modules\System\BackupManagerController::class, 'restore'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
-$router->post('/system/backups/delete/(?P<fileName>.+)', [App\Controllers\BackupManagerController::class, 'delete'], [
+$router->post('/system/backups/delete/(?P<fileName>.+)', [App\Modules\System\BackupManagerController::class, 'delete'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
-$router->get('/system/backups/download/(?P<fileName>.+)', [App\Controllers\BackupManagerController::class, 'download'], [
+$router->get('/system/backups/download/(?P<fileName>.+)', [App\Modules\System\BackupManagerController::class, 'download'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
@@ -192,7 +192,7 @@ $router->post('/admin-dashboard/clear-cache', [\App\Modules\Analytics\AdminDashb
     App\Common\Middleware\AuthMiddleware::class, 
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
-$router->post('/clear-personal-cache', [App\Controllers\SystemHealthController::class, 'clearPersonalCache'], [
+$router->post('/clear-personal-cache', [App\Modules\System\SystemHealthController::class, 'clearPersonalCache'], [
     App\Common\Middleware\AuthMiddleware::class
 ]);
 
@@ -287,15 +287,15 @@ $router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/hash-chain', [App\Mod
 ]);
 $router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/print-tracking-form', [App\Modules\Documents\DocumentController::class, 'printTrackingForm']);
 
-$router->post('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/freeze', [App\Controllers\SystemHealthController::class, 'freeze'], [
+$router->post('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/freeze', [App\Modules\System\SystemHealthController::class, 'freeze'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
-$router->post('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/unfreeze', [App\Controllers\SystemHealthController::class, 'unfreeze'], [
+$router->post('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/unfreeze', [App\Modules\System\SystemHealthController::class, 'unfreeze'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
-$router->post('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/autoresolve', [App\Controllers\SystemHealthController::class, 'autoResolve'], [
+$router->post('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/autoresolve', [App\Modules\System\SystemHealthController::class, 'autoResolve'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
