@@ -140,6 +140,18 @@ class CoreModuleStructureTest extends TestCase
             }
         }
 
+        // No two paths under src/ may differ only by letter case (they collide on Windows and macOS checkouts)
+        $seen = [];
+        $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(BASE_PATH . '/src', \FilesystemIterator::SKIP_DOTS));
+        foreach ($files as $file) {
+            $path = substr($file->getPathname(), strlen(BASE_PATH) + 1);
+            $key = strtolower($path);
+            $other = $seen[$key] ?? '';
+            $this->assertArrayNotHasKey($key, $seen, "{$path} collides with {$other} on a case-insensitive filesystem");
+            $seen[$key] = $path;
+        }
+        $this->assertFileExists(BASE_PATH . '/src/Common/Config/app.config.php');
+
         // Public constants keep their values
         $this->assertSame('Asia/Manila', HashChainService::APP_TIMEZONE);
         $this->assertSame('genesis_hash', HashChainService::GENESIS_HASH);

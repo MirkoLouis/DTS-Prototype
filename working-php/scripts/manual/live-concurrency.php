@@ -63,7 +63,7 @@ if (!$options['confirm-live']) {
 if (getenv('APP_ENV') === 'testing') {
     refuse("APP_ENV=testing is set. This script is for the live server only; for the test database run: composer test:concurrency");
 }
-$config = require BASE_PATH . '/src/Common/Config/config.php';
+$config = require BASE_PATH . '/src/Common/Config/app.config.php';
 if ($config['app']['env'] === 'testing') {
     refuse(".env has APP_ENV=testing. This script is for the live server only; for the test database run: composer test:concurrency");
 }

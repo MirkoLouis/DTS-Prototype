@@ -10,7 +10,7 @@ class CreateBackupJob
         set_time_limit(1200);
 
         // Simple mysqldump wrapper
-        $config = require BASE_PATH . '/src/Common/Config/config.php';
+        $config = require BASE_PATH . '/src/Common/Config/app.config.php';
         $dbConfig = $config['database'];
         $host = escapeshellarg($dbConfig['host']);
         $user = escapeshellarg($dbConfig['user']);

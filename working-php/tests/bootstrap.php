@@ -18,7 +18,7 @@ if (!file_exists(BASE_PATH . '/.env.testing')) {
 }
 
 // Refuse to run unless the configuration targets a disposable test database
-$config = require BASE_PATH . '/src/Common/Config/config.php';
+$config = require BASE_PATH . '/src/Common/Config/app.config.php';
 try {
     TestGuard::assertSafe((string) $config['app']['env'], (string) $config['database']['dbname']);
 } catch (RuntimeException $e) {

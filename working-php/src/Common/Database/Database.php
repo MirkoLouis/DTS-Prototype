@@ -17,7 +17,7 @@ class Database
      */
     private function __construct()
     {
-        $config = require BASE_PATH . '/src/Common/Config/config.php';
+        $config = require BASE_PATH . '/src/Common/Config/app.config.php';
         $dbConfig = $config['database'];
 
         $dsn = "mysql:host={$dbConfig['host']};port={$dbConfig['port']};dbname={$dbConfig['dbname']};charset={$dbConfig['charset']}";
