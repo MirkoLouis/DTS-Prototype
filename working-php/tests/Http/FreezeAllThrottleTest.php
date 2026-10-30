@@ -2,7 +2,7 @@
 
 namespace Tests\Http;
 
-use App\Core\AttemptThrottle;
+use App\Modules\Auth\AttemptThrottleService;
 use App\Common\Database\Database;
 use App\Modules\Integrity\Jobs\IntegrityCheckJob;
 use Tests\Support\Fixtures;
@@ -29,9 +29,9 @@ class FreezeAllThrottleTest extends TestCase
         // Log in, then time the admin's PIN out
         $client = HttpClient::start();
         $client->loginAs('admin');
-        $key = AttemptThrottle::key('pin', (string) $this->fx['users']['admin']);
+        $key = AttemptThrottleService::key('pin', (string) $this->fx['users']['admin']);
         for ($i = 0; $i < 3; $i++) {
-            AttemptThrottle::recordFailure($key, time());
+            AttemptThrottleService::recordFailure($key, time());
         }
 
         // Freeze-all with the correct PIN while timed out
@@ -41,7 +41,7 @@ class FreezeAllThrottleTest extends TestCase
         $page = $client->get('/system-overview')['body'];
 
         // The timeout is surfaced and nothing was frozen
-        $this->assertStringContainsString(AttemptThrottle::MESSAGE, $page);
+        $this->assertStringContainsString(AttemptThrottleService::MESSAGE, $page);
         $this->assertStringNotContainsString('Successfully frozen', $page);
         $status = Database::getInstance()->query('SELECT status FROM documents WHERE id = :id', [':id' => $s['id']])->fetch()['status'];
         $this->assertSame('pending', $status);

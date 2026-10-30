@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Core;
+namespace App\Modules\Auth;
 
 use App\Common\Database\Database;
 
@@ -11,7 +11,7 @@ use App\Common\Database\Database;
  * SHA-256 digests of "scope|subject", so neither emails nor IPs are stored in clear.
  * The table is written outside any workflow transaction, so a rollback never erases a failure.
  */
-class AttemptThrottle
+class AttemptThrottleService
 {
     public const MAX_FAILURES = 3;
     public const WINDOW_SECONDS = 60;

@@ -2,7 +2,7 @@
 
 namespace Tests\Workflow;
 
-use App\Core\AttemptThrottle;
+use App\Modules\Auth\AttemptThrottleService;
 use App\Common\Database\Database;
 use App\Modules\Users\SecurityPinCacheService;
 use App\Modules\Documents\DocumentWorkflowService;
@@ -71,11 +71,11 @@ class PinRateLimitTest extends TestCase
         for ($i = 0; $i < 2; $i++) {
             $message = $this->scanWith($s['tracking_code'], '000000');
             $this->assertNotNull($message);
-            $this->assertNotSame(AttemptThrottle::MESSAGE, $message);
+            $this->assertNotSame(AttemptThrottleService::MESSAGE, $message);
         }
 
-        $this->assertSame(AttemptThrottle::MESSAGE, $this->scanWith($s['tracking_code'], '000000'));
-        $this->assertSame(AttemptThrottle::MESSAGE, $this->scanWith($s['tracking_code'], TestDatabase::PIN));
+        $this->assertSame(AttemptThrottleService::MESSAGE, $this->scanWith($s['tracking_code'], '000000'));
+        $this->assertSame(AttemptThrottleService::MESSAGE, $this->scanWith($s['tracking_code'], TestDatabase::PIN));
 
         // Nothing was written and the document did not move
         $this->assertSame(0, $this->logCount($s['id'], 'Received'));
@@ -90,10 +90,10 @@ class PinRateLimitTest extends TestCase
         for ($i = 0; $i < 3; $i++) {
             $this->scanWith($s['tracking_code'], '000000');
         }
-        $this->assertSame(AttemptThrottle::MESSAGE, $this->scanWith($s['tracking_code'], TestDatabase::PIN));
+        $this->assertSame(AttemptThrottleService::MESSAGE, $this->scanWith($s['tracking_code'], TestDatabase::PIN));
 
         // Move the lock into the past instead of waiting a minute
-        $key = AttemptThrottle::key('pin', (string) $this->fx['users']['cash.unit']);
+        $key = AttemptThrottleService::key('pin', (string) $this->fx['users']['cash.unit']);
         Database::getInstance()->query('UPDATE attempt_throttles SET locked_until = :t, first_failed_at = :f WHERE throttle_key = :k', [
             ':t' => time() - 1,
             ':f' => time() - 120,
@@ -118,8 +118,8 @@ class PinRateLimitTest extends TestCase
             $this->assertSame(TestDatabase::PIN, SecurityPinCacheService::resolvePin($token));
         }
 
-        $key = AttemptThrottle::key('pin', (string) $user->id);
-        $this->assertSame(0, AttemptThrottle::secondsLocked($key, time()));
+        $key = AttemptThrottleService::key('pin', (string) $user->id);
+        $this->assertSame(0, AttemptThrottleService::secondsLocked($key, time()));
         $row = Database::getInstance()->query('SELECT COUNT(*) c FROM attempt_throttles WHERE throttle_key = :k', [':k' => $key])->fetch();
         $this->assertSame(0, (int) $row['c']);
     }

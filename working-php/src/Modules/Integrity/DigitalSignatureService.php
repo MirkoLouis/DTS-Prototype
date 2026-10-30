@@ -2,7 +2,7 @@
 
 namespace App\Modules\Integrity;
 
-use App\Core\AttemptThrottle;
+use App\Modules\Auth\AttemptThrottleService;
 use App\Common\Config\Config;
 use App\Common\Database\Database;
 
@@ -91,8 +91,8 @@ class DigitalSignatureService
         }
 
         // Refuse while the user is timed out for wrong PINs (failures are recorded in SecurityPinCacheService::resolvePin)
-        if (AttemptThrottle::secondsLocked(AttemptThrottle::key('pin', (string) $userId), time()) > 0) {
-            throw new \Exception(AttemptThrottle::MESSAGE);
+        if (AttemptThrottleService::secondsLocked(AttemptThrottleService::key('pin', (string) $userId), time()) > 0) {
+            throw new \Exception(AttemptThrottleService::MESSAGE);
         }
 
         $db = Database::getInstance();

@@ -2,7 +2,7 @@
 
 namespace Tests\Http;
 
-use App\Core\AttemptThrottle;
+use App\Modules\Auth\AttemptThrottleService;
 use Tests\Support\HttpClient;
 use Tests\Support\TestDatabase;
 use Tests\TestCase;
@@ -37,12 +37,12 @@ class LoginRateLimitTest extends TestCase
         for ($i = 0; $i < 2; $i++) {
             $result = $this->attempt($client, 'cash.unit', 'wrong');
             $this->assertStringContainsString('These credentials do not match our records.', $result['page']);
-            $this->assertStringNotContainsString(AttemptThrottle::MESSAGE, $result['page']);
+            $this->assertStringNotContainsString(AttemptThrottleService::MESSAGE, $result['page']);
         }
 
         $result = $this->attempt($client, 'cash.unit', 'wrong');
         $this->assertFalse($this->loggedIn($result));
-        $this->assertStringContainsString(AttemptThrottle::MESSAGE, $result['page']);
+        $this->assertStringContainsString(AttemptThrottleService::MESSAGE, $result['page']);
     }
 
     // The right password is refused while the timeout lasts
@@ -55,7 +55,7 @@ class LoginRateLimitTest extends TestCase
 
         $result = $this->attempt($client, 'cash.unit', TestDatabase::PASSWORD);
         $this->assertFalse($this->loggedIn($result));
-        $this->assertStringContainsString(AttemptThrottle::MESSAGE, $result['page']);
+        $this->assertStringContainsString(AttemptThrottleService::MESSAGE, $result['page']);
     }
 
     // A successful login resets the failure count

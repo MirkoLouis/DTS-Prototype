@@ -53,9 +53,9 @@ if (\App\Common\Config\Config::get('app', 'env') === 'testing') {
 
 
 // --- Auth Routes ---
-$router->get('/login', [App\Controllers\AuthController::class, 'showLogin']);
-$router->post('/login', [App\Controllers\AuthController::class, 'login']);
-$router->post('/logout', [App\Controllers\AuthController::class, 'logout']);
+$router->get('/login', [App\Modules\Auth\AuthController::class, 'showLogin']);
+$router->post('/login', [App\Modules\Auth\AuthController::class, 'login']);
+$router->post('/logout', [App\Modules\Auth\AuthController::class, 'logout']);
 
 // --- Guest / Public Routes ---
 $router->get('/', [App\Modules\Documents\GuestController::class, 'welcome'], [

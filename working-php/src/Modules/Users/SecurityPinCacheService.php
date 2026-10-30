@@ -2,7 +2,7 @@
 
 namespace App\Modules\Users;
 
-use App\Core\AttemptThrottle;
+use App\Modules\Auth\AttemptThrottleService;
 use App\Common\Config\Config;
 use App\Common\Database\Database;
 use App\Modules\Integrity\DigitalSignatureService;
@@ -56,8 +56,8 @@ class SecurityPinCacheService
         }
 
         // While timed out, neither verify nor count the PIN; DigitalSignatureService::signAction() refuses it
-        $throttleKey = AttemptThrottle::key('pin', (string) $userId);
-        if (AttemptThrottle::secondsLocked($throttleKey, time()) > 0) {
+        $throttleKey = AttemptThrottleService::key('pin', (string) $userId);
+        if (AttemptThrottleService::secondsLocked($throttleKey, time()) > 0) {
             return $submittedPin;
         }
 
@@ -65,10 +65,10 @@ class SecurityPinCacheService
         // This runs before the workflow transaction opens, so a rollback cannot erase the failure.
         $unlocks = self::pinUnlocksKey($userId, $submittedPin);
         if ($unlocks === true) {
-            AttemptThrottle::clear($throttleKey);
+            AttemptThrottleService::clear($throttleKey);
             $_SESSION[self::SESSION_ISSUED] = self::issueToken($submittedPin, $userId);
         } elseif ($unlocks === false) {
-            AttemptThrottle::recordFailure($throttleKey, time());
+            AttemptThrottleService::recordFailure($throttleKey, time());
         }
 
         return $submittedPin;

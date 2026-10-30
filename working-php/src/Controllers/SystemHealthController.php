@@ -389,7 +389,7 @@ class SystemHealthController
                 $frozenCount++;
             } catch (\Exception $e) {
                 // A PIN timeout applies to every remaining document, so stop and report it
-                if ($e->getMessage() === \App\Core\AttemptThrottle::MESSAGE) {
+                if ($e->getMessage() === \App\Modules\Auth\AttemptThrottleService::MESSAGE) {
                     $throttled = true;
                     break;
                 }
@@ -399,7 +399,7 @@ class SystemHealthController
 
         // Surface a PIN timeout instead of a misleading success count
         if ($throttled) {
-            $_SESSION['error'] = \App\Core\AttemptThrottle::MESSAGE;
+            $_SESSION['error'] = \App\Modules\Auth\AttemptThrottleService::MESSAGE;
             header("Location: /system-overview");
             exit;
         }
