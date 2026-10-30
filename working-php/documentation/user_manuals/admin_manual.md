@@ -59,9 +59,9 @@ Every user action that mutates document state requires a cryptographically secur
 
 1. **Running a Full System Audit:**
    - Navigate to `/system-overview` and click **Run Integrity Check**.
-   - An asynchronous queue job ([IntegrityCheckJob](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Jobs/IntegrityCheckJob.php)) evaluates every document's state hash against its immutable log chain (`document_logs`).
+   - An asynchronous queue job ([IntegrityCheckJob](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Modules/Integrity/Jobs/IntegrityCheckJob.php)) evaluates every document's state hash against its immutable log chain (`document_logs`).
 2. **Monitoring Real-Time DB Metrics:**
-   - View active database connections, average query response times, and slow query logs fetched via [DatabasePerformanceService](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Services/DatabasePerformanceService.php).
+   - View active database connections, average query response times, and slow query logs fetched via [DatabasePerformanceService](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Modules/System/DatabasePerformanceService.php).
    - Export performance metrics to CSV for auditing.
 
 ### 4.3 Handling Tampered Documents & Auto-Resolve
@@ -85,8 +85,8 @@ When raw database tampering is detected (e.g., unauthorized SQL updates bypassin
 
 ### 4.4 Managing System Backups (`/system/backups`)
 
-1. **Creating a Backup:** Click **Create Backup Now**. The background job [CreateBackupJob](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Jobs/CreateBackupJob.php) generates a compressed SQL dump in `storage/backups/`.
-2. **Restoring a Snapshot:** Select a backup file and click **Restore**. The system executes [RestoreBackupJob](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Jobs/RestoreBackupJob.php) to restore database tables.
+1. **Creating a Backup:** Click **Create Backup Now**. The background job [CreateBackupJob](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Modules/System/Jobs/CreateBackupJob.php) generates a compressed SQL dump in `storage/backups/`.
+2. **Restoring a Snapshot:** Select a backup file and click **Restore**. The system executes [RestoreBackupJob](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Modules/System/Jobs/RestoreBackupJob.php) to restore database tables.
 3. **Downloading Archives:** Backup files can be downloaded directly for off-site storage.
 
 ---

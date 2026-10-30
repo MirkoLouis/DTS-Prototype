@@ -2,6 +2,33 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-10-30 14:29
+
+**Version:** 2.6.0-Release+202610301429
+
+### Changed
+- `working-php/src/` follows the layer naming conventions in `naming-conventions.md`: feature-first folders under `src/Modules/<Feature>/`, shared infrastructure under `src/Common/`, PSR-4 PascalCase files, and the layer named by the class suffix. Rename and move only: behaviour, log format v2 (`signedMessage`, `chainHash`, `calculateStateHash`), URLs, the database schema, `.env` keys and composer scripts are unchanged, and existing chains still verify.
+    - Common: `Core/{Router,Database,Cache,Config,Validator,EventDispatcher}` → `Common/{Http,Database,Cache,Config,Validation,Events}/`; `Middleware/{Auth,Cache}Middleware` → `Common/Middleware/`; `Middleware/RoleMiddleware` → `Common/Guards/RoleGuard`; `Utils/*Paginator` and `helpers.php` → `Common/Utils/`; `Config/config.php` → `Common/Config/config.php`.
+    - Documents: the Document, Guest, Intake, Task, Releasing and Dashboard controllers, `DocumentWorkflowService`, `DocumentQueryService`, `DocumentPolicy`, `Models/Document` → `DocumentModel`, `Core/TrackingCode` → `TrackingCodeUtil`, `CleanupStalePendingDocumentsJob` → `Modules/Documents/`.
+    - Integrity: `IntegrityMonitorController`, `Jobs/IntegrityCheckJob`, `Jobs/ChainCheckpointJob`, `Events/IntegrityCheckFailedEvent` (was `IntegrityCheckFailed`) → `Modules/Integrity/`.
+    - Users: User, Profile and SecurityKey controllers, `Models/User` → `UserModel` → `Modules/Users/`. Auth: `AuthController`, `Core/AttemptThrottle` → `AttemptThrottleService` → `Modules/Auth/`.
+    - Analytics: AdminDashboard and Statistics controllers, the admin and department analytics services, `GenerateReportJob` → `Modules/Analytics/`. System: SystemHealth and BackupManager controllers, `DatabasePerformanceService`, `CreateBackupJob`, `RestoreBackupJob` → `Modules/System/`. Notifications: `NotificationController`, `NotificationService` → `Modules/Notifications/`.
+- Classes the thesis cites by name:
+
+    | Module | Old class | New class |
+    | --- | --- | --- |
+    | SHA-256 hash-chain micro-sharding | `App\Integrity\HashChainMicroShardingBuilder` | `App\Modules\Integrity\HashChainService` |
+    | Non-repudiation (Ed25519 + Argon2id) | `App\Integrity\DigitalSignature` | `App\Modules\Integrity\DigitalSignatureService` |
+    | Pre-action integrity check / automatic freezing | `App\Integrity\PreActionIntegrityCheck` | `App\Modules\Integrity\PreActionIntegrityService` |
+    | Heuristic routing | `App\Routing\HeuristicRouter` | `App\Modules\Routing\HeuristicRoutingService` |
+    | Security PIN cache | `App\Security\SecurityPinCache` | `App\Modules\Users\SecurityPinCacheService` |
+    | Integrity scan job | `App\Jobs\IntegrityCheckJob` | `App\Modules\Integrity\Jobs\IntegrityCheckJob` |
+
+- Tests renamed with their subject: `HeuristicRoutingServiceTest`, `AttemptThrottleServiceTest`, `TrackingCodeUtilTest`. `CoreModuleStructureTest` checks that every old class name is gone and every new one exists.
+
+### Upgrade note
+- Let the `jobs` queue empty and stop the worker before pulling this build: queued jobs store their class name, and a job queued under an old name fails with "Job class … not found". Restart `composer run dev` afterwards so PHP-FPM's OPcache is flushed.
+
 ## 2026-10-29 09:36
 
 **Version:** 2.5.2-Release+202610290936

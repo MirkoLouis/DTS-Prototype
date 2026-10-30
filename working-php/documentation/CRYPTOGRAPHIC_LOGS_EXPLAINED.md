@@ -2,7 +2,7 @@
 
 How the DepEd Iligan Document Tracking System (DTS) seals workflow history, why that design is proportionate for administrative documents, and how it differs from “just encryption.”
 
-Implementation reference (active codebase): `working-php/src/Integrity/HashChainMicroShardingBuilder.php`, `working-php/src/Integrity/DigitalSignature.php`, `working-php/src/Integrity/PreActionIntegrityCheck.php`, `working-php/src/Policies/DocumentPolicy.php`, `working-php/src/Services/DocumentWorkflowService.php`.
+Implementation reference (active codebase): `working-php/src/Modules/Integrity/HashChainService.php`, `working-php/src/Modules/Integrity/DigitalSignatureService.php`, `working-php/src/Modules/Integrity/PreActionIntegrityService.php`, `working-php/src/Modules/Documents/DocumentPolicy.php`, `working-php/src/Modules/Documents/DocumentWorkflowService.php`.
 
 Related historical diagrams (Laravel-era reference): `backup-laravel/documentation/HASH_CHAIN_VISUALIZATION.md`.
 
@@ -12,7 +12,7 @@ Related historical diagrams (Laravel-era reference): `backup-laravel/documentati
 
 This is not ordinary application logging (“user X clicked Y”). Each document maintains its **own** hash chain in `document_logs`. Chains are independent on purpose: a integrity failure on one folder freezes that document’s workflow, not the entire division.
 
-Whenever a custody-relevant action occurs (Submitted, route finalized, Received, Processing Complete, Released, System Auto-Freeze), `HashChainMicroShardingBuilder::createLog` builds a sealed log entry (log format v2) in five steps:
+Whenever a custody-relevant action occurs (Submitted, route finalized, Received, Processing Complete, Released, System Auto-Freeze), `HashChainService::createLog` builds a sealed log entry (log format v2) in five steps:
 
 1. **State hash**: SHA-256 over critical document fields (tracking code, title, guest info, district, department, purpose, finalized route). This fingerprints *what* the document claimed to be at that moment.
 2. **Parent lookup**: the hash of the document's newest log entry (`genesis_hash` for the first entry). It is read *before* signing, because the signature binds it.
@@ -20,7 +20,7 @@ Whenever a custody-relevant action occurs (Submitted, route finalized, Received,
 4. **Chain link**: the block hash is `sha256(json([document_id, user_id, action, epoch, previous_hash, state_hash, remarks, signature]))`. `epoch` is the Unix time of `created_at`, read explicitly in Asia/Manila time, so hashes do not depend on the server's timezone setting.
 5. **Snapshot**: the document payload is stored on the log so an admin can Auto-Resolve back to a known-good sealed state.
 
-Every writer (live workflow, seeders) and every verifier (integrity audit, hash debugger) builds these inputs through the same helpers: `HashChainMicroShardingBuilder::signedMessage`, `chainHash` and `logTimestamp`.
+Every writer (live workflow, seeders) and every verifier (integrity audit, hash debugger) builds these inputs through the same helpers: `HashChainService::signedMessage`, `chainHash` and `logTimestamp`.
 
 Before staff or officers can mutate a document, `DocumentPolicy::process` (and related manage checks) run the **pre-action integrity check**: recompute the live state hash and compare it to the last sealed `document_state_hash`. On mismatch, the system automatically freezes the document. Verification is operational at the next handoff, not deferred to a nightly audit.
 
@@ -41,17 +41,17 @@ The full integrity audit (`IntegrityCheckJob`) re-derives every chain hash, veri
 
 | Component | Role |
 | :--- | :--- |
-| `HashChainMicroShardingBuilder::calculateStateHash` | Fingerprint of critical document fields |
-| `HashChainMicroShardingBuilder::signedMessage` / `chainHash` / `logTimestamp` | The single definition of log format v2 |
-| `DigitalSignature::signAction` / `signAsSystem` | Ed25519 attestation by a user (PIN) or the server key |
-| `DigitalSignature::verifySignature` / `publicKeyAt` | Verify against the key active at the log's time |
-| `HashChainMicroShardingBuilder::createLog` | Append hash-chained, signed log + snapshot |
-| `PreActionIntegrityCheck::passes` | Live row vs last sealed state hash |
-| `PreActionIntegrityCheck::freezeTampered` | Halt workflow on mismatch |
+| `HashChainService::calculateStateHash` | Fingerprint of critical document fields |
+| `HashChainService::signedMessage` / `chainHash` / `logTimestamp` | The single definition of log format v2 |
+| `DigitalSignatureService::signAction` / `signAsSystem` | Ed25519 attestation by a user (PIN) or the server key |
+| `DigitalSignatureService::verifySignature` / `publicKeyAt` | Verify against the key active at the log's time |
+| `HashChainService::createLog` | Append hash-chained, signed log + snapshot |
+| `PreActionIntegrityService::passes` | Live row vs last sealed state hash |
+| `PreActionIntegrityService::freezeTampered` | Halt workflow on mismatch |
 | `DocumentPolicy::process` / `manage` | Pre-action integrity check before mutating actions |
 | `ChainCheckpointJob` | Signed chain-head checkpoints; detects deleted entries |
 | `users.private_key` + PIN | Encrypted key wrap (confidentiality only) |
-| `SecurityPinCache::resolvePin` | Encrypted, session-bound PIN-cache token (`PIN_CACHE_DURATION`) |
+| `SecurityPinCacheService::resolvePin` | Encrypted, session-bound PIN-cache token (`PIN_CACHE_DURATION`) |
 
 ---
 

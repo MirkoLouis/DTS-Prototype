@@ -93,7 +93,7 @@ When a document finishes all departmental routing steps, its status advances to 
 
 1. Navigate to `/statistics`.
 2. Select desired date ranges and report formats (PDF or Excel).
-3. Click **Generate Report**. The system dispatches an asynchronous background job ([GenerateReportJob](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Jobs/GenerateReportJob.php)).
+3. Click **Generate Report**. The system dispatches an asynchronous background job ([GenerateReportJob](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Modules/Analytics/Jobs/GenerateReportJob.php)).
 4. Monitor export progress in the floating report progress modal and download the completed file.
 
 ---
