@@ -115,3 +115,50 @@ function installNginxConfig(string $projectRoot, string $phpVersion, string $lan
 
     echo "✅ NGINX site config installed from project (LAN IP: $lanIp).\n";
 }
+
+/**
+ * PIDs of running worker processes for the given console.php path.
+ *
+ * Matches on the script path only, so a worker is found both as "php <path>" and after its planned
+ * re-exec as "<PHP_BINARY> <path>". pgrep runs without a shell, whose own command line would match too.
+ *
+ * @return list<int>
+ */
+function workerPids(string $consolePath): array {
+    // Escape regex metacharacters in the path (pgrep -f takes an extended regex)
+    $pattern = preg_replace('/[.\[\](){}*+?|^$\\\\]/', '\\\\$0', $consolePath) . '( |$)';
+
+    // Run pgrep directly and collect one PID per line
+    $proc = proc_open(['pgrep', '-f', '--', $pattern], [['pipe', 'r'], ['pipe', 'w'], ['file', '/dev/null', 'w']], $pipes);
+    if (!is_resource($proc)) {
+        return [];
+    }
+    fclose($pipes[0]);
+    $output = stream_get_contents($pipes[1]);
+    fclose($pipes[1]);
+    proc_close($proc);
+
+    // Never count this process itself
+    $pids = array_map('intval', preg_split('/\s+/', trim((string) $output), -1, PREG_SPLIT_NO_EMPTY));
+    return array_values(array_filter($pids, fn($pid) => $pid !== getmypid()));
+}
+
+/**
+ * Start the worker in the background, appending its output to $logFile.
+ *
+ * Append mode (>>) lets logrotate's copytruncate empty the file without leaving a sparse gap.
+ */
+function startWorker(string $consolePath, string $logFile): void {
+    // Detach from this process; output goes to the worker log
+    exec('nohup php ' . escapeshellarg($consolePath) . ' >> ' . escapeshellarg($logFile) . ' 2>&1 &');
+}
+
+/**
+ * Stop every running worker for the given console.php path (SIGTERM lets it finish the current job).
+ */
+function stopWorker(string $consolePath): void {
+    // Signal each worker found by path
+    foreach (workerPids($consolePath) as $pid) {
+        posix_kill($pid, SIGTERM);
+    }
+}
