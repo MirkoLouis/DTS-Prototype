@@ -127,6 +127,7 @@ Comprehensive user manuals are provided in [working-php/documentation/user_manua
 | :--- | :--- |
 | `composer run worker` | Runs [console.php](working-php/console.php) background job processor and telemetry scheduler. |
 | `composer run dev` | Runs [scripts/dev.php](working-php/scripts/dev.php) to start local dev server & Tailwind watcher, plus the queue worker with a watchdog that restarts it if it exits (Ctrl+C stops it too). |
+| `composer run prod` | Runs [scripts/prod.php](working-php/scripts/prod.php) for a server: restarts PHP-FPM (flushes OPcache) and nginx, then keeps running until Ctrl+C. It does **not** clear `cache/` and does **not** start the queue worker; run the worker as a service (see [Running Continuously on Linux](#-running-continuously-on-linux-working-php)). |
 | `composer run corrupt` | Runs [scripts/corrupt.php](working-php/scripts/corrupt.php) to simulate database tampering and test the JIT pre-action integrity check and automatic freezing. |
 | `php scripts/tune-database.php` | Analyzes system memory and outputs optimal MySQL `my.cnf` buffer pool configurations. |
 | `php scripts/generate-keys.php` | CLI tool for generating missing Ed25519 digital signature keypairs. `--system` creates the server key used to sign system actions (`SYSTEM_SIGNING_SECRET` / `SYSTEM_SIGNING_PUBLIC` in `.env`). |
@@ -164,6 +165,16 @@ journalctl -u dts-worker.service -n 50        # worker start-up messages (output
 
 Serve the site with `composer run prod` on that server, not `composer run dev`. `dev` starts and watches its own worker, which would duplicate the service. Existing databases need `scripts/migrations/master-migration.sql` for the `worker_schedule` table.
 
+**`composer run dev` vs `composer run prod`:**
+
+| | `composer run dev` | `composer run prod` |
+| :--- | :--- | :--- |
+| Meant for | A developer's machine | The server, running until the next update |
+| PHP-FPM and nginx | Restarted (OPcache flushed) | Restarted (OPcache flushed) |
+| `working-php/cache/` | The files directly in it are deleted at start, including `integrity-check-result.json`, so System Overview shows "Last checked: Never" until the next check. Cached pages in `cache/responses/` are left to the worker's hourly cleanup. | Not touched; the last integrity result stays |
+| Queue worker | Started and watched (restarted within about 5 seconds if it exits), stopped by Ctrl+C | **Not started.** Without `dts-worker.service`, queued jobs (Run Check, backups, reports) never run and no checkpoint is written |
+| Output | Follows the nginx access log | Waits silently until Ctrl+C |
+
 ### 2. Make sure the operating system rotates logs and cleans PHP sessions
 
 Ubuntu and Debian already install the rules: `/etc/logrotate.d/nginx` (daily, keep 14, compressed), `/etc/logrotate.d/php<version>-fpm` (weekly, keep 12), and a PHP session cleaner (`/etc/cron.d/php` and `phpsessionclean.timer`; `php.ini` sets `session.gc_probability = 0`, so PHP itself never deletes old session files). The rules only help if logrotate is installed and something runs it. Minimal images (containers, Distrobox) often lack the `logrotate` package itself:
@@ -199,6 +210,24 @@ sudo logrotate -d /etc/logrotate.d/nginx
 ### 3. Plan disk space for what is kept forever
 
 The audit trail and the checkpoints are never deleted, because removing either would weaken tamper detection. Each daily checkpoint lists every document's chain head, so it grows with the number of documents: about **8.5 MB per day at 100,000 documents** (about 3 GB per year), and about 25 MB per day at 300,000 documents. Copy checkpoints off the server regularly (USB, another machine), as the admin manual describes. That copy is what lets you detect deletions even if the server itself is compromised. Backups in `storage/app/backups/` are not deleted automatically either.
+
+### 4. Update a running server
+
+`composer run prod` runs until the next update. To install one:
+
+```bash
+cd /opt/dts/working-php
+sudo systemctl stop dts-worker.service      # once the jobs table is empty: queued jobs store their class names
+git pull
+composer install --no-dev                   # regenerates vendor/autoload (required after files move)
+npm install && npm run build                # only if CSS or Tailwind changed
+mysql -u <user> -p deped_dts < scripts/migrations/master-migration.sql   # safe to run every time; adds what is missing
+# stop the running `composer run prod` (Ctrl+C), then start it again so PHP-FPM reloads the new code
+composer run prod
+sudo systemctl start dts-worker.service
+```
+
+Check the CHANGELOG's "Upgrade note" for the version you are installing. An update does not clear `cache/`, so the last integrity result and the signed checkpoints are kept. Run an integrity check from System Overview afterwards.
 
 ## 🧪 Testing (`working-php`)
 
