@@ -280,9 +280,9 @@ class SystemHealthController
 
     public function freeze($tracking_code)
     {
-        $currentUser = \App\Models\User::findById($_SESSION['user_id'] ?? 0);
+        $currentUser = \App\Modules\Users\UserModel::findById($_SESSION['user_id'] ?? 0);
         $submittedPin = $_POST['pin'] ?? '';
-        $pin = \App\Security\SecurityPinCache::resolvePin($submittedPin);
+        $pin = \App\Modules\Users\SecurityPinCacheService::resolvePin($submittedPin);
 
         if (empty($pin)) {
             $_SESSION['error'] = "Security PIN is required.";
@@ -310,9 +310,9 @@ class SystemHealthController
 
     public function unfreeze($tracking_code)
     {
-        $currentUser = \App\Models\User::findById($_SESSION['user_id'] ?? 0);
+        $currentUser = \App\Modules\Users\UserModel::findById($_SESSION['user_id'] ?? 0);
         $submittedPin = $_POST['pin'] ?? '';
-        $pin = \App\Security\SecurityPinCache::resolvePin($submittedPin);
+        $pin = \App\Modules\Users\SecurityPinCacheService::resolvePin($submittedPin);
 
         if (empty($pin)) {
             $_SESSION['error'] = "Security PIN is required.";
@@ -340,9 +340,9 @@ class SystemHealthController
 
     public function freezeAll()
     {
-        $currentUser = \App\Models\User::findById($_SESSION['user_id'] ?? 0);
+        $currentUser = \App\Modules\Users\UserModel::findById($_SESSION['user_id'] ?? 0);
         $submittedPin = $_POST['pin'] ?? '';
-        $pin = \App\Security\SecurityPinCache::resolvePin($submittedPin);
+        $pin = \App\Modules\Users\SecurityPinCacheService::resolvePin($submittedPin);
 
         if (empty($pin)) {
             $_SESSION['error'] = "Security PIN is required.";
@@ -411,9 +411,9 @@ class SystemHealthController
 
     public function autoResolve($tracking_code)
     {
-        $currentUser = \App\Models\User::findById($_SESSION['user_id'] ?? 0);
+        $currentUser = \App\Modules\Users\UserModel::findById($_SESSION['user_id'] ?? 0);
         $submittedPin = $_POST['pin'] ?? '';
-        $pin = \App\Security\SecurityPinCache::resolvePin($submittedPin);
+        $pin = \App\Modules\Users\SecurityPinCacheService::resolvePin($submittedPin);
 
         if (empty($pin)) {
             $_SESSION['error'] = "Security PIN is required.";

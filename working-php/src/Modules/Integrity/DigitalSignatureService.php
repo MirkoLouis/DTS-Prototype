@@ -90,7 +90,7 @@ class DigitalSignatureService
             throw new \Exception("Action Denied: Security PIN is required to digitally sign this action.");
         }
 
-        // Refuse while the user is timed out for wrong PINs (failures are recorded in SecurityPinCache::resolvePin)
+        // Refuse while the user is timed out for wrong PINs (failures are recorded in SecurityPinCacheService::resolvePin)
         if (AttemptThrottle::secondsLocked(AttemptThrottle::key('pin', (string) $userId), time()) > 0) {
             throw new \Exception(AttemptThrottle::MESSAGE);
         }

@@ -6,7 +6,7 @@ use App\Common\Database\Database;
 use App\Modules\Integrity\DigitalSignatureService;
 use App\Modules\Integrity\Jobs\ChainCheckpointJob;
 use App\Modules\Integrity\Jobs\IntegrityCheckJob;
-use App\Models\User;
+use App\Modules\Users\UserModel;
 use App\Modules\Documents\DocumentPolicy;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\Fixtures;
@@ -149,7 +149,7 @@ class TamperInjectionTest extends TestCase
     private function guardDetects(int $documentId): bool
     {
         $row = $this->documentRow($documentId);
-        $allowed = (new DocumentPolicy())->process(User::findById($this->fx['users']['admin']), $row);
+        $allowed = (new DocumentPolicy())->process(UserModel::findById($this->fx['users']['admin']), $row);
 
         return !$allowed && $this->documentRow($documentId)['status'] === 'frozen';
     }

@@ -8,7 +8,7 @@ use App\Modules\Integrity\HashChainService;
 use App\Modules\Routing\HeuristicRoutingService;
 use App\Modules\Documents\TrackingCodeUtil;
 use App\Modules\Documents\DocumentPolicy;
-use App\Models\User;
+use App\Modules\Users\UserModel;
 use Exception;
 
 class DocumentWorkflowService
@@ -28,7 +28,7 @@ class DocumentWorkflowService
      * Centralizes transaction management, error handling, and the "pre-action integrity check" integrity checks.
      * Failing the policy check or encountering a concurrent modification will safely rollback.
      */
-    private function executeInTransaction(string $idField, $idValue, ?User $user, ?string $policyMethod, callable $action)
+    private function executeInTransaction(string $idField, $idValue, ?UserModel $user, ?string $policyMethod, callable $action)
     {
         $conn = $this->db->getConnection();
         
@@ -181,7 +181,7 @@ class DocumentWorkflowService
      * Called by the Records Office to accept a pending document and establish its definitive departmental route.
      * Also updates machine-learning heuristics for "suggested routing".
      */
-    public function finalizeIntake(int $documentId, array $routeNames, User $officer, string $pin): void
+    public function finalizeIntake(int $documentId, array $routeNames, UserModel $officer, string $pin): void
     {
         $this->executeInTransaction('id', $documentId, $officer, 'manage', function ($document, $db) use ($routeNames, $officer, $pin) {
             if ($document['status'] !== 'pending') {
@@ -264,7 +264,7 @@ class DocumentWorkflowService
      * Handles the physical receipt of a document via QR code scan. Verifies that the scanning user's
      * department matches the expected next hop in the finalized route.
      */
-    public function scanDocument(string $trackingCode, User $user, string $pin): string
+    public function scanDocument(string $trackingCode, UserModel $user, string $pin): string
     {
         return $this->executeInTransaction('tracking_code', $trackingCode, $user, 'process', function ($document, $db) use ($user, $pin) {
             $route = $document['finalized_route'] ? json_decode($document['finalized_route'], true) : [];
@@ -337,7 +337,7 @@ class DocumentWorkflowService
      * Marks the current department's action as finished, advances the step counter,
      * and places the document back in transit to the next department.
      */
-    public function completeTask(int $documentId, string $remarks, User $user, string $pin): void
+    public function completeTask(int $documentId, string $remarks, UserModel $user, string $pin): void
     {
         $this->executeInTransaction('id', $documentId, $user, 'process', function ($document, $db) use ($remarks, $user, $pin) {
             if ($document['status'] !== 'processing') {
@@ -388,7 +388,7 @@ class DocumentWorkflowService
      * 
      * Finalizes the workflow, removing the current department hold and permanently completing the transaction.
      */
-    public function releaseDocument(int $documentId, User $officer, string $pin): void
+    public function releaseDocument(int $documentId, UserModel $officer, string $pin): void
     {
         $this->executeInTransaction('id', $documentId, $officer, 'manage', function ($document, $db) use ($officer, $pin) {
             if ($document['status'] !== 'ready_for_release') {
@@ -413,7 +413,7 @@ class DocumentWorkflowService
      * 
      * Rejects a pending document before routing begins, permanently halting its progression.
      */
-    public function declineDocument(int $documentId, string $reason, User $officer, string $pin): void
+    public function declineDocument(int $documentId, string $reason, UserModel $officer, string $pin): void
     {
         $this->executeInTransaction('id', $documentId, $officer, 'manage', function ($document, $db) use ($reason, $officer, $pin) {
             if ($document['status'] !== 'pending') {
@@ -439,7 +439,7 @@ class DocumentWorkflowService
      * Halts all operations on a document. 
      * Typically triggered automatically by the pre-action integrity check when tampering is detected, or manually by an admin.
      */
-    public function freezeDocument(string $trackingCode, User $admin, string $pin): void
+    public function freezeDocument(string $trackingCode, UserModel $admin, string $pin): void
     {
         $this->executeInTransaction('tracking_code', $trackingCode, $admin, 'freeze', function ($document, $db) use ($admin, $pin) {
             $stmt = $db->query("UPDATE documents SET status = 'frozen', updated_at = NOW(), version = version + 1 WHERE id = :id AND version = :version", [':id' => $document['id'], ':version' => $document['version']]);
@@ -452,7 +452,7 @@ class DocumentWorkflowService
     /**
      * Restores a frozen document to its last logical status state based on the cryptographic log.
      */
-    public function unfreezeDocument(string $trackingCode, User $admin, string $pin): string
+    public function unfreezeDocument(string $trackingCode, UserModel $admin, string $pin): string
     {
         return $this->executeInTransaction('tracking_code', $trackingCode, $admin, 'unfreeze', function ($document, $db) use ($admin, $pin) {
             // Find the newest real workflow log and map its action to the status to restore
@@ -475,7 +475,7 @@ class DocumentWorkflowService
     /**
      * Fully recovers a tampered document by applying the last known-good data snapshot from the hash chain.
      */
-    public function autoResolveDocument(string $trackingCode, User $admin, string $pin): string
+    public function autoResolveDocument(string $trackingCode, UserModel $admin, string $pin): string
     {
         return $this->executeInTransaction('tracking_code', $trackingCode, $admin, 'unfreeze', function ($document, $db) use ($admin, $pin) {
             // Tampered documents might not be in 'frozen' status if they were just flagged by verification

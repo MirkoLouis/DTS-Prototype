@@ -3,7 +3,7 @@
 namespace Tests\Support;
 
 use App\Common\Database\Database;
-use App\Models\User;
+use App\Modules\Users\UserModel;
 use App\Modules\Documents\DocumentWorkflowService;
 use InvalidArgumentException;
 
@@ -41,11 +41,11 @@ class Fixtures
     /**
      * Load a seeded user by username.
      */
-    public static function user(string $username): User
+    public static function user(string $username): UserModel
     {
         $row = Database::getInstance()->query('SELECT id FROM users WHERE email = :e', [':e' => $username])->fetch();
 
-        return User::findById((int) $row['id']);
+        return UserModel::findById((int) $row['id']);
     }
 
     /**
@@ -99,13 +99,13 @@ class Fixtures
     /**
      * Find a user belonging to a department (the baseline seeds Cash, Personnel and Records).
      */
-    private static function userForDepartment(string $departmentName): User
+    private static function userForDepartment(string $departmentName): UserModel
     {
         $row = Database::getInstance()->query('SELECT u.id FROM users u JOIN departments d ON d.id = u.department_id WHERE d.name = :n ORDER BY u.id LIMIT 1', [':n' => $departmentName])->fetch();
         if (!$row) {
             throw new InvalidArgumentException("No seeded user for department {$departmentName}");
         }
 
-        return User::findById((int) $row['id']);
+        return UserModel::findById((int) $row['id']);
     }
 }

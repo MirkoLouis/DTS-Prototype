@@ -172,13 +172,13 @@ $router->get('/integrity-monitor', function() {
 ]);
 
 // Profile & Security
-$router->get('/profile', [App\Controllers\ProfileController::class, 'edit'], [
+$router->get('/profile', [App\Modules\Users\ProfileController::class, 'edit'], [
     App\Common\Middleware\AuthMiddleware::class
 ]);
-$router->post('/profile/update', [App\Controllers\ProfileController::class, 'update'], [
+$router->post('/profile/update', [App\Modules\Users\ProfileController::class, 'update'], [
     App\Common\Middleware\AuthMiddleware::class
 ]);
-$router->post('/security-key', [App\Controllers\SecurityKeyController::class, 'store'], [
+$router->post('/security-key', [App\Modules\Users\SecurityKeyController::class, 'store'], [
     App\Common\Middleware\AuthMiddleware::class
 ]);
 
@@ -216,47 +216,47 @@ $router->post('/api/notifications/mark-read', [App\Controllers\NotificationContr
 ]);
 
 // Users Management (RESTful & Form POST aliases)
-$router->get('/users', [App\Controllers\UserController::class, 'index'], [
+$router->get('/users', [App\Modules\Users\UserController::class, 'index'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
-$router->get('/users/create', [App\Controllers\UserController::class, 'create'], [
+$router->get('/users/create', [App\Modules\Users\UserController::class, 'create'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
-$router->post('/users', [App\Controllers\UserController::class, 'store'], [
+$router->post('/users', [App\Modules\Users\UserController::class, 'store'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
-$router->get('/users/(?P<id>\d+)/edit', [App\Controllers\UserController::class, 'edit'], [
+$router->get('/users/(?P<id>\d+)/edit', [App\Modules\Users\UserController::class, 'edit'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
-$router->post('/users/(?P<id>\d+)/update', [App\Controllers\UserController::class, 'update'], [
+$router->post('/users/(?P<id>\d+)/update', [App\Modules\Users\UserController::class, 'update'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
-$router->add('PUT', '/users/(?P<id>\d+)', [App\Controllers\UserController::class, 'update'], [
+$router->add('PUT', '/users/(?P<id>\d+)', [App\Modules\Users\UserController::class, 'update'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
-$router->post('/users/(?P<id>\d+)/delete', [App\Controllers\UserController::class, 'destroy'], [
+$router->post('/users/(?P<id>\d+)/delete', [App\Modules\Users\UserController::class, 'destroy'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
-$router->add('DELETE', '/users/(?P<id>\d+)', [App\Controllers\UserController::class, 'destroy'], [
+$router->add('DELETE', '/users/(?P<id>\d+)', [App\Modules\Users\UserController::class, 'destroy'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
-$router->post('/users/(?P<id>\d+)/reset-signature', [App\Controllers\UserController::class, 'resetSignature'], [
+$router->post('/users/(?P<id>\d+)/reset-signature', [App\Modules\Users\UserController::class, 'resetSignature'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);

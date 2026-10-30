@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Security;
+namespace App\Modules\Users;
 
 use App\Core\AttemptThrottle;
 use App\Common\Config\Config;
@@ -16,7 +16,7 @@ use App\Modules\Integrity\DigitalSignatureService;
  * exists only in this user's PHP session. The token is useless after logout (key destroyed),
  * for another user (user ID is sealed inside), or after PIN_CACHE_DURATION seconds.
  */
-class SecurityPinCache
+class SecurityPinCacheService
 {
     // Prefix that distinguishes a cached PIN token from a typed PIN
     public const TOKEN_PREFIX = 'pt1.';

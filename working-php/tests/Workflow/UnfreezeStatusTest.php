@@ -6,7 +6,7 @@ use App\Common\Database\Database;
 use App\Modules\Integrity\HashChainService;
 use App\Modules\Integrity\PreActionIntegrityService;
 use App\Modules\Documents\Jobs\CleanupStalePendingDocumentsJob;
-use App\Models\User;
+use App\Modules\Users\UserModel;
 use App\Modules\Documents\DocumentWorkflowService;
 use Tests\Support\Fixtures;
 use Tests\Support\TestDatabase;
@@ -21,9 +21,9 @@ class UnfreezeStatusTest extends TestCase
     }
 
     // Load the admin user
-    private function admin(): User
+    private function admin(): UserModel
     {
-        return User::findById($this->fx['users']['admin']);
+        return UserModel::findById($this->fx['users']['admin']);
     }
 
     // Count the log rows of a document

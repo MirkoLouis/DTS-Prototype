@@ -15,7 +15,7 @@ class ReleasingController
     {
         $db = Database::getInstance();
         $submittedPin = $_POST['pin'] ?? '';
-        $pin = \App\Security\SecurityPinCache::resolvePin($submittedPin);
+        $pin = \App\Modules\Users\SecurityPinCacheService::resolvePin($submittedPin);
 
         if (empty($pin)) {
             $_SESSION['error'] = "Security PIN is required.";
@@ -23,7 +23,7 @@ class ReleasingController
             exit;
         }
 
-        $currentUser = \App\Models\User::findById($_SESSION['user_id'] ?? 0);
+        $currentUser = \App\Modules\Users\UserModel::findById($_SESSION['user_id'] ?? 0);
 
         try {
             $workflow = new \App\Modules\Documents\DocumentWorkflowService();

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controllers;
+namespace App\Modules\Users;
 
 use App\Common\Database\Database;
 
@@ -75,7 +75,7 @@ class SecurityKeyController
 
         // A new key invalidates any PIN-cache token issued for the old PIN
         unset($_SESSION['pin_cache_key']);
-        $_SESSION[\App\Security\SecurityPinCache::SESSION_CLEAR] = true;
+        $_SESSION[\App\Modules\Users\SecurityPinCacheService::SESSION_CLEAR] = true;
 
         // Fix: Clear the user's personal page cache. If we don't, CacheMiddleware might serve an old cached version 
         // of the dashboard containing the setup modal, causing it to pop up infinitely.

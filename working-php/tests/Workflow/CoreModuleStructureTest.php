@@ -49,6 +49,9 @@ class CoreModuleStructureTest extends TestCase
             'App\Controllers\TaskController', 'App\Controllers\ReleasingController', 'App\Controllers\DashboardController',
             'App\Services\DocumentWorkflowService', 'App\Services\DocumentQueryService', 'App\Models\Document',
             'App\Policies\DocumentPolicy', 'App\Core\TrackingCode', 'App\Jobs\CleanupStalePendingDocumentsJob',
+            // 2.6.0: Users
+            'App\Controllers\UserController', 'App\Controllers\ProfileController', 'App\Controllers\SecurityKeyController',
+            'App\Models\User', 'App\Security\SecurityPinCache',
         ];
         foreach ($retired as $old) {
             $this->assertFalse(class_exists($old), "{$old} should have been removed");
@@ -62,7 +65,7 @@ class CoreModuleStructureTest extends TestCase
             HashChainService::class => ['calculateStateHash', 'logTimestamp', 'signedMessage', 'chainHashInput', 'chainHash', 'createLog'],
             DigitalSignatureService::class => ['signAsSystem', 'decryptPrivateKey', 'signAction', 'publicKeyAt', 'verifySignature', 'clearKeyCache'],
             PreActionIntegrityService::class => ['passes', 'freezeTampered'],
-            'App\Security\SecurityPinCache' => ['resolvePin'],
+            'App\Modules\Users\SecurityPinCacheService' => ['resolvePin'],
             'App\Modules\Routing\HeuristicRoutingService' => ['suggest', 'learnedRoute'],
             // 2.6.0 layer-convention rename: Common
             'App\Common\Http\Router' => ['add', 'get', 'post', 'dispatch'],
@@ -94,6 +97,11 @@ class CoreModuleStructureTest extends TestCase
             'App\Modules\Documents\DocumentPolicy' => ['view', 'process', 'manage', 'freeze', 'unfreeze'],
             'App\Modules\Documents\TrackingCodeUtil' => ['generate'],
             'App\Modules\Documents\Jobs\CleanupStalePendingDocumentsJob' => [],
+            // 2.6.0: Users
+            'App\Modules\Users\UserController' => [],
+            'App\Modules\Users\ProfileController' => [],
+            'App\Modules\Users\SecurityKeyController' => [],
+            'App\Modules\Users\UserModel' => ['findById'],
         ];
 
         // Check each class and each of its methods
@@ -107,7 +115,7 @@ class CoreModuleStructureTest extends TestCase
         // Public constants keep their values
         $this->assertSame('Asia/Manila', HashChainService::APP_TIMEZONE);
         $this->assertSame('genesis_hash', HashChainService::GENESIS_HASH);
-        $this->assertSame('pt1.', \App\Security\SecurityPinCache::TOKEN_PREFIX);
+        $this->assertSame('pt1.', \App\Modules\Users\SecurityPinCacheService::TOKEN_PREFIX);
     }
 
     // Golden vectors computed with the pre-rename IntegrityManager: log format v2 must not change

@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Models;
+namespace App\Modules\Users;
 
 use App\Common\Database\Database;
 
-class User
+class UserModel
 {
     public $id;
     public $name;

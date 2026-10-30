@@ -2,7 +2,7 @@
 
 namespace App\Modules\Documents;
 
-use App\Models\User;
+use App\Modules\Users\UserModel;
 use App\Modules\Integrity\PreActionIntegrityService;
 use App\Common\Database\Database;
 
@@ -18,7 +18,7 @@ class DocumentPolicy
      * 
      * Grant unconditional access to admins and officers; restrict staff to documents that route through their specific department.
      */
-    public function view(User $user, array $document): bool
+    public function view(UserModel $user, array $document): bool
     {
         // Admins and Records Officers possess global visibility over all system documents
         if ($user->role === 'admin' || $user->role === 'officer') {
@@ -53,7 +53,7 @@ class DocumentPolicy
      * Critically, this acts as the "pre-action integrity check" by enforcing real-time cryptographic integrity checks 
      * before allowing state changes.
      */
-    public function process(User $user, array $document): bool
+    public function process(UserModel $user, array $document): bool
     {
         // 0. Pre-action integrity check: Verify state hash against chain; automatic freezing on discrepancy to halt workflow on tampered data
         if (!PreActionIntegrityService::passes($document)) {
@@ -96,7 +96,7 @@ class DocumentPolicy
      * Controls access to finalization actions like declining or accepting intake. 
      * Enforces integrity checks if logs already exist.
      */
-    public function manage(User $user, array $document): bool
+    public function manage(UserModel $user, array $document): bool
     {
         $db = Database::getInstance();
         $stmt = $db->query("SELECT id FROM document_logs WHERE document_id = :id LIMIT 1", [':id' => $document['id']]);
@@ -116,7 +116,7 @@ class DocumentPolicy
     /**
      * Determine whether the user can freeze the document.
      */
-    public function freeze(User $user, array $document): bool
+    public function freeze(UserModel $user, array $document): bool
     {
         // System freeze operations are exclusively reserved for Administrators
         return $user->role === 'admin';
@@ -125,7 +125,7 @@ class DocumentPolicy
     /**
      * Determine whether the user can unfreeze the document.
      */
-    public function unfreeze(User $user, array $document): bool
+    public function unfreeze(UserModel $user, array $document): bool
     {
         // System unfreeze and hash restoration operations are exclusively reserved for Administrators
         return $user->role === 'admin';

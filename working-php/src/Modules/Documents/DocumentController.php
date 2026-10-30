@@ -71,7 +71,7 @@ class DocumentController
     private function requireViewAccess(array $document): void
     {
         // Resolve the logged-in user and ask the policy
-        $user = \App\Models\User::findById($_SESSION['user_id'] ?? 0);
+        $user = \App\Modules\Users\UserModel::findById($_SESSION['user_id'] ?? 0);
         if ($user && (new \App\Modules\Documents\DocumentPolicy())->view($user, $document)) {
             return;
         }
@@ -169,7 +169,7 @@ class DocumentController
     {
         $finalRouteJson = $_POST['final_route'] ?? '';
         $submittedPin = $_POST['pin'] ?? '';
-        $pin = \App\Security\SecurityPinCache::resolvePin($submittedPin);
+        $pin = \App\Modules\Users\SecurityPinCacheService::resolvePin($submittedPin);
 
         if (empty($finalRouteJson) || empty($pin)) {
             $_SESSION['error'] = "Route and Security PIN are required.";
@@ -194,7 +194,7 @@ class DocumentController
 
         try {
             $workflow = new \App\Modules\Documents\DocumentWorkflowService();
-            $officer = \App\Models\User::findById($_SESSION['user_id']);
+            $officer = \App\Modules\Users\UserModel::findById($_SESSION['user_id']);
             $workflow->finalizeIntake((int)$id, $routeNames, $officer, $pin);
             
             $doc = \App\Modules\Documents\DocumentModel::findById((int)$id);
@@ -218,7 +218,7 @@ class DocumentController
     {
         $trackingCode = trim($_POST['tracking_code'] ?? '');
         $submittedPin = $_POST['pin'] ?? '';
-        $pin = \App\Security\SecurityPinCache::resolvePin($submittedPin);
+        $pin = \App\Modules\Users\SecurityPinCacheService::resolvePin($submittedPin);
 
         if (empty($trackingCode)) {
             $_SESSION['error'] = "Tracking code is required.";
@@ -234,7 +234,7 @@ class DocumentController
 
         try {
             $workflow = new \App\Modules\Documents\DocumentWorkflowService();
-            $user = \App\Models\User::findById($_SESSION['user_id']);
+            $user = \App\Modules\Users\UserModel::findById($_SESSION['user_id']);
             $redirectRouteKey = $workflow->scanDocument($trackingCode, $user, $pin);
             
             if ($redirectRouteKey === 'releasing') {
@@ -261,7 +261,7 @@ class DocumentController
         $documentId = $_POST['document_id'] ?? null;
         $reason = $_POST['reason'] ?? '';
         $submittedPin = $_POST['pin'] ?? '';
-        $pin = \App\Security\SecurityPinCache::resolvePin($submittedPin);
+        $pin = \App\Modules\Users\SecurityPinCacheService::resolvePin($submittedPin);
         
         if (!$documentId || !$reason) {
             $_SESSION['error'] = 'Document ID and decline reason are required.';
@@ -277,7 +277,7 @@ class DocumentController
 
         try {
             $workflow = new \App\Modules\Documents\DocumentWorkflowService();
-            $officer = \App\Models\User::findById($_SESSION['user_id']);
+            $officer = \App\Modules\Users\UserModel::findById($_SESSION['user_id']);
             
             $doc = \App\Modules\Documents\DocumentModel::findById((int)$documentId);
             $trackingCode = $doc ? $doc->tracking_code : '';

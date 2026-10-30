@@ -4,7 +4,7 @@ namespace Tests\Concurrency;
 
 use App\Common\Database\Database;
 use App\Modules\Integrity\Jobs\IntegrityCheckJob;
-use App\Models\User;
+use App\Modules\Users\UserModel;
 use App\Modules\Documents\DocumentWorkflowService;
 use PHPUnit\Framework\Attributes\Group;
 use App\Research\Barrier;
@@ -59,12 +59,12 @@ class TaskCompletionConcurrencyTest extends TestCase
 
             // Every child loads its own user and calls the real workflow service
             // Before the barrier: open the child's own connection and load the user, so setup is not in the race
-            $prepare = function (int $i): User {
+            $prepare = function (int $i): UserModel {
                 Database::getInstance();
 
                 return Fixtures::user('cash.unit');
             };
-            $results = Barrier::forkAll($workers, function (int $i, User $cash) use ($documentId): array {
+            $results = Barrier::forkAll($workers, function (int $i, UserModel $cash) use ($documentId): array {
                 $start = microtime(true);
                 try {
                     (new DocumentWorkflowService())->completeTask($documentId, "Worker {$i} concurrent completion", $cash, TestDatabase::PIN);

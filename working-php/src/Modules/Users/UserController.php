@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controllers;
+namespace App\Modules\Users;
 
 use App\Common\Database\Database;
 use App\Common\Validation\Validator;
