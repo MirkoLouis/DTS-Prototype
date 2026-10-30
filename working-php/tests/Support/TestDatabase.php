@@ -20,7 +20,7 @@ class TestDatabase
         'Budget Unit', 'Accounting Unit', 'Legal Unit', 'Health and Nutrition',
         'Bids and Awards Committee Unit', 'Schools Division Superintendent Office',
         'Assistant Schools Division Superintendent Office', 'Curriculum Implementation Division',
-        'School Governance and Operations Division',
+        'School Governance and Operations Division', 'ICT Unit',
     ];
 
     // name => suggested route (copied from scripts/seeders/setup-production-db.js)
