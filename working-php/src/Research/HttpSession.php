@@ -32,15 +32,16 @@ class HttpSession
 
     /**
      * POST form fields; the CSRF token from the last page is added unless disabled.
+     * $referer (a path) is sent as the Referer header, the way a browser posts a form from a page.
      */
-    public function post(string $path, array $fields, bool $withCsrf = true): array
+    public function post(string $path, array $fields, bool $withCsrf = true, ?string $referer = null): array
     {
         // Attach the token scraped from the last rendered page
         if ($withCsrf && !isset($fields['csrf_token'])) {
             $fields['csrf_token'] = $this->csrfToken();
         }
 
-        return $this->request('POST', $path, $fields);
+        return $this->request('POST', $path, $fields, $referer);
     }
 
     /**
@@ -60,7 +61,7 @@ class HttpSession
     /**
      * Perform a request with curl, tracking cookies by hand.
      */
-    protected function request(string $method, string $path, ?array $fields = null): array
+    protected function request(string $method, string $path, ?array $fields = null, ?string $referer = null): array
     {
         $headers = [];
         $ch = curl_init($this->baseUrl . $path);
@@ -80,6 +81,11 @@ class HttpSession
                 return strlen($line);
             },
         ]);
+
+        // Referer of the page the form was posted from
+        if ($referer !== null) {
+            curl_setopt($ch, CURLOPT_REFERER, $this->baseUrl . $referer);
+        }
 
         // Form body for POSTs
         if ($fields !== null) {

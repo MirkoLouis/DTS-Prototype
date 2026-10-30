@@ -294,12 +294,12 @@ class SystemHealthController
             $workflow = new \App\Modules\Documents\DocumentWorkflowService();
             $workflow->freezeDocument($tracking_code, $currentUser, $pin);
             
-            $_SESSION['success'] = 'Document has been frozen successfully.';
+            $_SESSION['success'] = "Document {$tracking_code} has been frozen.";
         } catch (\Exception $e) {
             if (str_contains($e->getMessage(), 'Action Denied')) {
                 $_SESSION['console_error'] = $e->getMessage();
             } else {
-                $_SESSION['error'] = $e->getMessage();
+                $_SESSION['error'] = document_message($tracking_code, $e->getMessage());
             }
         }
         
@@ -324,12 +324,12 @@ class SystemHealthController
             $workflow = new \App\Modules\Documents\DocumentWorkflowService();
             $previousStatus = $workflow->unfreezeDocument($tracking_code, $currentUser, $pin);
             
-            $_SESSION['success'] = "Document has been unfrozen and restored to " . ucfirst($previousStatus) . ".";
+            $_SESSION['success'] = "Document {$tracking_code} has been unfrozen and restored to " . ucfirst($previousStatus) . ".";
         } catch (\Exception $e) {
             if (str_contains($e->getMessage(), 'Action Denied')) {
                 $_SESSION['console_error'] = $e->getMessage();
             } else {
-                $_SESSION['error'] = $e->getMessage();
+                $_SESSION['error'] = document_message($tracking_code, $e->getMessage());
             }
         }
         
@@ -424,9 +424,9 @@ class SystemHealthController
         try {
             $workflow = new \App\Modules\Documents\DocumentWorkflowService();
             $previousStatus = $workflow->autoResolveDocument($tracking_code, $currentUser, $pin);
-            $_SESSION['success'] = "Document auto-resolved successfully. Restored from snapshot and unfrozen (Status: " . ucfirst($previousStatus) . ").";
+            $_SESSION['success'] = "Document {$tracking_code} auto-resolved successfully. Restored from snapshot and unfrozen (Status: " . ucfirst($previousStatus) . ").";
         } catch (\Exception $e) {
-            $_SESSION['error'] = $e->getMessage();
+            $_SESSION['error'] = document_message($tracking_code, $e->getMessage());
         }
         header('Location: /system-overview');
         exit;

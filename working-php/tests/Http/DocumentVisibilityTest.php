@@ -11,7 +11,8 @@ use Tests\TestCase;
  */
 class DocumentVisibilityTest extends TestCase
 {
-    private const DENIED = 'You do not have access to this document.';
+    // The denial toast names the document (%s = tracking code)
+    private const DENIED = 'You do not have access to document %s.';
 
     // Build a document routed only through the Personnel Unit
     private function personnelDoc(): array
@@ -49,7 +50,7 @@ class DocumentVisibilityTest extends TestCase
         // The flash message surfaces on the next app page
         $client->get('/dashboard');
         $page = $client->get('/tasks')['body'];
-        $this->assertStringContainsString(self::DENIED, $page);
+        $this->assertStringContainsString(sprintf(self::DENIED, $doc['tracking_code']), $page);
     }
 
     // The hash-chain page is guarded the same way

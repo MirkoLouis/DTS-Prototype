@@ -110,6 +110,6 @@ class RouteValidationTest extends TestCase
         // The decoded message is the exact plain text: no HTML entities added server-side, the client sink must escape it
         $data = json_decode($response['body'], true, 512, JSON_THROW_ON_ERROR);
         $messages = array_column($data['notifications'], 'message');
-        $this->assertContains("Invalid route: '{$payload}' is not a department.", $messages);
+        $this->assertContains("Document {$doc['tracking_code']}: Invalid route: '{$payload}' is not a department.", $messages);
     }
 }
