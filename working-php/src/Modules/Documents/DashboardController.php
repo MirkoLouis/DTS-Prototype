@@ -181,7 +181,7 @@ class DashboardController
         $period = $_GET['period'] ?? 'daily';
         $departmentId = $_SESSION['department_id'] ?? 0;
         
-        $service = new \App\Services\DepartmentAnalyticsService();
+        $service = new \App\Modules\Analytics\DepartmentAnalyticsService();
         $data = $service->getMetricTimeSeries($departmentId, $period, 'received_count');
 
         header('Content-Type: application/json');
@@ -194,7 +194,7 @@ class DashboardController
         $period = $_GET['period'] ?? 'daily';
         $departmentId = $_SESSION['department_id'] ?? 0;
         
-        $service = new \App\Services\DepartmentAnalyticsService();
+        $service = new \App\Modules\Analytics\DepartmentAnalyticsService();
         $data = $service->getMetricTimeSeries($departmentId, $period, 'processed_count + released_count');
 
         header('Content-Type: application/json');
@@ -207,7 +207,7 @@ class DashboardController
         $period = $_GET['period'] ?? 'daily';
         $departmentId = $_SESSION['department_id'] ?? 0;
         
-        $service = new \App\Services\DepartmentAnalyticsService();
+        $service = new \App\Modules\Analytics\DepartmentAnalyticsService();
         $data = $service->getAverageProcessingTime($departmentId, $period);
 
         header('Content-Type: application/json');

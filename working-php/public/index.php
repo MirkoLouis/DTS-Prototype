@@ -81,7 +81,7 @@ $router->get('/dashboard', function() {
     App\Common\Middleware\AuthMiddleware::class,
 ]);
 
-$router->get('/statistics', [App\Controllers\StatisticsController::class, 'index'], [
+$router->get('/statistics', [App\Modules\Analytics\StatisticsController::class, 'index'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin,officer,staff',
     App\Common\Middleware\CacheMiddleware::class . ':55'
@@ -183,12 +183,12 @@ $router->post('/security-key', [App\Modules\Users\SecurityKeyController::class, 
 ]);
 
 // Admin Dashboard Routes
-$router->get('/admin-dashboard', [\App\Controllers\AdminDashboardController::class, 'index'], [
+$router->get('/admin-dashboard', [\App\Modules\Analytics\AdminDashboardController::class, 'index'], [
     App\Common\Middleware\AuthMiddleware::class, 
     App\Common\Guards\RoleGuard::class . ':admin',
     App\Common\Middleware\CacheMiddleware::class . ':55'
 ]);
-$router->post('/admin-dashboard/clear-cache', [\App\Controllers\AdminDashboardController::class, 'clearCache'], [
+$router->post('/admin-dashboard/clear-cache', [\App\Modules\Analytics\AdminDashboardController::class, 'clearCache'], [
     App\Common\Middleware\AuthMiddleware::class, 
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
@@ -197,15 +197,15 @@ $router->post('/clear-personal-cache', [App\Controllers\SystemHealthController::
 ]);
 
 // Admin Dashboard API Routes
-$router->get('/api/admin-dashboard/current-load', [\App\Controllers\AdminDashboardController::class, 'getCurrentLoadData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
-$router->get('/api/admin-dashboard/throughput', [\App\Controllers\AdminDashboardController::class, 'getThroughputData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
-$router->get('/api/admin-dashboard/decline-trends', [\App\Controllers\AdminDashboardController::class, 'getDeclineTrendData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
-$router->get('/api/admin-dashboard/status-distribution', [\App\Controllers\AdminDashboardController::class, 'getDocumentStatusDistributionData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
-$router->get('/api/admin-dashboard/processing-hotspots', [\App\Controllers\AdminDashboardController::class, 'getProcessingHotspotsData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
-$router->get('/api/admin-dashboard/submission-districts', [\App\Controllers\AdminDashboardController::class, 'getSubmissionDistrictsData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
-$router->get('/api/admin-dashboard/avg-step-time', [\App\Controllers\AdminDashboardController::class, 'getAvgStepTimeByDepartmentData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
-$router->get('/api/admin-dashboard/department-load-vs-time', [\App\Controllers\AdminDashboardController::class, 'getDepartmentalLoadVsTimeData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
-$router->get('/api/admin-dashboard/peak-intake-hours', [\App\Controllers\AdminDashboardController::class, 'getPeakIntakeHoursData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
+$router->get('/api/admin-dashboard/current-load', [\App\Modules\Analytics\AdminDashboardController::class, 'getCurrentLoadData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
+$router->get('/api/admin-dashboard/throughput', [\App\Modules\Analytics\AdminDashboardController::class, 'getThroughputData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
+$router->get('/api/admin-dashboard/decline-trends', [\App\Modules\Analytics\AdminDashboardController::class, 'getDeclineTrendData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
+$router->get('/api/admin-dashboard/status-distribution', [\App\Modules\Analytics\AdminDashboardController::class, 'getDocumentStatusDistributionData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
+$router->get('/api/admin-dashboard/processing-hotspots', [\App\Modules\Analytics\AdminDashboardController::class, 'getProcessingHotspotsData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
+$router->get('/api/admin-dashboard/submission-districts', [\App\Modules\Analytics\AdminDashboardController::class, 'getSubmissionDistrictsData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
+$router->get('/api/admin-dashboard/avg-step-time', [\App\Modules\Analytics\AdminDashboardController::class, 'getAvgStepTimeByDepartmentData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
+$router->get('/api/admin-dashboard/department-load-vs-time', [\App\Modules\Analytics\AdminDashboardController::class, 'getDepartmentalLoadVsTimeData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
+$router->get('/api/admin-dashboard/peak-intake-hours', [\App\Modules\Analytics\AdminDashboardController::class, 'getPeakIntakeHoursData'], [App\Common\Middleware\AuthMiddleware::class, App\Common\Guards\RoleGuard::class . ':admin']);
 
 // Notifications
 $router->get('/api/notifications/unread', [App\Controllers\NotificationController::class, 'getUnread'], [
@@ -326,34 +326,34 @@ $router->post('/releasing/(?P<id>\d+)/complete', [App\Modules\Documents\Releasin
 ]);
 
 
-$router->post('/statistics/report', [App\Controllers\StatisticsController::class, 'generateReport'], [
+$router->post('/statistics/report', [App\Modules\Analytics\StatisticsController::class, 'generateReport'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':officer,staff'
 ]);
-$router->get('/statistics/report/status', [App\Controllers\StatisticsController::class, 'getReportStatus'], [
+$router->get('/statistics/report/status', [App\Modules\Analytics\StatisticsController::class, 'getReportStatus'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':officer,staff'
 ]);
-$router->post('/statistics/report/cancel', [App\Controllers\StatisticsController::class, 'cancelReport'], [
+$router->post('/statistics/report/cancel', [App\Modules\Analytics\StatisticsController::class, 'cancelReport'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':officer,staff'
 ]);
-$router->get('/statistics/report/download/(?P<jobId>[a-zA-Z0-9_-]+)', [App\Controllers\StatisticsController::class, 'downloadReport'], [
+$router->get('/statistics/report/download/(?P<jobId>[a-zA-Z0-9_-]+)', [App\Modules\Analytics\StatisticsController::class, 'downloadReport'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':officer,staff'
 ]);
 
 // Chart API Routes
-$router->get('/api/statistics/current-load', [App\Controllers\StatisticsController::class, 'getCurrentLoadData'], [
+$router->get('/api/statistics/current-load', [App\Modules\Analytics\StatisticsController::class, 'getCurrentLoadData'], [
     App\Common\Middleware\AuthMiddleware::class
 ]);
-$router->get('/api/statistics/throughput', [App\Controllers\StatisticsController::class, 'getThroughputData'], [
+$router->get('/api/statistics/throughput', [App\Modules\Analytics\StatisticsController::class, 'getThroughputData'], [
     App\Common\Middleware\AuthMiddleware::class
 ]);
-$router->get('/api/statistics/avg-processing-time', [App\Controllers\StatisticsController::class, 'getAverageProcessingTimeData'], [
+$router->get('/api/statistics/avg-processing-time', [App\Modules\Analytics\StatisticsController::class, 'getAverageProcessingTimeData'], [
     App\Common\Middleware\AuthMiddleware::class
 ]);
-$router->get('/api/statistics/past-reports', [App\Controllers\StatisticsController::class, 'getPastReports'], [
+$router->get('/api/statistics/past-reports', [App\Modules\Analytics\StatisticsController::class, 'getPastReports'], [
     App\Common\Middleware\AuthMiddleware::class
 ]);
 

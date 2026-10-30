@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Services;
+namespace App\Modules\Analytics;
 
 use App\Common\Database\Database;
 

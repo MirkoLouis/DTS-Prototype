@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Jobs;
+namespace App\Modules\Analytics\Jobs;
 
 use App\Common\Database\Database;
 use OpenSpout\Writer\XLSX\Writer;

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controllers;
+namespace App\Modules\Analytics;
 
 use App\Common\Database\Database;
 use App\Common\Cache\Cache;
@@ -54,7 +54,7 @@ class StatisticsController
                 'filters' => $filtersJson
             ]);
 
-            $payload = json_encode(['class' => \App\Jobs\GenerateReportJob::class, 'data' => [$jobId, $userId, $_POST]]);
+            $payload = json_encode(['class' => \App\Modules\Analytics\Jobs\GenerateReportJob::class, 'data' => [$jobId, $userId, $_POST]]);
             $db->query("INSERT INTO jobs (queue, payload, attempts, available_at, created_at) VALUES ('default', :payload, 0, UNIX_TIMESTAMP(), UNIX_TIMESTAMP())", [
                 'payload' => $payload
             ]);
@@ -235,7 +235,7 @@ class StatisticsController
         $period = $_GET['period'] ?? 'daily';
         $departmentId = $_SESSION['department_id'] ?? 0;
         
-        $service = new \App\Services\DepartmentAnalyticsService();
+        $service = new \App\Modules\Analytics\DepartmentAnalyticsService();
         $data = $service->getMetricTimeSeries($departmentId, $period, 'processed_count + released_count');
 
         header('Content-Type: application/json');
@@ -248,7 +248,7 @@ class StatisticsController
         $period = $_GET['period'] ?? 'daily';
         $departmentId = $_SESSION['department_id'] ?? 0;
         
-        $service = new \App\Services\DepartmentAnalyticsService();
+        $service = new \App\Modules\Analytics\DepartmentAnalyticsService();
         $data = $service->getMetricTimeSeries($departmentId, $period, 'received_count');
 
         header('Content-Type: application/json');
@@ -261,7 +261,7 @@ class StatisticsController
         $period = $_GET['period'] ?? 'daily';
         $departmentId = $_SESSION['department_id'] ?? 0;
         
-        $service = new \App\Services\DepartmentAnalyticsService();
+        $service = new \App\Modules\Analytics\DepartmentAnalyticsService();
         $data = $service->getAverageProcessingTime($departmentId, $period);
 
         header('Content-Type: application/json');

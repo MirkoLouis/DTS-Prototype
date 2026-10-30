@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Controllers;
+namespace App\Modules\Analytics;
 
 use App\Common\Database\Database;
 use App\Common\Cache\Cache;
-use App\Services\AdminAnalyticsService;
+use App\Modules\Analytics\AdminAnalyticsService;
 
 class AdminDashboardController
 {

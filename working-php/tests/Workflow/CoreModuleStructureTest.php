@@ -54,6 +54,9 @@ class CoreModuleStructureTest extends TestCase
             'App\Models\User', 'App\Security\SecurityPinCache',
             // 2.6.0: Auth
             'App\Controllers\AuthController', 'App\Core\AttemptThrottle',
+            // 2.6.0: Analytics
+            'App\Controllers\AdminDashboardController', 'App\Controllers\StatisticsController',
+            'App\Services\AdminAnalyticsService', 'App\Services\DepartmentAnalyticsService', 'App\Jobs\GenerateReportJob',
         ];
         foreach ($retired as $old) {
             $this->assertFalse(class_exists($old), "{$old} should have been removed");
@@ -107,6 +110,12 @@ class CoreModuleStructureTest extends TestCase
             // 2.6.0: Auth
             'App\Modules\Auth\AuthController' => [],
             'App\Modules\Auth\AttemptThrottleService' => ['key', 'secondsLocked', 'recordFailure', 'clear'],
+            // 2.6.0: Analytics
+            'App\Modules\Analytics\AdminDashboardController' => [],
+            'App\Modules\Analytics\StatisticsController' => [],
+            'App\Modules\Analytics\AdminAnalyticsService' => [],
+            'App\Modules\Analytics\DepartmentAnalyticsService' => [],
+            'App\Modules\Analytics\Jobs\GenerateReportJob' => [],
         ];
 
         // Check each class and each of its methods
