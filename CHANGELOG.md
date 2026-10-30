@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-10-30 15:36
+
+**Version:** 2.6.1-Release+202610301536
+
+### Added
+- ICT Unit department, with the `ict.unit` staff account (password `password`), in the production seeder (`setup-production-db.js`). The ICT Unit can now be added as a route step at intake. The system has 15 departments.
+
+### Changed
+- After a successful decline, the officer goes to their role dashboard (`/dashboard`, i.e. `/intake`) instead of back to the document's manage page, which showed "Management Unauthorized" for the now-declined document. The toast "Document … successfully declined." appears there and in the bell. A failed decline still returns to the page it came from.
+- Every document toast names its tracking code: freeze, unfreeze and auto-resolve confirmations, the intake lookup notices, the access-denied message, and the errors raised by a document action (shown as "Document DEPED-…: <message>" through the new `document_message()` helper). The service's exception text and the hashed log remarks are unchanged.
+- One migration file: `scripts/migrations/2026_10_27_add_attempt_throttles.sql` is now `scripts/migrations/master-migration.sql`. Every statement in it is idempotent, and new schema changes are appended to it.
+- `HttpSession::post()` (test and evidence tooling) can send a `Referer`, as a browser does when it posts a form.
+
+### Removed
+- The `/profile` and `/profile/update` routes and `ProfileController`, left over from the removed profile-editing feature (users are managed by the admin). `/profile` returned a 500 because its template no longer existed.
+
+### Upgrade note
+- The ICT Unit is added through the seeder only, so an existing database gets it by re-seeding (`composer run seed:prod`, then `composer run seed:fast <docs>`), which replaces all data. After re-seeding, write a new chain-head checkpoint (`php scripts/create-checkpoint.php`) so the next integrity check does not compare against heads from the old data.
+
 ## 2026-10-30 14:29
 
 **Version:** 2.6.0-Release+202610301429
