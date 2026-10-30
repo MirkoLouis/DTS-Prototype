@@ -1,10 +1,10 @@
 <?php
 
-namespace App\Events;
+namespace App\Modules\Integrity\Events;
 
 use App\Models\Document;
 
-class IntegrityCheckFailed
+class IntegrityCheckFailedEvent
 {
     public $document;
     public $reason;

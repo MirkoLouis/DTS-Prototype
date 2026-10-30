@@ -2,7 +2,7 @@
 
 namespace App\Research;
 
-use App\Integrity\HashChainMicroShardingBuilder;
+use App\Modules\Integrity\HashChainService;
 
 /**
  * Appends result rows to CSV files inside the current run folder (storage/test-results/<run_id>/).
@@ -73,7 +73,7 @@ class ResultWriter
     private static function now(): \DateTimeImmutable
     {
         // Explicit zone keeps run ids and run.json stamps ordered across PHPUnit and CLI scripts
-        return new \DateTimeImmutable('now', new \DateTimeZone(HashChainMicroShardingBuilder::APP_TIMEZONE));
+        return new \DateTimeImmutable('now', new \DateTimeZone(HashChainService::APP_TIMEZONE));
     }
 
     /**

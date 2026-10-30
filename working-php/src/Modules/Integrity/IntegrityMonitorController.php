@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Controllers;
+namespace App\Modules\Integrity;
 
 use App\Common\Database\Database;
 use App\Common\Cache\Cache;

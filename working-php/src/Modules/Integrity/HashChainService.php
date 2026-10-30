@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Integrity;
+namespace App\Modules\Integrity;
 
 use App\Common\Database\Database;
 
@@ -14,7 +14,7 @@ use App\Common\Database\Database;
  *   signed message = json([document_id, action, epoch, previous_hash, state_hash, remarks])
  *   chain hash     = sha256(json([document_id, user_id, action, epoch, previous_hash, state_hash, remarks, signature]))
  */
-class HashChainMicroShardingBuilder
+class HashChainService
 {
     // Timezone in which created_at strings are written; hashing converts them to a Unix epoch
     public const APP_TIMEZONE = 'Asia/Manila';
@@ -137,7 +137,7 @@ class HashChainMicroShardingBuilder
 
         // 3. Sign the full message: document, action, time, parent, state and remarks
         $message = self::signedMessage($documentId, $action, $epoch, $previousHash, $documentStateHash, $remarks);
-        $signature = DigitalSignature::signAction($userId, $pin, $message);
+        $signature = DigitalSignatureService::signAction($userId, $pin, $message);
 
         // 4. Seal the block with its chain hash
         $hash = self::chainHash($documentId, $userId, $action, $epoch, $previousHash, $documentStateHash, $remarks, $signature);

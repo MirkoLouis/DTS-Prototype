@@ -46,7 +46,7 @@ function runScheduledTasks(int &$lastSampleTime, int &$lastBackfillTime, int &$l
     if ($now - $lastCheckpointTime >= 86400) {
         $lastCheckpointTime = $now;
         try {
-            $path = (new \App\Jobs\ChainCheckpointJob())->create();
+            $path = (new \App\Modules\Integrity\Jobs\ChainCheckpointJob())->create();
             echo "⏰ [Worker Scheduler] Chain-head checkpoint written: " . basename($path) . "\n";
         } catch (\Throwable $e) {
             echo "⏰ [Worker Scheduler] Chain-head checkpoint failed: " . $e->getMessage() . "\n";

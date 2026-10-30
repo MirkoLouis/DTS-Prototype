@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Jobs;
+namespace App\Modules\Integrity\Jobs;
 
 use App\Common\Database\Database;
-use App\Integrity\DigitalSignature;
-use App\Integrity\HashChainMicroShardingBuilder;
-use App\Events\IntegrityCheckFailed;
+use App\Modules\Integrity\DigitalSignatureService;
+use App\Modules\Integrity\HashChainService;
+use App\Modules\Integrity\Events\IntegrityCheckFailedEvent;
 use App\Common\Events\EventDispatcher;
 
 class IntegrityCheckJob
@@ -35,7 +35,7 @@ class IntegrityCheckJob
         date_default_timezone_set('Asia/Manila');
 
         // Start every audit with fresh key histories, even inside a long-lived process
-        DigitalSignature::clearKeyCache();
+        DigitalSignatureService::clearKeyCache();
         $db = Database::getInstance();
         
         $db->query("UPDATE integrity_checks SET status = 'processing', progress = 5, updated_at = NOW() WHERE id = :id", [
@@ -97,17 +97,17 @@ class IntegrityCheckJob
                         }
 
                         $docLogs = $logsByDoc[$docId] ?? [];
-                        $expectedPreviousHash = HashChainMicroShardingBuilder::GENESIS_HASH;
+                        $expectedPreviousHash = HashChainService::GENESIS_HASH;
                         $latestStateHash = null;
 
                         foreach ($docLogs as $log) {
                             $logUserId = $log['user_id'] !== null ? (int) $log['user_id'] : null;
-                            $epoch = HashChainMicroShardingBuilder::logTimestamp($log['created_at']);
+                            $epoch = HashChainService::logTimestamp($log['created_at']);
                             $remarks = (string) ($log['remarks'] ?? '');
                             $isBadLog = false;
 
                             // Step 1: Re-derive the chain hash from the expected parent, not the stored previous_hash
-                            $recalculatedHash = HashChainMicroShardingBuilder::chainHash(
+                            $recalculatedHash = HashChainService::chainHash(
                                 (int) $log['document_id'],
                                 $logUserId,
                                 $log['action'],
@@ -123,7 +123,7 @@ class IntegrityCheckJob
                             }
 
                             // Step 2: Verify the Ed25519 signature over the full signed message
-                            $message = HashChainMicroShardingBuilder::signedMessage(
+                            $message = HashChainService::signedMessage(
                                 (int) $log['document_id'],
                                 $log['action'],
                                 $epoch,
@@ -131,7 +131,7 @@ class IntegrityCheckJob
                                 (string) $log['document_state_hash'],
                                 $remarks
                             );
-                            $verification = DigitalSignature::verifySignature($logUserId, $log['created_at'], $message, $log['signature']);
+                            $verification = DigitalSignatureService::verifySignature($logUserId, $log['created_at'], $message, $log['signature']);
                             if (!$verification['valid']) {
                                 $invalidSignaturesCount++;
                                 $isBadLog = true;
@@ -153,7 +153,7 @@ class IntegrityCheckJob
 
                         // Step 3: Compare the current live state against its last cryptographically sealed state
                         if ($latestStateHash) {
-                            $currentStateHash = \App\Integrity\HashChainMicroShardingBuilder::calculateStateHash($documentData);
+                            $currentStateHash = \App\Modules\Integrity\HashChainService::calculateStateHash($documentData);
                             
                             if ($currentStateHash !== $latestStateHash) {
                                 // Fallback: Check JSON spacing artifact
@@ -162,7 +162,7 @@ class IntegrityCheckJob
                                     $decoded = json_decode($altDocumentData['finalized_route'], true);
                                     if ($decoded !== null) {
                                         $altDocumentData['finalized_route'] = json_encode($decoded);
-                                        $altStateHash = \App\Integrity\HashChainMicroShardingBuilder::calculateStateHash($altDocumentData);
+                                        $altStateHash = \App\Modules\Integrity\HashChainService::calculateStateHash($altDocumentData);
                                         if ($altStateHash === $latestStateHash) {
                                             $currentStateHash = $altStateHash;
                                         }
@@ -177,7 +177,7 @@ class IntegrityCheckJob
                                     $mismatchedDocumentTrackingCodes[] = $documentData['tracking_code'];
                                 }
                                 $documentObj = \App\Models\Document::findById($documentData['id']);
-                                EventDispatcher::dispatch(new IntegrityCheckFailed($documentObj, 'Verification Scan'));
+                                EventDispatcher::dispatch(new IntegrityCheckFailedEvent($documentObj, 'Verification Scan'));
                             }
                         }
                         

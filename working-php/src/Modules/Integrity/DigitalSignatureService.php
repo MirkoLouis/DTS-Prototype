@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Integrity;
+namespace App\Modules\Integrity;
 
 use App\Core\AttemptThrottle;
 use App\Common\Config\Config;
@@ -11,7 +11,7 @@ use App\Common\Database\Database;
  * (unwrapped with an Argon2id-derived key) or the server key, and verifies signatures against the
  * key that was active when the entry was written.
  */
-class DigitalSignature
+class DigitalSignatureService
 {
     // Per-process cache of user_public_key_histories rows, keyed by user ID
     private static array $keyHistoryCache = [];

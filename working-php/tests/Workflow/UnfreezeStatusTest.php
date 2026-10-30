@@ -3,8 +3,8 @@
 namespace Tests\Workflow;
 
 use App\Common\Database\Database;
-use App\Integrity\HashChainMicroShardingBuilder;
-use App\Integrity\PreActionIntegrityCheck;
+use App\Modules\Integrity\HashChainService;
+use App\Modules\Integrity\PreActionIntegrityService;
 use App\Jobs\CleanupStalePendingDocumentsJob;
 use App\Models\User;
 use App\Services\DocumentWorkflowService;
@@ -134,7 +134,7 @@ class UnfreezeStatusTest extends TestCase
 
         $this->assertSame('completed', $status);
         $this->assertSame('Original Title', $this->doc($s['id'])['title']);
-        $this->assertTrue(PreActionIntegrityCheck::passes($this->doc($s['id'])));
+        $this->assertTrue(PreActionIntegrityService::passes($this->doc($s['id'])));
     }
 
     // Fetch the newest restorable log row (same filter as the service)
@@ -178,7 +178,7 @@ class UnfreezeStatusTest extends TestCase
         $snap['title'] = 'ATTACKER';
         $db->query('UPDATE document_logs SET document_snapshot = :s, document_state_hash = :h WHERE id = :id', [
             ':s' => json_encode($snap),
-            ':h' => HashChainMicroShardingBuilder::calculateStateHash($snap),
+            ':h' => HashChainService::calculateStateHash($snap),
             ':id' => $log['id']
         ]);
 

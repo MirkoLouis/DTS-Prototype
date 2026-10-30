@@ -71,7 +71,7 @@ class SecurityKeyController
         ]);
 
         // The new key period is written, so drop the memoized key histories
-        \App\Integrity\DigitalSignature::clearKeyCache();
+        \App\Modules\Integrity\DigitalSignatureService::clearKeyCache();
 
         // A new key invalidates any PIN-cache token issued for the old PIN
         unset($_SESSION['pin_cache_key']);

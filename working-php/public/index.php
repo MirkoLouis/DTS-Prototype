@@ -94,7 +94,7 @@ $router->get('/system-overview', [App\Controllers\SystemHealthController::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
-$router->get('/all-documents', [App\Controllers\IntegrityMonitorController::class, 'index'], [
+$router->get('/all-documents', [App\Modules\Integrity\IntegrityMonitorController::class, 'index'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);

@@ -5,7 +5,7 @@ namespace App\Security;
 use App\Core\AttemptThrottle;
 use App\Common\Config\Config;
 use App\Common\Database\Database;
-use App\Integrity\DigitalSignature;
+use App\Modules\Integrity\DigitalSignatureService;
 
 /**
  * Security PIN cache (part of the non-repudiation module, Ed25519 + Argon2id): resolves the submitted
@@ -55,7 +55,7 @@ class SecurityPinCache
             return $submittedPin;
         }
 
-        // While timed out, neither verify nor count the PIN; DigitalSignature::signAction() refuses it
+        // While timed out, neither verify nor count the PIN; DigitalSignatureService::signAction() refuses it
         $throttleKey = AttemptThrottle::key('pin', (string) $userId);
         if (AttemptThrottle::secondsLocked($throttleKey, time()) > 0) {
             return $submittedPin;
@@ -88,7 +88,7 @@ class SecurityPinCache
 
         // decryptPrivateKey throws on a wrong PIN
         try {
-            DigitalSignature::decryptPrivateKey($user['private_key'], $pin);
+            DigitalSignatureService::decryptPrivateKey($user['private_key'], $pin);
             return true;
         } catch (\Exception $e) {
             return false;

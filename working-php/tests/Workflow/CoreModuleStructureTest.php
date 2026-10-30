@@ -3,9 +3,9 @@
 namespace Tests\Workflow;
 
 use App\Common\Database\Database;
-use App\Integrity\DigitalSignature;
-use App\Integrity\HashChainMicroShardingBuilder;
-use App\Integrity\PreActionIntegrityCheck;
+use App\Modules\Integrity\DigitalSignatureService;
+use App\Modules\Integrity\HashChainService;
+use App\Modules\Integrity\PreActionIntegrityService;
 use Tests\Support\Fixtures;
 use Tests\TestCase;
 
@@ -39,6 +39,9 @@ class CoreModuleStructureTest extends TestCase
             'App\Core\Router', 'App\Core\Database', 'App\Core\Cache', 'App\Core\Config', 'App\Core\Validator', 'App\Core\EventDispatcher',
             'App\Middleware\AuthMiddleware', 'App\Middleware\CacheMiddleware', 'App\Middleware\RoleMiddleware',
             'App\Utils\Paginator', 'App\Utils\CursorPaginator',
+            // 2.6.0: Integrity
+            'App\Integrity\HashChainMicroShardingBuilder', 'App\Integrity\DigitalSignature', 'App\Integrity\PreActionIntegrityCheck',
+            'App\Controllers\IntegrityMonitorController', 'App\Jobs\IntegrityCheckJob', 'App\Jobs\ChainCheckpointJob', 'App\Events\IntegrityCheckFailed',
         ];
         foreach ($retired as $old) {
             $this->assertFalse(class_exists($old), "{$old} should have been removed");
@@ -49,9 +52,9 @@ class CoreModuleStructureTest extends TestCase
     public function test_new_modules_expose_moved_methods(): void
     {
         $expected = [
-            HashChainMicroShardingBuilder::class => ['calculateStateHash', 'logTimestamp', 'signedMessage', 'chainHashInput', 'chainHash', 'createLog'],
-            DigitalSignature::class => ['signAsSystem', 'decryptPrivateKey', 'signAction', 'publicKeyAt', 'verifySignature', 'clearKeyCache'],
-            PreActionIntegrityCheck::class => ['passes', 'freezeTampered'],
+            HashChainService::class => ['calculateStateHash', 'logTimestamp', 'signedMessage', 'chainHashInput', 'chainHash', 'createLog'],
+            DigitalSignatureService::class => ['signAsSystem', 'decryptPrivateKey', 'signAction', 'publicKeyAt', 'verifySignature', 'clearKeyCache'],
+            PreActionIntegrityService::class => ['passes', 'freezeTampered'],
             'App\Security\SecurityPinCache' => ['resolvePin'],
             'App\Routing\HeuristicRouter' => ['suggest', 'learnedRoute'],
             // 2.6.0 layer-convention rename: Common
@@ -66,6 +69,11 @@ class CoreModuleStructureTest extends TestCase
             'App\Common\Guards\RoleGuard' => [],
             'App\Common\Utils\Paginator' => [],
             'App\Common\Utils\CursorPaginator' => [],
+            // 2.6.0: Integrity
+            'App\Modules\Integrity\IntegrityMonitorController' => [],
+            'App\Modules\Integrity\Jobs\IntegrityCheckJob' => [],
+            'App\Modules\Integrity\Jobs\ChainCheckpointJob' => [],
+            'App\Modules\Integrity\Events\IntegrityCheckFailedEvent' => [],
         ];
 
         // Check each class and each of its methods
@@ -77,31 +85,31 @@ class CoreModuleStructureTest extends TestCase
         }
 
         // Public constants keep their values
-        $this->assertSame('Asia/Manila', HashChainMicroShardingBuilder::APP_TIMEZONE);
-        $this->assertSame('genesis_hash', HashChainMicroShardingBuilder::GENESIS_HASH);
+        $this->assertSame('Asia/Manila', HashChainService::APP_TIMEZONE);
+        $this->assertSame('genesis_hash', HashChainService::GENESIS_HASH);
         $this->assertSame('pt1.', \App\Security\SecurityPinCache::TOKEN_PREFIX);
     }
 
     // Golden vectors computed with the pre-rename IntegrityManager: log format v2 must not change
     public function test_log_format_v2_is_byte_identical(): void
     {
-        $stateHash = HashChainMicroShardingBuilder::calculateStateHash($this->goldenDocument());
+        $stateHash = HashChainService::calculateStateHash($this->goldenDocument());
         $this->assertSame('be5ffcca318b6a33b12b8858118f5955dd094389e47b165fd7470579c00c4204', $stateHash);
 
-        $epoch = HashChainMicroShardingBuilder::logTimestamp('2026-03-01 08:15:30');
+        $epoch = HashChainService::logTimestamp('2026-03-01 08:15:30');
         $this->assertSame(1772324130, $epoch);
 
         $this->assertSame(
             '[42,"ADMIN: Document frozen.",1772324130,"genesis_hash","' . $stateHash . '","Remarks / ñ \"q\""]',
-            HashChainMicroShardingBuilder::signedMessage(42, 'ADMIN: Document frozen.', $epoch, 'genesis_hash', $stateHash, 'Remarks / ñ "q"')
+            HashChainService::signedMessage(42, 'ADMIN: Document frozen.', $epoch, 'genesis_hash', $stateHash, 'Remarks / ñ "q"')
         );
         $this->assertSame(
             '1d3a78bbc2a31d9e492201e9e1498510cbe61314a71a08a3c6f0059ee021667a',
-            HashChainMicroShardingBuilder::chainHash(42, null, 'System Auto-Freeze', $epoch, 'genesis_hash', $stateHash, 'Remarks / ñ', 'c2ln')
+            HashChainService::chainHash(42, null, 'System Auto-Freeze', $epoch, 'genesis_hash', $stateHash, 'Remarks / ñ', 'c2ln')
         );
         $this->assertSame(
             'e1aac74e35ebf7e4227550ed4ccf061ec16612171fad26f49e12d4612a370650',
-            HashChainMicroShardingBuilder::chainHash(42, 5, 'Submitted', $epoch, 'abc', $stateHash, 'r', 'c2ln')
+            HashChainService::chainHash(42, 5, 'Submitted', $epoch, 'abc', $stateHash, 'r', 'c2ln')
         );
     }
 
@@ -114,8 +122,8 @@ class CoreModuleStructureTest extends TestCase
         $doc = $db->query('SELECT * FROM documents WHERE id = :id', [':id' => $s['id']])->fetch();
 
         // Detect the mismatch and freeze
-        $this->assertFalse(PreActionIntegrityCheck::passes($doc));
-        PreActionIntegrityCheck::freezeTampered($doc, 'Pre-Action Verification');
+        $this->assertFalse(PreActionIntegrityService::passes($doc));
+        PreActionIntegrityService::freezeTampered($doc, 'Pre-Action Verification');
 
         // The stored action string is unchanged; only the remark wording is new
         $log = $db->query('SELECT * FROM document_logs WHERE document_id = :id ORDER BY id DESC LIMIT 1', [':id' => $s['id']])->fetch();
@@ -124,8 +132,8 @@ class CoreModuleStructureTest extends TestCase
         $this->assertSame('frozen', $db->query('SELECT status FROM documents WHERE id = :id', [':id' => $s['id']])->fetch()['status']);
 
         // The freeze entry verifies against the system key
-        DigitalSignature::clearKeyCache();
-        $message = HashChainMicroShardingBuilder::signedMessage((int) $s['id'], $log['action'], HashChainMicroShardingBuilder::logTimestamp($log['created_at']), $log['previous_hash'], $log['document_state_hash'], $log['remarks']);
-        $this->assertTrue(DigitalSignature::verifySignature(null, $log['created_at'], $message, $log['signature'])['valid']);
+        DigitalSignatureService::clearKeyCache();
+        $message = HashChainService::signedMessage((int) $s['id'], $log['action'], HashChainService::logTimestamp($log['created_at']), $log['previous_hash'], $log['document_state_hash'], $log['remarks']);
+        $this->assertTrue(DigitalSignatureService::verifySignature(null, $log['created_at'], $message, $log['signature'])['valid']);
     }
 }

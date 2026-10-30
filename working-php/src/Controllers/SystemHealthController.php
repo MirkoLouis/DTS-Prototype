@@ -3,8 +3,8 @@
 namespace App\Controllers;
 
 use App\Common\Database\Database;
-use App\Integrity\DigitalSignature;
-use App\Integrity\HashChainMicroShardingBuilder;
+use App\Modules\Integrity\DigitalSignatureService;
+use App\Modules\Integrity\HashChainService;
 
 class SystemHealthController
 {
@@ -18,8 +18,8 @@ class SystemHealthController
             'mismatched_ids' => [],
         ];
 
-        if (file_exists(\App\Jobs\IntegrityCheckJob::resultPath())) {
-            $integrityCheckResult = json_decode(file_get_contents(\App\Jobs\IntegrityCheckJob::resultPath()), true);
+        if (file_exists(\App\Modules\Integrity\Jobs\IntegrityCheckJob::resultPath())) {
+            $integrityCheckResult = json_decode(file_get_contents(\App\Modules\Integrity\Jobs\IntegrityCheckJob::resultPath()), true);
         }
 
         $issues = [];
@@ -144,17 +144,17 @@ class SystemHealthController
         ])->fetch();
 
         // Rebuild the block's inputs exactly as the auditor does (format v2)
-        $previousHash = $lastLog ? $lastLog['hash'] : HashChainMicroShardingBuilder::GENESIS_HASH;
+        $previousHash = $lastLog ? $lastLog['hash'] : HashChainService::GENESIS_HASH;
         $userId = $log['user_id'] !== null ? (int) $log['user_id'] : null;
-        $epoch = HashChainMicroShardingBuilder::logTimestamp($log['created_at']);
+        $epoch = HashChainService::logTimestamp($log['created_at']);
         $remarks = (string) ($log['remarks'] ?? '');
 
-        $hashInput = HashChainMicroShardingBuilder::chainHashInput((int) $log['document_id'], $userId, $log['action'], $epoch, $previousHash, (string) $log['document_state_hash'], $remarks, (string) $log['signature']);
-        $recalculatedHash = HashChainMicroShardingBuilder::chainHash((int) $log['document_id'], $userId, $log['action'], $epoch, $previousHash, (string) $log['document_state_hash'], $remarks, (string) $log['signature']);
+        $hashInput = HashChainService::chainHashInput((int) $log['document_id'], $userId, $log['action'], $epoch, $previousHash, (string) $log['document_state_hash'], $remarks, (string) $log['signature']);
+        $recalculatedHash = HashChainService::chainHash((int) $log['document_id'], $userId, $log['action'], $epoch, $previousHash, (string) $log['document_state_hash'], $remarks, (string) $log['signature']);
 
         // Verify the signature too, so the debugger explains signature failures and not only hash failures
-        $message = HashChainMicroShardingBuilder::signedMessage((int) $log['document_id'], $log['action'], $epoch, $previousHash, (string) $log['document_state_hash'], $remarks);
-        $verification = DigitalSignature::verifySignature($userId, $log['created_at'], $message, $log['signature']);
+        $message = HashChainService::signedMessage((int) $log['document_id'], $log['action'], $epoch, $previousHash, (string) $log['document_state_hash'], $remarks);
+        $verification = DigitalSignatureService::verifySignature($userId, $log['created_at'], $message, $log['signature']);
 
         header('Content-Type: application/json');
         echo json_encode([
@@ -191,7 +191,7 @@ class SystemHealthController
 
         // Dispatch job by inserting into jobs table
         $payload = json_encode([
-            'class' => \App\Jobs\IntegrityCheckJob::class,
+            'class' => \App\Modules\Integrity\Jobs\IntegrityCheckJob::class,
             'data' => [$id]
         ]);
         
@@ -235,8 +235,8 @@ class SystemHealthController
             'last_checked' => 'Never',
         ];
 
-        if (file_exists(\App\Jobs\IntegrityCheckJob::resultPath())) {
-            $result = json_decode(file_get_contents(\App\Jobs\IntegrityCheckJob::resultPath()), true);
+        if (file_exists(\App\Modules\Integrity\Jobs\IntegrityCheckJob::resultPath())) {
+            $result = json_decode(file_get_contents(\App\Modules\Integrity\Jobs\IntegrityCheckJob::resultPath()), true);
         }
 
         header('Content-Type: application/json');
@@ -354,8 +354,8 @@ class SystemHealthController
         $workflow = new \App\Services\DocumentWorkflowService();
         
         $integrityCheckResult = [];
-        if (file_exists(\App\Jobs\IntegrityCheckJob::resultPath())) {
-            $integrityCheckResult = json_decode(file_get_contents(\App\Jobs\IntegrityCheckJob::resultPath()), true);
+        if (file_exists(\App\Modules\Integrity\Jobs\IntegrityCheckJob::resultPath())) {
+            $integrityCheckResult = json_decode(file_get_contents(\App\Modules\Integrity\Jobs\IntegrityCheckJob::resultPath()), true);
         }
 
         $trackingCodesToFreeze = [];

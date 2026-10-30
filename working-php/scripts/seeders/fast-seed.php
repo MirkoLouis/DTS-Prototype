@@ -5,8 +5,8 @@ require BASE_PATH . '/vendor/autoload.php';
 
 use App\Common\Config\Config;
 use App\Common\Database\Database;
-use App\Integrity\DigitalSignature;
-use App\Integrity\HashChainMicroShardingBuilder;
+use App\Modules\Integrity\DigitalSignatureService;
+use App\Modules\Integrity\HashChainService;
 use App\Core\TrackingCode;
 use App\Common\Middleware\CacheMiddleware;
 
@@ -334,7 +334,7 @@ $pin = 'password';
 foreach ($users as $user) {
     // Same Argon2id + AES-256-CBC unwrap the live system uses; skip keys that do not open with the seed PIN
     try {
-        $decryptedKeys[$user['id']] = DigitalSignature::decryptPrivateKey($user['private_key'], $pin);
+        $decryptedKeys[$user['id']] = DigitalSignatureService::decryptPrivateKey($user['private_key'], $pin);
     } catch (\Exception $e) {
         continue;
     }
@@ -342,7 +342,7 @@ foreach ($users as $user) {
 echo "✅ Cached " . count($decryptedKeys) . " private keys.\n";
 
 // Fail early if system-initiated entries cannot be signed
-DigitalSignature::signAsSystem('seed-preflight');
+DigitalSignatureService::signAsSystem('seed-preflight');
 
 $districts = ['East I District', 'East II District', 'South I District', 'South II District', 'West I District', 'North I District', 'North II District', 'North III District', 'City Central District'];
 
@@ -565,10 +565,10 @@ function buildChunk(int $startIndex, int $count, array $ctx): array {
                 'user_id' => $userId,
                 'action' => $action,
                 'remarks' => $remarks,
-                'state_hash' => HashChainMicroShardingBuilder::calculateStateHash($docDataForHash),
+                'state_hash' => HashChainService::calculateStateHash($docDataForHash),
                 'snapshot' => json_encode($docDataForHash),
                 'sql_date' => $sqlDate,
-                'epoch' => HashChainMicroShardingBuilder::logTimestamp($sqlDate)
+                'epoch' => HashChainService::logTimestamp($sqlDate)
             ];
         };
         
@@ -723,22 +723,22 @@ while ($totalProcessed < $docsToCreate) {
     for ($i = 0; $i < $currentChunk; $i++) {
         $docId = $firstInsertId + $i;
         $templates = $chunkLogTemplates[$i];
-        $prevHash = HashChainMicroShardingBuilder::GENESIS_HASH;
+        $prevHash = HashChainService::GENESIS_HASH;
 
         foreach ($templates as $tmpl) {
             $uId = $tmpl['user_id'] !== null ? (int) $tmpl['user_id'] : null;
 
             // Sign the v2 message with the actor's in-memory key, or the server key for system entries
-            $message = HashChainMicroShardingBuilder::signedMessage((int) $docId, $tmpl['action'], $tmpl['epoch'], $prevHash, $tmpl['state_hash'], $tmpl['remarks']);
+            $message = HashChainService::signedMessage((int) $docId, $tmpl['action'], $tmpl['epoch'], $prevHash, $tmpl['state_hash'], $tmpl['remarks']);
             if ($uId !== null && isset($decryptedKeys[$uId])) {
                 $signature = base64_encode(sodium_crypto_sign_detached($message, $decryptedKeys[$uId]));
             } else {
                 $uId = null;
-                $signature = DigitalSignature::signAsSystem($message);
+                $signature = DigitalSignatureService::signAsSystem($message);
             }
 
-            // Seal the block exactly as HashChainMicroShardingBuilder::createLog does
-            $newHash = HashChainMicroShardingBuilder::chainHash((int) $docId, $uId, $tmpl['action'], $tmpl['epoch'], $prevHash, $tmpl['state_hash'], $tmpl['remarks'], $signature);
+            // Seal the block exactly as HashChainService::createLog does
+            $newHash = HashChainService::chainHash((int) $docId, $uId, $tmpl['action'], $tmpl['epoch'], $prevHash, $tmpl['state_hash'], $tmpl['remarks'], $signature);
 
             $logValues[] = '(?,?,?,?,?,?,?,?,?,?,?)';
             array_push($logParams, $docId, $uId, $tmpl['action'], $tmpl['remarks'], $prevHash, $newHash, $tmpl['state_hash'], $signature, $tmpl['snapshot'], $tmpl['sql_date'], $tmpl['sql_date']);

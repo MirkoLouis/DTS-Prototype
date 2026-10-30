@@ -3,7 +3,7 @@
 namespace App\Policies;
 
 use App\Models\User;
-use App\Integrity\PreActionIntegrityCheck;
+use App\Modules\Integrity\PreActionIntegrityService;
 use App\Common\Database\Database;
 
 /**
@@ -56,8 +56,8 @@ class DocumentPolicy
     public function process(User $user, array $document): bool
     {
         // 0. Pre-action integrity check: Verify state hash against chain; automatic freezing on discrepancy to halt workflow on tampered data
-        if (!PreActionIntegrityCheck::passes($document)) {
-            PreActionIntegrityCheck::freezeTampered($document, 'Pre-Action Verification');
+        if (!PreActionIntegrityService::passes($document)) {
+            PreActionIntegrityService::freezeTampered($document, 'Pre-Action Verification');
             return false;
         }
 
@@ -103,8 +103,8 @@ class DocumentPolicy
         
         // Execute pre-action integrity check state hash verification if audit logs already exist for this document
         if ($stmt->fetch()) {
-            if (!PreActionIntegrityCheck::passes($document)) {
-                PreActionIntegrityCheck::freezeTampered($document, 'Pre-Management Verification');
+            if (!PreActionIntegrityService::passes($document)) {
+                PreActionIntegrityService::freezeTampered($document, 'Pre-Management Verification');
                 return false;
             }
         }

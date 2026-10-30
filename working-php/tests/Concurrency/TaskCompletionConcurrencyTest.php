@@ -3,7 +3,7 @@
 namespace Tests\Concurrency;
 
 use App\Common\Database\Database;
-use App\Jobs\IntegrityCheckJob;
+use App\Modules\Integrity\Jobs\IntegrityCheckJob;
 use App\Models\User;
 use App\Services\DocumentWorkflowService;
 use PHPUnit\Framework\Attributes\Group;

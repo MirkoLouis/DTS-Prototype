@@ -1,11 +1,11 @@
 <?php
 
-namespace App\Jobs;
+namespace App\Modules\Integrity\Jobs;
 
 use App\Common\Config\Config;
 use App\Common\Database\Database;
-use App\Integrity\DigitalSignature;
-use App\Integrity\HashChainMicroShardingBuilder;
+use App\Modules\Integrity\DigitalSignatureService;
+use App\Modules\Integrity\HashChainService;
 
 /**
  * Chain-head checkpoints: external evidence for the per-document hash chains.
@@ -53,9 +53,9 @@ class ChainCheckpointJob
         }
 
         // Root over the ordered head list, signed together with the checkpoint time
-        $createdAt = (new \DateTimeImmutable('now', new \DateTimeZone(HashChainMicroShardingBuilder::APP_TIMEZONE)))->format('Y-m-d H:i:s');
+        $createdAt = (new \DateTimeImmutable('now', new \DateTimeZone(HashChainService::APP_TIMEZONE)))->format('Y-m-d H:i:s');
         $root = hash('sha256', json_encode($heads, self::JSON_FLAGS));
-        $signature = DigitalSignature::signAsSystem("checkpoint|{$createdAt}|{$root}");
+        $signature = DigitalSignatureService::signAsSystem("checkpoint|{$createdAt}|{$root}");
 
         // Write the checkpoint file
         if (!is_dir(self::directory())) {

@@ -3,9 +3,9 @@
 namespace Tests\Benchmark;
 
 use App\Common\Database\Database;
-use App\Integrity\DigitalSignature;
-use App\Integrity\HashChainMicroShardingBuilder;
-use App\Integrity\PreActionIntegrityCheck;
+use App\Modules\Integrity\DigitalSignatureService;
+use App\Modules\Integrity\HashChainService;
+use App\Modules\Integrity\PreActionIntegrityService;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\TestCase;
 use Tests\Support\HttpClient;
@@ -147,9 +147,9 @@ class PerformanceBenchmarkTest extends TestCase
         $wrappedKey = base64_encode($salt . $iv . openssl_encrypt($secretKey, 'aes-256-cbc', $aesKey, OPENSSL_RAW_DATA, $iv));
 
         // Representative message-level inputs
-        $stateHash = HashChainMicroShardingBuilder::calculateStateHash($doc);
+        $stateHash = HashChainService::calculateStateHash($doc);
         $epoch = time();
-        $message = HashChainMicroShardingBuilder::signedMessage((int) $doc['id'], 'Processing Complete', $epoch, str_repeat('a', 64), $stateHash, 'Reviewed and signed.');
+        $message = HashChainService::signedMessage((int) $doc['id'], 'Processing Complete', $epoch, str_repeat('a', 64), $stateHash, 'Reviewed and signed.');
         $signature = base64_encode(sodium_crypto_sign_detached($message, $secretKey));
         $rawSignature = base64_decode($signature);
 
@@ -158,7 +158,7 @@ class PerformanceBenchmarkTest extends TestCase
         $cli = 'cli';
 
         // state_hash: SHA-256 over the nine document fields
-        $results['state_hash'] = [self::measure($iterations, fn($i) => HashChainMicroShardingBuilder::calculateStateHash($documents[$i % $docCount])), $cli];
+        $results['state_hash'] = [self::measure($iterations, fn($i) => HashChainService::calculateStateHash($documents[$i % $docCount])), $cli];
 
         // chain_append: createLog inside a transaction that is always rolled back, so no rows remain
         $systemSigned = [];
@@ -166,7 +166,7 @@ class PerformanceBenchmarkTest extends TestCase
             $d = $documents[max(0, $i) % $docCount];
             $conn->beginTransaction();
             $start = hrtime(true);
-            HashChainMicroShardingBuilder::createLog((int) $d['id'], null, 'Benchmark Append', 'benchmark', $d);
+            HashChainService::createLog((int) $d['id'], null, 'Benchmark Append', 'benchmark', $d);
             $elapsed = (hrtime(true) - $start) / 1e6;
             $conn->rollBack();
             // The first five iterations are discarded warm-up
@@ -180,7 +180,7 @@ class PerformanceBenchmarkTest extends TestCase
         $results['log_read'] = [self::measure($iterations, fn($i) => $db->query('SELECT * FROM document_logs WHERE document_id = :id ORDER BY id ASC', [':id' => $documents[random_int(0, $docCount - 1)]['id']])->fetchAll()), $cli];
 
         // argon2id_unlock: PIN to unwrapped signing key (Argon2id derivation + AES decrypt) only
-        $results['argon2id_unlock'] = [self::measure($argonIterations, fn($i) => DigitalSignature::decryptPrivateKey($wrappedKey, $pin)), $cli];
+        $results['argon2id_unlock'] = [self::measure($argonIterations, fn($i) => DigitalSignatureService::decryptPrivateKey($wrappedKey, $pin)), $cli];
 
         // ed25519_sign / ed25519_verify
         $results['ed25519_sign'] = [self::measure($iterations, fn($i) => sodium_crypto_sign_detached($message, $secretKey)), $cli];
@@ -192,21 +192,21 @@ class PerformanceBenchmarkTest extends TestCase
         $results['document_verify'] = [self::measure($iterations, function ($i) use ($db, $documents, $docCount, &$verifyFailures) {
             $docId = $documents[$i % $docCount]['id'];
             $logs = $db->query('SELECT * FROM document_logs WHERE document_id = :id ORDER BY id ASC', [':id' => $docId])->fetchAll();
-            $expectedPrevious = HashChainMicroShardingBuilder::GENESIS_HASH;
+            $expectedPrevious = HashChainService::GENESIS_HASH;
             foreach ($logs as $log) {
                 $userId = $log['user_id'] !== null ? (int) $log['user_id'] : null;
-                $logEpoch = HashChainMicroShardingBuilder::logTimestamp($log['created_at']);
+                $logEpoch = HashChainService::logTimestamp($log['created_at']);
                 $remarks = (string) ($log['remarks'] ?? '');
 
                 // Chain link: stored previous_hash must equal the parent, and the recomputed hash the stored hash
-                $recomputed = HashChainMicroShardingBuilder::chainHash((int) $log['document_id'], $userId, $log['action'], $logEpoch, $expectedPrevious, (string) $log['document_state_hash'], $remarks, (string) $log['signature']);
+                $recomputed = HashChainService::chainHash((int) $log['document_id'], $userId, $log['action'], $logEpoch, $expectedPrevious, (string) $log['document_state_hash'], $remarks, (string) $log['signature']);
                 if ($log['previous_hash'] !== $expectedPrevious || $recomputed !== $log['hash']) {
                     $verifyFailures[] = "doc {$docId} log {$log['id']}: chain hash/link mismatch";
                 }
 
                 // Signature over the full signed message
-                $msg = HashChainMicroShardingBuilder::signedMessage((int) $log['document_id'], $log['action'], $logEpoch, $expectedPrevious, (string) $log['document_state_hash'], $remarks);
-                if (!DigitalSignature::verifySignature($userId, $log['created_at'], $msg, $log['signature'])['valid']) {
+                $msg = HashChainService::signedMessage((int) $log['document_id'], $log['action'], $logEpoch, $expectedPrevious, (string) $log['document_state_hash'], $remarks);
+                if (!DigitalSignatureService::verifySignature($userId, $log['created_at'], $msg, $log['signature'])['valid']) {
                     $verifyFailures[] = "doc {$docId} log {$log['id']}: invalid signature";
                 }
                 $expectedPrevious = $log['hash'];
@@ -215,7 +215,7 @@ class PerformanceBenchmarkTest extends TestCase
         $this->assertSame([], array_slice($verifyFailures, 0, 5), 'Seeded chains must verify');
 
         // pre_action_integrity_check: live state against the last sealed state
-        $results['pre_action_integrity_check'] = [self::measure($iterations, fn($i) => PreActionIntegrityCheck::passes($documents[$i % $docCount])), $cli];
+        $results['pre_action_integrity_check'] = [self::measure($iterations, fn($i) => PreActionIntegrityService::passes($documents[$i % $docCount])), $cli];
 
         // HTTP page loads through the multi-worker built-in server, one logged-in client per role
         if ($withHttp) {

@@ -3,9 +3,9 @@
 namespace Tests\Security;
 
 use App\Common\Database\Database;
-use App\Integrity\DigitalSignature;
-use App\Jobs\ChainCheckpointJob;
-use App\Jobs\IntegrityCheckJob;
+use App\Modules\Integrity\DigitalSignatureService;
+use App\Modules\Integrity\Jobs\ChainCheckpointJob;
+use App\Modules\Integrity\Jobs\IntegrityCheckJob;
 use App\Models\User;
 use App\Policies\DocumentPolicy;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -41,7 +41,7 @@ class TamperInjectionTest extends TestCase
         }
 
         // The real audit runs in a fresh runner.php process, so start with an empty key-history cache
-        DigitalSignature::clearKeyCache();
+        DigitalSignatureService::clearKeyCache();
     }
 
     /**

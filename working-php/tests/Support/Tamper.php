@@ -2,7 +2,7 @@
 
 namespace Tests\Support;
 
-use App\Integrity\HashChainMicroShardingBuilder;
+use App\Modules\Integrity\HashChainService;
 use PDO;
 use RuntimeException;
 
@@ -194,7 +194,7 @@ final class Tamper
     public static function rewriteWholeChainWithAttackerKeys(PDO $pdo, int $documentId): void
     {
         self::editTitle($pdo, $documentId);
-        $newStateHash = HashChainMicroShardingBuilder::calculateStateHash(self::document($pdo, $documentId));
+        $newStateHash = HashChainService::calculateStateHash(self::document($pdo, $documentId));
         $logs = self::logs($pdo, $documentId);
 
         // One attacker key per signer, active from one hour before the first entry
@@ -211,11 +211,11 @@ final class Tamper
         }
 
         // Re-link and re-seal every entry in order
-        $previousHash = HashChainMicroShardingBuilder::GENESIS_HASH;
+        $previousHash = HashChainService::GENESIS_HASH;
         $update = $pdo->prepare('UPDATE document_logs SET previous_hash = ?, hash = ?, signature = ?, document_state_hash = ? WHERE id = ?');
         foreach ($logs as $log) {
             $userId = $log['user_id'] !== null ? (int) $log['user_id'] : null;
-            $epoch = HashChainMicroShardingBuilder::logTimestamp($log['created_at']);
+            $epoch = HashChainService::logTimestamp($log['created_at']);
             $remarks = (string) ($log['remarks'] ?? '');
 
             // System entries keep their sealed state and server signature; user entries get the new state and an attacker signature
@@ -224,11 +224,11 @@ final class Tamper
                 $signature = (string) $log['signature'];
             } else {
                 $stateHash = $newStateHash;
-                $message = HashChainMicroShardingBuilder::signedMessage($documentId, $log['action'], $epoch, $previousHash, $stateHash, $remarks);
+                $message = HashChainService::signedMessage($documentId, $log['action'], $epoch, $previousHash, $stateHash, $remarks);
                 $signature = base64_encode(sodium_crypto_sign_detached($message, $secrets[$log['user_id']]));
             }
 
-            $hash = HashChainMicroShardingBuilder::chainHash($documentId, $userId, $log['action'], $epoch, $previousHash, $stateHash, $remarks, $signature);
+            $hash = HashChainService::chainHash($documentId, $userId, $log['action'], $epoch, $previousHash, $stateHash, $remarks, $signature);
             $update->execute([$previousHash, $hash, $signature, $stateHash, $log['id']]);
             $previousHash = $hash;
         }
@@ -244,15 +244,15 @@ final class Tamper
         $logs = self::logs($pdo, $documentId);
         $previousHash = end($logs)['hash'];
         $document = self::document($pdo, $documentId);
-        $stateHash = HashChainMicroShardingBuilder::calculateStateHash($document);
+        $stateHash = HashChainService::calculateStateHash($document);
         $userId = (int) self::userId($pdo, 'records.unit');
         $createdAt ??= self::forgedTimestamp();
-        $epoch = HashChainMicroShardingBuilder::logTimestamp($createdAt);
+        $epoch = HashChainService::logTimestamp($createdAt);
 
         // Build the entry exactly as createLog() would, except for the signature
-        $message = HashChainMicroShardingBuilder::signedMessage($documentId, self::FORGED_ACTION, $epoch, $previousHash, $stateHash, self::FORGED_REMARKS);
+        $message = HashChainService::signedMessage($documentId, self::FORGED_ACTION, $epoch, $previousHash, $stateHash, self::FORGED_REMARKS);
         $signature = $sign($message);
-        $hash = HashChainMicroShardingBuilder::chainHash($documentId, $userId, self::FORGED_ACTION, $epoch, $previousHash, $stateHash, self::FORGED_REMARKS, $signature);
+        $hash = HashChainService::chainHash($documentId, $userId, self::FORGED_ACTION, $epoch, $previousHash, $stateHash, self::FORGED_REMARKS, $signature);
 
         $pdo->prepare(
             'INSERT INTO document_logs (document_id, user_id, action, remarks, previous_hash, hash, signature, document_state_hash, document_snapshot, created_at)
@@ -270,7 +270,7 @@ final class Tamper
     // A timestamp one minute after now (Manila time), safely after every genuine entry
     private static function forgedTimestamp(): string
     {
-        return (new \DateTimeImmutable('+1 minute', new \DateTimeZone(HashChainMicroShardingBuilder::APP_TIMEZONE)))->format('Y-m-d H:i:s');
+        return (new \DateTimeImmutable('+1 minute', new \DateTimeZone(HashChainService::APP_TIMEZONE)))->format('Y-m-d H:i:s');
     }
 
     // Fetch the document row

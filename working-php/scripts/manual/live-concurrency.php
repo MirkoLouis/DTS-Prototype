@@ -14,7 +14,7 @@
 
 define('BASE_PATH', dirname(__DIR__, 2));
 require BASE_PATH . '/vendor/autoload.php';
-date_default_timezone_set(\App\Integrity\HashChainMicroShardingBuilder::APP_TIMEZONE);
+date_default_timezone_set(\App\Modules\Integrity\HashChainService::APP_TIMEZONE);
 
 use App\Common\Database\Database;
 use App\Research\Barrier;

@@ -220,7 +220,7 @@ class UserController
         $db->query("UPDATE users SET public_key = NULL, private_key = NULL, security_key_set_at = NULL WHERE id = :id", [':id' => $id]);
 
         // The key period is closed, so drop the memoized key histories
-        \App\Integrity\DigitalSignature::clearKeyCache();
+        \App\Modules\Integrity\DigitalSignatureService::clearKeyCache();
         
         // Clear the user's personal page cache so they see the setup modal immediately on their next request
         $prefix = "cache_user_{$id}";

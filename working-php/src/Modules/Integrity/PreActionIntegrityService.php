@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Integrity;
+namespace App\Modules\Integrity;
 
 use App\Common\Database\Database;
 
@@ -9,7 +9,7 @@ use App\Common\Database\Database;
  * the live document row is compared with the state sealed in its newest log entry, and a mismatch
  * freezes the document with a system-signed log entry.
  */
-class PreActionIntegrityCheck
+class PreActionIntegrityService
 {
     /**
      * Verify the current live state of a document against its last cryptographic log.
@@ -32,7 +32,7 @@ class PreActionIntegrityCheck
             return true;
         }
 
-        $currentStateHash = HashChainMicroShardingBuilder::calculateStateHash($document);
+        $currentStateHash = HashChainService::calculateStateHash($document);
 
         // Attempt a fallback JSON re-encoding to handle minor spacing differences between raw PDO and ORM outputs before declaring tampering
         if ($currentStateHash !== $lastLog['document_state_hash']) {
@@ -41,7 +41,7 @@ class PreActionIntegrityCheck
                 if ($decoded !== null) {
                     $altDocument = $document;
                     $altDocument['finalized_route'] = json_encode($decoded);
-                    if (HashChainMicroShardingBuilder::calculateStateHash($altDocument) === $lastLog['document_state_hash']) {
+                    if (HashChainService::calculateStateHash($altDocument) === $lastLog['document_state_hash']) {
                         return true;
                     }
                 }
@@ -78,10 +78,10 @@ class PreActionIntegrityCheck
             [':id' => $document['id']]
         );
         $lastLog = $stmt->fetch();
-        $validStateHash = $lastLog ? $lastLog['document_state_hash'] : HashChainMicroShardingBuilder::calculateStateHash($document);
+        $validStateHash = $lastLog ? $lastLog['document_state_hash'] : HashChainService::calculateStateHash($document);
 
         // Create the system log entry for the automatic freezing
-        HashChainMicroShardingBuilder::createLog(
+        HashChainService::createLog(
             $document['id'],
             null, // System-initiated
             'System Auto-Freeze',

@@ -3,7 +3,7 @@
 namespace Tests\Workflow;
 
 use App\Common\Database\Database;
-use App\Jobs\IntegrityCheckJob;
+use App\Modules\Integrity\Jobs\IntegrityCheckJob;
 use App\Services\DocumentWorkflowService;
 use Tests\Support\Fixtures;
 use Tests\Support\TestDatabase;
