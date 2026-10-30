@@ -8,10 +8,14 @@ pcntl_async_signals(true);
 // Populated once the Linux branch detects the PHP version
 $GLOBALS['fpmService'] = 'php-fpm';
 
+// Worker script path, used by the watchdog and the shutdown handler
+$GLOBALS['consolePath'] = realpath(__DIR__ . '/../console.php');
+
 // Catch Ctrl+C and kill the services before exiting
 pcntl_signal(SIGINT, function() {
     $fpmService = $GLOBALS['fpmService'];
     echo "\n🛑 Shutting down development server...\n";
+    stopWorker($GLOBALS['consolePath']);
     shell_exec("sudo service nginx stop");
     shell_exec("sudo service $fpmService stop");
     shell_exec('pkill -f nginx'); // Catch any escapees
@@ -65,25 +69,36 @@ try {
         executeCommand("sudo service nginx restart");
 
         echo "⚙️  Starting Async Queue Worker (console.php)...\n";
-        $consolePath = realpath(__DIR__ . '/../console.php');
+        $consolePath = $GLOBALS['consolePath'];
 
-        // Find and kill any existing console.php to avoid duplicates
-        passthru("pkill -f 'php $consolePath' > /dev/null 2>&1");
+        // Stop any existing worker (found by path, also after its re-exec) to avoid duplicates
+        stopWorker($consolePath);
 
-        // Run console.php in the background and redirect output to a log file
-        $logFile = realpath(__DIR__ . '/../storage/logs') . '/worker.log';
-        if (!is_dir(dirname($logFile))) {
-            mkdir(dirname($logFile), 0777, true);
+        // Run console.php in the background, appending its output to the worker log
+        $logDir = __DIR__ . '/../storage/logs';
+        if (!is_dir($logDir)) {
+            mkdir($logDir, 0777, true);
         }
-        exec("nohup php " . escapeshellarg($consolePath) . " > " . escapeshellarg($logFile) . " 2>&1 &");
+        $logFile = realpath($logDir) . '/worker.log';
+        startWorker($consolePath, $logFile);
 
         echo "\n✅ Development Server is now powered by NGINX & PHP-FPM!\n";
         echo "   Local:   https://localhost:$port\n";
         echo "   Network: https://$lanIp:$port\n";
         echo "   ⚠️  Other devices: open the URL, click Advanced → Accept the risk.\n\n";
-        echo "📋 Watching access logs...\n";
+        echo "📋 Watching access logs (the worker is restarted automatically if it exits)...\n";
 
-        executeCommand("tail -f /var/log/nginx/dts_access.log");
+        // Stream the access log in the background
+        $tail = proc_open(['tail', '-f', '/var/log/nginx/dts_access.log'], [['pipe', 'r'], STDOUT, STDERR], $tailPipes);
+
+        // Watchdog: relaunch the worker within ~5 s whenever it is no longer running
+        while (true) {
+            sleep(5);
+            if (workerPids($consolePath) === []) {
+                echo "⚠️  Queue worker is not running; restarting it (see storage/logs/worker.log)...\n";
+                startWorker($consolePath, $logFile);
+            }
+        }
     }
 } catch (Throwable $e) {
     echo "\n❌ Error: " . $e->getMessage() . "\n";
