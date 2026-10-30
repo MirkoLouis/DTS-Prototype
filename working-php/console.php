@@ -26,25 +26,20 @@ $maxMemory = 8 * 1024 * 1024 * 1024; // 8 GB limit before restarting
 $maxJobs = 100; // Restart after 100 jobs to clear any accumulated state
 $jobsProcessed = 0;
 
-// Timestamps for container-compatible internal worker task scheduler
-$lastSampleTime = time();
-$lastBackfillTime = time();
-$lastRollupTime = time();
-$lastGcTime = time();
-$lastStaleCleanupTime = time();
-$lastCheckpointTime = time();
+// Container-compatible internal task scheduler; last-run times persist in worker_schedule, so restarts never postpone a task
+$schedule = new \App\Modules\System\WorkerScheduleService();
 
 /**
  * Execute periodic system maintenance and telemetry tasks inside the worker loop.
  * Eliminates reliance on host system cron daemons in containerized environments.
  */
-function runScheduledTasks(int &$lastSampleTime, int &$lastBackfillTime, int &$lastRollupTime, int &$lastGcTime, int &$lastStaleCleanupTime, int &$lastCheckpointTime): void
+function runScheduledTasks(\App\Modules\System\WorkerScheduleService $schedule): void
 {
     $now = time();
 
     // 0. Signed chain-head checkpoint every 24 hours (86400s)
-    if ($now - $lastCheckpointTime >= 86400) {
-        $lastCheckpointTime = $now;
+    if ($schedule->isDue('checkpoint', 86400, $now)) {
+        $schedule->markRun('checkpoint', $now);
         try {
             $path = (new \App\Modules\Integrity\Jobs\ChainCheckpointJob())->create();
             echo "⏰ [Worker Scheduler] Chain-head checkpoint written: " . basename($path) . "\n";
@@ -54,8 +49,8 @@ function runScheduledTasks(int &$lastSampleTime, int &$lastBackfillTime, int &$l
     }
 
     // 1. Sample database performance metrics every 5 minutes (300s)
-    if ($now - $lastSampleTime >= 300) {
-        $lastSampleTime = $now;
+    if ($schedule->isDue('db_metrics_sample', 300, $now)) {
+        $schedule->markRun('db_metrics_sample', $now);
         $scriptPath = BASE_PATH . '/scripts/sample-db-metrics.php';
         if (file_exists($scriptPath)) {
             echo "⏰ [Worker Scheduler] Sampling database performance metrics...\n";
@@ -64,8 +59,8 @@ function runScheduledTasks(int &$lastSampleTime, int &$lastBackfillTime, int &$l
     }
 
     // 2. Departmental TAT & Volume Metrics Backfill every 30 minutes (1800s)
-    if ($now - $lastBackfillTime >= 1800) {
-        $lastBackfillTime = $now;
+    if ($schedule->isDue('metrics_backfill', 1800, $now)) {
+        $schedule->markRun('metrics_backfill', $now);
         $scriptPath = BASE_PATH . '/scripts/backfill-metrics.php';
         if (file_exists($scriptPath)) {
             echo "⏰ [Worker Scheduler] Running departmental metrics backfill...\n";
@@ -74,8 +69,8 @@ function runScheduledTasks(int &$lastSampleTime, int &$lastBackfillTime, int &$l
     }
 
     // 3. Roll up old database metrics (>24h) into hourly aggregates every 24 hours (86400s)
-    if ($now - $lastRollupTime >= 86400) {
-        $lastRollupTime = $now;
+    if ($schedule->isDue('metrics_rollup', 86400, $now)) {
+        $schedule->markRun('metrics_rollup', $now);
         $scriptPath = BASE_PATH . '/scripts/rollup-metrics.php';
         if (file_exists($scriptPath)) {
             echo "⏰ [Worker Scheduler] Running historical database metrics rollup...\n";
@@ -85,8 +80,8 @@ function runScheduledTasks(int &$lastSampleTime, int &$lastBackfillTime, int &$l
 
     // 4. Response cache GC + log rotation every hour (3600s).
     // Cache serve TTL is 55s, so any file older than 1 hour is guaranteed stale.
-    if ($now - $lastGcTime >= 3600) {
-        $lastGcTime = $now;
+    if ($schedule->isDue('cache_gc', 3600, $now)) {
+        $schedule->markRun('cache_gc', $now);
 
         $cacheDir = \App\Common\Middleware\CacheMiddleware::cacheDir();
         $purged = 0;
@@ -111,8 +106,8 @@ function runScheduledTasks(int &$lastSampleTime, int &$lastBackfillTime, int &$l
     }
 
     // 5. Cleanup stale pending documents (>3 days without intake) every 24 hours (86400s)
-    if ($now - $lastStaleCleanupTime >= 86400) {
-        $lastStaleCleanupTime = $now;
+    if ($schedule->isDue('stale_cleanup', 86400, $now)) {
+        $schedule->markRun('stale_cleanup', $now);
         echo "⏰ [Worker Scheduler] Running stale pending documents cleanup...\n";
         try {
             $job = new \App\Modules\Documents\Jobs\CleanupStalePendingDocumentsJob();
@@ -153,7 +148,7 @@ function cleanupActiveWorkers(array &$activeWorkers) {
 
 while (!$stopWorker) {
     // 0. Run scheduled maintenance & telemetry tasks
-    runScheduledTasks($lastSampleTime, $lastBackfillTime, $lastRollupTime, $lastGcTime, $lastStaleCleanupTime, $lastCheckpointTime);
+    runScheduledTasks($schedule);
 
     // 1. Memory Leak Prevention: Check if we exceeded our allowed memory
     if (memory_get_usage(true) > $maxMemory) {
