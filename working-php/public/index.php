@@ -171,13 +171,7 @@ $router->get('/integrity-monitor', function() {
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
-// Profile & Security
-$router->get('/profile', [App\Modules\Users\ProfileController::class, 'edit'], [
-    App\Common\Middleware\AuthMiddleware::class
-]);
-$router->post('/profile/update', [App\Modules\Users\ProfileController::class, 'update'], [
-    App\Common\Middleware\AuthMiddleware::class
-]);
+// Security key setup
 $router->post('/security-key', [App\Modules\Users\SecurityKeyController::class, 'store'], [
     App\Common\Middleware\AuthMiddleware::class
 ]);
