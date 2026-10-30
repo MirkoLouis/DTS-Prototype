@@ -154,7 +154,7 @@
                             <div class="mt-2">
                                 <p class="text-sm text-gray-500 dark:text-gray-400">Please provide a reason for declining this document. This action cannot be undone.</p>
                                 <input type="hidden" name="document_id" value="<?php echo $document['id']; ?>">
-                                <textarea name="reason" rows="3" class="w-full mt-3 border-gray-300 rounded-md shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 focus:border-accent-1 focus:ring-accent-1 sm:text-sm" placeholder="Reason for decline..." required></textarea>
+                                <textarea name="reason" rows="3" class="w-full mt-3 p-2 border border-gray-300 rounded-md shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 focus:border-accent-1 focus:ring-accent-1 sm:text-sm" placeholder="Reason for decline..." required></textarea>
                             </div>
                         </div>
                     </div>
