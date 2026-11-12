@@ -1,0 +1,15 @@
+test,total_entries,user_signed,system_signed,valid,invalid,run_id,git_commit
+all_signatures_verify,26,22,4,26,0,20261029T174004-b8d51e,v2.0.0-9-g30a89d8
+alter_document_id_system,1,0,1,0,1,20261029T174004-b8d51e,v2.0.0-9-g30a89d8
+alter_document_id_user,1,1,0,0,1,20261029T174004-b8d51e,v2.0.0-9-g30a89d8
+alter_action_system,1,0,1,0,1,20261029T174004-b8d51e,v2.0.0-9-g30a89d8
+alter_action_user,1,1,0,0,1,20261029T174004-b8d51e,v2.0.0-9-g30a89d8
+alter_epoch_system,1,0,1,0,1,20261029T174004-b8d51e,v2.0.0-9-g30a89d8
+alter_epoch_user,1,1,0,0,1,20261029T174004-b8d51e,v2.0.0-9-g30a89d8
+alter_previous_hash_system,1,0,1,0,1,20261029T174004-b8d51e,v2.0.0-9-g30a89d8
+alter_previous_hash_user,1,1,0,0,1,20261029T174004-b8d51e,v2.0.0-9-g30a89d8
+alter_state_hash_system,1,0,1,0,1,20261029T174004-b8d51e,v2.0.0-9-g30a89d8
+alter_state_hash_user,1,1,0,0,1,20261029T174004-b8d51e,v2.0.0-9-g30a89d8
+alter_remarks_system,1,0,1,0,1,20261029T174004-b8d51e,v2.0.0-9-g30a89d8
+alter_remarks_user,1,1,0,0,1,20261029T174004-b8d51e,v2.0.0-9-g30a89d8
+key_reset,4,4,0,4,0,20261029T174004-b8d51e,v2.0.0-9-g30a89d8

@@ -6,7 +6,7 @@
 
 ## 1. Overview & Role Summary
 
-As a **System Administrator** (`admin`), you possess full control and global visibility over the DepEd Division of Iligan City Document Tracking System (DTS). Your primary responsibilities include user account management, cryptographically monitoring system integrity, executing data backups/restores, analyzing division-wide processing bottlenecks, and resolving auto-frozen document tamper alerts.
+As a **System Administrator** (`admin`), you possess full control and global visibility over the DepEd Division of Iligan City Document Tracking System (DTS). Your primary responsibilities include user account management, cryptographically monitoring system integrity, executing data backups/restores, analyzing division-wide processing bottlenecks, and resolving automatically frozen document tamper alerts.
 
 ---
 
@@ -15,7 +15,7 @@ As a **System Administrator** (`admin`), you possess full control and global vis
 | Feature / Resource | Permission Level | Description |
 | :--- | :--- | :--- |
 | **Admin Dashboard** (`/admin-dashboard`) | Full Access | Live system throughput, decline trends, department load vs. step-time analytics. |
-| **User Management** (`/users`) | Full Access | Create, edit, deactivate, delete users, and reset Ed25519 digital signature key pairs. |
+| **User Management** (`/users`) | Full Access | Create, edit, deactivate and reactivate users (accounts are never deleted, so their signed history stays verifiable), and reset Ed25519 digital signature key pairs. |
 | **System Overview & Health** (`/system-overview`) | Full Access | Run audit jobs, view DB performance metrics, clear personal/system caches, delete failed background jobs. |
 | **Integrity & Tamper Control** (`/all-documents`, `/system-health/*`) | Full Access | View all document hash chains, freeze/unfreeze documents, execute snapshot-based Auto-Resolve. |
 | **System Backups** (`/system/backups`) | Full Access | Generate manual database backups, restore database snapshots, download/delete backup archives. |
@@ -59,17 +59,17 @@ Every user action that mutates document state requires a cryptographically secur
 
 1. **Running a Full System Audit:**
    - Navigate to `/system-overview` and click **Run Integrity Check**.
-   - An asynchronous queue job ([IntegrityCheckJob](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Jobs/IntegrityCheckJob.php)) evaluates every document's state hash against its immutable log chain (`document_logs`).
+   - An asynchronous queue job ([IntegrityCheckJob](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Modules/Integrity/Jobs/IntegrityCheckJob.php)) evaluates every document's state hash against its immutable log chain (`document_logs`).
 2. **Monitoring Real-Time DB Metrics:**
-   - View active database connections, average query response times, and slow query logs fetched via [DatabasePerformanceService](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Services/DatabasePerformanceService.php).
+   - View active database connections, average query response times, and slow query logs fetched via [DatabasePerformanceService](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Modules/System/DatabasePerformanceService.php).
    - Export performance metrics to CSV for auditing.
 
 ### 4.3 Handling Tampered Documents & Auto-Resolve
 
-When raw database tampering is detected (e.g., unauthorized SQL updates bypassing application logic), the JIT **Active Guard** instantly blocks processing and triggers an **Auto-Freeze**.
+When raw database tampering is detected (e.g., unauthorized SQL updates bypassing application logic), the JIT **pre-action integrity check** instantly blocks processing and triggers **automatic freezing**.
 
 ```
-[Database Tampering] ──> [Active Guard Check Fails] ──> [Status: FROZEN] ──> [Admin Auto-Resolve]
+[Database Tampering] ──> [Pre-Action Integrity Check Fails] ──> [Status: FROZEN] ──> [Admin Auto-Resolve]
 ```
 
 1. **Identifying Frozen Documents:**
@@ -85,9 +85,19 @@ When raw database tampering is detected (e.g., unauthorized SQL updates bypassin
 
 ### 4.4 Managing System Backups (`/system/backups`)
 
-1. **Creating a Backup:** Click **Create Backup Now**. The background job [CreateBackupJob](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Jobs/CreateBackupJob.php) generates a compressed SQL dump in `storage/backups/`.
-2. **Restoring a Snapshot:** Select a backup file and click **Restore**. The system executes [RestoreBackupJob](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Jobs/RestoreBackupJob.php) to restore database tables.
+1. **Creating a Backup:** Click **Create Backup Now**. The background job [CreateBackupJob](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Modules/System/Jobs/CreateBackupJob.php) generates a compressed SQL dump in `storage/backups/`.
+2. **Restoring a Snapshot:** Select a backup file and click **Restore**. The system executes [RestoreBackupJob](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Modules/System/Jobs/RestoreBackupJob.php) to restore database tables.
 3. **Downloading Archives:** Backup files can be downloaded directly for off-site storage.
+
+### 4.5 Keeping the System Running (Deployment Requirements)
+
+The DTS is designed to run without stopping. Three things must be in place on the server (setup commands: README, "Running Continuously on Linux"):
+
+1. **The queue worker runs as a service.** Install `deploy/dts-worker.service` so the worker starts at boot and restarts within 5 seconds after a crash. Without it, daily checkpoints, metrics and cleanup stop silently once the worker exits. Check it with `systemctl status dts-worker.service`.
+2. **The operating system rotates logs and cleans PHP sessions.** nginx, PHP-FPM and the worker log grow without limit unless logrotate runs, and PHP session files are only deleted by the system's session cleaner. On a normal server these run from systemd timers (`logrotate.timer`, `phpsessionclean.timer`). In a container they need cron.
+3. **Disk space is planned for what is never deleted.** Documents, their cryptographic logs, and the daily signed checkpoints in `storage/checkpoints/` are kept forever. A checkpoint is about 8.5 MB per day at 100,000 documents and grows with the number of documents. Backups are not deleted automatically either.
+
+**Copy checkpoints off the server regularly** (for example weekly, to USB or another machine). Only the newest checkpoint is used by the integrity check. The older copies stored elsewhere are what let you prove that no documents or log entries were deleted, even by someone with full server access.
 
 ---
 

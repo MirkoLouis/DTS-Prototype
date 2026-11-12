@@ -7,11 +7,11 @@ if (file_exists(BASE_PATH . '/vendor/autoload.php')) {
     require BASE_PATH . '/vendor/autoload.php';
 }
 
-require BASE_PATH . '/src/Jobs/CreateBackupJob.php';
+require BASE_PATH . '/src/Modules/System/Jobs/CreateBackupJob.php';
 
 echo "Starting daily automated backup...\n";
 try {
-    $job = new \App\Jobs\CreateBackupJob();
+    $job = new \App\Modules\System\Jobs\CreateBackupJob();
     $job->handle();
     echo "Backup completed successfully and stored in storage/app/backups/.\n";
 } catch (\Exception $e) {

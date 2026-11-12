@@ -1,0 +1,5 @@
+run_id,suite,class,test,data_set,status,duration_ms,assertions,message,timestamp
+20261029-173844-a7fa,concurrency,"Tests\Concurrency\GuestSubmissionConcurrencyTest",test_server_handles_requests_in_parallel,,failed,2418.986,2,"Batch took 0.098s, slowest single request 0.048s: the server is serializing requests.",2026-10-29T17:38:47+08:00
+20261029-173844-a7fa,concurrency,"Tests\Concurrency\GuestSubmissionConcurrencyTest",test_100_simultaneous_submissions_get_unique_matching_codes,,passed,10392.591,30,,2026-10-29T17:38:58+08:00
+20261029-173844-a7fa,concurrency,"Tests\Concurrency\TaskCompletionConcurrencyTest",test_forked_workers_use_distinct_connections,,passed,2004.726,3,,2026-10-29T17:39:00+08:00
+20261029-173844-a7fa,concurrency,"Tests\Concurrency\TaskCompletionConcurrencyTest",test_simultaneous_task_completion_only_one_succeeds,,passed,10631.523,25,,2026-10-29T17:39:11+08:00

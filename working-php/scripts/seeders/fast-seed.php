@@ -3,8 +3,12 @@
 define('BASE_PATH', dirname(dirname(__DIR__)));
 require BASE_PATH . '/vendor/autoload.php';
 
-use App\Core\Database;
-use App\Core\IntegrityManager;
+use App\Common\Config\Config;
+use App\Common\Database\Database;
+use App\Modules\Integrity\DigitalSignatureService;
+use App\Modules\Integrity\HashChainService;
+use App\Modules\Documents\TrackingCodeUtil;
+use App\Common\Middleware\CacheMiddleware;
 
 class WeightedNameGenerator {
     private array $firstNames = [];
@@ -266,8 +270,10 @@ $conn->exec("SET SESSION innodb_lock_wait_timeout = 3600");
 
 // --- Truncate & Flush Active Sessions ---
 echo "🧹 Cleaning tables, active session files, and response caches...\n";
+// Under testing, leave the developer's real PHP sessions alone (R20)
+$isTesting = Config::get('app', 'env') === 'testing';
 $savePath = session_save_path() ?: sys_get_temp_dir();
-if ($savePath && is_dir($savePath)) {
+if (!$isTesting && $savePath && is_dir($savePath)) {
     $sessFiles = glob($savePath . '/sess_*');
     if ($sessFiles) {
         foreach ($sessFiles as $sf) {
@@ -275,7 +281,8 @@ if ($savePath && is_dir($savePath)) {
         }
     }
 }
-$htmlCacheFiles = glob(BASE_PATH . '/cache/responses/*.html');
+// Clear this environment's response cache (cache/responses, or cache/responses-test under testing)
+$htmlCacheFiles = glob(CacheMiddleware::cacheDir() . '/*.html');
 if ($htmlCacheFiles) {
     foreach ($htmlCacheFiles as $cf) {
         @unlink($cf);
@@ -327,7 +334,7 @@ $pin = 'password';
 foreach ($users as $user) {
     // Same Argon2id + AES-256-CBC unwrap the live system uses; skip keys that do not open with the seed PIN
     try {
-        $decryptedKeys[$user['id']] = IntegrityManager::decryptPrivateKey($user['private_key'], $pin);
+        $decryptedKeys[$user['id']] = DigitalSignatureService::decryptPrivateKey($user['private_key'], $pin);
     } catch (\Exception $e) {
         continue;
     }
@@ -335,7 +342,7 @@ foreach ($users as $user) {
 echo "✅ Cached " . count($decryptedKeys) . " private keys.\n";
 
 // Fail early if system-initiated entries cannot be signed
-IntegrityManager::signAsSystem('seed-preflight');
+DigitalSignatureService::signAsSystem('seed-preflight');
 
 $districts = ['East I District', 'East II District', 'South I District', 'South II District', 'West I District', 'North I District', 'North II District', 'North III District', 'City Central District'];
 
@@ -440,27 +447,36 @@ foreach ($docsByDate as $dateStr => $indices) {
     }
 }
 
-while ($totalProcessed < $docsToCreate) {
-    $currentChunk = min($chunkSize, $docsToCreate - $totalProcessed);
-    
-    $logValues = [];
-    $logParams = [];
-    
+// A chunk whose documents INSERT hits MySQL 1062 is rebuilt with fresh codes and retried this many times
+const MAX_CODE_RETRIES = 3;
+
+/**
+ * Build one chunk's documents and their log templates in memory, for global document indexes
+ * $startIndex+1 .. $startIndex+$count. Codes are hashed into each state hash, so a retry after a
+ * duplicate code calls this again for the whole chunk and every chain is rebuilt from scratch.
+ */
+function buildChunk(int $startIndex, int $count, array $ctx): array {
+    $purposes = $ctx['purposes'];
+    $districts = $ctx['districts'];
+    $departments = $ctx['departments'];
+    $users = $ctx['users'];
+    $recordsOfficer = $ctx['recordsOfficer'];
+    $nameGenerator = $ctx['nameGenerator'];
+    $titlesData = $ctx['titlesData'];
+    $docTimestamps = $ctx['docTimestamps'];
+
     $docsToInsert = [];
     $chunkLogTemplates = [];
-    
-    $conn->beginTransaction();
-    
-    // 1. GENERATE DOCUMENTS AND LOG TIMELINES IN MEMORY
-    for ($i = 0; $i < $currentChunk; $i++) {
-        $globalDocIndex++;
+
+    // GENERATE DOCUMENTS AND LOG TIMELINES IN MEMORY
+    for ($i = 0; $i < $count; $i++) {
+        $globalDocIndex = $startIndex + $i + 1;
         $purpose = $purposes[array_rand($purposes)];
         $district = $districts[array_rand($districts)];
         $dept = $departments[array_rand($departments)];
         
-        $hexIndex = strtoupper(dechex($globalDocIndex));
-        $randomPad = strtoupper(substr(sha1(uniqid('', true)), 0, 10 - strlen($hexIndex)));
-        $trackingCode = 'DEPED-' . $randomPad . $hexIndex;
+        // CSPRNG code; uniqueness is enforced by the UNIQUE index at INSERT time (1062 triggers a rebuild)
+        $trackingCode = TrackingCodeUtil::generate();
         $person = $nameGenerator->getRandomPerson();
         $guestInfo = json_encode(['name' => $person['fullName'], 'email' => $person['email'], 'phone' => $person['phone']]);
         
@@ -549,10 +565,10 @@ while ($totalProcessed < $docsToCreate) {
                 'user_id' => $userId,
                 'action' => $action,
                 'remarks' => $remarks,
-                'state_hash' => IntegrityManager::calculateStateHash($docDataForHash),
+                'state_hash' => HashChainService::calculateStateHash($docDataForHash),
                 'snapshot' => json_encode($docDataForHash),
                 'sql_date' => $sqlDate,
-                'epoch' => IntegrityManager::logTimestamp($sqlDate)
+                'epoch' => HashChainService::logTimestamp($sqlDate)
             ];
         };
         
@@ -639,39 +655,90 @@ while ($totalProcessed < $docsToCreate) {
         
         $chunkLogTemplates[$i] = $docLogTemplates;
     }
-    
-    // BULK INSERT DOCUMENTS
+
+    return [$docsToInsert, $chunkLogTemplates];
+}
+
+/**
+ * Bulk-insert one chunk's documents and return the first auto-increment ID.
+ * A duplicate tracking code surfaces as a PDOException with errorInfo[1] == 1062.
+ */
+function insertDocuments(PDO $conn, array $docsToInsert): int {
     $placeholders = implode(',', array_fill(0, count($docsToInsert), '(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)'));
     $sql = "INSERT INTO documents (tracking_code, title, guest_info, district, department, purpose_id, status, current_department_id, current_step, released_at, released_by_user_id, declined_at, decline_reason, finalized_route, created_at, updated_at) VALUES $placeholders";
     $stmt = $conn->prepare($sql);
     $flatParams = [];
+    // Flatten the rows in column order
     foreach ($docsToInsert as $d) {
         array_push($flatParams, $d['tracking_code'], $d['title'], $d['guest_info'], $d['district'], $d['department'], $d['purpose_id'], $d['status'], $d['current_department_id'], $d['current_step'], $d['released_at'], $d['released_by_user_id'], $d['declined_at'], $d['decline_reason'], $d['finalized_route'], $d['created_at'], $d['updated_at']);
     }
     $stmt->execute($flatParams);
+
+    return (int) $conn->lastInsertId();
+}
+
+// Read-only inputs every chunk build draws from
+$chunkContext = [
+    'purposes' => $purposes,
+    'districts' => $districts,
+    'departments' => $departments,
+    'users' => $users,
+    'recordsOfficer' => $recordsOfficer,
+    'nameGenerator' => $nameGenerator,
+    'titlesData' => $titlesData,
+    'docTimestamps' => $docTimestamps,
+];
+
+// Seed chunk by chunk; each chunk commits in its own transaction
+while ($totalProcessed < $docsToCreate) {
+    $currentChunk = min($chunkSize, $docsToCreate - $totalProcessed);
     
-    $firstInsertId = $conn->lastInsertId();
+    $logValues = [];
+    $logParams = [];
     
-    // 2. BIND DOC IDS AND BUILD BULK INSERT LOGS
+    // 1-2. BUILD THE CHUNK AND INSERT ITS DOCUMENTS; ON A DUPLICATE CODE, ROLL BACK, REBUILD AND RETRY
+    for ($attempt = 1; ; $attempt++) {
+        [$docsToInsert, $chunkLogTemplates] = buildChunk($globalDocIndex, $currentChunk, $chunkContext);
+
+        $conn->beginTransaction();
+        try {
+            $firstInsertId = insertDocuments($conn, $docsToInsert);
+            break;
+        } catch (PDOException $e) {
+            $conn->rollBack();
+
+            // Only a duplicate key is retryable; anything else is a real failure
+            if ((int) ($e->errorInfo[1] ?? 0) !== 1062) {
+                throw $e;
+            }
+            // Give up after the initial attempt plus MAX_CODE_RETRIES rebuilds
+            if ($attempt > MAX_CODE_RETRIES) {
+                throw new RuntimeException("Chunk starting at document " . ($globalDocIndex + 1) . " still hit a duplicate tracking code after " . MAX_CODE_RETRIES . " retries.", 0, $e);
+            }
+            echo "\n   ⚠️  Duplicate tracking code in chunk starting at document " . ($globalDocIndex + 1) . " (attempt {$attempt}); rebuilding chunk with fresh codes...\n";
+        }
+    }
+    
+    // 3. BIND DOC IDS AND BUILD BULK INSERT LOGS
     for ($i = 0; $i < $currentChunk; $i++) {
         $docId = $firstInsertId + $i;
         $templates = $chunkLogTemplates[$i];
-        $prevHash = IntegrityManager::GENESIS_HASH;
+        $prevHash = HashChainService::GENESIS_HASH;
 
         foreach ($templates as $tmpl) {
             $uId = $tmpl['user_id'] !== null ? (int) $tmpl['user_id'] : null;
 
             // Sign the v2 message with the actor's in-memory key, or the server key for system entries
-            $message = IntegrityManager::signedMessage((int) $docId, $tmpl['action'], $tmpl['epoch'], $prevHash, $tmpl['state_hash'], $tmpl['remarks']);
+            $message = HashChainService::signedMessage((int) $docId, $tmpl['action'], $tmpl['epoch'], $prevHash, $tmpl['state_hash'], $tmpl['remarks']);
             if ($uId !== null && isset($decryptedKeys[$uId])) {
                 $signature = base64_encode(sodium_crypto_sign_detached($message, $decryptedKeys[$uId]));
             } else {
                 $uId = null;
-                $signature = IntegrityManager::signAsSystem($message);
+                $signature = DigitalSignatureService::signAsSystem($message);
             }
 
-            // Seal the block exactly as IntegrityManager::createLog does
-            $newHash = IntegrityManager::chainHash((int) $docId, $uId, $tmpl['action'], $tmpl['epoch'], $prevHash, $tmpl['state_hash'], $tmpl['remarks'], $signature);
+            // Seal the block exactly as HashChainService::createLog does
+            $newHash = HashChainService::chainHash((int) $docId, $uId, $tmpl['action'], $tmpl['epoch'], $prevHash, $tmpl['state_hash'], $tmpl['remarks'], $signature);
 
             $logValues[] = '(?,?,?,?,?,?,?,?,?,?,?)';
             array_push($logParams, $docId, $uId, $tmpl['action'], $tmpl['remarks'], $prevHash, $newHash, $tmpl['state_hash'], $signature, $tmpl['snapshot'], $tmpl['sql_date'], $tmpl['sql_date']);
@@ -696,6 +763,7 @@ while ($totalProcessed < $docsToCreate) {
     $conn->commit();
     
     $totalProcessed += $currentChunk;
+    $globalDocIndex += $currentChunk;
 
     $mem = round(memory_get_usage() / 1024 / 1024);
     echo "\r   ⏳ Progress: " . number_format($totalProcessed) . " / " . number_format($docsToCreate) . " documents. | 🧠 RAM: {$mem} MB   ";

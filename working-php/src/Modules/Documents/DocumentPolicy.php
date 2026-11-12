@@ -1,0 +1,130 @@
+<?php
+
+namespace App\Modules\Documents;
+
+use App\Modules\Users\UserModel;
+use App\Modules\Integrity\PreActionIntegrityService;
+use App\Common\Database\Database;
+
+/**
+ * Fine-Grained Authorization Policy & Pre-Action Integrity Check Enforcement.
+ * 
+ * Controls access to document actions based on user roles and real-time cryptographic hash-chain state checks.
+ */
+class DocumentPolicy
+{
+    /**
+     * Determine whether the user can view the document.
+     * 
+     * Grant unconditional access to admins and officers; restrict staff to documents that route through their specific department.
+     */
+    public function view(UserModel $user, array $document): bool
+    {
+        // Admins and Records Officers possess global visibility over all system documents
+        if ($user->role === 'admin' || $user->role === 'officer') {
+            return true;
+        }
+
+        // Department staff can only view documents whose finalized routing path includes their assigned department
+        if ($user->role === 'staff' && $user->department_id) {
+            $db = Database::getInstance();
+            $stmt = $db->query("SELECT name FROM departments WHERE id = :id", [':id' => $user->department_id]);
+            $dept = $stmt->fetch();
+            $departmentName = $dept ? $dept['name'] : '';
+
+            $route = $document['finalized_route'] ? json_decode($document['finalized_route'], true) : [];
+            if (is_array($route)) {
+                foreach ($route as $step) {
+                    // Match department name against routing steps
+                    if (isset($step['name']) && $step['name'] === $departmentName) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Determine whether the user can process the document.
+     * 
+     * Determines if a user can actively process (e.g., receive, complete task) a document, under the department-step rule for every role. 
+     * Critically, this acts as the "pre-action integrity check" by enforcing real-time cryptographic integrity checks 
+     * before allowing state changes.
+     */
+    public function process(UserModel $user, array $document): bool
+    {
+        // 0. Pre-action integrity check: Verify state hash against chain; automatic freezing on discrepancy to halt workflow on tampered data
+        if (!PreActionIntegrityService::passes($document)) {
+            PreActionIntegrityService::freezeTampered($document, 'Pre-Action Verification');
+            return false;
+        }
+
+        // Every role (admin, officer, staff) shares one rule: a user may only process a document positioned at their
+        // department's step; a user without a department processes nothing. Admin-only actions have their own policies.
+        if ($user->department_id) {
+            $db = Database::getInstance();
+            $stmt = $db->query("SELECT name FROM departments WHERE id = :id", [':id' => $user->department_id]);
+            $dept = $stmt->fetch();
+            $departmentName = $dept ? $dept['name'] : '';
+
+            $route = $document['finalized_route'] ? json_decode($document['finalized_route'], true) : [];
+            $currentStepIndex = ((int)($document['current_step'] ?? 1)) - 1;
+
+            // Allow the user when the current step belongs to their department
+            if (isset($route[$currentStepIndex]['name']) && $route[$currentStepIndex]['name'] === $departmentName) {
+                return true;
+            }
+
+            // Allow the final Records receive once the route is complete
+            if (($document['status'] ?? '') === 'in_transit' && is_array($route) && $currentStepIndex >= count($route) && $departmentName === 'Records Unit') {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Determine whether the user can manage (finalize) the document.
+     * 
+     * Controls access to finalization actions like declining or accepting intake. 
+     * Enforces integrity checks if logs already exist.
+     */
+    public function manage(UserModel $user, array $document): bool
+    {
+        $db = Database::getInstance();
+        $stmt = $db->query("SELECT id FROM document_logs WHERE document_id = :id LIMIT 1", [':id' => $document['id']]);
+        
+        // Execute pre-action integrity check state hash verification if audit logs already exist for this document
+        if ($stmt->fetch()) {
+            if (!PreActionIntegrityService::passes($document)) {
+                PreActionIntegrityService::freezeTampered($document, 'Pre-Management Verification');
+                return false;
+            }
+        }
+
+        // Restrict document finalization and routing decisions strictly to Officers and Administrators
+        return $user->role === 'officer' || $user->role === 'admin';
+    }
+
+    /**
+     * Determine whether the user can freeze the document.
+     */
+    public function freeze(UserModel $user, array $document): bool
+    {
+        // System freeze operations are exclusively reserved for Administrators
+        return $user->role === 'admin';
+    }
+
+    /**
+     * Determine whether the user can unfreeze the document.
+     */
+    public function unfreeze(UserModel $user, array $document): bool
+    {
+        // System unfreeze and hash restoration operations are exclusively reserved for Administrators
+        return $user->role === 'admin';
+    }
+}
+

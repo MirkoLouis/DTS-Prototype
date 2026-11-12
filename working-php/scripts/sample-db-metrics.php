@@ -16,7 +16,7 @@
 define('BASE_PATH', dirname(__DIR__));
 require BASE_PATH . '/vendor/autoload.php';
 
-use App\Core\Database;
+use App\Common\Database\Database;
 
 const STATE_FILE = BASE_PATH . '/storage/cache/db-metrics-state.json';
 

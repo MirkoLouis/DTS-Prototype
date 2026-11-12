@@ -1,7 +1,7 @@
 <?php
 define('BASE_PATH', dirname(__DIR__));
 require __DIR__ . '/../vendor/autoload.php';
-use App\Core\Database;
+use App\Common\Database\Database;
 
 $db = Database::getInstance();
 $conn = $db->getConnection();

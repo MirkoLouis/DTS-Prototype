@@ -3,7 +3,7 @@
  * Reusable Cursor Pagination Component
  * 
  * Expected variables:
- * @var App\Utils\CursorPaginator $paginator
+ * @var App\Common\Utils\CursorPaginator $paginator
  */
 $totalItems = $paginator->getTotalItems();
 $hasMore = $paginator->hasMore();

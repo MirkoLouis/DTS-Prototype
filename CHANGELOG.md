@@ -2,6 +2,214 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-11-12 20:36
+
+**Version:** 2.7.1-Release+202611122036
+
+### Added
+- Thesis test commands: `composer run test:workflow` (document workflow from submission and intake to receive, complete and release, with the department-step rules; PHPUnit group `thesis-workflow`) and `composer run test:integrity` (tamper matrix, signature verification, signer protection; group `thesis-integrity`). `test:concurrency` is unchanged.
+- One script per test class: `composer run test:<name>` (class name without `Test`, kebab-case, e.g. `test:lifecycle`, `test:tamper-injection`), each with a description in `composer list` and listed by category in the README. `ComposerScriptsTest` fails when a test class has no script, description or README entry.
+- `composer run evidence` runs the thesis evidence set (all default suites incl. security, workflow, integrity ×`EVIDENCE_RUNS`, concurrency with `CONCURRENCY_RUNS=EVIDENCE_RUNS`; default 5) into one folder, `storage/test-results/<YYYYMMDD-HHMMSS>-evidence/`, with one subfolder per run, a `README.md` index (status, inherited settings such as `TEST_BASE_URL` and `CONCURRENCY_WORKERS`, machine, and per run the command, exit code, duration and test counts; rewritten after every run and marked in progress until complete) and `run.json`. `--list` prints the commands only. Before, every command wrote its own run folder and evidence sets were assembled by hand.
+
+## 2026-11-12 19:01
+
+**Version:** 2.7.0-Release+202611121901
+
+### Changed
+- Users are deactivated, never deleted. **Delete** on the users page (and `DELETE /users/{id}`, `POST /users/{id}/delete`) now sets `users.deactivated_at`; the account stays in the list with a "Deactivated" badge and a **Reactivate** button (`POST /users/{id}/reactivate`). Before, deleting a user set `document_logs.user_id` to NULL and deleted their key history, so every entry they had signed failed verification. `document_logs.user_id` and `user_public_key_histories.user_id` are now `ON DELETE RESTRICT`, so even a raw SQL `DELETE` of a signer is refused. Admins still cannot deactivate their own account.
+- A deactivated user cannot sign in (the login answers like a wrong password, without revealing the account state) and is signed out on their next request: page requests go to the login page with "Your account is no longer active."; `/api/*`, XHR and JSON requests get HTTP 401 JSON, and the notification poller then opens the login page. Requests without a session to `/api/*` also get 401 JSON instead of a redirect (one shared check, `request_expects_json()`, now used by the router and `AuthMiddleware`). Reactivation restores sign-in with the existing signing key.
+- Restoring a backup re-applies `scripts/migrations/master-migration.sql` afterwards (`SqlScriptRunner`), so a backup taken before a schema change no longer brings back an outdated schema. Without this, restoring a pre-2.7.0 backup removed `users.deactivated_at` and every sign-in failed.
+- Admins follow the department-step rule for receive and complete in `DocumentPolicy::process`, like officers and staff. Over HTTP this was already enforced, since the receive and complete routes are open to staff and officers only; before, the policy itself let admins through, so any other caller of `DocumentWorkflowService` (a script, job or future route) could complete another unit's step as an admin. Freeze, unfreeze and auto-resolve stay admin-only through their own policies.
+
+### Upgrade note
+- Existing databases: run `scripts/migrations/master-migration.sql` (adds `users.deactivated_at`, converts the two foreign keys to `ON DELETE RESTRICT`; safe to run again). Log entries of users deleted before this version keep `user_id` NULL and remain unverifiable; the migration cannot restore them.
+
+## 2026-10-30 16:54
+
+**Version:** 2.6.2-Release+202610301654
+
+### Fixed
+- Worker restarts no longer postpone scheduled tasks. The last-run time of each task (checkpoint, metrics sampling, backfill, rollup, cache cleanup, stale-document cleanup) is stored in the new `worker_schedule` table (`WorkerScheduleService`) instead of process memory. Before, every restart (including the planned re-exec after 100 jobs) pushed each daily task back 24 hours, so a worker that restarted more than once a day never wrote a checkpoint. A task that has never run is due immediately; after downtime a task runs once.
+- `composer run dev` keeps the worker running: a watchdog relaunches it within about 5 seconds if it exits, and Ctrl+C now stops the worker too. Before, the worker started with `&` ignored Ctrl+C and kept running, and a crashed worker stayed down. Workers are found by script path (`workerPids()`), so a worker after its planned re-exec (`/usr/bin/php8.x console.php`) is recognised and never duplicated.
+- The worker log is opened in append mode (`>>`), so logrotate's `copytruncate` can empty it without leaving a sparse file.
+
+### Added
+- `deploy/dts-worker.service` (systemd unit: start at boot, restart on exit) and `deploy/dts.logrotate` (worker log rotation).
+- README section "Running Continuously on Linux": what the app, the operating system and the administrator each keep bounded; installing the worker service; making sure logrotate and the PHP session cleaner actually run (systemd timers, or cron in containers, Distrobox and WSL); disk planning for what is kept forever. Admin manual section 4.5 states these deployment requirements.
+
+### Changed
+- Checkpoints are kept forever (documented): about 8.5 MB per day at 100,000 documents.
+
+### Upgrade note
+- Existing databases: run `scripts/migrations/master-migration.sql` (adds `worker_schedule`) before starting the new worker; without the table the worker exits at start-up.
+
+## 2026-10-30 15:36
+
+**Version:** 2.6.1-Release+202610301536
+
+### Added
+- ICT Unit department, with the `ict.unit` staff account (password `password`), in the production seeder (`setup-production-db.js`). The ICT Unit can now be added as a route step at intake. The system has 15 departments.
+
+### Changed
+- After a successful decline, the officer goes to their role dashboard (`/dashboard`, i.e. `/intake`) instead of back to the document's manage page, which showed "Management Unauthorized" for the now-declined document. The toast "Document … successfully declined." appears there and in the bell. A failed decline still returns to the page it came from.
+- Every document toast names its tracking code: freeze, unfreeze and auto-resolve confirmations, the intake lookup notices, the access-denied message, and the errors raised by a document action (shown as "Document DEPED-…: <message>" through the new `document_message()` helper). The service's exception text and the hashed log remarks are unchanged.
+- One migration file: `scripts/migrations/2026_10_27_add_attempt_throttles.sql` is now `scripts/migrations/master-migration.sql`. Every statement in it is idempotent, and new schema changes are appended to it.
+- `HttpSession::post()` (test and evidence tooling) can send a `Referer`, as a browser does when it posts a form.
+
+### Removed
+- The `/profile` and `/profile/update` routes and `ProfileController`, left over from the removed profile-editing feature (users are managed by the admin). `/profile` returned a 500 because its template no longer existed.
+
+### Upgrade note
+- The ICT Unit is added through the seeder only, so an existing database gets it by re-seeding (`composer run seed:prod`, then `composer run seed:fast <docs>`), which replaces all data. After re-seeding, write a new chain-head checkpoint (`php scripts/create-checkpoint.php`) so the next integrity check does not compare against heads from the old data.
+
+## 2026-10-30 14:29
+
+**Version:** 2.6.0-Release+202610301429
+
+### Changed
+- `working-php/src/` follows layer naming conventions: feature-first folders under `src/Modules/<Feature>/`, shared infrastructure under `src/Common/`, PSR-4 PascalCase files, and the layer named by the class suffix. Rename and move only: behaviour, log format v2 (`signedMessage`, `chainHash`, `calculateStateHash`), URLs, the database schema, `.env` keys and composer scripts are unchanged, and existing chains still verify.
+    - Common: `Core/{Router,Database,Cache,Config,Validator,EventDispatcher}` → `Common/{Http,Database,Cache,Config,Validation,Events}/`; `Middleware/{Auth,Cache}Middleware` → `Common/Middleware/`; `Middleware/RoleMiddleware` → `Common/Guards/RoleGuard`; `Utils/*Paginator` and `helpers.php` → `Common/Utils/`; `Config/config.php` → `Common/Config/app.config.php` (renamed so it cannot collide with `Config.php` on case-insensitive filesystems).
+    - Documents: the Document, Guest, Intake, Task, Releasing and Dashboard controllers, `DocumentWorkflowService`, `DocumentQueryService`, `DocumentPolicy`, `Models/Document` → `DocumentModel`, `Core/TrackingCode` → `TrackingCodeUtil`, `CleanupStalePendingDocumentsJob` → `Modules/Documents/`.
+    - Integrity: `IntegrityMonitorController`, `Jobs/IntegrityCheckJob`, `Jobs/ChainCheckpointJob`, `Events/IntegrityCheckFailedEvent` (was `IntegrityCheckFailed`) → `Modules/Integrity/`.
+    - Users: User, Profile and SecurityKey controllers, `Models/User` → `UserModel` → `Modules/Users/`. Auth: `AuthController`, `Core/AttemptThrottle` → `AttemptThrottleService` → `Modules/Auth/`.
+    - Analytics: AdminDashboard and Statistics controllers, the admin and department analytics services, `GenerateReportJob` → `Modules/Analytics/`. System: SystemHealth and BackupManager controllers, `DatabasePerformanceService`, `CreateBackupJob`, `RestoreBackupJob` → `Modules/System/`. Notifications: `NotificationController`, `NotificationService` → `Modules/Notifications/`.
+- Classes the thesis cites by name:
+
+    | Module | Old class | New class |
+    | --- | --- | --- |
+    | SHA-256 hash-chain micro-sharding | `App\Integrity\HashChainMicroShardingBuilder` | `App\Modules\Integrity\HashChainService` |
+    | Non-repudiation (Ed25519 + Argon2id) | `App\Integrity\DigitalSignature` | `App\Modules\Integrity\DigitalSignatureService` |
+    | Pre-action integrity check / automatic freezing | `App\Integrity\PreActionIntegrityCheck` | `App\Modules\Integrity\PreActionIntegrityService` |
+    | Heuristic routing | `App\Routing\HeuristicRouter` | `App\Modules\Routing\HeuristicRoutingService` |
+    | Security PIN cache | `App\Security\SecurityPinCache` | `App\Modules\Users\SecurityPinCacheService` |
+    | Integrity scan job | `App\Jobs\IntegrityCheckJob` | `App\Modules\Integrity\Jobs\IntegrityCheckJob` |
+
+- Tests renamed with their subject: `HeuristicRoutingServiceTest`, `AttemptThrottleServiceTest`, `TrackingCodeUtilTest`. `CoreModuleStructureTest` checks that every old class name is gone and every new one exists.
+
+### Upgrade note
+- Let the `jobs` queue empty and stop the worker before pulling this build: queued jobs store their class name, and a job queued under an old name fails with "Job class … not found".
+- After pulling, run `composer dump-autoload` (or `composer install`) in `working-php/`. `vendor/` is not committed, and the old autoloader still requires `src/helpers.php`, so every page and script fails until it is regenerated.
+- Then restart `composer run dev` so PHP-FPM's OPcache is flushed.
+
+## 2026-10-29 09:36
+
+**Version:** 2.5.2-Release+202610290936
+
+### Changed
+- The simultaneous task-completion concurrency test now honours `CONCURRENCY_RUNS` like the guest-submission test: each run uses a fresh `processing` document at Cash, 5 workers, exactly 1 success, and writes its own `concurrency.csv` row with the run number.
+
+### Removed
+- Unused e-mail (SMTP) support: `phpmailer/phpmailer` dependency and the `SMTP_*` keys in `.env.example`. E-mail notifications are not part of the prototype and are recommended as future work.
+
+## 2026-10-29 07:49
+
+**Version:** 2.5.1-Release+202610290749
+
+### Fixed
+- Run folders and the `started_at`/`finished_at` stamps in `run.json` now use `Asia/Manila` explicitly (with offset), so CLI scripts and PHPUnit name runs in the same timezone and `latest` follows the true order. Existing folders are not renamed.
+- Benchmark operation `active_guard_check` is now labelled `pre_action_integrity_check` in `benchmark.csv` (measured code unchanged).
+
+## 2026-10-29 07:08
+
+**Version:** 2.5.0-Release+202610290708
+
+### Added
+- The route-suggestion replay reports `heuristic` alongside the baselines `none`, `frequent_so_far` (online, ties go to the most recent route) and `static_hindsight` (most common route over the whole data set; uses look-ahead by design), each scored on the same documents, overall, by year and by purpose.
+- New outputs `route-replay-baselines.csv` (long format: scope, key, strategy, scored, exact/first-department counts and percentages) and `route-replay-purpose-profile.csv` (documents, distinct routes, top-route share, single-hop share, revisit share per purpose and for `all`). Existing replay CSVs are unchanged.
+- `scripts/route-replay.php` prints one summary line per strategy.
+
+## 2026-10-29 06:45
+
+**Version:** 2.4.0-Release+202610290645
+
+### Changed
+- Core modules renamed so each file name says what it does and matches the module names in the paper. Code moved verbatim; log format v2 (`signedMessage`, `chainHash`, `calculateStateHash`) is byte-identical and existing chains still verify:
+    - `Core/IntegrityManager` (constants, `calculateStateHash`, `logTimestamp`, `signedMessage`, `chainHashInput`, `chainHash`, `createLog`) → `Integrity/HashChainMicroShardingBuilder` (SHA-256 hash-chain micro-sharding builder)
+    - `Core/IntegrityManager` (`signAsSystem`, `decryptPrivateKey`, `signAction`, `publicKeyAt`, `verifySignature`, `clearKeyCache`) → `Integrity/DigitalSignature` (non-repudiation, Ed25519 + Argon2id)
+    - `Core/IntegrityManager::verifyCurrentState` → `Integrity/PreActionIntegrityCheck::passes` (pre-action integrity check)
+    - `Core/IntegrityManager::autoFreeze` → `Integrity/PreActionIntegrityCheck::freezeTampered` (automatic freezing of tampered documents)
+    - `Core/SecurityHelper` → `Security/SecurityPinCache` (same public API)
+    - `Services/RouteSuggestionService` → `Routing/HeuristicRouter` (heuristic routing); `RouteSuggestionServiceTest` → `HeuristicRouterTest`
+- New auto-freeze log entries read "Document automatically frozen by the pre-action integrity check due to an integrity mismatch detected during {reason}." instead of "...by the Trust Builder system...". Stored action strings (`System Auto-Freeze`, `ADMIN: …`, `Submitted`, …) are unchanged.
+
+### Added
+- `CoreModuleStructureTest`: golden vectors for log format v2, removal of the old classes, and the new freeze remark.
+
+### Removed
+- `Middleware/DocumentPolicyMiddleware.php` (unused). No compatibility shims for the old class names.
+
+## 2026-10-29 05:41
+
+**Version:** 2.3.0-Release+202610290541
+
+### Added
+- One results folder per run, `working-php/storage/test-results/<run_id>/`, plus a `latest` symlink that is replaced atomically. `ResultWriter::dir()` creates it once per process (`DTS_RESULTS_DIR` is exported to forked children and subprocesses; `DTS_RUN_ID` overrides the id).
+- PHPUnit extension (`tests/Support/Results/`) that writes `test-outcomes.csv` (one row per test), `summary.csv` (one row per suite plus `all`) and `run.json` (commit, PHP, CPU, RAM, arguments, file list) for every run; only the parent process writes them.
+- `ResultsExtensionTest` (runs PHPUnit on a three-test fixture suite) and `ResultWriterTest`.
+
+### Changed
+- `ResultWriter`, the benchmark (`benchmark.csv`), `composer replay` and `composer manual:live-concurrency` write into the run folder instead of the `storage/test-results/` root and `storage/benchmarks/`. An explicit replay output directory still wins. Existing CSVs are left in place.
+
+## 2026-10-28 03:56
+
+**Version:** 2.2.0-Release+202610280356
+
+### Fixed
+- F1: finalizing a route validates departments; an unknown department is rejected instead of storing `current_department_id` as NULL.
+- F2: `DocumentController::show` now applies `DocumentPolicy::view`, so staff can no longer read documents outside their route by tracking code.
+- F3: `CacheMiddleware` writes cache files atomically, so a cold-cache kiosk burst no longer serves pages without a CSRF token.
+- I1 (stored XSS): `POST /submit-document` now requires `department` to exactly match a `departments.name` (prepared query; otherwise "Please choose a valid department." with the old input kept), and the 30 s notification poll toast in `layouts/app.php` renders title and message with `textContent` instead of interpolating them into `insertAdjacentHTML`.
+- F3 hardening: `CacheMiddleware::writeAtomic` discards short writes (bytes written must equal the page length) instead of renaming them into place, and an unreadable or empty cache file falls through to a normal render instead of a blank page.
+- The seeders (`fast-seed.php`) no longer wipe real PHP sessions and the real response cache when run under `APP_ENV=testing`.
+- `IntegrityManager::clearKeyCache()` empties the in-process public-key history cache at the start of every integrity audit and right after a key is replaced (`SecurityKeyController::store`, `UserController::resetSignature`), so a long-running process can never verify new entries against a stale key list. Tests use it instead of resetting the cache through reflection.
+
+### Added
+- Fresh test database lifecycle (`TestLifecycle`): `deped_dts_test` and the `-test` cache, checkpoint and integrity-result artifacts are dropped and recreated before every run and removed after it; result CSVs are kept.
+- Seeders retry a chunk on MySQL duplicate error 1062 (tracking code collision).
+- Manual live concurrency script, `composer manual:live-concurrency`, which runs against the real web app, tags titles `CONC-LIVE-<run_id>-<i>`, auto-deletes only its own documents (rows titled `CONC-LIVE-<run_id>-…` created during the run; the run id has one-second resolution, so two runs started in the same second share it), warns about checkpoints written during the run and writes `storage/test-results/live-concurrency.csv`.
+
+### Changed
+- Officers are bound by the department-step rule like staff ("Action Denied"); they keep intake, the final Records receive and release.
+- `Barrier` and `ResultWriter` moved to `src/Research/` (with a shared `HttpSession`).
+- README Testing section updated; the stale 'not yet fixed' caveat for F1/F2 was removed. README now states the privileged-insider limitation.
+- Thesis manuscript working files at the repository root (`Manuscript Revisions (M1-M6).txt`, `Manuscript Revisions (M7-M20).md`, `Copy of WORKING.md`) are gitignored and kept local only; `Manuscript Revisions (M1-M6).txt` is no longer tracked.
+
+### Removed
+- `TrackingCode::generateUnique` and the seeders' in-memory duplicate check.
+
+## 2026-10-28 01:22
+
+**Version:** 2.1.0-Release+202610280122
+
+> **Migration:** existing databases must run `working-php/scripts/migrations/2026_10_27_add_attempt_throttles.sql` to enable login and PIN attempt limiting (3 failures within 1 minute trigger a 1-minute timeout). Until then limiting is off and a line is written to `error_log` (fail-open).
+
+### Fixed
+- Unfreezing a document and auto-resolving a freeze now restore the correct status (`statusForAction`).
+- Auto-resolve only restores a snapshot whose tracking code matches the document, whose state hash matches, and whose log row's chain hash and Ed25519 signature verify; a forged or copied snapshot is refused and nothing is written.
+- "Freeze all" now reports a PIN timeout instead of "Successfully frozen 0 documents".
+- Every response-cache clearing path (user reset, security key, personal cache, report job, worker GC) uses `CacheMiddleware::cacheDir()`, so the test cache directory is honoured.
+- Removed the debug write to `/tmp/router.log` from `public/index.php`.
+- The Hash Integrity Debugger button/label now reads "Verify Hash" instead of "Debug".
+- Tracking codes come from a CSPRNG (10 hex characters, regenerated on collision) instead of a predictable generator; `fast-seed.php` and `import-legacy.php` deduplicate codes in memory.
+- `PIN_CACHE_DURATION=900` added to `.env.example`.
+
+### Added
+- Login and PIN attempts are limited: 3 failures within 1 minute trigger a 1-minute timeout (`AttemptThrottle`, `attempt_throttles` table, migration `2026_10_27_add_attempt_throttles.sql`).
+- "Others" route suggestion (`RouteSuggestionService`) for documents routed to Others.
+- Print button for officers on the document view and manage-documents pages.
+- Test-only `GET /__test/env` probe, registered only under `APP_ENV=testing`; with `TEST_BASE_URL` set, the suite refuses servers that are not on the testing env and a `_test` database.
+- PHPUnit suite in `working-php/tests/`: unit, workflow, http, security (tamper-injection tactics and HTTP attacks tagged by LAN threat actor), concurrency and benchmark suites, with `.env.testing.example`, `phpunit.xml` and a guard that refuses to run unless `APP_ENV=testing` and the database name ends in `_test`.
+- Composer commands `test`, `test:security`, `test:concurrency`, `bench` and `replay`; `scripts/route-replay.php` replays the legacy routing export (`src/Research/`).
+- README "Testing" section documenting setup, commands, result locations, the threat model, the migration notice and known findings F1 (unknown department accepted in a finalized route), F2 (staff can view documents outside their route) and F3 (`CacheMiddleware` non-atomic cache writes).
+
+### Changed
+- Under `APP_ENV=testing` the response cache (`CacheMiddleware`), checkpoints (`ChainCheckpointJob`) and integrity results (`IntegrityCheckJob`) use separate test locations so test runs never overwrite real data.
+- `scripts/corrupt.php` is kept and is also run as an automated tactic in `TamperInjectionTest`.
+
+### Removed
+- Client-side libsodium (`public/js/vendor/libsodium.js`, `libsodium-wrappers.js`).
+- `scripts/concurrency_test.php` (superseded by the concurrency suite) and `scripts/benchmark-crypto.php` (superseded by `composer bench`).
+
 ## 2026-10-16 14:33
 
 **Version:** 2.0.0-Release+202610161433

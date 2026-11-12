@@ -5,9 +5,9 @@ if (!defined('BASE_PATH')) {
 require_once BASE_PATH . '/vendor/autoload.php';
 
 // Key periods must use the same clock as log timestamps
-date_default_timezone_set(\App\Core\IntegrityManager::APP_TIMEZONE);
+date_default_timezone_set(\App\Modules\Integrity\HashChainService::APP_TIMEZONE);
 
-use App\Core\Database;
+use App\Common\Database\Database;
 
 /**
  * Write or replace KEY=value lines in .env, keeping every other line untouched.
@@ -37,7 +37,7 @@ function writeEnvValues(string $envPath, array $values): void
 // --system: create the server's Ed25519 key for system-initiated log entries (skips if one exists)
 if (PHP_SAPI === 'cli' && realpath($_SERVER['SCRIPT_FILENAME'] ?? '') === __FILE__ && in_array('--system', $argv ?? [], true)) {
     $force = in_array('--force', $argv, true);
-    $existing = \App\Core\Config::get('app', 'system_signing_secret', '');
+    $existing = \App\Common\Config\Config::get('app', 'system_signing_secret', '');
 
     if ($existing !== '' && !$force) {
         echo "System signing key already present in .env (use --force to replace it; old logs will then fail verification).\n";
@@ -45,11 +45,13 @@ if (PHP_SAPI === 'cli' && realpath($_SERVER['SCRIPT_FILENAME'] ?? '') === __FILE
     }
 
     $keypair = sodium_crypto_sign_keypair();
-    writeEnvValues(BASE_PATH . '/.env', [
+    // Under APP_ENV=testing the key goes into .env.testing, never the operational .env
+    $targetEnv = getenv('APP_ENV') === 'testing' ? '/.env.testing' : '/.env';
+    writeEnvValues(BASE_PATH . $targetEnv, [
         'SYSTEM_SIGNING_SECRET' => base64_encode(sodium_crypto_sign_secretkey($keypair)),
         'SYSTEM_SIGNING_PUBLIC' => base64_encode(sodium_crypto_sign_publickey($keypair))
     ]);
-    echo "System signing key written to .env.\n";
+    echo "System signing key written to " . ltrim($targetEnv, '/') . ".\n";
     exit(0);
 }
 

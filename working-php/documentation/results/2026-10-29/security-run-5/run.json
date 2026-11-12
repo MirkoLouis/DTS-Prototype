@@ -1,0 +1,23 @@
+{
+    "run_id": "20261029-171040-1094",
+    "started_at": "2026-10-29T17:10:40+08:00",
+    "finished_at": "2026-10-29T17:11:19+08:00",
+    "arguments": [
+        "/home/mirkolouis/Documents/DTS Prototype/working-php/vendor/bin/phpunit",
+        "--testsuite",
+        "security"
+    ],
+    "git_describe": "v2.0.0-6-g1664c56",
+    "php_version": "8.5.4",
+    "cpu": "11th Gen Intel(R) Core(TM) i5-11260H @ 2.60GHz",
+    "ram_gb": 15.4,
+    "duration_s": 38.899,
+    "files": [
+        "http-attacks.csv",
+        "signatures.csv",
+        "summary.csv",
+        "tamper-matrix.csv",
+        "test-outcomes.csv",
+        "run.json"
+    ]
+}

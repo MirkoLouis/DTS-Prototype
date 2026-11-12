@@ -8,7 +8,7 @@
 require __DIR__ . '/vendor/autoload.php';
 date_default_timezone_set('Asia/Manila');
 
-use App\Core\Database;
+use App\Common\Database\Database;
 
 define('BASE_PATH', __DIR__);
 

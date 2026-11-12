@@ -14,11 +14,13 @@ DTS Prototype/
 └── backup-laravel/  <-- HISTORICAL REFERENCE CODEBASE (Original Laravel 12 Build)
 ```
 
+Thesis manuscript working files kept at the repository root (`Manuscript Revisions (M1-M6).txt`, `Manuscript Revisions (M7-M20).md`, `Copy of WORKING.md`) are gitignored and never committed.
+
 ### Why Port to Pure Vanilla PHP 8.3?
 
 1. **Framework-Free Performance:** Eliminates framework bootstrapping overhead, delivering near-instant page loads and sub-millisecond raw PDO database query execution.
 2. **Zero-Dependency Core:** Runs natively using pure PHP 8.3 and MySQL 8.0 without heavy framework runtime dependencies.
-3. **Transaction Safety & Optimistic Locking:** Centralizes database state mutations inside [DocumentWorkflowService.php](working-php/src/Services/DocumentWorkflowService.php) using explicit `PDO` transactions with optimistic version checks; the conditional `UPDATE` takes an InnoDB row lock that serializes hash-chain appends per document, eliminating race conditions under concurrent loads.
+3. **Transaction Safety & Optimistic Locking:** Centralizes database state mutations inside [DocumentWorkflowService.php](working-php/src/Modules/Documents/DocumentWorkflowService.php) using explicit `PDO` transactions with optimistic version checks; the conditional `UPDATE` takes an InnoDB row lock that serializes hash-chain appends per document, eliminating race conditions under concurrent loads.
 4. **Container-Native Scheduling:** Replaced host `cron` daemons with a unified CLI worker ([console.php](working-php/console.php)) featuring an internal task scheduler loop for telemetry sampling, TAT backfilling, metrics rollups, response cache GC, and automated stale pending document garbage collection inside containerized environments (Distrobox / Docker).
 
 ---
@@ -113,7 +115,7 @@ Comprehensive user manuals are provided in [working-php/documentation/user_manua
 
 ## 🌱 Database Seeding Commands (`working-php/scripts/seeders`)
 
-- **Production Setup (`composer run seed:prod` / `node scripts/seeders/setup-production-db.js`):** Builds database tables from `database.sql` and seeds 14 DepEd departments, baseline document purposes, and initial user accounts.
+- **Production Setup (`composer run seed:prod` / `node scripts/seeders/setup-production-db.js`):** Builds database tables from `database.sql` and seeds 15 DepEd departments (including the ICT Unit), baseline document purposes, and initial user accounts.
 - **High-Speed Direct Database Seeder (`composer run seed:fast [docs]` / `php scripts/seeders/fast-seed.php`):** Generates up to 50,000+ document logs directly in MySQL in seconds by pre-decrypting Ed25519 keys into RAM.
 - **Slow-Speed API Seeder (`composer run seed:dev [docs] [chunk] [concurrency]` / `node scripts/seeders/seed.js`):** Dispatches live HTTP requests against the web server to simulate multi-user traffic and session handling, also functions as a concurrency test.
 
@@ -124,13 +126,302 @@ Comprehensive user manuals are provided in [working-php/documentation/user_manua
 | Command / Script | Purpose |
 | :--- | :--- |
 | `composer run worker` | Runs [console.php](working-php/console.php) background job processor and telemetry scheduler. |
-| `composer run dev` | Runs [scripts/dev.php](working-php/scripts/dev.php) to start local dev server & Tailwind watcher. |
-| `composer run corrupt` | Runs [scripts/corrupt.php](working-php/scripts/corrupt.php) to simulate database tampering and test JIT Active Guard auto-freeze. |
+| `composer run dev` | Runs [scripts/dev.php](working-php/scripts/dev.php) to start local dev server & Tailwind watcher, plus the queue worker with a watchdog that restarts it if it exits (Ctrl+C stops it too). |
+| `composer run prod` | Runs [scripts/prod.php](working-php/scripts/prod.php) for a server: restarts PHP-FPM (flushes OPcache) and nginx, then keeps running until Ctrl+C. It does **not** clear `cache/` and does **not** start the queue worker; run the worker as a service (see [Running Continuously on Linux](#-running-continuously-on-linux-working-php)). |
+| `composer run corrupt` | Runs [scripts/corrupt.php](working-php/scripts/corrupt.php) to simulate database tampering and test the JIT pre-action integrity check and automatic freezing. |
 | `php scripts/tune-database.php` | Analyzes system memory and outputs optimal MySQL `my.cnf` buffer pool configurations. |
 | `php scripts/generate-keys.php` | CLI tool for generating missing Ed25519 digital signature keypairs. `--system` creates the server key used to sign system actions (`SYSTEM_SIGNING_SECRET` / `SYSTEM_SIGNING_PUBLIC` in `.env`). |
 | `php scripts/create-checkpoint.php` | Writes a signed chain-head checkpoint to `storage/checkpoints/` (the worker also does this daily). Copy checkpoints off the server. |
-| `php scripts/benchmark-crypto.php` | Objective 3 benchmark: times state/chain hashing, log reads, Argon2id, AES unwrap and Ed25519 sign/verify; writes a CSV to `storage/benchmarks/`. |
-| `php scripts/concurrency_test.php` | Forks 5 simultaneous task completions on one document; exactly one must succeed (optimistic version check). |
+| `composer run test` / `test:security` / `test:concurrency` / `test:workflow` / `test:integrity` / `test:<name>` | PHPUnit suites, thesis groups and single test classes, see [Testing](#-testing-working-php). |
+| `composer run evidence` | Thesis evidence set in one results folder, see [Testing](#-testing-working-php). |
+| `composer run bench` | Performance benchmark (state/chain hashing, log reads, pre-action integrity check, Argon2id, AES unwrap, Ed25519, HTTP timings); writes `benchmark.csv` into the run folder under `storage/test-results/`. Replaces the former `benchmark-crypto.php`. |
+| `composer run replay -- <csv>` | Runs [scripts/route-replay.php](working-php/scripts/route-replay.php) to replay the legacy routing export against the route suggester. |
+| `scripts/migrations/master-migration.sql` | The single, idempotent migration for existing databases; new schema changes are appended to it (see the migration notice under Testing). |
+
+---
+
+## 🔁 Running Continuously on Linux (`working-php`)
+
+The DTS is meant to run without stopping. Everything that grows over time falls into one of three groups:
+
+| Group | What | Who keeps it bounded |
+| :--- | :--- | :--- |
+| Handled by the app | Page cache (purged hourly), `database_metrics` (rolled up to hourly after 24 h), notifications (newest 10 per user/department), `navigation.log` (renamed at 50 MB) | The worker's scheduler (`console.php`) |
+| Handled by the operating system | nginx logs (`/var/log/nginx/dts_*.log`), PHP-FPM log (`/var/log/php<version>-fpm.log`), PHP session files (`/var/lib/php/sessions`), `storage/logs/worker.log` | logrotate and the PHP session cleaner, which must actually run (below) |
+| Kept forever | `documents`, `document_logs`, `user_public_key_histories` (the audit trail) and the signed checkpoints in `storage/checkpoints/` | Nobody: plan disk capacity instead (below) |
+
+### 1. Keep the queue worker running
+
+The worker runs the scheduler (daily checkpoint, metrics, cache cleanup, stale-document cleanup) and the background jobs. Its last-run times are stored in the `worker_schedule` table, so a restart never postpones a daily task. It still has to be restarted when it exits. `composer run dev` does this itself (a watchdog relaunches it within about 5 seconds). On a server, run it as a systemd service, which also starts it at boot:
+
+```bash
+cd /opt/dts/working-php                       # your project path (preferably without spaces)
+sed -e "s#__PROJECT_ROOT__#$PWD#g" -e "s#__USER__#$USER#g" deploy/dts-worker.service \
+    | sudo tee /etc/systemd/system/dts-worker.service > /dev/null
+sudo systemctl daemon-reload
+sudo systemctl enable --now dts-worker.service
+systemctl status dts-worker.service           # should say "active (running)"
+journalctl -u dts-worker.service -n 50        # worker start-up messages (output also goes to storage/logs/worker.log)
+```
+
+Serve the site with `composer run prod` on that server, not `composer run dev`. `dev` starts and watches its own worker, which would duplicate the service. Existing databases need `scripts/migrations/master-migration.sql` for the `worker_schedule` table.
+
+**`composer run dev` vs `composer run prod`:**
+
+| | `composer run dev` | `composer run prod` |
+| :--- | :--- | :--- |
+| Meant for | A developer's machine | The server, running until the next update |
+| PHP-FPM and nginx | Restarted (OPcache flushed) | Restarted (OPcache flushed) |
+| `working-php/cache/` | The files directly in it are deleted at start, including `integrity-check-result.json`, so System Overview shows "Last checked: Never" until the next check. Cached pages in `cache/responses/` are left to the worker's hourly cleanup. | Not touched; the last integrity result stays |
+| Queue worker | Started and watched (restarted within about 5 seconds if it exits), stopped by Ctrl+C | **Not started.** Without `dts-worker.service`, queued jobs (Run Check, backups, reports) never run and no checkpoint is written |
+| Output | Follows the nginx access log | Waits silently until Ctrl+C |
+
+### 2. Make sure the operating system rotates logs and cleans PHP sessions
+
+Ubuntu and Debian already install the rules: `/etc/logrotate.d/nginx` (daily, keep 14, compressed), `/etc/logrotate.d/php<version>-fpm` (weekly, keep 12), and a PHP session cleaner (`/etc/cron.d/php` and `phpsessionclean.timer`; `php.ini` sets `session.gc_probability = 0`, so PHP itself never deletes old session files). The rules only help if logrotate is installed and something runs it. Minimal images (containers, Distrobox) often lack the `logrotate` package itself:
+
+```bash
+command -v logrotate || sudo apt install logrotate     # installs logrotate.timer and /etc/cron.daily/logrotate
+```
+
+**On a machine with systemd** (a normal server or desktop install), check that both timers are active:
+
+```bash
+systemctl list-timers logrotate.timer phpsessionclean.timer
+sudo systemctl enable --now logrotate.timer phpsessionclean.timer    # if either is missing or inactive
+```
+
+**On a machine without systemd as PID 1** (Docker, Distrobox, WSL), timers never fire. Install and start cron, which runs `/etc/cron.daily/logrotate` and `/etc/cron.d/php`:
+
+```bash
+sudo apt install cron
+sudo service cron start            # start it again after every container or WSL restart
+```
+
+**Add the worker log** (the systemd unit and `composer run dev` both append to it):
+
+```bash
+cd /opt/dts/working-php
+sed -e "s#__PROJECT_ROOT__#$PWD#g" -e "s#__USER__#$USER#g" deploy/dts.logrotate \
+    | sudo tee /etc/logrotate.d/dts > /dev/null
+sudo logrotate -d /etc/logrotate.d/dts                 # dry run: shows what would be rotated, changes nothing
+sudo logrotate -d /etc/logrotate.d/nginx
+```
+
+### 3. Plan disk space for what is kept forever
+
+The audit trail and the checkpoints are never deleted, because removing either would weaken tamper detection. Each daily checkpoint lists every document's chain head, so it grows with the number of documents: about **8.5 MB per day at 100,000 documents** (about 3 GB per year), and about 25 MB per day at 300,000 documents. Copy checkpoints off the server regularly (USB, another machine), as the admin manual describes. That copy is what lets you detect deletions even if the server itself is compromised. Backups in `storage/app/backups/` are not deleted automatically either.
+
+### 4. Update a running server
+
+`composer run prod` runs until the next update. To install one:
+
+```bash
+cd /opt/dts/working-php
+sudo systemctl stop dts-worker.service      # once the jobs table is empty: queued jobs store their class names
+git pull
+composer install --no-dev                   # regenerates vendor/autoload (required after files move)
+npm install && npm run build                # only if CSS or Tailwind changed
+mysql -u <user> -p deped_dts < scripts/migrations/master-migration.sql   # safe to run every time; adds what is missing
+# stop the running `composer run prod` (Ctrl+C), then start it again so PHP-FPM reloads the new code
+composer run prod
+sudo systemctl start dts-worker.service
+```
+
+Check the CHANGELOG's "Upgrade note" for the version you are installing. An update does not clear `cache/`, so the last integrity result and the signed checkpoints are kept. Run an integrity check from System Overview afterwards.
+
+## 🧪 Testing (`working-php`)
+
+**Setup.**
+
+```bash
+cd working-php
+cp .env.testing.example .env.testing
+APP_ENV=testing php scripts/generate-keys.php --system   # writes the system key into .env.testing
+```
+
+You do not create the database by hand: `TestLifecycle` (called from `tests/bootstrap.php`) drops and recreates `deped_dts_test` and the `-test` response cache, checkpoint directory and integrity-result file before every run, and removes them again after it. Result CSVs are kept. Only `.env.testing` and the system key are one-time setup. Within a run, the suite resets `deped_dts_test` from `database.sql` before every test, and the security tests deliberately corrupt and overwrite data. It therefore refuses to run unless `APP_ENV=testing` and the database name ends in `_test`. The test environment also uses its own response cache, checkpoint directory and integrity-result file so it never touches real data.
+
+**Commands** (from `working-php/`).
+
+| Command | What it runs |
+| :--- | :--- |
+| `composer test` | Unit, workflow and HTTP suites only. |
+| `vendor/bin/phpunit` | Default suites: unit, workflow, HTTP and security (concurrency and benchmark are excluded by group). |
+| `composer test:security` | Tamper-injection tactics and HTTP attack tests, tagged by threat actor. |
+| `composer test:concurrency` | Kiosk-burst and simultaneous-action tests against `php -S` started with 16 workers (`PHP_CLI_SERVER_WORKERS=16`); set `TEST_BASE_URL` to target an nginx/FPM deployment instead. The parallelism check is timing-sensitive and can fail on a heavily loaded machine. |
+| `composer test:workflow` | Thesis: document workflow from submission and intake to receive, complete and release (`LifecycleTest`), with the department-step rules for officers and admins (`OfficerStepRuleTest`, `AdminStepRuleTest`). PHPUnit group `thesis-workflow`. |
+| `composer test:integrity` | Thesis: hash-chain integrity: the tamper matrix and the 100 % control (`TamperInjectionTest`), signature verification (`SignatureVerificationTest`) and signer protection (`UserLifecycleIntegrityTest`). PHPUnit group `thesis-integrity`. |
+| `composer run evidence` | Thesis evidence set in one folder: all default suites (unit, workflow, HTTP, security) ×1, `test:workflow` ×1, `test:integrity` ×`EVIDENCE_RUNS`, and the concurrency suite once with `CONCURRENCY_RUNS=EVIDENCE_RUNS` (default 5). Every run still executes when one fails; the command exits 1 if any run failed. `composer run evidence -- --list` prints the commands without running them. |
+| `composer bench` | Performance benchmark. Seeds through `scripts/seeders/fast-seed.php` (the `seed:fast` logic, direct DB inserts); 100,000 documents took 83.8 s in a logged run, so 1,000,000 takes about 14 minutes if it scales linearly. Defaults to 1,000,000 documents and 1,000 iterations; full run: `BENCH_DOCS=1000000 BENCH_ITERATIONS=1000 composer bench`. Smaller runs: e.g. `BENCH_DOCS=10000`. Set `BENCH_HTTP=0` to skip HTTP timings. |
+| `composer replay -- <path-to-legacy-csv>` | Replays the legacy routing export (`dts_docroutes` CSV) through `HeuristicRoutingService` (`src/Modules/Routing/HeuristicRoutingService.php`); optional second argument is the output directory, and `--records-names="A\|B"` overrides the Records intake section names. Besides the heuristic it scores the baselines `none`, `frequent_so_far` and `static_hindsight` (look-ahead, hindsight) into `route-replay-baselines.csv`, and writes `route-replay-purpose-profile.csv`. |
+
+**One script per test class.** Each test class also runs on its own with `composer run test:<name>` (the class name without `Test`, in kebab-case); `composer list` shows the same descriptions. Concurrency and benchmark scripts pass their `--group`, since `phpunit.xml` excludes those groups by default. `ComposerScriptsTest` fails if a test class has no script, description or README entry.
+
+*Document workflow*
+
+| Command | What it checks |
+| :--- | :--- |
+| `test:lifecycle` | Full document lifecycle (submit, intake, receive, complete, release) keeps one tracking code and verifies at 100 %; a wrong-department scan is rejected. |
+| `test:officer-step-rule` | Records Officers receive and complete only at their department's step; intake, decline and release stay with them. |
+| `test:admin-step-rule` | Admins follow the same department-step rule for receive and complete; freeze and unfreeze stay admin-only. |
+| `test:route-validation` | Intake rejects routes naming unknown departments before any write; route errors are escaped. |
+| `test:route-learning` | Finalizing an official purpose's document updates its suggested route; "Others" does not. |
+| `test:heuristic-routing-service` | Route suggestion rules: guest department first, no suggestion for "Others", legacy route formats. |
+| `test:unfreeze-status` | Unfreeze and auto-resolve restore the real status, and only from a verified snapshot. |
+| `test:tracking-code-collision` | Guest submission retries on a duplicate tracking code; seeded codes contain no sequential counter. |
+| `test:tracking-code-util` | Tracking-code format, with no time-based input. |
+| `test:guest-department-validation` | The guest form accepts only departments that exist (exact case). |
+| `test:decline-redirect` | Declining redirects to the dashboard with a toast; a failed decline returns to the referring page. |
+
+*Concurrency*
+
+| Command | What it checks |
+| :--- | :--- |
+| `test:guest-submission-concurrency` | 100 simultaneous kiosk submissions get unique, matching tracking codes; the server handles requests in parallel (CONCURRENCY_WORKERS, CONCURRENCY_RUNS). |
+| `test:task-completion-concurrency` | Five simultaneous completions of one task: exactly one succeeds through the optimistic version check (CONCURRENCY_RUNS). |
+
+*Integrity and signatures*
+
+| Command | What it checks |
+| :--- | :--- |
+| `test:tamper-injection` | Tamper matrix: each privileged-insider tactic against the pre-action check and the integrity audit; untouched chains report 100 %. |
+| `test:signature-verification` | Every Ed25519 signature verifies; altering any signed field fails verification; signatures survive a key reset. |
+| `test:user-lifecycle-integrity` | Users who signed log entries or have key history cannot be deleted, even with raw SQL; chains stay at 100 %. |
+| `test:key-cache-invalidation` | Entries signed after a key reset verify within the same long-lived process. |
+| `test:core-module-structure` | Module structure guard: old classes removed, log format v2 byte-identical, tampered documents frozen. |
+
+*Accounts and authentication*
+
+| Command | What it checks |
+| :--- | :--- |
+| `test:user-deactivation` | The users page deactivates and reactivates accounts instead of deleting them; only admins can, never on themselves. |
+| `test:deactivated-login` | Deactivated accounts cannot sign in and are signed out on their next request (401 JSON for API polling). |
+| `test:user-service` | Deactivation and reactivation rules of user accounts. |
+| `test:login-rate-limit` | The third failed login times out the account; a correct password is refused while locked. |
+| `test:pin-rate-limit` | The third wrong Security PIN times out signing; a cached token does not count as a failure. |
+| `test:attempt-throttle-service` | Failed-attempt limiting: window, lock duration, per-email and per-user keys. |
+| `test:throttle-table-missing` | Login and PIN signing fail open when the attempt_throttles table is missing. |
+| `test:freeze-all-throttle` | Freeze All reports a timed-out PIN instead of freezing nothing silently. |
+
+*Security attacks*
+
+| Command | What it checks |
+| :--- | :--- |
+| `test:frontend-attack` | CSRF, stored XSS, forged routes, wrong-department scans and staff reaching admin routes are refused. |
+| `test:sql-injection` | SQL injection payloads in every input have no effect. |
+| `test:pin-token` | Signing tokens are useless in another session, after tampering or after expiry; a wrong PIN writes nothing. |
+| `test:document-visibility` | Document and hash-chain pages honour DocumentPolicy::view. |
+
+*Pages and HTTP behaviour*
+
+| Command | What it checks |
+| :--- | :--- |
+| `test:document-toast-code` | Toasts name the document's tracking code once. |
+| `test:layout-assets` | The app layout loads no client-side crypto library, and signing still works. |
+| `test:tracking-form-print` | Print-tracking-form links on officer pages, none for staff; the form PDF is served without login. |
+| `test:verify-hash-label` | System Overview uses the "Verify Hash" label. |
+| `test:ict-unit` | The production seeder includes the ICT Unit, and intake can route to it. |
+| `test:debug-logging` | Requests do not write the temporary router log; the navigation log still records them. |
+
+*Operations and data*
+
+| Command | What it checks |
+| :--- | :--- |
+| `test:master-migration` | The master migration upgrades a pre-deactivation schema and is idempotent. |
+| `test:restore-backup-migration` | Restoring an older backup re-applies the migration, so the schema stays current. |
+| `test:worker-schedule` | Scheduled worker tasks run on time; restarts never postpone them. |
+| `test:worker-watchdog` | The dev worker watchdog finds the worker process, also after its re-exec. |
+| `test:seeder-duplicate-retry` | The fast seeder recovers from duplicate tracking codes, ignores the test override outside testing, and does not touch real sessions or the response cache. |
+| `test:cache-middleware-write` | The response cache writes atomically and treats empty or unreadable files as a miss. |
+
+*Performance*
+
+| Command | What it checks |
+| :--- | :--- |
+| `test:performance-benchmark` | Operation timings against the sub-second target on a seeded database (BENCH_DOCS, BENCH_ITERATIONS, BENCH_HTTP). |
+
+*Test harness and research tooling*
+
+| Command | What it checks |
+| :--- | :--- |
+| `test:route-replay` | Legacy route replay: counts, baselines, tie-breaking and CSV output on a small fixture. |
+| `test:evidence-runner` | `composer run evidence` runs every thesis step into its own subfolder of one evidence folder, with a README index. |
+| `test:stats` | Median and 95th-percentile helpers. |
+| `test:barrier` | The live-concurrency barrier keeps partial results when a worker fails. |
+| `test:live-run-cleanup` | The live concurrency script deletes only its own documents and refuses unsafe runs. |
+| `test:results-extension` | The PHPUnit results extension writes test-outcomes.csv, summary.csv and run.json. |
+| `test:result-writer` | Result folders: DTS_RESULTS_DIR containment, run-id validation, no overwriting. |
+| `test:test-artifact-paths` | Tests write checkpoints, integrity results and cache only to -test locations. |
+| `test:test-guard` | Tests refuse to run outside APP_ENV=testing or against a non-_test database. |
+| `test:test-lifecycle` | The per-run test database and artifact lifecycle. |
+| `test:test-env-probe` | The /__test/env probe reports the testing environment and database. |
+| `test:http-client-probe` | The test HTTP client refuses servers that are not running the testing environment. |
+| `test:composer-scripts` | Every test class has a composer script with a description, listed in the README. |
+
+**External server (`TEST_BASE_URL`).** Before attaching, the suite calls `GET /__test/env` and refuses to run unless the server reports `env` `testing` and a database name ending in `_test`. That route is registered only when the app runs with `APP_ENV=testing`; in production it returns 404 like any unknown route. An nginx/FPM run therefore needs a separate PHP-FPM pool (or vhost) for the tests with `env[APP_ENV]=testing`, so it loads `.env.testing`; never point `TEST_BASE_URL` at the production pool.
+
+**Results.** Every run (PHPUnit, `composer replay`, `composer manual:live-concurrency`) writes into its own folder, `working-php/storage/test-results/<run_id>/`, where `<run_id>` is `YYYYMMDD-HHMMSS-xxxx` (4 random hex characters; set `DTS_RUN_ID` to choose it). `storage/test-results/latest` is a symlink to the newest folder. A fatal error or a killed run writes no `test-outcomes.csv` or `summary.csv` (they are written when PHPUnit finishes), though CSVs appended by individual tests remain. `DTS_RESULTS_DIR` is set internally for each run; pointing it by hand at an earlier run folder overwrites that run's files. Old folders are never deleted, and the CSVs that sit loose in `storage/test-results/` from earlier versions are left as they are. `ResultWriter` appends rows, so a file is only appended to within one run. A PHPUnit run (parent process only) writes:
+
+| File | Content |
+| --- | --- |
+| `test-outcomes.csv` | One row per test (each data-provider case separately): `run_id, suite, class, test, data_set, status, duration_ms, assertions, message, timestamp`. `status` is `passed`, `failed`, `errored`, `skipped`, `incomplete` or `risky`; `suite` is the test directory (unit, workflow, http, security, concurrency, benchmark); `message` is the first line of the failure or skip message. |
+| `summary.csv` | One row per suite plus `all`: `run_id, suite, tests, passed, failed, errored, skipped, incomplete, risky, duration_s`. |
+| `run.json` | `run_id`, `started_at`, `finished_at`, the command-line arguments, `git describe --always --dirty`, PHP version, CPU model, RAM and the list of files in the folder. The replay and live-concurrency scripts write a `run.json` too. |
+| `tamper-matrix.csv`, `http-attacks.csv`, `signatures.csv`, `concurrency.csv` | Evidence rows from the security and concurrency suites (columns as written by each test). |
+| `benchmark.csv` | `composer bench`: `operation, n, mean_ms, median_ms, p95_ms, max_ms, docs_in_db, logs_in_db, git_commit, php_version, server, run_at, cpu, ram_gb`. |
+| `route-replay-*.csv`, `live-concurrency.csv` | Replay and live-concurrency output; an explicit output directory for `composer replay` overrides the run folder. |
+
+**Evidence folder.** `composer run evidence` writes one folder, `storage/test-results/<YYYYMMDD-HHMMSS>-evidence/` (an existing name gets `-2`, `-3`, …), and points `latest` at it:
+
+```
+<YYYYMMDD-HHMMSS>-evidence/
+├── README.md            index: status, settings, machine, and per run the command, exit code, duration and test counts
+├── run.json             commit, PHP version, CPU, RAM, settings, failed runs
+├── full-suite-run-1/    all default suites (unit, workflow, http, security): run.json, summary.csv, test-outcomes.csv, tamper-matrix.csv, http-attacks.csv, …
+├── workflow-run-1/
+├── integrity-run-1/ …   tamper-matrix.csv, signatures.csv, …
+└── concurrency-run-1/   concurrency.csv
+```
+
+Each subfolder is an ordinary run folder (the runner sets `DTS_RESULTS_DIR` for each process). The index is rewritten after every run and says **In progress** until the set is complete, so an interrupted set is recognisable. Runs inherit the shell's environment; settings that change results (`TEST_BASE_URL`, `CONCURRENCY_WORKERS`) are recorded in the index and `run.json`. The benchmark and the route replay are not part of the set; to add them to the same folder: `DTS_RESULTS_DIR=$PWD/storage/test-results/<evidence>/benchmark-run-1 composer bench` and `composer replay -- <csv> storage/test-results/<evidence>/route-replay`.
+
+**Threat model.** Every simulated attack is tagged with one of four LAN actors (`tests/Support/ThreatActor.php`):
+
+| Actor | Description |
+| :--- | :--- |
+| `kiosk_walkup` | Unauthenticated person at a kiosk or on a LAN browser. |
+| `lan_device` | Rogue or compromised device on the office network sending crafted HTTP requests. |
+| `staff_insider` | Logged-in user acting outside their role or department, or using an unattended unlocked session. |
+| `privileged_insider` | Someone with direct database or server access. |
+
+Not applicable on an offline LAN (`ThreatActor::NOT_APPLICABLE`): botnet DDoS, internet credential stuffing, cloud metadata SSRF.
+
+**Known limitation: the fully privileged insider.** The audit trail is tamper-evident, not tamper-proof. Anyone without the users' PINs and the server signing key cannot alter, delete or reorder log entries undetected. However, the tamper matrix shows that someone with database access can register their own key pair in `user_public_key_histories` and append a properly signed entry, and nothing detects it, because public keys are trusted from the same database. Someone who also controls the server holds the server signing key and can re-sign entries and checkpoints. No mechanism stored on the same machine can detect such an insider. The defence is organizational: separation of duties between server and database administration, restricted and logged administrator access, and copying the daily signed checkpoint (`storage/checkpoints/`) off the server. Certifying user public keys with an offline key is future work.
+
+**Migration notice.** Existing databases must run `working-php/scripts/migrations/master-migration.sql` to enable login and PIN attempt limiting (3 failures within 1 minute trigger a 1-minute timeout). Until it is run, limiting is off and a line is written to `error_log` (fail-open). Fresh databases built from `database.sql` already include the table.
+
+**Fixed findings.** F1 (finalizing a route accepted an unknown department), F2 (staff could view documents outside their route through `DocumentController::show`) and F3 (`CacheMiddleware` wrote cached pages non-atomically, so a cold-cache kiosk burst could get pages without a CSRF token) are fixed. The former finding tests remain as regression tests, and the default `vendor/bin/phpunit` ends with 0 failures.
+
+**Workflow rules.** Officers are bound by the department-step rule like staff: acting on a document outside their step gives "Action Denied". They keep intake, the final Records receive, and release.
+
+**Seeders.** `fast-seed.php` and `import-legacy.php` rely on the database unique key for tracking codes and retry the chunk on MySQL duplicate error 1062; there is no in-memory duplicate check. Under `APP_ENV=testing`, `fast-seed.php` only clears the `-test` cache and leaves PHP sessions alone.
+
+### Manual tests (you start these)
+
+The live concurrency run is not part of any suite. It fires simultaneous kiosk submissions at the real web app and `deped_dts`:
+
+```bash
+cd working-php
+COMPOSER_PROCESS_TIMEOUT=0 composer manual:live-concurrency -- --base-url=https://<lan-host>:8000 --confirm-live --insecure
+```
+
+- `--workers=N` sets the number of simultaneous submissions (1 to 1000, default 100).
+- `--insecure` skips TLS verification; drop it when the server certificate is trusted.
+- Do not run it in a shell where `APP_ENV=testing` is exported; it refuses.
+- Titles are tagged `CONC-LIVE-<run_id>-<i>`. The script always auto-deletes only its own documents, and prints the run id and the deleted count. "Its own" means rows titled with its run id prefix `CONC-LIVE-<run_id>-…` that were created during the run (id above the highest id seen at start). The run id is `LIVE` plus a timestamp to the second (`YmdHis`), so two runs started in the same second share a run id and each would delete the other's rows. If anything remains, it prints a manual `DELETE` statement.
+- It warns if a checkpoint was written during the run, because those chain heads will show as missing in the next audit.
+- Results are appended to `storage/test-results/<run_id>/live-concurrency.csv` (each script run gets its own folder).
 
 ---
 
@@ -153,18 +444,13 @@ Comprehensive user manuals are provided in [working-php/documentation/user_manua
 | **Staff: ASDS Office** | `assistant.schools.division.superintendent.office` |
 | **Staff: CID** | `curriculum.implementation.division` |
 | **Staff: SGOD** | `school.governance.and.operations.division` |
+| **Staff: ICT Unit** | `ict.unit` |
 
 ---
 
 ## ⚖️ License & Usage
 
-**Non-Commercial Government-Backed Project License**
-
-This project is a government-backed initiative for the **DepEd Division of Iligan City**. 
-
-You are free to clone, use, and modify the system to make it your own for internal use. However, **you may not sell, rent, profit from, or redistribute this system or its derivatives in any way.** 
-
-Please see the [LICENSE](LICENSE) file for more details.
+**License pending.** The licensing terms for this project are being reviewed with the thesis adviser. Until a license is published, no license is granted: all rights are reserved by the authors, and the code may not be used, copied, modified or redistributed without permission.
 
 ---
 

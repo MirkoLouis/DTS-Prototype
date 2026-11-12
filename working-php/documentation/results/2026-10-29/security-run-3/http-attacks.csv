@@ -1,0 +1,77 @@
+attack,threat_actor,owasp_2021,target,expected,observed,passed
+csrf_missing_token,lan_device,A01,"POST /submit-document","HTTP 419","HTTP 419",yes
+csrf_cross_session_token,lan_device,A01,"POST /submit-document","HTTP 419","HTTP 419",yes
+stored_xss,kiosk_walkup,A03,"GET /intake <= <script>alert(1)</script>","raw absent, htmlspecialchars form present","raw absent, escaped present",yes
+stored_xss,kiosk_walkup,A03,"GET /documents/{code} <= <script>alert(1)</script>","raw absent, htmlspecialchars form present","raw absent, escaped present",yes
+stored_xss,kiosk_walkup,A03,"GET /api/track/module/{code} <= <script>alert(1)</script>","raw absent, htmlspecialchars form present","raw absent, escaped present",yes
+stored_xss,kiosk_walkup,A03,"GET /intake <= ""><img src=x onerror=alert(1)>","raw absent, htmlspecialchars form present","raw absent, escaped present",yes
+stored_xss,kiosk_walkup,A03,"GET /documents/{code} <= ""><img src=x onerror=alert(1)>","raw absent, htmlspecialchars form present","raw absent, escaped present",yes
+stored_xss,kiosk_walkup,A03,"GET /api/track/module/{code} <= ""><img src=x onerror=alert(1)>","raw absent, htmlspecialchars form present","raw absent, escaped present",yes
+forged_final_route_unknown_department,staff_insider,A04,"POST /documents/{id}/finalize","rejected (route validated against known departments)","status=pending, current_department_id=NULL, route=",yes
+scan_wrong_department,staff_insider,A04,"POST /documents/scan","denied: ""Action Denied: ...""","status=in_transit, message=Action Denied: Document failed integrity check or you lack permissions.",yes
+cross_step_completion,staff_insider,A04,"POST /tasks/{id}/complete","denied: ""Action Denied: ...""","status=processing, current_step=1, message=Action Denied: Document failed integrity check or you lack permissions.",yes
+privilege_escalation_admin_route,staff_insider,A01,"GET /users","HTTP 403","HTTP 403",yes
+privilege_escalation_admin_route,staff_insider,A01,"GET /system-overview","HTTP 403","HTTP 403",yes
+privilege_escalation_admin_route,staff_insider,A01,"POST /documents/{code}/freeze","HTTP 403","HTTP 403",yes
+idor_view_outside_route,staff_insider,A01,"GET /documents/{code}","denied (DocumentPolicy::view enforced)","HTTP 302, submitter name not disclosed",yes
+pin_token_replay_cross_session,lan_device,A07,"POST /documents/scan","token rejected (session-bound), no new log, no state change","token cleared=yes, PIN demanded=yes, logs 2 -> 2, status=in_transit",yes
+pin_token_tampered,lan_device,A07,"POST /documents/scan","token rejected (MAC failure), no new log, no state change","token cleared=yes, PIN demanded=yes, logs 2 -> 2, status=in_transit",yes
+pin_token_expired,staff_insider,A07,"POST /documents/scan","token rejected (expired), no new log, no state change","token cleared=yes, PIN demanded=yes, logs 2 -> 2, status=in_transit",yes
+wrong_pin_no_log,staff_insider,A07,"POST /documents/scan","no new log entry, no state change","logs 2 -> 2, status=in_transit",yes
+sql_injection,kiosk_walkup,A03,"POST /login <= ' OR '1'='1","no data change, no error/hash leak, no time delay, not authenticated","HTTP 302; no leak; 0.00s; login->/login; /dashboard->/login",yes
+sql_injection,kiosk_walkup,A03,"POST /login <= 1; DROP TABLE documents;-- ","no data change, no error/hash leak, no time delay, not authenticated","HTTP 302; no leak; 0.00s; login->/login; /dashboard->/login",yes
+sql_injection,kiosk_walkup,A03,"POST /login <= "" UNION SELECT password FROM users-- ","no data change, no error/hash leak, no time delay, not authenticated","HTTP 302; no leak; 0.00s; login->/login; /dashboard->/login",yes
+sql_injection,kiosk_walkup,A03,"POST /login <= DEPED-' OR 1=1#","no data change, no error/hash leak, no time delay, not authenticated","HTTP 302; no leak; 0.00s; login->/login; /dashboard->/login",yes
+sql_injection,kiosk_walkup,A03,"POST /login <= \' OR SLEEP(3)-- ","no data change, no error/hash leak, no time delay, not authenticated","HTTP 302; no leak; 0.00s; login->/login; /dashboard->/login",yes
+sql_injection,kiosk_walkup,A03,"GET /track <= ' OR '1'='1","no data change, no error/hash leak, no time delay","HTTP 200; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"GET /track <= 1; DROP TABLE documents;-- ","no data change, no error/hash leak, no time delay","HTTP 200; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"GET /track <= "" UNION SELECT password FROM users-- ","no data change, no error/hash leak, no time delay","HTTP 200; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"GET /track <= DEPED-' OR 1=1#","no data change, no error/hash leak, no time delay","HTTP 200; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"GET /track <= \' OR SLEEP(3)-- ","no data change, no error/hash leak, no time delay","HTTP 200; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"GET /api/track/status <= ' OR '1'='1","no data change, no error/hash leak, no time delay","HTTP 200; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"GET /api/track/status <= 1; DROP TABLE documents;-- ","no data change, no error/hash leak, no time delay","HTTP 200; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"GET /api/track/status <= "" UNION SELECT password FROM users-- ","no data change, no error/hash leak, no time delay","HTTP 200; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"GET /api/track/status <= DEPED-' OR 1=1#","no data change, no error/hash leak, no time delay","HTTP 200; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"GET /api/track/status <= \' OR SLEEP(3)-- ","no data change, no error/hash leak, no time delay","HTTP 200; no leak; 0.00s",yes
+sql_injection,lan_device,A03,"POST /intake/find <= ' OR '1'='1","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,lan_device,A03,"POST /intake/find <= 1; DROP TABLE documents;-- ","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,lan_device,A03,"POST /intake/find <= "" UNION SELECT password FROM users-- ","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,lan_device,A03,"POST /intake/find <= DEPED-' OR 1=1#","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,lan_device,A03,"POST /intake/find <= \' OR SLEEP(3)-- ","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[guest_name] <= ' OR '1'='1","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[guest_email] <= ' OR '1'='1","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[guest_phone] <= ' OR '1'='1","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[district] <= ' OR '1'='1","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[department] <= ' OR '1'='1","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[title] <= ' OR '1'='1","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[other_purpose_text] <= ' OR '1'='1","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[guest_name] <= 1; DROP TABLE documents;-- ","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[guest_email] <= 1; DROP TABLE documents;-- ","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[guest_phone] <= 1; DROP TABLE documents;-- ","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[district] <= 1; DROP TABLE documents;-- ","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[department] <= 1; DROP TABLE documents;-- ","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[title] <= 1; DROP TABLE documents;-- ","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[other_purpose_text] <= 1; DROP TABLE documents;-- ","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[guest_name] <= "" UNION SELECT password FROM users-- ","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[guest_email] <= "" UNION SELECT password FROM users-- ","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[guest_phone] <= "" UNION SELECT password FROM users-- ","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[district] <= "" UNION SELECT password FROM users-- ","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[department] <= "" UNION SELECT password FROM users-- ","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[title] <= "" UNION SELECT password FROM users-- ","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[other_purpose_text] <= "" UNION SELECT password FROM users-- ","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[guest_name] <= DEPED-' OR 1=1#","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[guest_email] <= DEPED-' OR 1=1#","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[guest_phone] <= DEPED-' OR 1=1#","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[district] <= DEPED-' OR 1=1#","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[department] <= DEPED-' OR 1=1#","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[title] <= DEPED-' OR 1=1#","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[other_purpose_text] <= DEPED-' OR 1=1#","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[guest_name] <= \' OR SLEEP(3)-- ","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[guest_email] <= \' OR SLEEP(3)-- ","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[guest_phone] <= \' OR SLEEP(3)-- ","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[district] <= \' OR SLEEP(3)-- ","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[department] <= \' OR SLEEP(3)-- ","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[title] <= \' OR SLEEP(3)-- ","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection,kiosk_walkup,A03,"POST /submit-document[other_purpose_text] <= \' OR SLEEP(3)-- ","no data change, no error/hash leak, no time delay","HTTP 302; no leak; 0.00s",yes
+sql_injection_row_counts,kiosk_walkup,A03,"documents, users, document_logs","users 4; documents 25; document_logs 25 (+25 legitimate plain-text submissions)","users 4; documents 25; document_logs 25",yes
+sql_injection_integrity_audit,kiosk_walkup,A03,IntegrityCheckJob,"verified_percentage 100.0","verified_percentage 100",yes

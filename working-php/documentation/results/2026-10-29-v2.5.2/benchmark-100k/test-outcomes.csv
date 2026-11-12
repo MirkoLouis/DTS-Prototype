@@ -1,0 +1,2 @@
+run_id,suite,class,test,data_set,status,duration_ms,assertions,message,timestamp
+20261029-174323-19c6,benchmark,"Tests\Benchmark\PerformanceBenchmarkTest",test_operations_meet_sub_second_target,,passed,100592.631,4,,2026-10-29T17:45:04+08:00

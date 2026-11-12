@@ -16,7 +16,7 @@ if (isset($_SESSION['info'])) {
 }
 
 if (isset($_SESSION['user_id'])) {
-    $notifService = new \App\Core\NotificationService();
+    $notifService = new \App\Modules\Notifications\NotificationService();
     
     // Convert flash alerts into persistent notifications for this user
     foreach ($sessionAlerts as $alert) {
@@ -51,8 +51,6 @@ if (isset($_SESSION['user_id'])) {
             }
         })();
     </script>
-    <script src="/js/vendor/libsodium-wrappers.js"></script>
-    <script src="/js/vendor/libsodium.js"></script>
     <script>
         window.UserConfig = {
             id: <?= json_encode($_SESSION['user_id'] ?? null) ?>
@@ -303,20 +301,20 @@ if (isset($_SESSION['user_id'])) {
     <?php endif; ?>
 
     <?php // Hand the encrypted PIN-cache token to the browser, or tell it to discard a stale one ?>
-    <?php if (isset($_SESSION[\App\Core\SecurityHelper::SESSION_ISSUED]) || isset($_SESSION[\App\Core\SecurityHelper::SESSION_CLEAR])): ?>
+    <?php if (isset($_SESSION[\App\Modules\Users\SecurityPinCacheService::SESSION_ISSUED]) || isset($_SESSION[\App\Modules\Users\SecurityPinCacheService::SESSION_CLEAR])): ?>
         <script>
             (function() {
                 try {
-                    <?php if (isset($_SESSION[\App\Core\SecurityHelper::SESSION_CLEAR])): ?>
+                    <?php if (isset($_SESSION[\App\Modules\Users\SecurityPinCacheService::SESSION_CLEAR])): ?>
                     sessionStorage.removeItem('dts_pin_token');
                     <?php endif; ?>
-                    <?php if (isset($_SESSION[\App\Core\SecurityHelper::SESSION_ISSUED])): ?>
-                    sessionStorage.setItem('dts_pin_token', <?= json_encode($_SESSION[\App\Core\SecurityHelper::SESSION_ISSUED]) ?>);
+                    <?php if (isset($_SESSION[\App\Modules\Users\SecurityPinCacheService::SESSION_ISSUED])): ?>
+                    sessionStorage.setItem('dts_pin_token', <?= json_encode($_SESSION[\App\Modules\Users\SecurityPinCacheService::SESSION_ISSUED]) ?>);
                     <?php endif; ?>
                 } catch (e) {}
             })();
         </script>
-        <?php unset($_SESSION[\App\Core\SecurityHelper::SESSION_ISSUED], $_SESSION[\App\Core\SecurityHelper::SESSION_CLEAR]); ?>
+        <?php unset($_SESSION[\App\Modules\Users\SecurityPinCacheService::SESSION_ISSUED], $_SESSION[\App\Modules\Users\SecurityPinCacheService::SESSION_CLEAR]); ?>
     <?php endif; ?>
 
     <?php if (isset($_SESSION['needs_security_key']) && $_SESSION['needs_security_key']): ?>
@@ -517,6 +515,11 @@ if (isset($_SESSION['user_id'])) {
                 console.log('[DTS Notif System] Polling /api/notifications/unread...');
                 try {
                     const res = await fetch('/api/notifications/unread');
+                    // The session ended (signed out or account deactivated): show the login page and its message
+                    if (res.status === 401) {
+                        window.location.href = '/login';
+                        return;
+                    }
                     if (!res.ok) {
                         console.warn('[DTS Notif System] Poll response non-OK status:', res.status);
                         return;
@@ -554,16 +557,23 @@ if (isset($_SESSION['user_id'])) {
                                                 ${iconSvg}
                                             </svg>
                                             <div class="flex-1 pr-6">
-                                                <strong class="block leading-tight font-medium ${titleColor}"> ${notif.title} </strong>
-                                                <p class="mt-0.5 text-sm ${textColor}">${notif.message}</p>
+                                                <strong class="toast-title block leading-tight font-medium ${titleColor}"></strong>
+                                                <p class="toast-text mt-0.5 text-sm ${textColor}"></p>
                                             </div>
-                                            <button class="mark-notification-read absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition" data-id="${notif.id}" title="Dismiss">
+                                            <button class="mark-notification-read absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition" title="Dismiss">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                             </button>
                                         </div>
                                     </div>
                                 `;
-                                toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+                                // Build the static shell, then insert server text with textContent so notification text never parses as HTML (I1)
+                                const holder = document.createElement('div');
+                                holder.innerHTML = toastHtml;
+                                const toastEl = holder.firstElementChild;
+                                toastEl.querySelector('.toast-title').textContent = String(notif.title ?? '');
+                                toastEl.querySelector('.toast-text').textContent = String(notif.message ?? '');
+                                toastEl.querySelector('.mark-notification-read').dataset.id = notifIdStr;
+                                toastContainer.appendChild(toastEl);
                                 setupToastAutoDismiss();
                             }
                         }

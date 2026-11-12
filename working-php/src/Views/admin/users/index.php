@@ -50,6 +50,18 @@
 
                 <div id="users-table-body">
                     <?php
+                        // Render one confirmed POST action (deactivate / reactivate) with the CSRF token
+                        $userActionForm = function (string $action, string $message, string $label, string $classes): string {
+                            return sprintf(
+                                '<form action="%s" method="POST" class="inline-block ml-2 confirm-action" data-message="%s"><input type="hidden" name="csrf_token" value="%s"><button type="submit" class="%s">%s</button></form>',
+                                htmlspecialchars($action),
+                                htmlspecialchars($message),
+                                htmlspecialchars($_SESSION['csrf_token'] ?? ''),
+                                $classes,
+                                htmlspecialchars($label)
+                            );
+                        };
+
                         foreach ($users as &$user) {
                             $roleColor = $user['role'] === 'admin' ? 'bg-red-100 text-red-800' : ($user['role'] === 'officer' ? 'bg-blue-100 text-blue-800' : 'bg-success-light text-success-active');
                             $user['role_html'] = sprintf('<span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full %s uppercase">%s</span>', $roleColor, htmlspecialchars($user['role']));
@@ -89,14 +101,16 @@
                             }
 
                             // Align action links to the left to maintain visual alignment with the column header
-                            $actions = sprintf('<a href="/users/%s/edit" class="text-accent-1 hover:text-accent-1-active">Edit</a>', $user['id']);
-                            if ($_SESSION['user_id'] != $user['id']) {
-                                $actions .= sprintf('
-                                    <form action="/users/%s/delete" method="POST" class="inline-block ml-2 confirm-action" data-message="Are you sure you want to delete this user?">
-                                        <input type="hidden" name="csrf_token" value="' . ($_SESSION['csrf_token'] ?? '') . '">
-                                        <button type="submit" class="text-red-600 hover:text-red-900">Delete</button>
-                                    </form>
-                                ', $user['id']);
+                            $userId = (int) $user['id'];
+                            $actions = sprintf('<a href="/users/%d/edit" class="text-accent-1 hover:text-accent-1-active">Edit</a>', $userId);
+
+                            // Deactivated accounts get a badge and can be reactivated
+                            if (!empty($user['deactivated_at'])) {
+                                $user['role_html'] .= ' <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 uppercase">Deactivated</span>';
+                                $actions .= $userActionForm("/users/{$userId}/reactivate", 'Reactivate this user? They will be able to sign in again.', 'Reactivate', 'text-accent-1 hover:text-accent-1-active');
+                            } elseif ($_SESSION['user_id'] != $userId) {
+                                // Active accounts other than the signed-in admin can be deactivated (never deleted)
+                                $actions .= $userActionForm("/users/{$userId}/delete", 'Deactivate this user? They will no longer be able to sign in, but their signed history is kept.', 'Deactivate', 'text-red-600 hover:text-red-900');
                             }
                             $user['actions_html'] = '<div class="space-x-2 text-left">' . $actions . '</div>';
                         }

@@ -272,10 +272,10 @@ function initSystemHealth() {
                 }
             } catch (error) {
                 console.error('Debug error:', error);
-                alert('Failed to fetch debug info.');
+                alert('Failed to verify hash.');
             } finally {
                 btn.disabled = false;
-                btn.textContent = 'Debug';
+                btn.textContent = 'Verify Hash';
             }
         });
     });

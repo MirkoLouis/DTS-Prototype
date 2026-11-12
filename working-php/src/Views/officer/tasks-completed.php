@@ -66,7 +66,7 @@
                 <div class="mt-4">
                     <?php 
                     if (isset($paginator)) {
-                        if ($paginator instanceof \App\Utils\CursorPaginator) {
+                        if ($paginator instanceof \App\Common\Utils\CursorPaginator) {
                             require BASE_PATH . '/src/Views/components/cursor-pagination.php';
                         } else {
                             require BASE_PATH . '/src/Views/components/pagination.php';

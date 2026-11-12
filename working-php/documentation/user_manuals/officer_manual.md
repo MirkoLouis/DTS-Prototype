@@ -93,7 +93,7 @@ When a document finishes all departmental routing steps, its status advances to 
 
 1. Navigate to `/statistics`.
 2. Select desired date ranges and report formats (PDF or Excel).
-3. Click **Generate Report**. The system dispatches an asynchronous background job ([GenerateReportJob](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Jobs/GenerateReportJob.php)).
+3. Click **Generate Report**. The system dispatches an asynchronous background job ([GenerateReportJob](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Modules/Analytics/Jobs/GenerateReportJob.php)).
 4. Monitor export progress in the floating report progress modal and download the completed file.
 
 ---
@@ -103,4 +103,4 @@ When a document finishes all departmental routing steps, its status advances to 
 - **Q: The QR camera scanner is not opening.**  
   *A:* Ensure your web browser has camera permissions granted for the DTS domain. Alternatively, type the tracking code into the manual input box.
 - **Q: An error says "Action Denied: Document failed integrity check".**  
-  *A:* The document's SHA-256 state hash does not match the ledger. The document has been auto-frozen by the Active Guard. Notify a System Administrator to run Auto-Resolve.
+  *A:* The document's SHA-256 state hash does not match the ledger. The document has been automatically frozen by the pre-action integrity check. Notify a System Administrator to run Auto-Resolve.
