@@ -17,10 +17,9 @@ class AuthMiddleware
      */
     public function handle()
     {
-        // Require active session — unauthenticated requests are redirected immediately to prevent unauthorized route execution
+        // Require active session — unauthenticated requests are refused immediately to prevent unauthorized route execution
         if (!isset($_SESSION['user_id'])) {
-            header("Location: /login");
-            exit;
+            $this->refuse();
         }
 
         $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '/';
@@ -57,7 +56,6 @@ class AuthMiddleware
 
     /**
      * Drop the authenticated session but keep a fresh, anonymous one for the flash message and CSRF token.
-     * API and XHR requests get 401 JSON; page requests are redirected to the login page.
      */
     private function endSession(string $message): never
     {
@@ -66,10 +64,17 @@ class AuthMiddleware
         $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
         $_SESSION['error'] = $message;
 
-        // Background pollers parse JSON, so they must not receive a redirect to an HTML page
-        $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
-        $isAjax = strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'xmlhttprequest' || str_starts_with($path, '/api/');
-        if ($isAjax) {
+        $this->refuse($message);
+    }
+
+    /**
+     * Answer an unauthenticated request: 401 JSON for scripts (so a poller never follows a redirect to the
+     * login page and consumes its flash message), a redirect to the login page for page requests.
+     */
+    private function refuse(string $message = 'Your session has ended. Please sign in again.'): never
+    {
+        // Background pollers and fetch calls parse JSON, so they must not receive an HTML page
+        if (request_expects_json()) {
             http_response_code(401);
             header('Content-Type: application/json');
             echo json_encode(['success' => false, 'message' => $message]);

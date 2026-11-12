@@ -73,9 +73,36 @@ class UserDeactivationTest extends TestCase
         $client = HttpClient::start();
         $client->loginAs('cash.unit');
 
-        $client->post("/users/{$personnel}/delete", []);
+        $response = $client->post("/users/{$personnel}/delete", []);
 
+        // Refused by the admin guard (not by a CSRF failure), and nothing changed
+        $this->assertSame(403, $response['status']);
         $this->assertNull($this->deactivatedAt($personnel));
+    }
+
+    // Staff cannot reach the reactivate route
+    public function test_staff_cannot_reactivate(): void
+    {
+        $personnel = $this->fx['users']['personnel.unit'];
+        (new UserService())->deactivate($personnel, $this->fx['users']['admin']);
+        $client = HttpClient::start();
+        $client->loginAs('cash.unit');
+
+        $response = $client->post("/users/{$personnel}/reactivate", []);
+
+        $this->assertSame(403, $response['status']);
+        $this->assertIsString($this->deactivatedAt($personnel));
+    }
+
+    // The RESTful DELETE route deactivates too
+    public function test_delete_method_deactivates(): void
+    {
+        $cash = $this->fx['users']['cash.unit'];
+
+        $response = $this->admin()->delete("/users/{$cash}");
+
+        $this->assertSame(302, $response['status']);
+        $this->assertIsString($this->deactivatedAt($cash));
     }
 
     // Deactivated rows show a badge and a Reactivate action instead of Deactivate

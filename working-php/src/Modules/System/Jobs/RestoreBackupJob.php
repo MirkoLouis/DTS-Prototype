@@ -2,6 +2,9 @@
 
 namespace App\Modules\System\Jobs;
 
+use App\Common\Database\Database;
+use App\Common\Database\SqlScriptRunner;
+
 class RestoreBackupJob
 {
     protected $fileName;
@@ -53,6 +56,9 @@ class RestoreBackupJob
             
             // Cleanup extracted SQL file
             unlink($filePath);
+
+            // A backup taken before a schema change restores the old tables; bring them back up to date
+            SqlScriptRunner::runFile(Database::getInstance()->getConnection(), BASE_PATH . '/scripts/migrations/master-migration.sql');
         }
     }
 }

@@ -82,6 +82,20 @@ class DeactivatedLoginTest extends TestCase
         $this->assertFalse(json_decode($response['body'], true)['success']);
     }
 
+    // Every later poll also gets 401 JSON, so no poll renders the login page and consumes the message
+    public function test_repeated_api_polls_get_401_and_keep_the_message(): void
+    {
+        $client = $this->cashClient();
+        $this->deactivateCash();
+
+        $first = $client->get('/api/notifications/unread');
+        $second = $client->get('/api/notifications/unread');
+
+        $this->assertSame(401, $first['status']);
+        $this->assertSame(401, $second['status']);
+        $this->assertStringContainsString('Your account is no longer active.', $client->get('/login')['body']);
+    }
+
     // Reactivation restores sign-in
     public function test_reactivated_user_can_log_in(): void
     {
