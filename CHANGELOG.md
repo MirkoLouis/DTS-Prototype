@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-11-12 11:01
+
+**Version:** 2.7.0-Release+202611121101
+
+### Changed
+- Users are deactivated, never deleted. **Delete** on the users page (and `DELETE /users/{id}`, `POST /users/{id}/delete`) now sets `users.deactivated_at`; the account stays in the list with a "Deactivated" badge and a **Reactivate** button (`POST /users/{id}/reactivate`). Before, deleting a user set `document_logs.user_id` to NULL and deleted their key history, so every entry they had signed failed verification. `document_logs.user_id` and `user_public_key_histories.user_id` are now `ON DELETE RESTRICT`, so even a raw SQL `DELETE` of a signer is refused. Admins still cannot deactivate their own account.
+- A deactivated user cannot sign in (the login answers like a wrong password, without revealing the account state) and is signed out on their next request: page requests go to the login page with "Your account is no longer active.", `/api/*` and XHR requests get HTTP 401 JSON. Reactivation restores sign-in with the existing signing key.
+- Admins follow the department-step rule for receive and complete (`DocumentPolicy::process`), like officers and staff. Before, an admin could complete a step that belonged to another unit. Freeze, unfreeze and auto-resolve stay admin-only through their own policies.
+
+### Upgrade note
+- Existing databases: run `scripts/migrations/master-migration.sql` (adds `users.deactivated_at`, converts the two foreign keys to `ON DELETE RESTRICT`; safe to run again). Log entries of users deleted before this version keep `user_id` NULL and remain unverifiable; the migration cannot restore them.
+
 ## 2026-10-30 16:54
 
 **Version:** 2.6.2-Release+202610301654

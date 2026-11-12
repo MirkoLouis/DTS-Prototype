@@ -15,7 +15,7 @@ As a **System Administrator** (`admin`), you possess full control and global vis
 | Feature / Resource | Permission Level | Description |
 | :--- | :--- | :--- |
 | **Admin Dashboard** (`/admin-dashboard`) | Full Access | Live system throughput, decline trends, department load vs. step-time analytics. |
-| **User Management** (`/users`) | Full Access | Create, edit, deactivate, delete users, and reset Ed25519 digital signature key pairs. |
+| **User Management** (`/users`) | Full Access | Create, edit, deactivate and reactivate users (accounts are never deleted, so their signed history stays verifiable), and reset Ed25519 digital signature key pairs. |
 | **System Overview & Health** (`/system-overview`) | Full Access | Run audit jobs, view DB performance metrics, clear personal/system caches, delete failed background jobs. |
 | **Integrity & Tamper Control** (`/all-documents`, `/system-health/*`) | Full Access | View all document hash chains, freeze/unfreeze documents, execute snapshot-based Auto-Resolve. |
 | **System Backups** (`/system/backups`) | Full Access | Generate manual database backups, restore database snapshots, download/delete backup archives. |
