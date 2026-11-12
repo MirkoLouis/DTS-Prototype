@@ -252,7 +252,7 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `composer test:concurrency` | Kiosk-burst and simultaneous-action tests against `php -S` started with 16 workers (`PHP_CLI_SERVER_WORKERS=16`); set `TEST_BASE_URL` to target an nginx/FPM deployment instead. The parallelism check is timing-sensitive and can fail on a heavily loaded machine. |
 | `composer test:workflow` | Thesis: document workflow from submission and intake to receive, complete and release (`LifecycleTest`), with the department-step rules for officers and admins (`OfficerStepRuleTest`, `AdminStepRuleTest`). PHPUnit group `thesis-workflow`. |
 | `composer test:integrity` | Thesis: hash-chain integrity: the tamper matrix and the 100 % control (`TamperInjectionTest`), signature verification (`SignatureVerificationTest`) and signer protection (`UserLifecycleIntegrityTest`). PHPUnit group `thesis-integrity`. |
-| `composer run evidence` | Thesis evidence set in one folder: full suite ×1, `test:workflow` ×1, `test:integrity` ×`EVIDENCE_RUNS`, and the concurrency suite once with `CONCURRENCY_RUNS=EVIDENCE_RUNS` (default 5). Every run still executes when one fails; the command exits 1 if any run failed. `composer run evidence -- --list` prints the commands without running them. |
+| `composer run evidence` | Thesis evidence set in one folder: all default suites (unit, workflow, HTTP, security) ×1, `test:workflow` ×1, `test:integrity` ×`EVIDENCE_RUNS`, and the concurrency suite once with `CONCURRENCY_RUNS=EVIDENCE_RUNS` (default 5). Every run still executes when one fails; the command exits 1 if any run failed. `composer run evidence -- --list` prints the commands without running them. |
 | `composer bench` | Performance benchmark. Seeds through `scripts/seeders/fast-seed.php` (the `seed:fast` logic, direct DB inserts); 100,000 documents took 83.8 s in a logged run, so 1,000,000 takes about 14 minutes if it scales linearly. Defaults to 1,000,000 documents and 1,000 iterations; full run: `BENCH_DOCS=1000000 BENCH_ITERATIONS=1000 composer bench`. Smaller runs: e.g. `BENCH_DOCS=10000`. Set `BENCH_HTTP=0` to skip HTTP timings. |
 | `composer replay -- <path-to-legacy-csv>` | Replays the legacy routing export (`dts_docroutes` CSV) through `HeuristicRoutingService` (`src/Modules/Routing/HeuristicRoutingService.php`); optional second argument is the output directory, and `--records-names="A\|B"` overrides the Records intake section names. Besides the heuristic it scores the baselines `none`, `frequent_so_far` and `static_hindsight` (look-ahead, hindsight) into `route-replay-baselines.csv`, and writes `route-replay-purpose-profile.csv`. |
 
@@ -332,7 +332,7 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `test:restore-backup-migration` | Restoring an older backup re-applies the migration, so the schema stays current. |
 | `test:worker-schedule` | Scheduled worker tasks run on time; restarts never postpone them. |
 | `test:worker-watchdog` | The dev worker watchdog finds the worker process, also after its re-exec. |
-| `test:seeder-duplicate-retry` | The fast seeder recovers from duplicate tracking codes and leaves no state behind. |
+| `test:seeder-duplicate-retry` | The fast seeder recovers from duplicate tracking codes, ignores the test override outside testing, and does not touch real sessions or the response cache. |
 | `test:cache-middleware-write` | The response cache writes atomically and treats empty or unreadable files as a miss. |
 
 *Performance*
@@ -376,15 +376,15 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 
 ```
 <YYYYMMDD-HHMMSS>-evidence/
-├── README.md            index: command, exit code, duration and test counts per run
-├── run.json             commit, PHP version, CPU, RAM, EVIDENCE_RUNS, failed runs
-├── full-suite-run-1/    one PHPUnit run: run.json, summary.csv, test-outcomes.csv
+├── README.md            index: status, settings, machine, and per run the command, exit code, duration and test counts
+├── run.json             commit, PHP version, CPU, RAM, settings, failed runs
+├── full-suite-run-1/    all default suites (unit, workflow, http, security): run.json, summary.csv, test-outcomes.csv, tamper-matrix.csv, http-attacks.csv, …
 ├── workflow-run-1/
 ├── integrity-run-1/ …   tamper-matrix.csv, signatures.csv, …
 └── concurrency-run-1/   concurrency.csv
 ```
 
-Each subfolder is an ordinary run folder (the runner sets `DTS_RESULTS_DIR` for each process). The benchmark and the route replay are not part of the set; to add them to the same folder: `DTS_RESULTS_DIR=$PWD/storage/test-results/<evidence>/benchmark-run-1 composer bench` and `composer replay -- <csv> storage/test-results/<evidence>/route-replay`.
+Each subfolder is an ordinary run folder (the runner sets `DTS_RESULTS_DIR` for each process). The index is rewritten after every run and says **In progress** until the set is complete, so an interrupted set is recognisable. Runs inherit the shell's environment; settings that change results (`TEST_BASE_URL`, `CONCURRENCY_WORKERS`) are recorded in the index and `run.json`. The benchmark and the route replay are not part of the set; to add them to the same folder: `DTS_RESULTS_DIR=$PWD/storage/test-results/<evidence>/benchmark-run-1 composer bench` and `composer replay -- <csv> storage/test-results/<evidence>/route-replay`.
 
 **Threat model.** Every simulated attack is tagged with one of four LAN actors (`tests/Support/ThreatActor.php`):
 
