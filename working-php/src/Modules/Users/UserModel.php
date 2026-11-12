@@ -17,6 +17,7 @@ class UserModel
     public $department_id;
     public $role;
     public $remember_token;
+    public $deactivated_at;
     public $created_at;
     public $updated_at;
 
@@ -100,16 +101,6 @@ class UserModel
             $this->id = $db->getConnection()->lastInsertId();
             return true;
         }
-    }
-
-    public function delete(): bool
-    {
-        if (isset($this->id)) {
-            $db = Database::getInstance();
-            $db->query("DELETE FROM users WHERE id = :id", ['id' => $this->id]);
-            return true;
-        }
-        return false;
     }
 
     private static function hydrate(array $data): self

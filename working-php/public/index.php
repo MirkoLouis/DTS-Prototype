@@ -250,6 +250,11 @@ $router->add('DELETE', '/users/(?P<id>\d+)', [App\Modules\Users\UserController::
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
+$router->post('/users/(?P<id>\d+)/reactivate', [App\Modules\Users\UserController::class, 'reactivate'], [
+    App\Common\Middleware\AuthMiddleware::class,
+    App\Common\Guards\RoleGuard::class . ':admin'
+]);
+
 $router->post('/users/(?P<id>\d+)/reset-signature', [App\Modules\Users\UserController::class, 'resetSignature'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'

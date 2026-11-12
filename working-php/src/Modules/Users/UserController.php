@@ -33,7 +33,7 @@ class UserController
         
         $paginator = new \App\Common\Utils\Paginator($totalItems, 15, $page, '?page=(:num)&' . http_build_query(array_diff_key($_GET, ['page' => ''])));
         
-        $sql = "SELECT id, name, email, role, department_id, created_at, public_key FROM users $whereSql ORDER BY name ASC LIMIT {$paginator->getLimit()} OFFSET {$paginator->getOffset()}";
+        $sql = "SELECT id, name, email, role, department_id, created_at, public_key, deactivated_at FROM users $whereSql ORDER BY name ASC LIMIT {$paginator->getLimit()} OFFSET {$paginator->getOffset()}";
         $stmt = $db->query($sql, $params);
         $users = $stmt->fetchAll();
         
@@ -186,19 +186,31 @@ class UserController
         exit;
     }
 
+    /**
+     * Deactivate an account (DELETE /users/{id} and POST /users/{id}/delete); accounts are never deleted.
+     */
     public function destroy($id)
     {
-        // Check if it's not the currently logged in admin trying to delete themselves
-        if ($_SESSION['user_id'] == $id) {
-            $_SESSION['error'] = 'You cannot delete your own account.';
-            header('Location: /users');
-            exit;
+        // The service refuses self-deactivation; surface its message as a flash error
+        try {
+            (new UserService())->deactivate((int) $id, (int) $_SESSION['user_id']);
+            $_SESSION['success'] = 'User deactivated. Their signed history is kept and they can no longer sign in.';
+        } catch (\DomainException $e) {
+            $_SESSION['error'] = $e->getMessage();
         }
 
-        $db = Database::getInstance();
-        $db->query("DELETE FROM users WHERE id = :id", [':id' => $id]);
-        
-        $_SESSION['success'] = 'User deleted successfully.';
+        header('Location: /users');
+        exit;
+    }
+
+    /**
+     * Reactivate a deactivated account.
+     */
+    public function reactivate($id)
+    {
+        (new UserService())->reactivate((int) $id);
+
+        $_SESSION['success'] = 'User reactivated.';
         header('Location: /users');
         exit;
     }
