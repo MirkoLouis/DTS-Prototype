@@ -49,7 +49,7 @@ class DocumentPolicy
     /**
      * Determine whether the user can process the document.
      * 
-     * Determines if a user can actively process (e.g., receive, complete task) a document. 
+     * Determines if a user can actively process (e.g., receive, complete task) a document, under the department-step rule for every role. 
      * Critically, this acts as the "pre-action integrity check" by enforcing real-time cryptographic integrity checks 
      * before allowing state changes.
      */
@@ -61,13 +61,9 @@ class DocumentPolicy
             return false;
         }
 
-        // Admins keep global processing authorization
-        if ($user->role === 'admin') {
-            return true;
-        }
-
-        // Officers and staff share one rule: they may only process a document positioned at their department's step
-        if (($user->role === 'staff' || $user->role === 'officer') && $user->department_id) {
+        // Every role (admin, officer, staff) shares one rule: a user may only process a document positioned at their
+        // department's step; a user without a department processes nothing. Admin-only actions have their own policies.
+        if ($user->department_id) {
             $db = Database::getInstance();
             $stmt = $db->query("SELECT name FROM departments WHERE id = :id", [':id' => $user->department_id]);
             $dept = $stmt->fetch();
