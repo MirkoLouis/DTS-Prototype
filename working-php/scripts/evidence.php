@@ -17,12 +17,9 @@ if ($runs === false) {
 
 // Dry run: print the planned commands and stop
 if (in_array('--list', array_slice($argv, 1), true)) {
+    // One line per step: name, repeats, command
     foreach (EvidenceRunner::steps($runs) as $step) {
-        $env = '';
-        foreach ($step['env'] as $key => $value) {
-            $env .= "{$key}={$value} ";
-        }
-        printf("%-12s x%d  %sphp %s\n", $step['name'], $step['repeat'], $env, implode(' ', array_slice($step['argv'], 1)));
+        printf("%-12s x%d  %s\n", $step['name'], $step['repeat'], EvidenceRunner::commandText($step));
     }
     exit(0);
 }
@@ -42,7 +39,8 @@ $runProcess = function (array $argv, array $env): int {
     return proc_close($process);
 };
 
-$result = (new EvidenceRunner(BASE_PATH . '/storage/test-results', $runProcess))->run($runs);
+// Children inherit this environment; the runner records the settings in it that change results
+$result = (new EvidenceRunner(BASE_PATH . '/storage/test-results', $runProcess))->run($runs, getenv());
 
 // Point at the index, and fail the command when any run failed
 echo "\nEvidence folder: {$result['dir']}\nIndex: {$result['dir']}/README.md\n";

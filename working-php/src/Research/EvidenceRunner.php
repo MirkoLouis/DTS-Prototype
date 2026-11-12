@@ -2,8 +2,6 @@
 
 namespace App\Research;
 
-use App\Modules\Integrity\HashChainService;
-
 /**
  * Runs the thesis evidence set (full suite, workflow, integrity, concurrency) into one evidence folder:
  * storage/test-results/<YYYYMMDD-HHMMSS>-evidence/<step>-run-<N>/, plus a README.md index and run.json.
@@ -13,6 +11,12 @@ use App\Modules\Integrity\HashChainService;
  */
 class EvidenceRunner
 {
+    // Inherited settings that change test results; recorded so the index states what actually ran
+    private const RECORDED_SETTINGS = [
+        'TEST_BASE_URL' => 'unset (the tests start the built-in PHP server)',
+        'CONCURRENCY_WORKERS' => 'unset (test default)',
+    ];
+
     /** @var callable(array $argv, array $env): int */
     private $runProcess;
 
@@ -24,7 +28,7 @@ class EvidenceRunner
     public function __construct(private string $resultsRoot, callable $runProcess, ?\DateTimeImmutable $now = null)
     {
         $this->runProcess = $runProcess;
-        $this->now = $now ?? new \DateTimeImmutable('now', new \DateTimeZone(HashChainService::APP_TIMEZONE));
+        $this->now = $now ?? ResultWriter::now();
     }
 
     /**
@@ -37,7 +41,8 @@ class EvidenceRunner
         $phpunit = [PHP_BINARY, 'vendor/bin/phpunit'];
 
         return [
-            ['name' => 'full-suite', 'argv' => [...$phpunit, '--testsuite', 'unit,workflow,http'], 'env' => [], 'repeat' => 1],
+            // Every default suite (unit, workflow, http, security); concurrency and benchmark are excluded by phpunit.xml
+            ['name' => 'full-suite', 'argv' => $phpunit, 'env' => [], 'repeat' => 1],
             ['name' => 'workflow', 'argv' => [...$phpunit, '--group', 'thesis-workflow'], 'env' => [], 'repeat' => 1],
             ['name' => 'integrity', 'argv' => [...$phpunit, '--group', 'thesis-integrity'], 'env' => [], 'repeat' => $runs],
             // The concurrency tests repeat internally, so one process runs them $runs times
@@ -46,19 +51,37 @@ class EvidenceRunner
     }
 
     /**
-     * Run every step and repeat, write the index, and point `latest` at the evidence folder.
+     * The command as shown in the index and by --list: environment prefix, then `php vendor/bin/phpunit …`.
+     */
+    public static function commandText(array $step): string
+    {
+        $prefix = '';
+
+        // Each extra variable is shown as KEY=value before the command
+        foreach ($step['env'] as $key => $value) {
+            $prefix .= "{$key}={$value} ";
+        }
+
+        return $prefix . 'php ' . implode(' ', array_slice($step['argv'], 1));
+    }
+
+    /**
+     * Run every step and repeat, keep the index current after each run, and point `latest` at the folder.
      *
+     * @param array<string, string> $environment the environment the children inherit (to record result-changing settings)
      * @return array{dir: string, failed: int}
      */
-    public function run(int $runs): array
+    public function run(int $runs, array $environment = []): array
     {
         $startedAt = $this->now->format('c');
         $dir = $this->createFolder();
+        $settings = self::effectiveSettings($runs, $environment);
         $rows = [];
         $failed = 0;
 
         // Every repeat of every step runs, even after a failure, so the set is complete
         foreach (self::steps($runs) as $step) {
+            // One process per repeat, each in its own subfolder
             for ($run = 1; $run <= $step['repeat']; $run++) {
                 $folder = "{$step['name']}-run-{$run}";
                 $env = array_merge($step['env'], ['DTS_RESULTS_DIR' => $dir . '/' . $folder]);
@@ -69,15 +92,36 @@ class EvidenceRunner
 
                 $failed += $exit === 0 ? 0 : 1;
                 $rows[] = [$folder, $step['name'], $run, self::commandText($step), $exit, $seconds, self::summaryCounts($dir . '/' . $folder)];
+
+                // An interrupted set still has an index, marked in progress
+                $this->writeReadme($dir, $startedAt, $settings, $rows, $failed, false);
             }
         }
 
-        // Index and machine/commit record, then make the folder the newest result
-        $this->writeReadme($dir, $runs, $startedAt, $rows, $failed);
-        ResultWriter::writeRunJson(['script' => 'evidence', 'evidence_runs' => $runs, 'started_at' => $startedAt, 'failed_runs' => $failed], $dir);
+        // Final index and machine/commit record, then make the folder the newest result
+        $this->writeReadme($dir, $startedAt, $settings, $rows, $failed, true);
+        ResultWriter::writeRunJson(['script' => 'evidence', 'started_at' => $startedAt, 'settings' => $settings, 'failed_runs' => $failed], $dir);
         ResultWriter::pointLatestAt($this->resultsRoot, basename($dir));
 
         return ['dir' => $dir, 'failed' => $failed];
+    }
+
+    /**
+     * The settings that shape this evidence set: the repeat counts it sets and the inherited ones it records.
+     *
+     * @return array<string, string>
+     */
+    private static function effectiveSettings(int $runs, array $environment): array
+    {
+        $settings = ['EVIDENCE_RUNS' => (string) $runs, 'CONCURRENCY_RUNS' => (string) $runs];
+
+        // An inherited value is recorded as is; a missing or empty one as the test default
+        foreach (self::RECORDED_SETTINGS as $name => $default) {
+            $value = (string) ($environment[$name] ?? '');
+            $settings[$name] = $value !== '' ? $value : $default;
+        }
+
+        return $settings;
     }
 
     /**
@@ -98,65 +142,83 @@ class EvidenceRunner
     }
 
     /**
-     * The command as shown in the index: environment prefix, then `php vendor/bin/phpunit …`.
-     */
-    private static function commandText(array $step): string
-    {
-        $prefix = '';
-        foreach ($step['env'] as $key => $value) {
-            $prefix .= "{$key}={$value} ";
-        }
-
-        return $prefix . 'php ' . implode(' ', array_slice($step['argv'], 1));
-    }
-
-    /**
-     * Tests, passed, failed and errored from the run's summary.csv row "all"; nulls when it is missing.
+     * Tests, passed, failed, errored and skipped from the run's summary.csv row "all";
+     * nulls when the file is missing, unreadable or malformed (e.g. a run killed mid-write).
      *
-     * @return array{0: ?int, 1: ?int, 2: ?int, 3: ?int}
+     * @return array{0: ?int, 1: ?int, 2: ?int, 3: ?int, 4: ?int}
      */
     private static function summaryCounts(string $runDir): array
     {
-        $file = $runDir . '/summary.csv';
-        $empty = [null, null, null, null];
-        if (!is_file($file)) {
+        $empty = [null, null, null, null, null];
+        $handle = is_file($runDir . '/summary.csv') ? @fopen($runDir . '/summary.csv', 'r') : false;
+
+        // No readable summary: the run died before PHPUnit finished
+        if ($handle === false) {
             return $empty;
         }
 
-        // Find the "all" row by header name
-        $handle = fopen($file, 'r');
-        $header = fgetcsv($handle, null, ',', '"', '\\');
+        $header = fgetcsv($handle, null, ',', '"', '\\') ?: [];
+        $counts = $empty;
+
+        // Find the "all" row by header name, skipping rows whose width does not match the header
         while (($row = fgetcsv($handle, null, ',', '"', '\\')) !== false) {
+            if (count($row) !== count($header)) {
+                continue;
+            }
             $record = array_combine($header, $row);
-            if (($record['suite'] ?? '') === 'all') {
-                fclose($handle);
-                return [(int) $record['tests'], (int) $record['passed'], (int) $record['failed'], (int) $record['errored']];
+
+            // Only the "all" row with every count column present is used
+            if (($record['suite'] ?? '') === 'all' && isset($record['tests'], $record['passed'], $record['failed'], $record['errored'], $record['skipped'])) {
+                $counts = [(int) $record['tests'], (int) $record['passed'], (int) $record['failed'], (int) $record['errored'], (int) $record['skipped']];
+                break;
             }
         }
         fclose($handle);
 
-        return $empty;
+        return $counts;
     }
 
     /**
-     * Write README.md: what ran, when, and one table row per run.
+     * Write README.md: status, settings, machine, and one table row per finished run.
      */
-    private function writeReadme(string $dir, int $runs, string $startedAt, array $rows, int $failed): void
+    private function writeReadme(string $dir, string $startedAt, array $settings, array $rows, int $failed, bool $complete): void
     {
-        $finishedAt = (new \DateTimeImmutable('now', new \DateTimeZone(HashChainService::APP_TIMEZONE)))->format('c');
+        $settingLines = [];
+
+        // One bullet per setting: KEY=value when set, otherwise what the tests fall back to
+        foreach ($settings as $name => $value) {
+            $isDefault = in_array($value, self::RECORDED_SETTINGS, true);
+            $settingLines[] = $isDefault ? "- `{$name}` {$value}" : "- `{$name}={$value}`";
+        }
+
+        // Status line: in progress, all passed, or how many runs failed
+        if (!$complete) {
+            $status = '**In progress** (or interrupted): ' . count($rows) . ' run(s) finished so far.';
+        } elseif ($failed === 0) {
+            $status = 'Complete. All runs exited with code 0.';
+        } else {
+            $status = "Complete. **{$failed} run(s) exited with a non-zero code.**";
+        }
+
         $lines = [
             '# Evidence run ' . basename($dir),
             '',
-            "Command: `EVIDENCE_RUNS={$runs} composer run evidence`. Started {$startedAt}, finished {$finishedAt}.",
-            'Commit, PHP version, CPU and RAM are in `run.json`. Each folder below is one PHPUnit run with its own `run.json`, `summary.csv`, `test-outcomes.csv` and evidence CSVs.',
+            $status,
             '',
-            $failed === 0 ? 'All runs exited with code 0.' : "**{$failed} run(s) exited with a non-zero code.**",
+            "Command: `EVIDENCE_RUNS={$settings['EVIDENCE_RUNS']} composer run evidence`. Started {$startedAt}" . ($complete ? ', finished ' . ResultWriter::now()->format('c') : '') . '.',
             '',
-            '| Folder | Step | Run | Command | Exit | Duration (s) | Tests | Passed | Failed | Errored |',
-            '| :--- | :--- | ---: | :--- | ---: | ---: | ---: | ---: | ---: | ---: |',
+            'Machine: commit `' . ResultWriter::gitDescribe() . '`, PHP ' . PHP_VERSION . ', ' . ResultWriter::cpuModel() . ', ' . ResultWriter::ramGb() . ' GB RAM.',
+            '',
+            'Settings:',
+            ...$settingLines,
+            '',
+            'Each folder is one PHPUnit run with its own `run.json`, `summary.csv`, `test-outcomes.csv` and evidence CSVs. "Duration" is the wall time of the whole process (including the test-database rebuild); `summary.csv` `duration_s` is the time spent in tests.',
+            '',
+            '| Folder | Step | Run | Command | Exit | Duration (s) | Tests | Passed | Failed | Errored | Skipped |',
+            '| :--- | :--- | ---: | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
         ];
 
-        // One row per run; missing counts (no summary.csv, e.g. a fatal error) stay blank
+        // One row per run; missing counts (no usable summary.csv) stay blank
         foreach ($rows as [$folder, $step, $run, $command, $exit, $seconds, $counts]) {
             $cells = array_map(fn ($count) => $count === null ? '' : (string) $count, $counts);
             $lines[] = sprintf('| [%s](%s/) | %s | %d | `%s` | %d | %.1f | %s |', $folder, $folder, $step, $run, $command, $exit, $seconds, implode(' | ', $cells));

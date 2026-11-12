@@ -44,9 +44,12 @@ class ComposerScriptsTest extends TestCase
     {
         $scripts = self::composer()['scripts'];
 
+        // Check every expected script against composer.json
         foreach (self::expectedScripts() as $name => [$path, $group]) {
             $this->assertArrayHasKey($name, $scripts, "Missing composer script {$name} for {$path}");
             $this->assertStringContainsString($path, $scripts[$name], "{$name} does not run {$path}");
+
+            // Concurrency and benchmark classes are excluded by default, so their script must name the group
             if ($group !== null) {
                 $this->assertStringContainsString("--group {$group}", $scripts[$name], "{$name} must pass --group {$group}");
             }
@@ -73,6 +76,7 @@ class ComposerScriptsTest extends TestCase
     {
         $readme = file_get_contents(dirname(BASE_PATH) . '/README.md');
 
+        // Each script name must appear in backticks somewhere in the README
         foreach (array_keys(self::expectedScripts()) as $name) {
             $this->assertStringContainsString("`{$name}`", $readme, "README does not list {$name}");
         }

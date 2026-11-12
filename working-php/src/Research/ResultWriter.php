@@ -70,7 +70,7 @@ class ResultWriter
     /**
      * The current time in the app timezone (Asia/Manila), whatever the PHP default timezone is.
      */
-    private static function now(): \DateTimeImmutable
+    public static function now(): \DateTimeImmutable
     {
         // Explicit zone keeps run ids and run.json stamps ordered across PHPUnit and CLI scripts
         return new \DateTimeImmutable('now', new \DateTimeZone(HashChainService::APP_TIMEZONE));
@@ -101,7 +101,7 @@ class ResultWriter
     {
         // Standard fields describe the run and the machine
         $dir ??= self::dir();
-        $commit = trim((string) @shell_exec('git -C ' . escapeshellarg(dirname(BASE_PATH)) . ' describe --always --dirty 2>/dev/null')) ?: 'unknown';
+        $commit = self::gitDescribe();
         $data = array_merge([
             'run_id' => basename($dir),
             'started_at' => self::now()->format('c'),
@@ -117,6 +117,14 @@ class ResultWriter
         $files = array_values(array_diff(scandir($dir) ?: [], ['.', '..']));
         $data['files'] = array_values(array_unique(array_merge($files, ['run.json'])));
         file_put_contents($dir . '/run.json', json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n");
+    }
+
+    /**
+     * `git describe --always --dirty` of the repository, or "unknown" outside a git checkout.
+     */
+    public static function gitDescribe(): string
+    {
+        return trim((string) @shell_exec('git -C ' . escapeshellarg(dirname(BASE_PATH)) . ' describe --always --dirty 2>/dev/null')) ?: 'unknown';
     }
 
     /**
