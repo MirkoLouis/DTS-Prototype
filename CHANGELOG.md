@@ -2,9 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
-## 2026-11-12 11:01
+## 2026-11-12 20:36
 
-**Version:** 2.7.0-Release+202611121101
+**Version:** 2.7.1-Release+202611122036
+
+### Added
+- Thesis test commands: `composer run test:workflow` (document workflow from submission and intake to receive, complete and release, with the department-step rules; PHPUnit group `thesis-workflow`) and `composer run test:integrity` (tamper matrix, signature verification, signer protection; group `thesis-integrity`). `test:concurrency` is unchanged.
+- One script per test class: `composer run test:<name>` (class name without `Test`, kebab-case, e.g. `test:lifecycle`, `test:tamper-injection`), each with a description in `composer list` and listed by category in the README. `ComposerScriptsTest` fails when a test class has no script, description or README entry.
+- `composer run evidence` runs the thesis evidence set (full suite, workflow, integrity ×`EVIDENCE_RUNS`, concurrency with `CONCURRENCY_RUNS=EVIDENCE_RUNS`; default 5) into one folder, `storage/test-results/<YYYYMMDD-HHMMSS>-evidence/`, with one subfolder per run, a `README.md` index (command, exit code, duration, test counts) and `run.json`. `--list` prints the commands only. Before, every command wrote its own run folder and evidence sets were assembled by hand.
+
+## 2026-11-12 19:01
+
+**Version:** 2.7.0-Release+202611121901
 
 ### Changed
 - Users are deactivated, never deleted. **Delete** on the users page (and `DELETE /users/{id}`, `POST /users/{id}/delete`) now sets `users.deactivated_at`; the account stays in the list with a "Deactivated" badge and a **Reactivate** button (`POST /users/{id}/reactivate`). Before, deleting a user set `document_logs.user_id` to NULL and deleted their key history, so every entry they had signed failed verification. `document_logs.user_id` and `user_public_key_histories.user_id` are now `ON DELETE RESTRICT`, so even a raw SQL `DELETE` of a signer is refused. Admins still cannot deactivate their own account.
