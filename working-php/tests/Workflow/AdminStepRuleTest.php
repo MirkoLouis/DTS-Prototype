@@ -8,10 +8,12 @@ use App\Modules\Users\UserModel;
 use Tests\Support\Fixtures;
 use Tests\Support\TestDatabase;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Admins are bound by the same department-step rule as officers and staff for receive and complete.
  */
+#[Group('thesis-workflow')]
 class AdminStepRuleTest extends TestCase
 {
     // Fetch the document row by id

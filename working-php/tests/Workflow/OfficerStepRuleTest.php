@@ -7,10 +7,12 @@ use App\Modules\Documents\DocumentWorkflowService;
 use Tests\Support\Fixtures;
 use Tests\Support\TestDatabase;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Officers are bound by the same department-step rule as staff when processing documents.
  */
+#[Group('thesis-workflow')]
 class OfficerStepRuleTest extends TestCase
 {
     // Fetch the document row by id
