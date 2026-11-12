@@ -252,6 +252,108 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `composer bench` | Performance benchmark. Seeds through `scripts/seeders/fast-seed.php` (the `seed:fast` logic, direct DB inserts); 100,000 documents took 83.8 s in a logged run, so 1,000,000 takes about 14 minutes if it scales linearly. Defaults to 1,000,000 documents and 1,000 iterations; full run: `BENCH_DOCS=1000000 BENCH_ITERATIONS=1000 composer bench`. Smaller runs: e.g. `BENCH_DOCS=10000`. Set `BENCH_HTTP=0` to skip HTTP timings. |
 | `composer replay -- <path-to-legacy-csv>` | Replays the legacy routing export (`dts_docroutes` CSV) through `HeuristicRoutingService` (`src/Modules/Routing/HeuristicRoutingService.php`); optional second argument is the output directory, and `--records-names="A\|B"` overrides the Records intake section names. Besides the heuristic it scores the baselines `none`, `frequent_so_far` and `static_hindsight` (look-ahead, hindsight) into `route-replay-baselines.csv`, and writes `route-replay-purpose-profile.csv`. |
 
+**One script per test class.** Each test class also runs on its own with `composer run test:<name>` (the class name without `Test`, in kebab-case); `composer list` shows the same descriptions. Concurrency and benchmark scripts pass their `--group`, since `phpunit.xml` excludes those groups by default. `ComposerScriptsTest` fails if a test class has no script, description or README entry.
+
+*Document workflow*
+
+| Command | What it checks |
+| :--- | :--- |
+| `test:lifecycle` | Full document lifecycle (submit, intake, receive, complete, release) keeps one tracking code and verifies at 100 %; a wrong-department scan is rejected. |
+| `test:officer-step-rule` | Records Officers receive and complete only at their department's step; intake, decline and release stay with them. |
+| `test:admin-step-rule` | Admins follow the same department-step rule for receive and complete; freeze and unfreeze stay admin-only. |
+| `test:route-validation` | Intake rejects routes naming unknown departments before any write; route errors are escaped. |
+| `test:route-learning` | Finalizing an official purpose's document updates its suggested route; "Others" does not. |
+| `test:heuristic-routing-service` | Route suggestion rules: guest department first, no suggestion for "Others", legacy route formats. |
+| `test:unfreeze-status` | Unfreeze and auto-resolve restore the real status, and only from a verified snapshot. |
+| `test:tracking-code-collision` | Guest submission retries on a duplicate tracking code; seeded codes contain no sequential counter. |
+| `test:tracking-code-util` | Tracking-code format, with no time-based input. |
+| `test:guest-department-validation` | The guest form accepts only departments that exist (exact case). |
+| `test:decline-redirect` | Declining redirects to the dashboard with a toast; a failed decline returns to the referring page. |
+
+*Concurrency*
+
+| Command | What it checks |
+| :--- | :--- |
+| `test:guest-submission-concurrency` | 100 simultaneous kiosk submissions get unique, matching tracking codes; the server handles requests in parallel (CONCURRENCY_WORKERS, CONCURRENCY_RUNS). |
+| `test:task-completion-concurrency` | Five simultaneous completions of one task: exactly one succeeds through the optimistic version check (CONCURRENCY_RUNS). |
+
+*Integrity and signatures*
+
+| Command | What it checks |
+| :--- | :--- |
+| `test:tamper-injection` | Tamper matrix: each privileged-insider tactic against the pre-action check and the integrity audit; untouched chains report 100 %. |
+| `test:signature-verification` | Every Ed25519 signature verifies; altering any signed field fails verification; signatures survive a key reset. |
+| `test:user-lifecycle-integrity` | Users who signed log entries or have key history cannot be deleted, even with raw SQL; chains stay at 100 %. |
+| `test:key-cache-invalidation` | Entries signed after a key reset verify within the same long-lived process. |
+| `test:core-module-structure` | Module structure guard: old classes removed, log format v2 byte-identical, tampered documents frozen. |
+
+*Accounts and authentication*
+
+| Command | What it checks |
+| :--- | :--- |
+| `test:user-deactivation` | The users page deactivates and reactivates accounts instead of deleting them; only admins can, never on themselves. |
+| `test:deactivated-login` | Deactivated accounts cannot sign in and are signed out on their next request (401 JSON for API polling). |
+| `test:user-service` | Deactivation and reactivation rules of user accounts. |
+| `test:login-rate-limit` | The third failed login times out the account; a correct password is refused while locked. |
+| `test:pin-rate-limit` | The third wrong Security PIN times out signing; a cached token does not count as a failure. |
+| `test:attempt-throttle-service` | Failed-attempt limiting: window, lock duration, per-email and per-user keys. |
+| `test:throttle-table-missing` | Login and PIN signing fail open when the attempt_throttles table is missing. |
+| `test:freeze-all-throttle` | Freeze All reports a timed-out PIN instead of freezing nothing silently. |
+
+*Security attacks*
+
+| Command | What it checks |
+| :--- | :--- |
+| `test:frontend-attack` | CSRF, stored XSS, forged routes, wrong-department scans and staff reaching admin routes are refused. |
+| `test:sql-injection` | SQL injection payloads in every input have no effect. |
+| `test:pin-token` | Signing tokens are useless in another session, after tampering or after expiry; a wrong PIN writes nothing. |
+| `test:document-visibility` | Document and hash-chain pages honour DocumentPolicy::view. |
+
+*Pages and HTTP behaviour*
+
+| Command | What it checks |
+| :--- | :--- |
+| `test:document-toast-code` | Toasts name the document's tracking code once. |
+| `test:layout-assets` | The app layout loads no client-side crypto library, and signing still works. |
+| `test:tracking-form-print` | Print-tracking-form links on officer pages, none for staff; the form PDF is served without login. |
+| `test:verify-hash-label` | System Overview uses the "Verify Hash" label. |
+| `test:ict-unit` | The production seeder includes the ICT Unit, and intake can route to it. |
+| `test:debug-logging` | Requests do not write the temporary router log; the navigation log still records them. |
+
+*Operations and data*
+
+| Command | What it checks |
+| :--- | :--- |
+| `test:master-migration` | The master migration upgrades a pre-deactivation schema and is idempotent. |
+| `test:restore-backup-migration` | Restoring an older backup re-applies the migration, so the schema stays current. |
+| `test:worker-schedule` | Scheduled worker tasks run on time; restarts never postpone them. |
+| `test:worker-watchdog` | The dev worker watchdog finds the worker process, also after its re-exec. |
+| `test:seeder-duplicate-retry` | The fast seeder recovers from duplicate tracking codes and leaves no state behind. |
+| `test:cache-middleware-write` | The response cache writes atomically and treats empty or unreadable files as a miss. |
+
+*Performance*
+
+| Command | What it checks |
+| :--- | :--- |
+| `test:performance-benchmark` | Operation timings against the sub-second target on a seeded database (BENCH_DOCS, BENCH_ITERATIONS, BENCH_HTTP). |
+
+*Test harness and research tooling*
+
+| Command | What it checks |
+| :--- | :--- |
+| `test:route-replay` | Legacy route replay: counts, baselines, tie-breaking and CSV output on a small fixture. |
+| `test:stats` | Median and 95th-percentile helpers. |
+| `test:barrier` | The live-concurrency barrier keeps partial results when a worker fails. |
+| `test:live-run-cleanup` | The live concurrency script deletes only its own documents and refuses unsafe runs. |
+| `test:results-extension` | The PHPUnit results extension writes test-outcomes.csv, summary.csv and run.json. |
+| `test:result-writer` | Result folders: DTS_RESULTS_DIR containment, run-id validation, no overwriting. |
+| `test:test-artifact-paths` | Tests write checkpoints, integrity results and cache only to -test locations. |
+| `test:test-guard` | Tests refuse to run outside APP_ENV=testing or against a non-_test database. |
+| `test:test-lifecycle` | The per-run test database and artifact lifecycle. |
+| `test:test-env-probe` | The /__test/env probe reports the testing environment and database. |
+| `test:http-client-probe` | The test HTTP client refuses servers that are not running the testing environment. |
+| `test:composer-scripts` | Every test class has a composer script with a description, listed in the README. |
+
 **External server (`TEST_BASE_URL`).** Before attaching, the suite calls `GET /__test/env` and refuses to run unless the server reports `env` `testing` and a database name ending in `_test`. That route is registered only when the app runs with `APP_ENV=testing`; in production it returns 404 like any unknown route. An nginx/FPM run therefore needs a separate PHP-FPM pool (or vhost) for the tests with `env[APP_ENV]=testing`, so it loads `.env.testing`; never point `TEST_BASE_URL` at the production pool.
 
 **Results.** Every run (PHPUnit, `composer replay`, `composer manual:live-concurrency`) writes into its own folder, `working-php/storage/test-results/<run_id>/`, where `<run_id>` is `YYYYMMDD-HHMMSS-xxxx` (4 random hex characters; set `DTS_RUN_ID` to choose it). `storage/test-results/latest` is a symlink to the newest folder. A fatal error or a killed run writes no `test-outcomes.csv` or `summary.csv` (they are written when PHPUnit finishes), though CSVs appended by individual tests remain. `DTS_RESULTS_DIR` is set internally for each run; pointing it by hand at an earlier run folder overwrites that run's files. Old folders are never deleted, and the CSVs that sit loose in `storage/test-results/` from earlier versions are left as they are. `ResultWriter` appends rows, so a file is only appended to within one run. A PHPUnit run (parent process only) writes:
