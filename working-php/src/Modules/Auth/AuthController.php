@@ -58,7 +58,8 @@ class AuthController
         }
 
         $db = Database::getInstance();
-        $stmt = $db->query("SELECT * FROM users WHERE email = :email LIMIT 1", [':email' => $email]);
+        // Deactivated accounts are treated like unknown ones (no account-state disclosure)
+        $stmt = $db->query("SELECT * FROM users WHERE email = :email AND deactivated_at IS NULL LIMIT 1", [':email' => $email]);
         $user = $stmt->fetch();
 
         // Verify the user exists and the password is correct

@@ -6,14 +6,14 @@ use App\Common\Database\Database;
 
 /**
  * Authentication and Key Setup Guard Middleware.
- * 
- * Enforces session authentication and verifies that users have initialized their Ed25519 digital signature key pair
- * before allowing state-mutating requests.
+ *
+ * Enforces session authentication, ends the sessions of deactivated accounts, and verifies that users have
+ * initialized their Ed25519 digital signature key pair before allowing state-mutating requests.
  */
 class AuthMiddleware
 {
     /**
-     * Inspects the active user session and key initialization status.
+     * Inspects the active user session, account state and key initialization status.
      */
     public function handle()
     {
@@ -26,20 +26,24 @@ class AuthMiddleware
         $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '/';
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
+        // Re-read the account on every request (before the session lock is released) so a deactivation applies immediately
+        $db = Database::getInstance();
+        $user = $db->query("SELECT security_key_set_at FROM users WHERE id = :id AND deactivated_at IS NULL", ['id' => $_SESSION['user_id']])->fetch();
+        if (!$user) {
+            $this->endSession("Your account is no longer active.");
+        }
+
         // Release the session write lock early ONLY for read-only API requests (e.g. chart/polling GET endpoints).
         // For state-mutating requests and web page renders, keep session write open so controllers can set
         // $_SESSION['success'], $_SESSION['error'], and $_SESSION['info'] flash messages.
         if ($method === 'GET' && str_starts_with($uri, '/api/')) {
             session_write_close();
         }
-        
+
         // Enforce mandatory security key setup for all routes except the key setup page and logout endpoint
         if ($uri !== '/security-key' && $uri !== '/logout') {
-            $db = Database::getInstance();
-            $user = $db->query("SELECT security_key_set_at FROM users WHERE id = :id", ['id' => $_SESSION['user_id']])->fetch();
-            
             // Check if user has initialized their cryptographic signing keys
-            $needsKey = $user && is_null($user['security_key_set_at']);
+            $needsKey = is_null($user['security_key_set_at']);
             $_SESSION['needs_security_key'] = $needsKey;
 
             // Block POST operations if security key setup is missing to ensure no unsigned document transactions occur
@@ -50,5 +54,29 @@ class AuthMiddleware
             }
         }
     }
-}
 
+    /**
+     * Drop the authenticated session but keep a fresh, anonymous one for the flash message and CSRF token.
+     * API and XHR requests get 401 JSON; page requests are redirected to the login page.
+     */
+    private function endSession(string $message): never
+    {
+        $_SESSION = [];
+        session_regenerate_id(true);
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        $_SESSION['error'] = $message;
+
+        // Background pollers parse JSON, so they must not receive a redirect to an HTML page
+        $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
+        $isAjax = strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'xmlhttprequest' || str_starts_with($path, '/api/');
+        if ($isAjax) {
+            http_response_code(401);
+            header('Content-Type: application/json');
+            echo json_encode(['success' => false, 'message' => $message]);
+            exit;
+        }
+
+        header("Location: /login");
+        exit;
+    }
+}
