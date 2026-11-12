@@ -10,6 +10,7 @@ use Tests\Support\Fixtures;
 use App\Research\ResultWriter;
 use Tests\Support\TestDatabase;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Ed25519 signature verification over log format v2 (thesis section 3.6(c)).
@@ -19,6 +20,7 @@ use Tests\TestCase;
  * any signed field breaks verification and that a signature key reset keeps old entries valid.
  * Rows go to storage/test-results/signatures.csv. A failing assertion is a FINDING.
  */
+#[Group('thesis-integrity')]
 class SignatureVerificationTest extends TestCase
 {
     private const CSV = 'signatures.csv';

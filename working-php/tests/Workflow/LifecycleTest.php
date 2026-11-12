@@ -8,7 +8,9 @@ use App\Modules\Documents\DocumentWorkflowService;
 use Tests\Support\Fixtures;
 use Tests\Support\TestDatabase;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Group;
 
+#[Group('thesis-workflow')]
 class LifecycleTest extends TestCase
 {
     // Fetch the document row by id

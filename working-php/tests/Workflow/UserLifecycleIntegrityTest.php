@@ -7,10 +7,12 @@ use PDOException;
 use Tests\Support\Fixtures;
 use Tests\Support\IntegrityAudit;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Users whose signatures or keys are on record cannot be deleted, even with raw SQL.
  */
+#[Group('thesis-integrity')]
 class UserLifecycleIntegrityTest extends TestCase
 {
     // Raw DELETE of a user who signed log entries is refused, and every chain still verifies

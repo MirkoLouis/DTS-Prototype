@@ -14,6 +14,7 @@ use App\Research\ResultWriter;
 use Tests\Support\Tamper;
 use Tests\Support\ThreatActor;
 use Tests\TestCase;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Tamper-injection matrix: direct-database tactics against a completed lifecycle document.
@@ -23,6 +24,7 @@ use Tests\TestCase;
  * entries or the checkpoint. A mismatch on a non-null expectation is a finding and fails the case;
  * null expectations are observe-only. Rows go to storage/test-results/tamper-matrix.csv.
  */
+#[Group('thesis-integrity')]
 class TamperInjectionTest extends TestCase
 {
     private const CSV = 'tamper-matrix.csv';
