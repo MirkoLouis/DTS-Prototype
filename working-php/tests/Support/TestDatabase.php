@@ -87,8 +87,19 @@ class TestDatabase
         }
         $conn->exec('SET FOREIGN_KEY_CHECKS = 1');
 
+        // Recreate the schema
+        self::runSqlFile(BASE_PATH . '/database.sql');
+    }
+
+    /**
+     * Run a SQL script (database.sql, a migration) statement by statement on the guarded test connection.
+     */
+    public static function runSqlFile(string $path): void
+    {
+        $conn = self::guardedDb()->getConnection();
+
         // Strip comments and the CREATE DATABASE / USE lines so the script can only touch the connected database
-        $sql = file_get_contents(BASE_PATH . '/database.sql');
+        $sql = file_get_contents($path);
         $lines = [];
         foreach (explode("\n", $sql) as $line) {
             $trim = ltrim($line);
