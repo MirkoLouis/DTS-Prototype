@@ -132,7 +132,8 @@ Comprehensive user manuals are provided in [working-php/documentation/user_manua
 | `php scripts/tune-database.php` | Analyzes system memory and outputs optimal MySQL `my.cnf` buffer pool configurations. |
 | `php scripts/generate-keys.php` | CLI tool for generating missing Ed25519 digital signature keypairs. `--system` creates the server key used to sign system actions (`SYSTEM_SIGNING_SECRET` / `SYSTEM_SIGNING_PUBLIC` in `.env`). |
 | `php scripts/create-checkpoint.php` | Writes a signed chain-head checkpoint to `storage/checkpoints/` (the worker also does this daily). Copy checkpoints off the server. |
-| `composer run test` / `test:security` / `test:concurrency` | PHPUnit suites, see [Testing](#-testing-working-php). |
+| `composer run test` / `test:security` / `test:concurrency` / `test:workflow` / `test:integrity` / `test:<name>` | PHPUnit suites, thesis groups and single test classes, see [Testing](#-testing-working-php). |
+| `composer run evidence` | Thesis evidence set in one results folder, see [Testing](#-testing-working-php). |
 | `composer run bench` | Performance benchmark (state/chain hashing, log reads, pre-action integrity check, Argon2id, AES unwrap, Ed25519, HTTP timings); writes `benchmark.csv` into the run folder under `storage/test-results/`. Replaces the former `benchmark-crypto.php`. |
 | `composer run replay -- <csv>` | Runs [scripts/route-replay.php](working-php/scripts/route-replay.php) to replay the legacy routing export against the route suggester. |
 | `scripts/migrations/master-migration.sql` | The single, idempotent migration for existing databases; new schema changes are appended to it (see the migration notice under Testing). |
@@ -249,6 +250,9 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `vendor/bin/phpunit` | Default suites: unit, workflow, HTTP and security (concurrency and benchmark are excluded by group). |
 | `composer test:security` | Tamper-injection tactics and HTTP attack tests, tagged by threat actor. |
 | `composer test:concurrency` | Kiosk-burst and simultaneous-action tests against `php -S` started with 16 workers (`PHP_CLI_SERVER_WORKERS=16`); set `TEST_BASE_URL` to target an nginx/FPM deployment instead. The parallelism check is timing-sensitive and can fail on a heavily loaded machine. |
+| `composer test:workflow` | Thesis: document workflow from submission and intake to receive, complete and release (`LifecycleTest`), with the department-step rules for officers and admins (`OfficerStepRuleTest`, `AdminStepRuleTest`). PHPUnit group `thesis-workflow`. |
+| `composer test:integrity` | Thesis: hash-chain integrity: the tamper matrix and the 100 % control (`TamperInjectionTest`), signature verification (`SignatureVerificationTest`) and signer protection (`UserLifecycleIntegrityTest`). PHPUnit group `thesis-integrity`. |
+| `composer run evidence` | Thesis evidence set in one folder: full suite ×1, `test:workflow` ×1, `test:integrity` ×`EVIDENCE_RUNS`, and the concurrency suite once with `CONCURRENCY_RUNS=EVIDENCE_RUNS` (default 5). Every run still executes when one fails; the command exits 1 if any run failed. `composer run evidence -- --list` prints the commands without running them. |
 | `composer bench` | Performance benchmark. Seeds through `scripts/seeders/fast-seed.php` (the `seed:fast` logic, direct DB inserts); 100,000 documents took 83.8 s in a logged run, so 1,000,000 takes about 14 minutes if it scales linearly. Defaults to 1,000,000 documents and 1,000 iterations; full run: `BENCH_DOCS=1000000 BENCH_ITERATIONS=1000 composer bench`. Smaller runs: e.g. `BENCH_DOCS=10000`. Set `BENCH_HTTP=0` to skip HTTP timings. |
 | `composer replay -- <path-to-legacy-csv>` | Replays the legacy routing export (`dts_docroutes` CSV) through `HeuristicRoutingService` (`src/Modules/Routing/HeuristicRoutingService.php`); optional second argument is the output directory, and `--records-names="A\|B"` overrides the Records intake section names. Besides the heuristic it scores the baselines `none`, `frequent_so_far` and `static_hindsight` (look-ahead, hindsight) into `route-replay-baselines.csv`, and writes `route-replay-purpose-profile.csv`. |
 
@@ -342,6 +346,7 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | Command | What it checks |
 | :--- | :--- |
 | `test:route-replay` | Legacy route replay: counts, baselines, tie-breaking and CSV output on a small fixture. |
+| `test:evidence-runner` | `composer run evidence` runs every thesis step into its own subfolder of one evidence folder, with a README index. |
 | `test:stats` | Median and 95th-percentile helpers. |
 | `test:barrier` | The live-concurrency barrier keeps partial results when a worker fails. |
 | `test:live-run-cleanup` | The live concurrency script deletes only its own documents and refuses unsafe runs. |
@@ -366,6 +371,20 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `tamper-matrix.csv`, `http-attacks.csv`, `signatures.csv`, `concurrency.csv` | Evidence rows from the security and concurrency suites (columns as written by each test). |
 | `benchmark.csv` | `composer bench`: `operation, n, mean_ms, median_ms, p95_ms, max_ms, docs_in_db, logs_in_db, git_commit, php_version, server, run_at, cpu, ram_gb`. |
 | `route-replay-*.csv`, `live-concurrency.csv` | Replay and live-concurrency output; an explicit output directory for `composer replay` overrides the run folder. |
+
+**Evidence folder.** `composer run evidence` writes one folder, `storage/test-results/<YYYYMMDD-HHMMSS>-evidence/` (an existing name gets `-2`, `-3`, …), and points `latest` at it:
+
+```
+<YYYYMMDD-HHMMSS>-evidence/
+├── README.md            index: command, exit code, duration and test counts per run
+├── run.json             commit, PHP version, CPU, RAM, EVIDENCE_RUNS, failed runs
+├── full-suite-run-1/    one PHPUnit run: run.json, summary.csv, test-outcomes.csv
+├── workflow-run-1/
+├── integrity-run-1/ …   tamper-matrix.csv, signatures.csv, …
+└── concurrency-run-1/   concurrency.csv
+```
+
+Each subfolder is an ordinary run folder (the runner sets `DTS_RESULTS_DIR` for each process). The benchmark and the route replay are not part of the set; to add them to the same folder: `DTS_RESULTS_DIR=$PWD/storage/test-results/<evidence>/benchmark-run-1 composer bench` and `composer replay -- <csv> storage/test-results/<evidence>/route-replay`.
 
 **Threat model.** Every simulated attack is tagged with one of four LAN actors (`tests/Support/ThreatActor.php`):
 

@@ -79,7 +79,7 @@ class ResultWriter
     /**
      * Replace the `latest` symlink atomically: build a temporary link, then rename it over `latest`.
      */
-    private static function pointLatestAt(string $root, string $name): void
+    public static function pointLatestAt(string $root, string $name): void
     {
         // A leftover plain directory called latest is never overwritten
         $latest = $root . '/latest';
