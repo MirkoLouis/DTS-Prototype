@@ -3,6 +3,7 @@
 namespace Tests\Support;
 
 use App\Common\Database\Database;
+use App\Common\Database\SqlScriptRunner;
 
 /**
  * Rebuilds and seeds the test database. Always runs TestGuard first.
@@ -96,25 +97,7 @@ class TestDatabase
      */
     public static function runSqlFile(string $path): void
     {
-        $conn = self::guardedDb()->getConnection();
-
-        // Strip comments and the CREATE DATABASE / USE lines so the script can only touch the connected database
-        $sql = file_get_contents($path);
-        $lines = [];
-        foreach (explode("\n", $sql) as $line) {
-            $trim = ltrim($line);
-            if (str_starts_with($trim, '--') || stripos($trim, 'CREATE DATABASE') === 0 || stripos($trim, 'USE ') === 0) {
-                continue;
-            }
-            $lines[] = $line;
-        }
-
-        // Execute statement by statement (database.sql contains no semicolons inside literals)
-        foreach (explode(';', implode("\n", $lines)) as $statement) {
-            if (trim($statement) !== '') {
-                $conn->exec($statement);
-            }
-        }
+        SqlScriptRunner::runFile(self::guardedDb()->getConnection(), $path);
     }
 
     /**

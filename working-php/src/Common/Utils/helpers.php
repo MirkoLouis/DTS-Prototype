@@ -116,3 +116,21 @@ if (!function_exists('document_message')) {
         return "Document {$trackingCode}: {$message}";
     }
 }
+
+if (!function_exists('request_expects_json')) {
+    /**
+     * Whether the current request wants a JSON answer instead of an HTML page or redirect:
+     * XHR/fetch calls that say so, clients that accept JSON, and every /api/ endpoint.
+     */
+    function request_expects_json(): bool
+    {
+        // Explicit XHR marker or an Accept header asking for JSON
+        if (strtolower($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'xmlhttprequest' || str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')) {
+            return true;
+        }
+
+        // API endpoints are always consumed by scripts
+        $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?? '/';
+        return str_starts_with($path, '/api/');
+    }
+}

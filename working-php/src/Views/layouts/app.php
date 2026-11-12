@@ -515,6 +515,11 @@ if (isset($_SESSION['user_id'])) {
                 console.log('[DTS Notif System] Polling /api/notifications/unread...');
                 try {
                     const res = await fetch('/api/notifications/unread');
+                    // The session ended (signed out or account deactivated): show the login page and its message
+                    if (res.status === 401) {
+                        window.location.href = '/login';
+                        return;
+                    }
                     if (!res.ok) {
                         console.warn('[DTS Notif System] Poll response non-OK status:', res.status);
                         return;

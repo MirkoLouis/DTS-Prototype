@@ -97,6 +97,14 @@ class HttpClient extends HttpSession
     }
 
     /**
+     * Send a DELETE request (no body; the router checks CSRF on POST only).
+     */
+    public function delete(string $path): array
+    {
+        return $this->request('DELETE', $path);
+    }
+
+    /**
      * Log in through the real login form as a seeded user.
      */
     public function loginAs(string $username): void

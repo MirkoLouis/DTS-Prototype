@@ -112,10 +112,7 @@ class Router
                     error_log("Unhandled Exception in Router: " . $e->getMessage() . " in " . $e->getFile() . ":" . $e->getLine());
 
                     // Differentiate between asynchronous XHR/fetch requests and full page navigations to return appropriate JSON or HTTP redirects
-                    $isAjax = (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest')
-                        || (isset($_SERVER['HTTP_ACCEPT']) && str_contains($_SERVER['HTTP_ACCEPT'], 'application/json'));
-
-                    if ($isAjax) {
+                    if (request_expects_json()) {
                         http_response_code(500);
                         header('Content-Type: application/json');
                         echo json_encode([
