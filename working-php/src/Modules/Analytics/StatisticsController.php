@@ -46,7 +46,9 @@ class StatisticsController
             $db = Database::getInstance();
             $jobId = uniqid();
             $userId = $_SESSION['user_id'];
-            $filtersJson = json_encode($_POST);
+            // Store only the report's own filters, never the whole form (which carries the CSRF token)
+            $filters = ReleasedReportService::sanitizeFilters($_POST);
+            $filtersJson = json_encode($filters);
             
             $db->query("INSERT INTO report_jobs (id, user_id, status, progress, total_documents, filters, created_at, updated_at) VALUES (:id, :uid, 'queued', 0, 0, :filters, NOW(), NOW())", [
                 'id' => $jobId,
@@ -54,7 +56,7 @@ class StatisticsController
                 'filters' => $filtersJson
             ]);
 
-            $payload = json_encode(['class' => \App\Modules\Analytics\Jobs\GenerateReportJob::class, 'data' => [$jobId, $userId, $_POST]]);
+            $payload = json_encode(['class' => \App\Modules\Analytics\Jobs\GenerateReportJob::class, 'data' => [$jobId, $userId, $filters]]);
             $db->query("INSERT INTO jobs (queue, payload, attempts, available_at, created_at) VALUES ('default', :payload, 0, UNIX_TIMESTAMP(), UNIX_TIMESTAMP())", [
                 'payload' => $payload
             ]);

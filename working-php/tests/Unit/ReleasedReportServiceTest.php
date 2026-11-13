@@ -52,4 +52,27 @@ class ReleasedReportServiceTest extends TestCase
 
         $this->assertSame(['DEPED-0000000002', '', '', '', 'N/A', ''], $values);
     }
+
+    // Only the four report filters survive, as trimmed strings of at most 190 characters with a real date
+    public function test_sanitize_filters_keeps_only_known_keys(): void
+    {
+        $filters = ReleasedReportService::sanitizeFilters([
+            'csrf_token' => 'abc123',
+            'pin' => '123456',
+            'date' => 'garbage',
+            'purpose' => '  Request for Service Record ',
+            'submitter' => ['array', 'value'],
+            'search' => str_repeat('x', 300),
+        ]);
+
+        $this->assertSame(['purpose' => 'Request for Service Record', 'search' => str_repeat('x', 190)], $filters);
+    }
+
+    // A real date is kept; no input gives no filters
+    public function test_sanitize_filters_keeps_a_real_date_and_accepts_no_input(): void
+    {
+        $this->assertSame(['date' => '2026-03-05'], ReleasedReportService::sanitizeFilters(['date' => '2026-03-05']));
+        $this->assertSame([], ReleasedReportService::sanitizeFilters(['date' => '2026-02-30']));
+        $this->assertSame([], ReleasedReportService::sanitizeFilters([]));
+    }
 }
