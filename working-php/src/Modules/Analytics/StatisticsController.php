@@ -201,20 +201,8 @@ class StatisticsController
         $writer->addRow(\OpenSpout\Common\Entity\Row::fromValuesWithStyle(['Tracking Code', 'Title', 'Purpose', 'District', 'Submitted By', 'Date Released'], $styleBold));
 
         while ($doc = $stmt->fetch(\PDO::FETCH_ASSOC)) {
-            $guestName = 'N/A';
-            if ($doc['guest_info']) {
-                $gi = json_decode($doc['guest_info'], true);
-                $guestName = $gi['name'] ?? 'N/A';
-            }
-            
-            $writer->addRow(\OpenSpout\Common\Entity\Row::fromValues([
-                $doc['tracking_code'],
-                $doc['title'],
-                $doc['purpose_name'],
-                $doc['district'],
-                $guestName,
-                $doc['updated_at']
-            ]));
+            // Text cells only: guest-typed values must never be evaluated as formulas
+            $writer->addRow(ReleasedReportService::toRow($doc));
         }
 
         $writer->close();
