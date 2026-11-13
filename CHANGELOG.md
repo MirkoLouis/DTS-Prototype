@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
 - Officer intake and completed-task lists: the date filter works (it referenced a column that does not exist, `max_logs.handled_at`, and failed with a database error).
 - Document list date filters ignore a value that is not a real `Y-m-d` date (a malformed `?date=` emptied the list).
 - A role submitted as an array on the user forms is refused as an invalid role instead of causing a server error.
+- A signed-in user's name, role and department are re-read from the database on every request (`AuthMiddleware`). Before, they were copied into the session at login only, so a demoted admin kept admin access, and a user moved to another department kept seeing the old department's task list, until they signed in again.
 - Deleting one or all failed jobs returns to System Overview (it redirected to `/system-health`, which does not exist).
 - Validation errors show as plain sentences. They were joined with `<br>`, which every page escapes, so the tag was printed literally. Login, guest submission and the user forms now share `validation_error_message()`.
 

@@ -299,6 +299,7 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `test:deactivated-login` | Deactivated accounts cannot sign in and are signed out on their next request (401 JSON for API polling). |
 | `test:user-service` | Deactivation and reactivation rules of user accounts. |
 | `test:user-department` | Creating or editing an account assigns its department: required for staff and Records Officers, Records Unit for officers, none for admins. |
+| `test:session-refresh` | A signed-in user's role and department follow the database on the next request (demotion, department move). |
 | `test:user-list-filter` | The users page role filter narrows by a real role; "All Roles" and unknown values list everyone. |
 | `test:validation-message` | Validation errors are shown as plain text with no <br> markup. |
 | `test:failed-job-delete` | Deleting one or all failed jobs returns the admin to System Overview. |
