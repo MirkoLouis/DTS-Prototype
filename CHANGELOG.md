@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-11-13 17:07
+
+**Version:** 2.7.2-Release+202611131707
+
+### Fixed
+- Accounts created or edited by the admin get a department. Before, a new account was always saved without one and editing never changed it, so a staff account created in the UI could not act on any document. The create and edit forms have a department field; staff and Records Officers need a department, a Records Officer must belong to the Records Unit, an admin has none, and the role must be one of staff, officer or admin (`UserService::departmentFor`).
+- Users page: "All Roles" lists every role (it filtered on a role named `all` and showed nothing); unknown role values are ignored.
+- Officer intake and completed-task lists: the date filter works (it referenced a column that does not exist, `max_logs.handled_at`, and failed with a database error).
+- Deleting one or all failed jobs returns to System Overview (it redirected to `/system-health`, which does not exist).
+- Validation errors show as plain sentences. They were joined with `<br>`, which every page escapes, so the tag was printed literally. Login, guest submission and the user forms now share `validation_error_message()`.
+
+### Verified, no change
+- The admin hash debugger already inserts database values as text (`public/js/system-health.js`), so SPEC bug 14 needed no fix.
+
 ## 2026-11-12 20:36
 
 **Version:** 2.7.1-Release+202611122036
