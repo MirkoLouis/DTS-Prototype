@@ -20,9 +20,11 @@ class UserController
             $params[':search'] = '%' . $_GET['search'] . '%';
         }
         
-        if (!empty($_GET['role'])) {
+        // Narrow by role only for a real role; "all" and any other value list every role
+        $role = $_GET['role'] ?? '';
+        if (is_string($role) && in_array($role, ['admin', 'officer', 'staff'], true)) {
             $where[] = "role = :role";
-            $params[':role'] = $_GET['role'];
+            $params[':role'] = $role;
         }
         
         $whereSql = count($where) > 0 ? "WHERE " . implode(' AND ', $where) : "";
