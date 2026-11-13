@@ -134,3 +134,19 @@ if (!function_exists('request_expects_json')) {
         return str_starts_with($path, '/api/');
     }
 }
+
+if (!function_exists('validation_error_message')) {
+    /**
+     * Join validation errors into one plain-text message for a flash error.
+     *
+     * Every place that shows a flash message escapes it, so markup such as <br> would be printed literally.
+     *
+     * @param array $errors
+     * @return string
+     */
+    function validation_error_message(array $errors): string
+    {
+        // One space between sentences; an empty list gives an empty message
+        return implode(' ', $errors);
+    }
+}

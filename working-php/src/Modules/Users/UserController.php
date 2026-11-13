@@ -60,7 +60,7 @@ class UserController
         ]);
 
         if (!empty($errors)) {
-            $_SESSION['error'] = implode("<br>", $errors);
+            $_SESSION['error'] = validation_error_message($errors);
             header("Location: /users/create");
             exit;
         }
@@ -130,7 +130,7 @@ class UserController
         ]);
 
         if (!empty($errors)) {
-            $_SESSION['error'] = implode("<br>", $errors);
+            $_SESSION['error'] = validation_error_message($errors);
             header("Location: /users/{$id}/edit");
             exit;
         }
