@@ -200,7 +200,7 @@ class DocumentQueryService
 
     public function getPaginatedOfficerIntake(int $officerId, array $requestParams, int $perPage = 15): array
     {
-        $filters = $this->buildFilterQuery(['date', 'status', 'purpose', 'submitter', 'search'], 'max_logs.handled_at', $requestParams);
+        $filters = $this->buildFilterQuery(['date', 'status', 'purpose', 'submitter', 'search'], 'max_logs.created_at', $requestParams);
         $params = array_merge([':officer_id' => $officerId], $filters['params']);
         
         $cursor = $requestParams['cursor'] ?? null;
@@ -311,7 +311,7 @@ class DocumentQueryService
 
     public function getPaginatedOfficerCompletedTasks(int $officerId, array $requestParams, int $perPage = 15): array
     {
-        $filters = $this->buildFilterQuery(['date', 'status', 'purpose', 'submitter', 'search'], 'max_logs.handled_at', $requestParams);
+        $filters = $this->buildFilterQuery(['date', 'status', 'purpose', 'submitter', 'search'], 'max_logs.created_at', $requestParams);
         $params = array_merge([':officer_id' => $officerId], $filters['params']);
         
         $cursor = $requestParams['cursor'] ?? null;
