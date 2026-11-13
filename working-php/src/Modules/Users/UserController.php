@@ -77,6 +77,15 @@ class UserController
             exit;
         }
 
+        // The role decides which department the account needs; a rule violation returns to the form
+        try {
+            $departmentId = (new UserService())->departmentFor($role, $_POST['department_id'] ?? '');
+        } catch (\DomainException $e) {
+            $_SESSION['error'] = $e->getMessage();
+            header('Location: /users/create');
+            exit;
+        }
+
         $db = Database::getInstance();
         
         // Check if email exists
@@ -90,13 +99,14 @@ class UserController
         $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
         
         $sql = "INSERT INTO users (name, email, password, role, department_id, created_at, updated_at) 
-                VALUES (:name, :email, :password, :role, NULL, NOW(), NOW())";
+                VALUES (:name, :email, :password, :role, :department_id, NOW(), NOW())";
                 
         $db->query($sql, [
             ':name' => $name,
             ':email' => $email,
             ':password' => $hashedPassword,
-            ':role' => $role
+            ':role' => $role,
+            ':department_id' => $departmentId
         ]);
 
         $_SESSION['success'] = 'User created successfully.';
@@ -147,6 +157,15 @@ class UserController
             exit;
         }
 
+        // The role decides which department the account needs; a rule violation returns to the form
+        try {
+            $departmentId = (new UserService())->departmentFor($role, $_POST['department_id'] ?? '');
+        } catch (\DomainException $e) {
+            $_SESSION['error'] = $e->getMessage();
+            header("Location: /users/{$id}/edit");
+            exit;
+        }
+
         $db = Database::getInstance();
 
         // Check if email exists for other users
@@ -163,20 +182,22 @@ class UserController
 
         if (!empty($password)) {
             $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
-            $sql = "UPDATE users SET name = :name, email = :email, role = :role, password = :password, updated_at = NOW() WHERE id = :id";
+            $sql = "UPDATE users SET name = :name, email = :email, role = :role, department_id = :department_id, password = :password, updated_at = NOW() WHERE id = :id";
             $params = [
                 ':name' => $name,
                 ':email' => $email,
                 ':role' => $role,
+                ':department_id' => $departmentId,
                 ':password' => $hashedPassword,
                 ':id' => $id
             ];
         } else {
-            $sql = "UPDATE users SET name = :name, email = :email, role = :role, updated_at = NOW() WHERE id = :id";
+            $sql = "UPDATE users SET name = :name, email = :email, role = :role, department_id = :department_id, updated_at = NOW() WHERE id = :id";
             $params = [
                 ':name' => $name,
                 ':email' => $email,
                 ':role' => $role,
+                ':department_id' => $departmentId,
                 ':id' => $id
             ];
         }
