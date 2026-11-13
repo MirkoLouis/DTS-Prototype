@@ -2,6 +2,7 @@
 
 namespace Tests\Workflow;
 
+use App\Common\Database\Database;
 use App\Modules\Documents\DocumentQueryService;
 use App\Modules\Integrity\HashChainService;
 use Tests\Support\Fixtures;
@@ -49,5 +50,29 @@ class IntakeDateFilterTest extends TestCase
         [$oldDocuments] = $service->getPaginatedOfficerCompletedTasks($cashId, ['date' => '2000-01-01']);
         $this->assertContains($document['tracking_code'], array_column($todayDocuments, 'tracking_code'));
         $this->assertSame([], $oldDocuments);
+    }
+
+    // The filter covers the whole day: 23:59:59 belongs to that day and not to the next
+    public function test_intake_date_filter_includes_the_last_second_of_the_day(): void
+    {
+        // Move the officer's finalize entry to the last second of a fixed day
+        $document = Fixtures::submit();
+        Fixtures::advanceTo($document['id'], 'in_transit', ['Cash Unit']);
+        Database::getInstance()->query(
+            "UPDATE document_logs SET created_at = '2026-03-05 23:59:59' WHERE document_id = :id AND user_id = :officer",
+            [':id' => $document['id'], ':officer' => $this->fx['users']['records.unit']]
+        );
+
+        $this->assertContains($document['tracking_code'], $this->intakeCodesFor('2026-03-05'));
+        $this->assertNotContains($document['tracking_code'], $this->intakeCodesFor('2026-03-06'));
+    }
+
+    // A date value that is not a date is ignored instead of failing the query
+    public function test_malformed_date_filter_is_ignored(): void
+    {
+        $document = Fixtures::submit();
+        Fixtures::advanceTo($document['id'], 'in_transit', ['Cash Unit']);
+
+        $this->assertContains($document['tracking_code'], $this->intakeCodesFor('garbage'));
     }
 }

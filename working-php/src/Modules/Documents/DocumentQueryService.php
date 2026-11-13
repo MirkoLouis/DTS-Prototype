@@ -102,15 +102,31 @@ class DocumentQueryService
         return $stmt->fetchAll();
     }
 
+    /**
+     * Whether a request value is a real calendar date in Y-m-d form (e.g. 2026-02-30 is not).
+     */
+    private static function isCalendarDate(mixed $value): bool
+    {
+        // Must be a string that round-trips through the Y-m-d format unchanged
+        if (!is_string($value)) {
+            return false;
+        }
+        $parsed = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+
+        return $parsed !== false && $parsed->format('Y-m-d') === $value;
+    }
+
     public function buildFilterQuery(array $allowedFilters, string $dateColumn, array $requestParams): array
     {
         $where = [];
         $params = [];
 
-        if (in_array('date', $allowedFilters) && !empty($requestParams['date'])) {
+        // Filter by day only for a real calendar date (Y-m-d); any other value is ignored
+        $date = $requestParams['date'] ?? '';
+        if (in_array('date', $allowedFilters) && self::isCalendarDate($date)) {
             $where[] = "{$dateColumn} >= :filter_date_start AND {$dateColumn} <= :filter_date_end";
-            $params[':filter_date_start'] = $requestParams['date'] . ' 00:00:00';
-            $params[':filter_date_end'] = $requestParams['date'] . ' 23:59:59';
+            $params[':filter_date_start'] = $date . ' 00:00:00';
+            $params[':filter_date_end'] = $date . ' 23:59:59';
         }
 
         if (in_array('status', $allowedFilters) && !empty($requestParams['status']) && $requestParams['status'] !== 'all') {

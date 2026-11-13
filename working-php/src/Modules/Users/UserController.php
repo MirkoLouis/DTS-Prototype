@@ -69,7 +69,8 @@ class UserController
         $email = $validated['email'];
         $password = $validated['password'];
         $password_confirmation = $validated['password_confirmation'];
-        $role = $validated['role'];
+        // A role that is not a plain string (e.g. role[]=x) is treated as invalid by UserService::departmentFor
+        $role = is_string($validated['role']) ? $validated['role'] : '';
 
         if ($password !== $password_confirmation) {
             $_SESSION['error'] = 'Passwords do not match.';
@@ -147,7 +148,8 @@ class UserController
 
         $name = $validated['name'];
         $email = $validated['email'];
-        $role = $validated['role'];
+        // A role that is not a plain string (e.g. role[]=x) is treated as invalid by UserService::departmentFor
+        $role = is_string($validated['role']) ? $validated['role'] : '';
         $password = $validated['password'];
         $password_confirmation = $validated['password_confirmation'];
 

@@ -171,4 +171,55 @@ class UserDepartmentTest extends TestCase
         $this->assertStringContainsString('ICT Unit', $create);
         $this->assertStringContainsString('name="department_id"', $client->get('/users/' . $this->fx['users']['cash.unit'] . '/edit')['body']);
     }
+
+    // The Records Unit rule also applies when an account is edited into the officer role
+    public function test_edit_to_officer_outside_records_unit_is_rejected(): void
+    {
+        $id = $this->fx['users']['cash.unit'];
+        $cash = $this->departmentId('Cash Unit');
+        $client = $this->admin();
+        $client->post("/users/{$id}/update", ['name' => 'Cash Unit Staff', 'email' => 'cash.unit', 'role' => 'officer', 'department_id' => $cash]);
+
+        $this->assertStringContainsString('Records Officers must belong to the Records Unit.', $this->errorOn($client, "/users/{$id}/edit"));
+        $this->assertSame('staff', $this->user('cash.unit')['role']);
+    }
+
+    // An invalid role is refused on edit as well, and the account keeps its role
+    public function test_edit_with_invalid_role_is_rejected(): void
+    {
+        $id = $this->fx['users']['cash.unit'];
+        $client = $this->admin();
+        $client->post("/users/{$id}/update", ['name' => 'Cash Unit Staff', 'email' => 'cash.unit', 'role' => 'superuser', 'department_id' => $this->departmentId('Cash Unit')]);
+
+        $this->assertStringContainsString('Please choose a valid role.', $this->errorOn($client, "/users/{$id}/edit"));
+        $this->assertSame('staff', $this->user('cash.unit')['role']);
+    }
+
+    // Changing the password and the department in one edit saves both
+    public function test_edit_with_new_password_also_saves_department(): void
+    {
+        $id = $this->fx['users']['personnel.unit'];
+        $cash = $this->departmentId('Cash Unit');
+        $this->admin()->post("/users/{$id}/update", [
+            'name' => 'Personnel Unit Staff', 'email' => 'personnel.unit', 'role' => 'staff', 'department_id' => $cash,
+            'password' => 'newpassword1', 'password_confirmation' => 'newpassword1',
+        ]);
+
+        $this->assertSame($cash, (int) $this->user('personnel.unit')['department_id']);
+        $hash = Database::getInstance()->query('SELECT password FROM users WHERE id = :id', [':id' => $id])->fetch()['password'];
+        $this->assertTrue(password_verify('newpassword1', $hash));
+    }
+
+    // A role sent as an array is refused like any other invalid role, not answered with a server error
+    public function test_array_role_is_rejected_without_server_error(): void
+    {
+        $client = $this->admin();
+        $fields = $this->newUser('array.role', 'staff', $this->departmentId('Cash Unit'));
+        $fields['role'] = ['staff'];
+        $response = $client->post('/users', $fields);
+
+        $this->assertSame(302, $response['status']);
+        $this->assertSame('/users/create', $response['headers']['location'] ?? '');
+        $this->assertFalse($this->user('array.role'));
+    }
 }
