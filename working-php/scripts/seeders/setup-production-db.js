@@ -1,5 +1,7 @@
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
+const { refusalMessage, countRows } = require('./seed-guard');
+
 const mysql = require('mysql2/promise');
 const fs = require('fs');
 const os = require('os');
@@ -49,6 +51,25 @@ async function setupDatabase() {
 
         // Run the session on Philippine time so SQL NOW() matches the Asia/Manila times PHP writes
         await connection.query("SET time_zone = '+08:00'");
+
+        // Without a database name there is nothing to check against, so nothing is rebuilt
+        if (!process.env.DB_DATABASE) {
+            console.error('🛑 DB_DATABASE is not set in .env.');
+            await connection.end();
+            process.exit(1);
+        }
+
+        // Never rebuild a database that already holds documents or accounts unless the operator passed --force
+        const [existingDocuments, existingUsers] = await Promise.all([
+            countRows(connection, process.env.DB_DATABASE, 'documents'),
+            countRows(connection, process.env.DB_DATABASE, 'users')
+        ]);
+        const refusal = refusalMessage(existingDocuments, existingUsers, process.argv);
+        if (refusal !== null) {
+            console.error('🛑 ' + refusal);
+            await connection.end();
+            process.exit(1);
+        }
 
         // 1. Load and execute database.sql
         const sqlFilePath = path.join(__dirname, '../../database.sql');
