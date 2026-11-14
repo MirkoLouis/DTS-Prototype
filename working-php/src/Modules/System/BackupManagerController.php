@@ -61,6 +61,7 @@ class BackupManagerController
             'payload' => $payload
         ]);
 
+        SystemAuditService::record('backup_requested', ['user_id' => (int) $_SESSION['user_id']]);
         $_SESSION['success'] = 'Backup has been queued and will be created in the background.';
         header('Location: /system/backups');
         exit;
@@ -90,11 +91,16 @@ class BackupManagerController
     public function delete($fileName)
     {
         $safeFileName = basename($fileName);
-        $filePath = BackupService::directory() . '/' . $safeFileName;
 
-        if (file_exists($filePath)) {
-            unlink($filePath);
+        // Deleting a backup can destroy the only copy of past data, so the admin proves who they are
+        if (!$this->confirmedWithPin('Delete backup', $safeFileName)) {
+            header('Location: /system/backups');
+            exit;
         }
+
+        unlink(BackupService::directory() . '/' . $safeFileName);
+        SystemAuditService::record('backup_deleted', ['file' => $safeFileName, 'user_id' => (int) $_SESSION['user_id']]);
+        $_SESSION['success'] = "Backup {$safeFileName} deleted.";
 
         header('Location: /system/backups');
         exit;
@@ -102,16 +108,61 @@ class BackupManagerController
 
     public function restore($fileName)
     {
-        $db = Database::getInstance();
         $safeFileName = basename($fileName);
-        $payload = json_encode(['class' => \App\Modules\System\Jobs\RestoreBackupJob::class, 'data' => [$safeFileName]]);
-        $db->query("INSERT INTO jobs (queue, payload, attempts, available_at, created_at) VALUES ('default', :payload, 0, UNIX_TIMESTAMP(), UNIX_TIMESTAMP())", [
+
+        // A restore replaces the whole database, so the admin proves who they are
+        if (!$this->confirmedWithPin('Restore backup', $safeFileName)) {
+            header('Location: /system/backups');
+            exit;
+        }
+
+        // The job knows who asked, so it can notify them when the restore has finished
+        $userId = (int) $_SESSION['user_id'];
+        SystemAuditService::record('backup_restore_requested', ['file' => $safeFileName, 'user_id' => $userId]);
+        $payload = json_encode(['class' => \App\Modules\System\Jobs\RestoreBackupJob::class, 'data' => [$safeFileName, $userId]]);
+        Database::getInstance()->query("INSERT INTO jobs (queue, payload, attempts, available_at, created_at) VALUES ('default', :payload, 0, UNIX_TIMESTAMP(), UNIX_TIMESTAMP())", [
             'payload' => $payload
         ]);
 
-        $_SESSION['success'] = 'Restore job has been queued and will be processed in the background.';
+        $_SESSION['success'] = 'Restore job has been queued. The current database is backed up first, and you will be notified when the restore finishes.';
         header('Location: /system/backups');
         exit;
+    }
+
+    /**
+     * Check that the backup exists and that the admin entered their Security PIN.
+     *
+     * The PIN is proved the same way as for any signed action: it must unlock the admin's signing key.
+     * Wrong PINs count toward the PIN lockout. On refusal a flash error is set and false is returned.
+     */
+    private function confirmedWithPin(string $action, string $safeFileName): bool
+    {
+        // Nothing to act on
+        if ($safeFileName === '' || !is_file(BackupService::directory() . '/' . $safeFileName)) {
+            $_SESSION['error'] = 'That backup file does not exist.';
+            return false;
+        }
+
+        // No PIN, or a cached PIN token that is no longer valid
+        $pin = \App\Modules\Users\SecurityPinCacheService::resolvePin($_POST['pin'] ?? '');
+        if (empty($pin)) {
+            $_SESSION['error'] = 'Security PIN is required.';
+            return false;
+        }
+
+        // Signing fails on a wrong PIN and while the admin is locked out
+        try {
+            \App\Modules\Integrity\DigitalSignatureService::signAction(
+                (int) $_SESSION['user_id'],
+                $pin,
+                "ADMIN: {$action}|" . hash('sha256', $safeFileName)
+            );
+        } catch (\Exception $e) {
+            $_SESSION['error'] = $e->getMessage();
+            return false;
+        }
+
+        return true;
     }
 
     private function humanReadableSize($bytes, $decimals = 2) {

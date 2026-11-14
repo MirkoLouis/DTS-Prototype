@@ -55,8 +55,9 @@
                             <div class="flex justify-end items-center space-x-4">
                                 <a href="/system/backups/download/%s" class="text-accent-1 hover:text-accent-1-active">Download</a>
                                 <button type="button" class="text-gray-500 hover:text-gray-700" onclick="openRestoreModal(\'%s\')">Restore</button>
-                                <form action="/system/backups/delete/%s" method="POST" class="confirm-action" data-message="Delete this backup?">
+                                <form action="/system/backups/delete/%s" method="POST" class="sign-action" data-message="Enter your Security PIN to delete this backup.">
                                     <input type="hidden" name="csrf_token" value="' . ($_SESSION['csrf_token'] ?? '') . '">
+                                    <input type="hidden" name="pin" class="sign-pin-input">
                                     <button type="submit" class="text-red-600 hover:text-red-900">Delete</button>
                                 </form>
                             </div>
@@ -85,8 +86,9 @@
 <!-- Restore Modal -->
 <div id="restore-modal" style="display:none;" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-75">
     <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
-        <form id="restore-form" method="POST" class="confirm-action" data-message="Restore database?">
-    <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
+        <form id="restore-form" method="POST" class="sign-action" data-message="Enter your Security PIN to restore this backup. The current database is backed up first.">
+            <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
+            <input type="hidden" name="pin" class="sign-pin-input">
             <h2 class="text-lg font-medium text-gray-900 text-red-500">FINAL WARNING: Restore Database?</h2>
             <p class="mt-2 text-sm text-gray-600">
                 Restore <strong id="restore-file-name"></strong>?
@@ -105,7 +107,32 @@
         document.getElementById('restore-form').action = `/system/backups/restore/${fileName}`;
         document.getElementById('restore-modal').style.display = 'flex';
     }
+
 </script>
 
 <?php $content = ob_get_clean(); ?>
 <?php require BASE_PATH . '/src/Views/layouts/app.php'; ?>
+<script>
+    // Deleting and restoring ask for the Security PIN before the form is sent
+    function initBackupsPage() {
+        document.querySelectorAll('form.sign-action').forEach(form => {
+            form.addEventListener('submit', function (e) {
+                const pinInput = this.querySelector('.sign-pin-input');
+                if (pinInput && !pinInput.value) {
+                    e.preventDefault();
+                    const message = this.dataset.message || 'Enter your Security PIN to sign this action.';
+                    window.SigningModal.show(message, function (pin) {
+                        pinInput.value = pin;
+                        form.submit();
+                    });
+                }
+            });
+        });
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initBackupsPage);
+    } else {
+        initBackupsPage();
+    }
+</script>
+<?php require BASE_PATH . '/src/Views/partials/signing-modal.php'; ?>
