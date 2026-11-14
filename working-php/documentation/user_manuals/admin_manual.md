@@ -104,7 +104,7 @@ When raw database tampering is detected (e.g., unauthorized SQL updates bypassin
 
 ### 4.5 Keeping the System Running (Deployment Requirements)
 
-The DTS is designed to run without stopping. Three things must be in place on the server (setup commands: README, "Running Continuously on Linux"):
+The DTS is designed to run without stopping. Three things must be in place on the server (setup commands: README, "Running Continuously on Linux"). The security settings to apply before the system holds real documents are in the README section "Vendor-Recommended Security Baselines".
 
 1. **The queue worker runs as a service.** Install `deploy/dts-worker.service` so the worker starts at boot and restarts within 5 seconds after a crash. Without it, daily checkpoints, metrics and cleanup stop silently once the worker exits. Check it with `systemctl status dts-worker.service`.
 2. **The operating system rotates logs and cleans PHP sessions.** nginx, PHP-FPM and the worker log grow without limit unless logrotate runs, and PHP session files are only deleted by the system's session cleaner. On a normal server these run from systemd timers (`logrotate.timer`, `phpsessionclean.timer`). In a container they need cron.

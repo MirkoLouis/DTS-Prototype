@@ -19,6 +19,7 @@ All notable changes to this project will be documented in this file.
 ### Added
 - `php scripts/generate-keys.php --integrity` creates `APP_INTEGRITY_KEY`; `seed:prod` runs it.
 - `.env` keys: `APP_INTEGRITY_KEY`, `BACKUP_PASSWORD`, `SESSION_LIFETIME`.
+- README section "Vendor-Recommended Security Baselines": every security setup step in one place (secrets, accounts and PINs, network, backups, evidence kept off the server, routine checks, and a check to run after an install or update). The security instructions that were spread over other sections now link to it.
 
 ### Upgrade note
 - Run `php scripts/generate-keys.php --integrity`, set `BACKUP_PASSWORD` in `.env`, and keep copies of both (and of `SYSTEM_SIGNING_SECRET`) away from the server.
