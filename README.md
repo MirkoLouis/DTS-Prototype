@@ -352,6 +352,7 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `test:restore-backup-job` | A restore first saves the current database, is recorded in the system audit log with counts, and notifies the admin; failures restore nothing. |
 | `test:backup-pin` | Restoring or deleting a backup needs the admin's Security PIN; wrong PINs lock out; backup actions are recorded in the audit log. |
 | `test:system-audit-service` | The system audit log chains its entries with a keyed MAC; edited, removed and reordered lines are detected. |
+| `test:integrity-audit-log` | The integrity check verifies the system audit log; System Overview shows it intact or names the altered lines. |
 | `test:worker-watchdog` | The dev worker watchdog finds the worker process, also after its re-exec. |
 | `test:seeder-duplicate-retry` | The fast seeder recovers from duplicate tracking codes, ignores the test override outside testing, and does not touch real sessions or the response cache. |
 | `test:cache-middleware-write` | The response cache writes atomically and treats empty or unreadable files as a miss. |

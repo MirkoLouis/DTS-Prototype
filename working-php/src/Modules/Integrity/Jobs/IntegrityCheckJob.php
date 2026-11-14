@@ -213,6 +213,8 @@ class IntegrityCheckJob
                 'live_state_errors_count' => $liveStateErrorsCount,
                 'mismatched_document_tracking_codes' => $mismatchedDocumentTrackingCodes,
                 'checkpoint' => $checkpoint,
+                // The system audit log lives outside the database, so the audit checks it too
+                'audit_log' => \App\Modules\System\SystemAuditService::verify(),
             ];
 
             if (!is_dir(dirname(self::resultPath()))) {
