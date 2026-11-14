@@ -115,7 +115,7 @@ class SystemHealthController
     {
         $db = Database::getInstance();
         $db->query("DELETE FROM failed_jobs WHERE id = :id", ['id' => $id]);
-        header('Location: /system-health');
+        header('Location: /system-overview');
         exit;
     }
 
@@ -123,7 +123,7 @@ class SystemHealthController
     {
         $db = Database::getInstance();
         $db->query("TRUNCATE TABLE failed_jobs");
-        header('Location: /system-health');
+        header('Location: /system-overview');
         exit;
     }
 

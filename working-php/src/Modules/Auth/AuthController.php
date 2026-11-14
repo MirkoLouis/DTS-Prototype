@@ -32,7 +32,7 @@ class AuthController
         ]);
 
         if (!empty($errors)) {
-            $_SESSION['error'] = implode("<br>", $errors);
+            $_SESSION['error'] = validation_error_message($errors);
             $_SESSION['field_errors'] = $errors;
             $old = $_POST;
             unset($old['password']);

@@ -7,7 +7,8 @@ use App\Common\Database\Database;
 /**
  * Authentication and Key Setup Guard Middleware.
  *
- * Enforces session authentication, ends the sessions of deactivated accounts, and verifies that users have
+ * Enforces session authentication, ends the sessions of deactivated accounts, keeps the session's copy of the
+ * account (name, role, department) current, and verifies that users have
  * initialized their Ed25519 digital signature key pair before allowing state-mutating requests.
  */
 class AuthMiddleware
@@ -27,9 +28,27 @@ class AuthMiddleware
 
         // Re-read the account on every request (before the session lock is released) so a deactivation applies immediately
         $db = Database::getInstance();
-        $user = $db->query("SELECT security_key_set_at FROM users WHERE id = :id AND deactivated_at IS NULL", ['id' => $_SESSION['user_id']])->fetch();
+        $user = $db->query(
+            "SELECT u.name, u.role, u.department_id, u.security_key_set_at, d.name AS department_name
+             FROM users u LEFT JOIN departments d ON d.id = u.department_id
+             WHERE u.id = :id AND u.deactivated_at IS NULL",
+            ['id' => $_SESSION['user_id']]
+        )->fetch();
         if (!$user) {
             $this->endSession("Your account is no longer active.");
+        }
+
+        // Keep the session's copy of the account (name, role, department) equal to the database, so an admin's edit
+        // (a demotion, a move to another department) applies on the user's next request instead of at their next login
+        $_SESSION['user_name'] = $user['name'];
+        $_SESSION['role'] = $user['role'];
+        $_SESSION['department_id'] = $user['department_id'];
+
+        // The department name is only present for accounts that have a department, as at login
+        if ($user['department_name'] !== null) {
+            $_SESSION['department_name'] = $user['department_name'];
+        } else {
+            unset($_SESSION['department_name']);
         }
 
         // Release the session write lock early ONLY for read-only API requests (e.g. chart/polling GET endpoints).

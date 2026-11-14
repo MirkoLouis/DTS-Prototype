@@ -49,8 +49,9 @@ Every user action that mutates document state requires a cryptographically secur
 
 1. **Creating New Accounts:**
    - Navigate to **Users Management** -> **Create User** (`/users/create`).
-   - Fill in full name, email, role (`admin`, `officer`, or `staff`), and assign a division department.
-   - Click **Save User**.
+   - Fill in full name, email, role (`admin`, `officer`, or `staff`), and choose the **Department**.
+   - Staff and Records Officer accounts need a department, because documents are routed to departments. A Records Officer must belong to the **Records Unit**. An Admin account has no department (choose "None (Admin)").
+   - Click **Save User**. To move an account to another department later, use **Edit** on the Users page.
 2. **Resetting Digital Signatures:**
    - If a user loses their PIN or compromises their key, go to `/users`, locate the user, and click **Reset Signature**.
    - *Security Policy:* The system archives the user's old public key into `user_public_key_histories` with an `activated_at` / `deactivated_at` timeframe. This ensures older signed documents remain cryptographically verifiable while invalidating the compromised key for future signatures.

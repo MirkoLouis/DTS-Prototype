@@ -20,9 +20,11 @@ class UserController
             $params[':search'] = '%' . $_GET['search'] . '%';
         }
         
-        if (!empty($_GET['role'])) {
+        // Narrow by role only for a real role; "all" and any other value list every role
+        $role = $_GET['role'] ?? '';
+        if (is_string($role) && in_array($role, ['admin', 'officer', 'staff'], true)) {
             $where[] = "role = :role";
-            $params[':role'] = $_GET['role'];
+            $params[':role'] = $role;
         }
         
         $whereSql = count($where) > 0 ? "WHERE " . implode(' AND ', $where) : "";
@@ -58,7 +60,7 @@ class UserController
         ]);
 
         if (!empty($errors)) {
-            $_SESSION['error'] = implode("<br>", $errors);
+            $_SESSION['error'] = validation_error_message($errors);
             header("Location: /users/create");
             exit;
         }
@@ -67,10 +69,20 @@ class UserController
         $email = $validated['email'];
         $password = $validated['password'];
         $password_confirmation = $validated['password_confirmation'];
-        $role = $validated['role'];
+        // A role that is not a plain string (e.g. role[]=x) is treated as invalid by UserService::departmentFor
+        $role = is_string($validated['role']) ? $validated['role'] : '';
 
         if ($password !== $password_confirmation) {
             $_SESSION['error'] = 'Passwords do not match.';
+            header('Location: /users/create');
+            exit;
+        }
+
+        // The role decides which department the account needs; a rule violation returns to the form
+        try {
+            $departmentId = (new UserService())->departmentFor($role, $_POST['department_id'] ?? '');
+        } catch (\DomainException $e) {
+            $_SESSION['error'] = $e->getMessage();
             header('Location: /users/create');
             exit;
         }
@@ -88,13 +100,14 @@ class UserController
         $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
         
         $sql = "INSERT INTO users (name, email, password, role, department_id, created_at, updated_at) 
-                VALUES (:name, :email, :password, :role, NULL, NOW(), NOW())";
+                VALUES (:name, :email, :password, :role, :department_id, NOW(), NOW())";
                 
         $db->query($sql, [
             ':name' => $name,
             ':email' => $email,
             ':password' => $hashedPassword,
-            ':role' => $role
+            ':role' => $role,
+            ':department_id' => $departmentId
         ]);
 
         $_SESSION['success'] = 'User created successfully.';
@@ -128,19 +141,29 @@ class UserController
         ]);
 
         if (!empty($errors)) {
-            $_SESSION['error'] = implode("<br>", $errors);
+            $_SESSION['error'] = validation_error_message($errors);
             header("Location: /users/{$id}/edit");
             exit;
         }
 
         $name = $validated['name'];
         $email = $validated['email'];
-        $role = $validated['role'];
+        // A role that is not a plain string (e.g. role[]=x) is treated as invalid by UserService::departmentFor
+        $role = is_string($validated['role']) ? $validated['role'] : '';
         $password = $validated['password'];
         $password_confirmation = $validated['password_confirmation'];
 
         if (!empty($password) && $password !== $password_confirmation) {
             $_SESSION['error'] = 'Passwords do not match.';
+            header("Location: /users/{$id}/edit");
+            exit;
+        }
+
+        // The role decides which department the account needs; a rule violation returns to the form
+        try {
+            $departmentId = (new UserService())->departmentFor($role, $_POST['department_id'] ?? '');
+        } catch (\DomainException $e) {
+            $_SESSION['error'] = $e->getMessage();
             header("Location: /users/{$id}/edit");
             exit;
         }
@@ -161,20 +184,22 @@ class UserController
 
         if (!empty($password)) {
             $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
-            $sql = "UPDATE users SET name = :name, email = :email, role = :role, password = :password, updated_at = NOW() WHERE id = :id";
+            $sql = "UPDATE users SET name = :name, email = :email, role = :role, department_id = :department_id, password = :password, updated_at = NOW() WHERE id = :id";
             $params = [
                 ':name' => $name,
                 ':email' => $email,
                 ':role' => $role,
+                ':department_id' => $departmentId,
                 ':password' => $hashedPassword,
                 ':id' => $id
             ];
         } else {
-            $sql = "UPDATE users SET name = :name, email = :email, role = :role, updated_at = NOW() WHERE id = :id";
+            $sql = "UPDATE users SET name = :name, email = :email, role = :role, department_id = :department_id, updated_at = NOW() WHERE id = :id";
             $params = [
                 ':name' => $name,
                 ':email' => $email,
                 ':role' => $role,
+                ':department_id' => $departmentId,
                 ':id' => $id
             ];
         }
