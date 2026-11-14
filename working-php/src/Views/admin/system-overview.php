@@ -145,9 +145,12 @@ ob_start(); ?>
                                     <?php
                                         // Green only when every check passed, including the checkpoint comparison
                                         $cp = $integrityCheckResult['checkpoint'] ?? null;
+                                        // Results written before the audit log was checked have no entry for it
+                                        $auditLog = $integrityCheckResult['audit_log'] ?? null;
                                         $allVerified = $integrityCheckResult['verified_percentage'] == 100
                                             && ($integrityCheckResult['live_state_errors_count'] ?? 0) == 0
-                                            && ($cp === null || ($cp['missing_heads'] == 0 && $cp['file_intact']));
+                                            && ($cp === null || ($cp['missing_heads'] == 0 && $cp['file_intact']))
+                                            && ($auditLog === null || $auditLog['bad_lines'] === []);
                                     ?>
                                     <div class="text-5xl font-bold <?= $allVerified ? 'text-green-500' : 'text-red-500' ?>" id="verified-percentage">
                                         <?= htmlspecialchars($integrityCheckResult['verified_percentage']) ?>%
@@ -173,6 +176,15 @@ ob_start(); ?>
                                                 <dd class="text-right font-mono <?= ($checkpoint['missing_heads'] > 0 || !$checkpoint['file_intact']) ? 'text-red-500 font-bold' : '' ?>">
                                                     <?= number_format((int) $checkpoint['missing_heads']) ?><?= $checkpoint['file_intact'] ? '' : ' (file altered)' ?>
                                                 </dd>
+                                            <?php endif; ?>
+                                            <?php // The system audit log: intact, or the numbers of the lines that were changed ?>
+                                            <dt class="text-gray-500 dark:text-gray-400">System audit log</dt>
+                                            <?php if ($auditLog === null): ?>
+                                                <dd class="text-right text-gray-400 italic">not checked yet</dd>
+                                            <?php elseif ($auditLog['bad_lines'] !== []): ?>
+                                                <dd class="text-right font-mono text-red-500 font-bold">altered: line <?= e(implode(', ', array_map('intval', $auditLog['bad_lines']))) ?></dd>
+                                            <?php else: ?>
+                                                <dd class="text-right font-mono">intact (<?= number_format((int) $auditLog['entries']) ?> <?= (int) $auditLog['entries'] === 1 ? 'entry' : 'entries' ?>)<?= $auditLog['keyed'] ? '' : ', not keyed' ?></dd>
                                             <?php endif; ?>
                                         </dl>
                                     <?php endif; ?>

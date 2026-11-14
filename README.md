@@ -102,7 +102,9 @@ Comprehensive user manuals are provided in [working-php/documentation/user_manua
 
 4. **Initialize & Seed Production Database:**
    ```bash
-   composer run seed:prod
+   composer run seed:prod            # creates the tables, the first accounts and the keys in .env
+   # On a database that already holds documents or users it refuses; to rebuild it and delete everything:
+   #   composer run seed:prod -- --force
    ```
 
 5. **Launch Local Server & Background Worker:**
@@ -110,6 +112,8 @@ Comprehensive user manuals are provided in [working-php/documentation/user_manua
    # Starts the Web Server, PostCSS Watcher, and Async Queue Worker seamlessly
    composer run dev
    ```
+
+6. **Before using it with real documents,** apply the [Vendor-Recommended Security Baselines](#-vendor-recommended-security-baselines-working-php): change the seeded passwords, set `BACKUP_PASSWORD`, and serve it with `composer run prod`.
 
 ---
 
@@ -146,8 +150,8 @@ The DTS is meant to run without stopping. Everything that grows over time falls 
 
 | Group | What | Who keeps it bounded |
 | :--- | :--- | :--- |
-| Handled by the app | Page cache (purged hourly), `database_metrics` (rolled up to hourly after 24 h), notifications (newest 10 per user/department), `navigation.log` (renamed at 50 MB), backups older than `BACKUP_KEEP_DAYS`, jobs whose process died (recorded under Failed Jobs) | The worker's scheduler (`console.php`) |
-| Handled by the operating system | nginx logs (`/var/log/nginx/dts_*.log`), PHP-FPM log (`/var/log/php<version>-fpm.log`), PHP session files (`/var/lib/php/sessions`), `storage/logs/worker.log` | logrotate and the PHP session cleaner, which must actually run (below) |
+| Handled by the app | Page cache (purged hourly), `database_metrics` (rolled up to hourly after 24 h), notifications (newest 10 per user/department), `navigation.log` (renamed at 50 MB), session files in `storage/sessions` (a session idle longer than `SESSION_LIFETIME`, 12 hours by default, is ended on its next request and its file removed by PHP's cleanup), backups older than `BACKUP_KEEP_DAYS`, jobs whose process died (recorded under Failed Jobs) | The worker's scheduler (`console.php`) |
+| Handled by the operating system | nginx logs (`/var/log/nginx/dts_*.log`), PHP-FPM log (`/var/log/php<version>-fpm.log`), `storage/logs/worker.log` | logrotate, which must actually run (below) |
 | Kept forever | `documents`, `document_logs`, `user_public_key_histories` (the audit trail) and the signed checkpoints in `storage/checkpoints/` | Nobody: plan disk capacity instead (below) |
 
 ### 1. Keep the queue worker running
@@ -178,22 +182,24 @@ Serve the site with `composer run prod` on that server, not `composer run dev`. 
 
 **Queue job settings** (`.env`, optional): `JOB_HEARTBEAT_SECONDS` (default 10) is how often a running job's helper process reports that the job is alive; `JOB_ABANDONED_SECONDS` (default 60, never less than three heartbeats) is how long without a report before the worker records the job under Failed Jobs. Such a job is not retried. If MySQL is down, the worker exits and the service (or the `composer run dev` watchdog) starts it again; after any restart or pause it waits one round before checking for abandoned jobs, so running jobs are not recorded by mistake.
 
-### 2. Make sure the operating system rotates logs and cleans PHP sessions
+**Secrets, passwords and the other security settings** are in [Vendor-Recommended Security Baselines](#-vendor-recommended-security-baselines-working-php).
 
-Ubuntu and Debian already install the rules: `/etc/logrotate.d/nginx` (daily, keep 14, compressed), `/etc/logrotate.d/php<version>-fpm` (weekly, keep 12), and a PHP session cleaner (`/etc/cron.d/php` and `phpsessionclean.timer`; `php.ini` sets `session.gc_probability = 0`, so PHP itself never deletes old session files). The rules only help if logrotate is installed and something runs it. Minimal images (containers, Distrobox) often lack the `logrotate` package itself:
+### 2. Make sure the operating system rotates logs
+
+Ubuntu and Debian already install the rules: `/etc/logrotate.d/nginx` (daily, keep 14, compressed), `/etc/logrotate.d/php<version>-fpm` (weekly, keep 12),. The DTS keeps its own sessions in `storage/sessions` and removes expired ones itself, so the system's PHP session cleaner (`phpsessionclean.timer`) is not needed for it. The rules only help if logrotate is installed and something runs it. Minimal images (containers, Distrobox) often lack the `logrotate` package itself:
 
 ```bash
 command -v logrotate || sudo apt install logrotate     # installs logrotate.timer and /etc/cron.daily/logrotate
 ```
 
-**On a machine with systemd** (a normal server or desktop install), check that both timers are active:
+**On a machine with systemd** (a normal server or desktop install), check that the timer is active:
 
 ```bash
-systemctl list-timers logrotate.timer phpsessionclean.timer
-sudo systemctl enable --now logrotate.timer phpsessionclean.timer    # if either is missing or inactive
+systemctl list-timers logrotate.timer
+sudo systemctl enable --now logrotate.timer    # if it is missing or inactive
 ```
 
-**On a machine without systemd as PID 1** (Docker, Distrobox, WSL), timers never fire. Install and start cron, which runs `/etc/cron.daily/logrotate` and `/etc/cron.d/php`:
+**On a machine without systemd as PID 1** (Docker, Distrobox, WSL), timers never fire. Install and start cron, which runs `/etc/cron.daily/logrotate`:
 
 ```bash
 sudo apt install cron
@@ -212,7 +218,7 @@ sudo logrotate -d /etc/logrotate.d/nginx
 
 ### 3. Plan disk space for what is kept forever
 
-The audit trail and the checkpoints are never deleted, because removing either would weaken tamper detection. Each daily checkpoint lists every document's chain head, so it grows with the number of documents: about **8.5 MB per day at 100,000 documents** (about 3 GB per year), and about 25 MB per day at 300,000 documents. Copy checkpoints off the server regularly (USB, another machine), as the admin manual describes. That copy is what lets you detect deletions even if the server itself is compromised. Backups in `storage/app/backups/` expire: each new backup deletes those older than `BACKUP_KEEP_DAYS` (default 14 days), always keeping the newest; set it to `0` to keep every backup.
+The audit trail and the checkpoints are never deleted, because removing either would weaken tamper detection. Each daily checkpoint lists every document's chain head, so it grows with the number of documents: about **8.5 MB per day at 100,000 documents** (about 3 GB per year), and about 25 MB per day at 300,000 documents. Copy them off the server regularly ([Vendor-Recommended Security Baselines](#-vendor-recommended-security-baselines-working-php), section 5). Backups in `storage/app/backups/` expire: each new backup deletes those older than `BACKUP_KEEP_DAYS` (default 14 days), always keeping the newest; set it to `0` to keep every backup.
 
 ### 4. Update a running server
 
@@ -232,6 +238,72 @@ sudo systemctl start dts-worker.service
 
 Check the CHANGELOG's "Upgrade note" for the version you are installing. An update does not clear `cache/`, so the last integrity result and the signed checkpoints are kept. Run an integrity check from System Overview afterwards.
 
+## 🔒 Vendor-Recommended Security Baselines (`working-php`)
+
+The settings and habits the developers recommend for any server that holds real documents. Every security setup step is here; other sections link to this one. Work through it after the first install and after every update, then run the check in section 8.
+
+### 1. Secrets in `.env`
+
+| Key | What it protects | How it is created |
+| :--- | :--- | :--- |
+| `SYSTEM_SIGNING_SECRET` / `SYSTEM_SIGNING_PUBLIC` | Signs system log entries and the daily checkpoints | `php scripts/generate-keys.php --system` (`composer run seed:prod` runs it) |
+| `APP_INTEGRITY_KEY` | Keys the system audit log, `storage/logs/system-audit.log` | `php scripts/generate-keys.php --integrity` (`composer run seed:prod` runs it) |
+| `BACKUP_PASSWORD` | Encrypts backup archives with AES-256 | You choose it and type it into `.env` |
+| `DB_PASSWORD` | The database account | You set it in MySQL and in `.env` |
+
+- **Set `BACKUP_PASSWORD` before the first backup.** Without it backups are still made, unencrypted, and the Backups page shows a warning. A backup holds password hashes, wrapped signing keys and clients' contact details.
+- **Keep a copy of all of them away from the server** (a sealed envelope or a password manager). A backup cannot be restored without the password it was made with. Replacing `SYSTEM_SIGNING_SECRET` or `APP_INTEGRITY_KEY` makes existing log entries, checkpoints or audit lines fail verification, so the scripts refuse to overwrite a key unless you pass `--force`.
+- **Only the account that runs the app may read `.env`:** `chmod 600 working-php/.env`. NGINX serves `working-php/public/` only and refuses dot-files, so `.env` is never reachable from a browser.
+- Keep `APP_DEBUG=false`. With `true`, PHP errors (file paths, query text) are printed to the page.
+
+### 2. Accounts, passwords and PINs
+
+- **Change the password of every seeded account before going live.** They all start as `password` (see [Default Test Accounts](#-default-test-accounts-password-password)). Sign in as `admin`, open **Users**, and set a new password for each account, including `admin`.
+- **One account per person or unit; never delete, deactivate.** A deactivated account can no longer sign in, and everything it signed stays verifiable. Staff and Records Officer accounts need a department; a Records Officer belongs to the Records Unit.
+- **Each user sets their own Security PIN** at first login and must not share it: the PIN is what makes a signature theirs. If a PIN is lost or exposed, the admin uses **Reset Signature**; the old key is kept so earlier signatures still verify.
+- **Built-in limits** (no setup needed, listed so you know what to expect): three wrong passwords or PINs within a minute lock that login or PIN for one minute; a session idle for `SESSION_LIFETIME` seconds (default 43200, 12 hours) is ended on its next request; the PIN is remembered for at most `PIN_CACHE_DURATION` seconds and never longer than the session.
+- **Existing databases:** run `scripts/migrations/master-migration.sql` once (see [Update a running server](#4-update-a-running-server)). Until its `attempt_throttles` table exists, login and PIN limiting are off and a line is written to PHP's error log.
+
+### 3. Network and the web server
+
+- **LAN only.** The system is designed to run on the office network with no route from the internet. Do not forward its port on the router.
+- **Serve it with `composer run prod`** (NGINX + PHP-FPM over HTTPS on port 8000), never `composer run dev`, on the real server. HTTPS is required for the QR camera and keeps passwords and PINs off the wire; the certificate is self-signed, so each device accepts it once.
+- **Never run `composer run proxy` on the real server.** It opens a public Cloudflare tunnel to the app and exists only for remote reviews during development.
+- Sessions are kept in `working-php/storage/sessions`, not the folder all PHP apps share. Run the web server and the worker as the same user, so both can write to `storage/`.
+
+### 4. Backups
+
+- **Restore and delete ask for the admin's Security PIN.** Every restore first saves the current database as a `…_pre-restore_…` backup, so a restore can be undone.
+- **Download backups to another machine regularly.** A backup that exists only on the server is lost with it. Backups older than `BACKUP_KEEP_DAYS` (default 14) are deleted when a new one is made; the newest always stays.
+- **Never run `composer run seed:prod -- --force` on a server with real data** unless you mean to delete all of it. Without `--force` the seeder refuses a database that holds documents or users.
+
+### 5. Evidence kept off the server
+
+The audit trail is tamper-evident, not tamper-proof (see the known limitation under [Testing](#-testing-working-php)): someone who controls both the database and the server could rewrite it. What defeats that is evidence they cannot reach.
+
+- **Copy the newest file in `storage/checkpoints/` off the server regularly** (weekly, to USB or another machine). A checkpoint is a signed list of every document's latest log entry; with an old copy you can prove that entries were deleted or rolled back.
+- **Copy `storage/logs/system-audit.log` with it.** It records backup requests, restores and deletions outside the database. Lines cut off its end cannot be detected from the file alone; an older copy shows them.
+- **Separate duties:** the person who administers the server should not be the only one who can administer the database, and administrator access to both should be restricted and logged.
+
+### 6. Routine checks
+
+- **Run Integrity Check** on System Overview at least weekly, and after any restore or update. Expect 100 % chain integrity, 0 broken links, 0 invalid signatures, 0 live-state mismatches, 0 checkpoint heads missing, and "System audit log: intact".
+- **Look at Failed Jobs** on the same page. A job that "stopped sending its health ping" was cut short by a crash or a restart; start it again if it is still needed.
+- **Frozen documents** mean a document's data no longer matches its signed log. Do not unfreeze one until you know why (admin manual, 4.3).
+
+### 7. Keep the service itself running
+
+Security depends on the worker: it writes the daily checkpoint and runs integrity checks, backups and restores. Install it as a service and make sure logs are rotated, as described in [Running Continuously on Linux](#-running-continuously-on-linux-working-php).
+
+### 8. Check after install or update
+
+1. `php scripts/generate-keys.php --system` and `--integrity` both answer "already present" (the keys exist).
+2. `BACKUP_PASSWORD` is set: open **Backups**; no "stored unencrypted" warning is shown.
+3. Restart `composer run prod` (or `composer run dev` on a development machine). Everyone signs in again once after an update that moved the sessions.
+4. Open **Backups** through the menu, without reloading the page, and delete a backup you no longer need: it asks for your PIN.
+5. Run **Integrity Check**: 100 %, and "System audit log: intact".
+6. Sign in as each seeded account with the password `password`: it must fail on a live server.
+
 ## 🧪 Testing (`working-php`)
 
 **Setup.**
@@ -240,6 +312,7 @@ Check the CHANGELOG's "Upgrade note" for the version you are installing. An upda
 cd working-php
 cp .env.testing.example .env.testing
 APP_ENV=testing php scripts/generate-keys.php --system   # writes the system key into .env.testing
+APP_ENV=testing php scripts/generate-keys.php --integrity   # writes the integrity key into .env.testing
 ```
 
 You do not create the database by hand: `TestLifecycle` (called from `tests/bootstrap.php`) drops and recreates `deped_dts_test` and the `working-php/.test/` folder before every run, and removes them again after it. Every file a test creates lives in `.test/` (gitignored): the test response cache, checkpoints, integrity result, backups, navigation log and temporary files (`Tests\Support\TestFiles`). Result CSVs are kept. Only `.env.testing` and the system key are one-time setup. Within a run, the suite resets `deped_dts_test` from `database.sql` before every test, and the security tests deliberately corrupt and overwrite data. It therefore refuses to run unless `APP_ENV=testing` and the database name ends in `_test`. The test environment also uses its own response cache, checkpoint directory and integrity-result file so it never touches real data.
@@ -349,6 +422,10 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `test:database-reconnect` | A long-running process re-opens its database connection after MySQL has dropped it, on Philippine time. |
 | `test:mysql-cli` | mysqldump and mysql run as argument arrays with no shell; errors are thrown and never written into the dump. |
 | `test:backup-service` | Backups go to their own folder, carry the database name, leave out queue and cache tables, restore deleted data, and expire by age (newest always kept). |
+| `test:restore-backup-job` | A restore first saves the current database, is recorded in the system audit log with counts, and notifies the admin; failures restore nothing. |
+| `test:backup-pin` | Restoring or deleting a backup needs the admin's Security PIN; wrong PINs lock out; backup actions are recorded in the audit log. |
+| `test:system-audit-service` | The system audit log chains its entries with a keyed MAC; edited, removed and reordered lines are detected. |
+| `test:integrity-audit-log` | The integrity check verifies the system audit log; System Overview shows it intact or names the altered lines. |
 | `test:worker-watchdog` | The dev worker watchdog finds the worker process, also after its re-exec. |
 | `test:seeder-duplicate-retry` | The fast seeder recovers from duplicate tracking codes, ignores the test override outside testing, and does not touch real sessions or the response cache. |
 | `test:cache-middleware-write` | The response cache writes atomically and treats empty or unreadable files as a miss. |
@@ -371,6 +448,8 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `test:results-extension` | The PHPUnit results extension writes test-outcomes.csv, summary.csv and run.json. |
 | `test:result-writer` | Result folders: DTS_RESULTS_DIR containment, run-id validation, no overwriting. |
 | `test:test-artifact-paths` | Every file a test creates is under `working-php/.test/`; no test uses the system temp directory. |
+| `test:seed-guard` | The production seeder's guard refuses a database that holds documents or users unless --force is passed. |
+| `test:session-storage` | Sessions are stored in the app's own folder, cleaned up by the app, with a 12-hour idle limit and hardened cookies. |
 | `test:test-guard` | Tests refuse to run outside APP_ENV=testing or against a non-_test database. |
 | `test:test-lifecycle` | The per-run test database and artifact lifecycle. |
 | `test:test-env-probe` | The /__test/env probe reports the testing environment and database. |
@@ -415,9 +494,9 @@ Each subfolder is an ordinary run folder (the runner sets `DTS_RESULTS_DIR` for 
 
 Not applicable on an offline LAN (`ThreatActor::NOT_APPLICABLE`): botnet DDoS, internet credential stuffing, cloud metadata SSRF.
 
-**Known limitation: the fully privileged insider.** The audit trail is tamper-evident, not tamper-proof. Anyone without the users' PINs and the server signing key cannot alter, delete or reorder log entries undetected. However, the tamper matrix shows that someone with database access can register their own key pair in `user_public_key_histories` and append a properly signed entry, and nothing detects it, because public keys are trusted from the same database. Someone who also controls the server holds the server signing key and can re-sign entries and checkpoints. No mechanism stored on the same machine can detect such an insider. The defence is organizational: separation of duties between server and database administration, restricted and logged administrator access, and copying the daily signed checkpoint (`storage/checkpoints/`) off the server. Certifying user public keys with an offline key is future work.
+**Known limitation: the fully privileged insider.** The audit trail is tamper-evident, not tamper-proof. Anyone without the users' PINs and the server signing key cannot alter, delete or reorder log entries undetected. However, the tamper matrix shows that someone with database access can register their own key pair in `user_public_key_histories` and append a properly signed entry, and nothing detects it, because public keys are trusted from the same database. Someone who also controls the server holds the server signing key and can re-sign entries and checkpoints. No mechanism stored on the same machine can detect such an insider. The defence is organizational and is set out in [Vendor-Recommended Security Baselines](#-vendor-recommended-security-baselines-working-php), section 5. Certifying user public keys with an offline key is future work.
 
-**Migration notice.** Existing databases must run `working-php/scripts/migrations/master-migration.sql` to enable login and PIN attempt limiting (3 failures within 1 minute trigger a 1-minute timeout). Until it is run, limiting is off and a line is written to `error_log` (fail-open). Fresh databases built from `database.sql` already include the table.
+**Migration notice.** Existing databases must run `working-php/scripts/migrations/master-migration.sql`; what it enables is listed in [Vendor-Recommended Security Baselines](#-vendor-recommended-security-baselines-working-php), section 2. Fresh databases built from `database.sql` already include everything in it.
 
 **Fixed findings.** F1 (finalizing a route accepted an unknown department), F2 (staff could view documents outside their route through `DocumentController::show`) and F3 (`CacheMiddleware` wrote cached pages non-atomically, so a cold-cache kiosk burst could get pages without a CSRF token) are fixed. The former finding tests remain as regression tests, and the default `vendor/bin/phpunit` ends with 0 failures.
 

@@ -42,6 +42,7 @@ class BackupServiceTest extends TestCase
     {
         $zip = new \ZipArchive();
         $this->assertTrue($zip->open(BackupService::directory() . '/' . $zipName));
+        $zip->setPassword((string) Config::get('app', 'backup_password', ''));
         $sql = (string) $zip->getFromIndex(0);
         $zip->close();
 
@@ -61,6 +62,10 @@ class BackupServiceTest extends TestCase
         $at = new \DateTimeImmutable('2026-03-05 08:15:30');
 
         $this->assertSame('deped_dts_test_2026_03_05_081530_12.sql', BackupService::fileName('deped_dts_test', 12, $at));
+
+        // A label names the kind of backup, and only safe file-name characters survive
+        $this->assertSame('deped_dts_test_pre-restore_2026_03_05_081530_12.sql', BackupService::fileName('deped_dts_test', 12, $at, 'pre-restore'));
+        $this->assertSame('deped_dts_test_evil_2026_03_05_081530_12.sql', BackupService::fileName('deped_dts_test', 12, $at, '../evil'));
     }
 
     // Backups older than the limit are deleted; the newest is kept, and so are those inside the limit
@@ -199,5 +204,128 @@ class BackupServiceTest extends TestCase
         }
 
         $this->assertSame([], glob(BackupService::directory() . '/*') ?: []);
+    }
+
+    // Write a small dump and archive it, optionally encrypted; returns [directory, zip path]
+    private function archived(string $password, string $entryName = 'dump.sql'): array
+    {
+        $dir = TestFiles::dir('encrypt');
+        file_put_contents("{$dir}/{$entryName}", "SELECT 42;\n");
+        BackupService::archive("{$dir}/{$entryName}", "{$dir}/backup.zip", $password);
+        unlink("{$dir}/{$entryName}");
+
+        return [$dir, "{$dir}/backup.zip"];
+    }
+
+    // An encrypted archive gives nothing to someone who opens it without the password
+    public function test_encrypted_archive_cannot_be_read_without_the_password(): void
+    {
+        [, $zipPath] = $this->archived('correct horse');
+
+        $zip = new \ZipArchive();
+        $this->assertTrue($zip->open($zipPath));
+        $this->assertSame(\ZipArchive::EM_AES_256, $zip->statIndex(0)['encryption_method']);
+        $this->assertFalse(@$zip->getFromIndex(0));
+        $zip->close();
+    }
+
+    // With the password, the dump is extracted next to the archive
+    public function test_encrypted_archive_extracts_with_the_password(): void
+    {
+        [$dir, $zipPath] = $this->archived('correct horse');
+
+        $sqlPath = BackupService::extract($zipPath, $dir, 'correct horse');
+        $this->assertSame("{$dir}/dump.sql", $sqlPath);
+        $this->assertSame("SELECT 42;\n", file_get_contents($sqlPath));
+    }
+
+    // The wrong password fails with a message that names the cause, and leaves no file behind
+    public function test_wrong_password_fails_with_a_clear_message_and_leaves_no_file(): void
+    {
+        [$dir, $zipPath] = $this->archived('correct horse');
+
+        try {
+            BackupService::extract($zipPath, $dir, 'wrong password');
+            $this->fail('Extracting with the wrong password did not throw.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('BACKUP_PASSWORD', $e->getMessage());
+        }
+
+        $this->assertFileDoesNotExist("{$dir}/dump.sql");
+    }
+
+    // A backup made before encryption was turned on still restores once a password is set
+    public function test_unencrypted_archive_still_extracts_when_a_password_is_set(): void
+    {
+        [$dir, $zipPath] = $this->archived('');
+
+        $this->assertSame("SELECT 42;\n", file_get_contents(BackupService::extract($zipPath, $dir, 'correct horse')));
+    }
+
+    // An archive whose entry would be written outside the backup folder is refused
+    public function test_archive_entry_outside_the_folder_is_rejected(): void
+    {
+        $dir = TestFiles::dir('zip-slip');
+        $zip = new \ZipArchive();
+        $zip->open("{$dir}/crafted.zip", \ZipArchive::CREATE);
+        $zip->addFromString('../evil.sql', "DROP DATABASE x;\n");
+        $zip->close();
+
+        try {
+            BackupService::extract("{$dir}/crafted.zip", $dir);
+            $this->fail('A crafted archive was extracted.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('unexpected contents', $e->getMessage());
+        }
+
+        $this->assertFileDoesNotExist(dirname($dir) . '/evil.sql');
+    }
+
+    // An archive that holds something other than one .sql file is refused
+    public function test_archive_entry_that_is_not_sql_is_rejected(): void
+    {
+        $dir = TestFiles::dir('zip-other');
+        $zip = new \ZipArchive();
+        $zip->open("{$dir}/crafted.zip", \ZipArchive::CREATE);
+        $zip->addFromString('shell.php', '<?php');
+        $zip->close();
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('unexpected contents');
+        BackupService::extract("{$dir}/crafted.zip", $dir);
+    }
+
+    // A backup made by the job is encrypted with the configured password
+    public function test_job_encrypts_the_backup_with_the_configured_password(): void
+    {
+        $this->assertNotSame('', (string) Config::get('app', 'backup_password', ''), 'BACKUP_PASSWORD must be set in .env.testing');
+        Fixtures::submit();
+        $zipName = (new CreateBackupJob())->handle();
+
+        $zip = new \ZipArchive();
+        $this->assertTrue($zip->open(BackupService::directory() . '/' . $zipName));
+        $this->assertSame(\ZipArchive::EM_AES_256, $zip->statIndex(0)['encryption_method']);
+        $zip->close();
+    }
+
+    // Without a backup password the admin is told that backups are stored unencrypted; with one, nothing is shown
+    public function test_missing_backup_password_gives_a_warning(): void
+    {
+        $this->assertNull(BackupService::encryptionWarning('correct horse'));
+
+        $warning = BackupService::encryptionWarning('');
+        $this->assertStringContainsString('BACKUP_PASSWORD', $warning);
+        $this->assertStringContainsString('unencrypted', $warning);
+    }
+
+    // The backups page shows no warning while a backup password is configured
+    public function test_backups_page_shows_no_warning_when_a_password_is_set(): void
+    {
+        $client = \Tests\Support\HttpClient::start();
+        $client->loginAs('admin');
+        $response = $client->get('/system/backups');
+
+        $this->assertSame(200, $response['status']);
+        $this->assertStringNotContainsString('stored unencrypted', $response['body']);
     }
 }

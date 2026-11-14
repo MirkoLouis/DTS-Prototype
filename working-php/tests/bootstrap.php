@@ -35,7 +35,13 @@ if ($config['app']['system_signing_secret'] === '') {
     exit(1);
 }
 
-// Fresh database and -test artifacts for every run; removed again when the suite ends
+// The system audit log is keyed with the integrity key in .env.testing
+if ($config['app']['integrity_key'] === '') {
+    fwrite(STDERR, "Integrity key missing in .env.testing. Run: APP_ENV=testing php scripts/generate-keys.php --integrity\n");
+    exit(1);
+}
+
+// Fresh database and an empty .test folder for every run; removed again when the suite ends
 Tests\Support\TestLifecycle::begin($config['database']);
 
 // Only the parent PHPUnit process cleans up; forked children (which SIGKILL themselves) must not

@@ -696,16 +696,14 @@ async function seed() {
         await connection.query('UPDATE users SET public_key = NULL, private_key = NULL, security_key_set_at = NULL');
         await connection.query('SET FOREIGN_KEY_CHECKS = 1');
 
-        console.log('🧹 Cleaning file caches and active PHP session files...');
+        console.log('🧹 Cleaning file caches and this app\'s session files...');
+        // Only this app's own folders: the cache, and storage/sessions (never the session folder other PHP apps share)
+        const { removeFilesIn } = require('./seed-files');
         const cacheDir = path.join(__dirname, '../../cache');
-        if (fs.existsSync(cacheDir)) {
-            try {
-                const { execSync } = require('child_process');
-                execSync(`rm -rf "${cacheDir}/data"/* "${cacheDir}/responses"/* "${cacheDir}"/*.json /tmp/sess_*`, { stdio: 'ignore' });
-            } catch (e) {
-                console.log('⚠️ Minor issue clearing file cache directory, proceeding anyway.');
-            }
-        }
+        removeFilesIn(path.join(cacheDir, 'data'), /./);
+        removeFilesIn(path.join(cacheDir, 'responses'), /./);
+        removeFilesIn(cacheDir, /\.json$/);
+        removeFilesIn(path.join(__dirname, '../../storage/sessions'), /^sess_/);
 
         const [users] = await connection.query("SELECT u.email, d.name as dept_name FROM users u JOIN departments d ON u.department_id = d.id WHERE u.role IN ('staff', 'officer')");
         const deptMap = {};

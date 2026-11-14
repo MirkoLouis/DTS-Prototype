@@ -2,19 +2,6 @@
 
 $appStartTime = microtime(true);
 
-// Front Controller & Session Hardening
-session_start([
-    'cookie_httponly' => true,
-    'cookie_secure'   => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on',
-    'cookie_samesite' => 'Strict',
-    'use_strict_mode' => true,
-]);
-
-// CSRF Token Generation
-if (empty($_SESSION['csrf_token'])) {
-    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-}
-
 // Match Laravel's default timezone so hashes align properly
 date_default_timezone_set('Asia/Manila');
 
@@ -23,6 +10,14 @@ define('BASE_PATH', dirname(__DIR__));
 
 // Require Composer Autoloader & Custom Helpers
 require BASE_PATH . '/vendor/autoload.php';
+
+// Front Controller & Session Hardening: sessions live in the app's own folder (needs the autoloader and BASE_PATH)
+\App\Common\Http\SessionService::start();
+
+// CSRF Token Generation
+if (empty($_SESSION['csrf_token'])) {
+    $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
 
 // Error reporting: always log everything, but only print errors to the page when APP_DEBUG=true
 $appDebug = \App\Common\Config\Config::get('app', 'debug', false);
@@ -46,6 +41,11 @@ if (\App\Common\Config\Config::get('app', 'env') === 'testing') {
         echo json_encode([
             'env' => \App\Common\Config\Config::get('app', 'env'),
             'db' => \App\Common\Config\Config::get('database', 'dbname'),
+            'session' => [
+                'save_path' => session_save_path(),
+                'gc_maxlifetime' => ini_get('session.gc_maxlifetime'),
+                'gc_probability' => ini_get('session.gc_probability'),
+            ],
         ]);
     });
 }

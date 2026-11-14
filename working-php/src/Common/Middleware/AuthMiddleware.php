@@ -26,6 +26,17 @@ class AuthMiddleware
         $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?? '/';
         $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
+        // End a session that has been idle for longer than the limit. Background requests (the notification poll,
+        // chart data) check the limit but do not count as activity, so an open, unattended tab still expires.
+        $now = time();
+        $lastActivity = (int) ($_SESSION['last_activity'] ?? $now);
+        if ($now - $lastActivity > \App\Common\Http\SessionService::lifetime()) {
+            $this->endSession("Your session has expired. Please sign in again.");
+        }
+        if (!str_starts_with($uri, '/api/') || !isset($_SESSION['last_activity'])) {
+            $_SESSION['last_activity'] = $now;
+        }
+
         // Re-read the account on every request (before the session lock is released) so a deactivation applies immediately
         $db = Database::getInstance();
         $user = $db->query(

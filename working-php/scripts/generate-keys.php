@@ -55,6 +55,23 @@ if (PHP_SAPI === 'cli' && realpath($_SERVER['SCRIPT_FILENAME'] ?? '') === __FILE
     exit(0);
 }
 
+// --integrity: create the secret that keys the system audit log (skips if one exists)
+if (PHP_SAPI === 'cli' && realpath($_SERVER['SCRIPT_FILENAME'] ?? '') === __FILE__ && in_array('--integrity', $argv ?? [], true)) {
+    $force = in_array('--force', $argv, true);
+    $existing = \App\Common\Config\Config::get('app', 'integrity_key', '');
+
+    if ($existing !== '' && !$force) {
+        echo "Integrity key already present in .env (use --force to replace it; the existing audit log will then fail verification).\n";
+        exit(0);
+    }
+
+    // Under APP_ENV=testing the key goes into .env.testing, never the operational .env
+    $targetEnv = getenv('APP_ENV') === 'testing' ? '/.env.testing' : '/.env';
+    writeEnvValues(BASE_PATH . $targetEnv, ['APP_INTEGRITY_KEY' => base64_encode(random_bytes(32))]);
+    echo "Integrity key written to " . ltrim($targetEnv, '/') . ". Keep a copy of it away from this server.\n";
+    exit(0);
+}
+
 try {
     $db = Database::getInstance();
     $users = $db->query('SELECT id FROM users WHERE private_key IS NULL')->fetchAll();

@@ -40,6 +40,14 @@ class TestArtifactPathsTest extends TestCase
         $this->assertSame(self::TEST_ROOT . 'cache/responses', CacheMiddleware::cacheDir());
     }
 
+    // Under APP_ENV=testing, sessions, backups and the system audit log use the .test folder too
+    public function test_sessions_backups_and_audit_log_use_the_test_folder_when_testing(): void
+    {
+        $this->assertSame(self::TEST_ROOT . 'sessions', \App\Common\Http\SessionService::directory());
+        $this->assertSame(self::TEST_ROOT . 'backups', \App\Modules\System\BackupService::directory());
+        $this->assertSame(self::TEST_ROOT . 'logs/system-audit.log', \App\Modules\System\SystemAuditService::path());
+    }
+
     // Files allowed to name the system temp directory: this test, and the seeder test that places sentinel
     // files in the real cache and session folders to prove the seeder leaves them alone under testing
     private const TEMP_DIR_EXCEPTIONS = ['tests/Unit/TestArtifactPathsTest.php', 'tests/Workflow/SeederDuplicateRetryTest.php'];
