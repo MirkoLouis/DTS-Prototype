@@ -9,7 +9,7 @@ DROP TABLE IF EXISTS worker_schedule, attempt_throttles, notifications, cache, c
 -- 1. Core Laravel & Infrastructure Tables
 CREATE TABLE cache ( `key` VARCHAR(255) PRIMARY KEY, `value` MEDIUMTEXT, `expiration` INT );
 CREATE TABLE cache_locks ( `key` VARCHAR(255) PRIMARY KEY, `owner` VARCHAR(255), `expiration` INT );
-CREATE TABLE jobs ( id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, queue VARCHAR(255), payload LONGTEXT, attempts TINYINT UNSIGNED, reserved_at INT UNSIGNED NULL, available_at INT UNSIGNED, created_at INT UNSIGNED );
+CREATE TABLE jobs ( id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, queue VARCHAR(255), payload LONGTEXT, attempts TINYINT UNSIGNED, reserved_at INT UNSIGNED NULL, heartbeat_at INT UNSIGNED NULL, available_at INT UNSIGNED, created_at INT UNSIGNED );
 CREATE TABLE job_batches ( id VARCHAR(255) PRIMARY KEY, name VARCHAR(255), total_jobs INT, pending_jobs INT, failed_jobs INT, failed_job_ids LONGTEXT, options MEDIUMTEXT NULL, cancelled_at INT NULL, created_at INT, finished_at INT NULL );
 CREATE TABLE failed_jobs ( id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, uuid VARCHAR(255) UNIQUE, connection TEXT, queue TEXT, payload LONGTEXT, exception LONGTEXT, failed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP );
 

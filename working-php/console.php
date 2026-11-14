@@ -29,6 +29,9 @@ $jobsProcessed = 0;
 // Container-compatible internal task scheduler; last-run times persist in worker_schedule, so restarts never postpone a task
 $schedule = new \App\Modules\System\WorkerScheduleService();
 
+// Job queue operations (claim, heartbeat, abandoned jobs)
+$queue = new \App\Modules\System\QueueService();
+
 /**
  * Execute periodic system maintenance and telemetry tasks inside the worker loop.
  * Eliminates reliance on host system cron daemons in containerized environments.
@@ -181,14 +184,8 @@ while (!$stopWorker) {
     if ($job) {
         $jobId = $job['id'];
         
-        // Claim the job atomically. Using UPDATE ensures that if multiple worker processes 
-        // are running concurrently, only one will successfully claim this specific row.
-        $db->query("UPDATE jobs SET reserved_at = UNIX_TIMESTAMP(), attempts = attempts + 1 WHERE id = :id AND reserved_at IS NULL", ['id' => $jobId]);
-        
-        // Ensure we actually reserved it (in case of multiple workers)
-        $check = $db->query("SELECT * FROM jobs WHERE id = :id AND reserved_at IS NOT NULL", ['id' => $jobId])->fetch();
-        
-        if ($check) {
+        // Claim the job: only the worker whose UPDATE reserved the row dispatches it
+        if ($queue->claim((int) $jobId, time())) {
             echo "Dispatching Job ID: {$jobId}\n";
             
             // Dispatch in background

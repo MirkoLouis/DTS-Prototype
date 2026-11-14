@@ -44,6 +44,18 @@ class MasterMigrationTest extends TestCase
         $this->assertSame(['RESTRICT'], $this->deleteRules('user_public_key_histories'));
     }
 
+    // A database from before the job heartbeat gets jobs.heartbeat_at, and a second run changes nothing
+    public function test_migration_adds_the_job_heartbeat_column(): void
+    {
+        Database::getInstance()->getConnection()->exec('ALTER TABLE jobs DROP COLUMN heartbeat_at');
+        $this->assertFalse($this->columnExists('jobs', 'heartbeat_at'));
+
+        TestDatabase::runSqlFile(BASE_PATH . self::MIGRATION);
+        TestDatabase::runSqlFile(BASE_PATH . self::MIGRATION);
+
+        $this->assertTrue($this->columnExists('jobs', 'heartbeat_at'));
+    }
+
     // Whether a column exists in the connected database
     private function columnExists(string $table, string $column): bool
     {

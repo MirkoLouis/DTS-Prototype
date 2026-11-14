@@ -48,3 +48,11 @@ PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
 SET FOREIGN_KEY_CHECKS = 1;
+
+-- 2026-11-14: job heartbeat (jobs.heartbeat_at): a running job's helper process writes the time here every
+-- few seconds; the worker records a reserved job whose heartbeat has stopped as abandoned.
+SET @missing = (SELECT COUNT(*) = 0 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'jobs' AND COLUMN_NAME = 'heartbeat_at');
+SET @sql = IF(@missing, 'ALTER TABLE jobs ADD COLUMN heartbeat_at INT UNSIGNED NULL AFTER reserved_at', 'DO 0');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
