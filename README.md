@@ -146,7 +146,7 @@ The DTS is meant to run without stopping. Everything that grows over time falls 
 
 | Group | What | Who keeps it bounded |
 | :--- | :--- | :--- |
-| Handled by the app | Page cache (purged hourly), `database_metrics` (rolled up to hourly after 24 h), notifications (newest 10 per user/department), `navigation.log` (renamed at 50 MB) | The worker's scheduler (`console.php`) |
+| Handled by the app | Page cache (purged hourly), `database_metrics` (rolled up to hourly after 24 h), notifications (newest 10 per user/department), `navigation.log` (renamed at 50 MB), backups older than `BACKUP_KEEP_DAYS`, jobs whose process died (recorded under Failed Jobs) | The worker's scheduler (`console.php`) |
 | Handled by the operating system | nginx logs (`/var/log/nginx/dts_*.log`), PHP-FPM log (`/var/log/php<version>-fpm.log`), PHP session files (`/var/lib/php/sessions`), `storage/logs/worker.log` | logrotate and the PHP session cleaner, which must actually run (below) |
 | Kept forever | `documents`, `document_logs`, `user_public_key_histories` (the audit trail) and the signed checkpoints in `storage/checkpoints/` | Nobody: plan disk capacity instead (below) |
 
@@ -210,7 +210,7 @@ sudo logrotate -d /etc/logrotate.d/nginx
 
 ### 3. Plan disk space for what is kept forever
 
-The audit trail and the checkpoints are never deleted, because removing either would weaken tamper detection. Each daily checkpoint lists every document's chain head, so it grows with the number of documents: about **8.5 MB per day at 100,000 documents** (about 3 GB per year), and about 25 MB per day at 300,000 documents. Copy checkpoints off the server regularly (USB, another machine), as the admin manual describes. That copy is what lets you detect deletions even if the server itself is compromised. Backups in `storage/app/backups/` are not deleted automatically either.
+The audit trail and the checkpoints are never deleted, because removing either would weaken tamper detection. Each daily checkpoint lists every document's chain head, so it grows with the number of documents: about **8.5 MB per day at 100,000 documents** (about 3 GB per year), and about 25 MB per day at 300,000 documents. Copy checkpoints off the server regularly (USB, another machine), as the admin manual describes. That copy is what lets you detect deletions even if the server itself is compromised. Backups in `storage/app/backups/` expire: each new backup deletes those older than `BACKUP_KEEP_DAYS` (default 14 days), always keeping the newest; set it to `0` to keep every backup.
 
 ### 4. Update a running server
 
@@ -240,7 +240,7 @@ cp .env.testing.example .env.testing
 APP_ENV=testing php scripts/generate-keys.php --system   # writes the system key into .env.testing
 ```
 
-You do not create the database by hand: `TestLifecycle` (called from `tests/bootstrap.php`) drops and recreates `deped_dts_test` and the `-test` response cache, checkpoint directory and integrity-result file before every run, and removes them again after it. Result CSVs are kept. Only `.env.testing` and the system key are one-time setup. Within a run, the suite resets `deped_dts_test` from `database.sql` before every test, and the security tests deliberately corrupt and overwrite data. It therefore refuses to run unless `APP_ENV=testing` and the database name ends in `_test`. The test environment also uses its own response cache, checkpoint directory and integrity-result file so it never touches real data.
+You do not create the database by hand: `TestLifecycle` (called from `tests/bootstrap.php`) drops and recreates `deped_dts_test` and the `working-php/.test/` folder before every run, and removes them again after it. Every file a test creates lives in `.test/` (gitignored): the test response cache, checkpoints, integrity result, backups, navigation log and temporary files (`Tests\Support\TestFiles`). Result CSVs are kept. Only `.env.testing` and the system key are one-time setup. Within a run, the suite resets `deped_dts_test` from `database.sql` before every test, and the security tests deliberately corrupt and overwrite data. It therefore refuses to run unless `APP_ENV=testing` and the database name ends in `_test`. The test environment also uses its own response cache, checkpoint directory and integrity-result file so it never touches real data.
 
 **Commands** (from `working-php/`).
 
@@ -368,7 +368,7 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `test:live-run-cleanup` | The live concurrency script deletes only its own documents and refuses unsafe runs. |
 | `test:results-extension` | The PHPUnit results extension writes test-outcomes.csv, summary.csv and run.json. |
 | `test:result-writer` | Result folders: DTS_RESULTS_DIR containment, run-id validation, no overwriting. |
-| `test:test-artifact-paths` | Tests write checkpoints, integrity results and cache only to -test locations. |
+| `test:test-artifact-paths` | Every file a test creates is under `working-php/.test/`; no test uses the system temp directory. |
 | `test:test-guard` | Tests refuse to run outside APP_ENV=testing or against a non-_test database. |
 | `test:test-lifecycle` | The per-run test database and artifact lifecycle. |
 | `test:test-env-probe` | The /__test/env probe reports the testing environment and database. |
@@ -421,7 +421,7 @@ Not applicable on an offline LAN (`ThreatActor::NOT_APPLICABLE`): botnet DDoS, i
 
 **Workflow rules.** Officers are bound by the department-step rule like staff: acting on a document outside their step gives "Action Denied". They keep intake, the final Records receive, and release.
 
-**Seeders.** `fast-seed.php` and `import-legacy.php` rely on the database unique key for tracking codes and retry the chunk on MySQL duplicate error 1062; there is no in-memory duplicate check. Under `APP_ENV=testing`, `fast-seed.php` only clears the `-test` cache and leaves PHP sessions alone.
+**Seeders.** `fast-seed.php` and `import-legacy.php` rely on the database unique key for tracking codes and retry the chunk on MySQL duplicate error 1062; there is no in-memory duplicate check. Under `APP_ENV=testing`, `fast-seed.php` only clears the test cache in `.test/` and leaves PHP sessions alone.
 
 ### Manual tests (you start these)
 

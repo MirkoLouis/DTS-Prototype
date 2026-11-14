@@ -89,6 +89,9 @@ When raw database tampering is detected (e.g., unauthorized SQL updates bypassin
 1. **Creating a Backup:** Click **Create Backup Now**. The background job [CreateBackupJob](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Modules/System/Jobs/CreateBackupJob.php) generates a compressed SQL dump in `storage/backups/`.
 2. **Restoring a Snapshot:** Select a backup file and click **Restore**. The system executes [RestoreBackupJob](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Modules/System/Jobs/RestoreBackupJob.php) to restore database tables.
 3. **Downloading Archives:** Backup files can be downloaded directly for off-site storage.
+4. **What a backup contains:** every table except `jobs`, `cache`, `cache_locks` and `worker_schedule`. Those hold the running server's queue, cache and scheduler state, so a restore leaves them as they are. The file is named after the database it was taken from, for example `deped_dts_2026_11_14_093000_100001.sql.zip`.
+5. **Expiry:** each new backup deletes backups older than `BACKUP_KEEP_DAYS` (set in `.env`, default 14 days). The newest backup is never deleted. Set it to `0` to keep every backup. Download any backup you want to keep longer.
+6. **Abandoned jobs:** a backup, restore, report or integrity check runs as a background job that reports that it is alive every 10 seconds. If its process dies (a crash, a server restart), the job appears under **Failed Jobs** on System Overview within about a minute, with the note "stopped sending its health ping". It is not run again automatically; start it again yourself if it is still needed.
 
 ### 4.5 Keeping the System Running (Deployment Requirements)
 
@@ -96,7 +99,7 @@ The DTS is designed to run without stopping. Three things must be in place on th
 
 1. **The queue worker runs as a service.** Install `deploy/dts-worker.service` so the worker starts at boot and restarts within 5 seconds after a crash. Without it, daily checkpoints, metrics and cleanup stop silently once the worker exits. Check it with `systemctl status dts-worker.service`.
 2. **The operating system rotates logs and cleans PHP sessions.** nginx, PHP-FPM and the worker log grow without limit unless logrotate runs, and PHP session files are only deleted by the system's session cleaner. On a normal server these run from systemd timers (`logrotate.timer`, `phpsessionclean.timer`). In a container they need cron.
-3. **Disk space is planned for what is never deleted.** Documents, their cryptographic logs, and the daily signed checkpoints in `storage/checkpoints/` are kept forever. A checkpoint is about 8.5 MB per day at 100,000 documents and grows with the number of documents. Backups are not deleted automatically either.
+3. **Disk space is planned for what is never deleted.** Documents, their cryptographic logs, and the daily signed checkpoints in `storage/checkpoints/` are kept forever. A checkpoint is about 8.5 MB per day at 100,000 documents and grows with the number of documents. Backups older than `BACKUP_KEEP_DAYS` (default 14 days) are deleted when a new backup is made; the newest backup always stays.
 
 **Copy checkpoints off the server regularly** (for example weekly, to USB or another machine). Only the newest checkpoint is used by the integrity check. The older copies stored elsewhere are what let you prove that no documents or log entries were deleted, even by someone with full server access.
 

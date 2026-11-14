@@ -193,7 +193,7 @@
         "test:live-run-cleanup": "The live concurrency script deletes only its own documents and refuses unsafe runs.",
         "test:results-extension": "The PHPUnit results extension writes test-outcomes.csv, summary.csv and run.json.",
         "test:result-writer": "Result folders: DTS_RESULTS_DIR containment, run-id validation, no overwriting.",
-        "test:test-artifact-paths": "Tests write checkpoints, integrity results and cache only to -test locations.",
+        "test:test-artifact-paths": "Every file a test creates is under working-php/.test/; no test uses the system temp directory.",
         "test:test-guard": "Tests refuse to run outside APP_ENV=testing or against a non-_test database.",
         "test:test-lifecycle": "The per-run test database and artifact lifecycle.",
         "test:test-env-probe": "The /__test/env probe reports the testing environment and database.",
