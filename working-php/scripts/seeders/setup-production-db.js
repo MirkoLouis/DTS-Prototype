@@ -36,6 +36,9 @@ async function setupDatabase() {
         console.log('🔐 Ensuring system signing key exists...');
         require('child_process').execFileSync('php', [path.join(__dirname, '../generate-keys.php'), '--system'], { stdio: 'inherit' });
 
+        console.log('🔐 Ensuring integrity key exists...');
+        require('child_process').execFileSync('php', [path.join(__dirname, '../generate-keys.php'), '--integrity'], { stdio: 'inherit' });
+
         connection = await mysql.createConnection({
             host: process.env.DB_HOST,
             user: process.env.DB_USERNAME,
