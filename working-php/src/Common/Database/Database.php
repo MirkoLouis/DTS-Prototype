@@ -17,6 +17,14 @@ class Database
      */
     private function __construct()
     {
+        $this->connect();
+    }
+
+    /**
+     * Open the PDO connection (also used to re-open it after the server has dropped it).
+     */
+    private function connect(): void
+    {
         $config = require BASE_PATH . '/src/Common/Config/app.config.php';
         $dbConfig = $config['database'];
 
@@ -42,6 +50,22 @@ class Database
             // In a real production app, we would log this securely and show a generic error
             error_log("Database Connection Failed: " . $e->getMessage());
             throw new Exception("Database Connection Failed. Please check system logs.");
+        }
+    }
+
+    /**
+     * Make sure the connection is usable, re-opening it when the server has closed it.
+     *
+     * Long-running processes (the queue worker) call this before each poll: MySQL closes a connection
+     * that has been idle longer than wait_timeout, or when it restarts ("MySQL server has gone away").
+     */
+    public function ensureConnected(): void
+    {
+        try {
+            $this->connection->query('SELECT 1');
+        } catch (PDOException $e) {
+            error_log("Database connection lost, reconnecting: " . $e->getMessage());
+            $this->connect();
         }
     }
 

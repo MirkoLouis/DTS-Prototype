@@ -164,6 +164,9 @@ function cleanupActiveWorkers(array &$activeWorkers) {
 }
 
 while (!$stopWorker) {
+    // Re-open the database connection if MySQL has dropped it since the last poll
+    $db->ensureConnected();
+
     // 0. Run scheduled maintenance & telemetry tasks
     runScheduledTasks($schedule, $queue);
 
