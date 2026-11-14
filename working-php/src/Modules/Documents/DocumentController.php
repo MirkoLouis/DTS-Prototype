@@ -313,7 +313,10 @@ class DocumentController
         // The slip carries the submitter's contact details, so only the browser session that submitted the
         // document, or a signed-in user allowed to view it, may print it
         $ownSubmission = in_array($tracking_code, $_SESSION[GuestController::SUBMITTED_CODES_KEY] ?? [], true);
-        $signedIn = isset($_SESSION['user_id']);
+
+        // This route has no AuthMiddleware (guests use it), so a deactivated account's live session is refused here
+        $account = isset($_SESSION['user_id']) ? \App\Modules\Users\UserModel::findById((int) $_SESSION['user_id']) : null;
+        $signedIn = $account !== null && $account->deactivated_at === null;
         if (!$signedIn && !$ownSubmission) {
             http_response_code(403);
             echo "Please sign in to print this tracking form.";

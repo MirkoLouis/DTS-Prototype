@@ -21,7 +21,7 @@ class ReleasedReportService
     {
         // The submitter's name comes from the guest details stored with the document
         $guestInfo = json_decode((string) ($document['guest_info'] ?? ''), true);
-        $guestName = is_array($guestInfo) && isset($guestInfo['name']) ? (string) $guestInfo['name'] : 'N/A';
+        $guestName = is_array($guestInfo) && is_string($guestInfo['name'] ?? null) ? $guestInfo['name'] : 'N/A';
 
         // Column order matches the header row: code, title, purpose, district, submitter, release time
         $values = [

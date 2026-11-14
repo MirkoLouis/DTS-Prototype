@@ -53,6 +53,21 @@ class ReleasedReportServiceTest extends TestCase
         $this->assertSame(['DEPED-0000000002', '', '', '', 'N/A', ''], $values);
     }
 
+    // A submitter name that is not text (malformed guest details) becomes N/A instead of a PHP warning
+    public function test_non_text_submitter_name_becomes_not_available(): void
+    {
+        $values = $this->textValues([
+            'tracking_code' => 'DEPED-0000000003',
+            'title' => 'T',
+            'purpose_name' => 'P',
+            'district' => 'D',
+            'guest_info' => json_encode(['name' => ['nested']]),
+            'updated_at' => '2026-03-01 08:15:30',
+        ]);
+
+        $this->assertSame('N/A', $values[4]);
+    }
+
     // Only the four report filters survive, as trimmed strings of at most 190 characters with a real date
     public function test_sanitize_filters_keeps_only_known_keys(): void
     {

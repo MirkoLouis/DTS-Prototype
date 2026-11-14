@@ -127,6 +127,24 @@ class TrackingFormPrintTest extends TestCase
         $this->assertPdf($client->get('/documents/' . $doc['tracking_code'] . '/print-tracking-form'));
     }
 
+    // A deactivated account's live session no longer counts as signed in on the print route
+    public function test_deactivated_user_cannot_print(): void
+    {
+        // The officer is signed in, then deactivated while the session is still open
+        $doc = Fixtures::submit();
+        $client = HttpClient::start();
+        $client->loginAs('records.unit');
+        \App\Common\Database\Database::getInstance()->query(
+            'UPDATE users SET deactivated_at = NOW() WHERE id = :id',
+            [':id' => $this->fx['users']['records.unit']]
+        );
+
+        // The print route has no AuthMiddleware, so it must refuse the deactivated account itself
+        $response = $client->get('/documents/' . $doc['tracking_code'] . '/print-tracking-form');
+        $this->assertSame(403, $response['status']);
+        $this->assertStringNotContainsString('%PDF', $response['body']);
+    }
+
     // An unknown tracking code is still a 404 for a signed-in user
     public function test_unknown_code_is_not_found(): void
     {
