@@ -36,9 +36,23 @@ $queue = new \App\Modules\System\QueueService();
  * Execute periodic system maintenance and telemetry tasks inside the worker loop.
  * Eliminates reliance on host system cron daemons in containerized environments.
  */
-function runScheduledTasks(\App\Modules\System\WorkerScheduleService $schedule): void
+function runScheduledTasks(\App\Modules\System\WorkerScheduleService $schedule, \App\Modules\System\QueueService $queue): void
 {
     $now = time();
+
+    // Record jobs whose health ping has stopped (every 30s); they go to Failed Jobs and are not retried
+    if ($schedule->isDue('abandoned_jobs', 30, $now)) {
+        $schedule->markRun('abandoned_jobs', $now);
+        try {
+            $timeout = (int) \App\Common\Config\Config::get('app', 'job_abandoned_seconds', 60);
+            $abandoned = $queue->recordAbandoned($now, $timeout);
+            if ($abandoned > 0) {
+                echo "⏰ [Worker Scheduler] Recorded {$abandoned} abandoned job(s) under Failed Jobs.\n";
+            }
+        } catch (\Throwable $e) {
+            echo "⏰ [Worker Scheduler] Abandoned-job check failed: " . $e->getMessage() . "\n";
+        }
+    }
 
     // 0. Signed chain-head checkpoint every 24 hours (86400s)
     if ($schedule->isDue('checkpoint', 86400, $now)) {
@@ -151,7 +165,7 @@ function cleanupActiveWorkers(array &$activeWorkers) {
 
 while (!$stopWorker) {
     // 0. Run scheduled maintenance & telemetry tasks
-    runScheduledTasks($schedule);
+    runScheduledTasks($schedule, $queue);
 
     // 1. Memory Leak Prevention: Check if we exceeded our allowed memory
     if (memory_get_usage(true) > $maxMemory) {

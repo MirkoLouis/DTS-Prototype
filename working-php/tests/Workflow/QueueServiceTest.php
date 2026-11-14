@@ -46,4 +46,71 @@ class QueueServiceTest extends TestCase
         $this->assertSame(self::NOW, (int) $row['reserved_at']);
         $this->assertSame(self::NOW, (int) $row['heartbeat_at']);
     }
+
+    // Number of failed-job records
+    private function failedCount(): int
+    {
+        return (int) Database::getInstance()->query('SELECT COUNT(*) c FROM failed_jobs')->fetch()['c'];
+    }
+
+    // A reserved job whose health ping stopped more than the timeout ago is recorded and removed from the queue
+    public function test_job_without_a_recent_heartbeat_is_recorded_as_abandoned(): void
+    {
+        $id = $this->job(self::NOW - 300, self::NOW - 61);
+
+        $this->assertSame(1, (new QueueService())->recordAbandoned(self::NOW, 60));
+        $this->assertFalse($this->row($id));
+
+        // The record keeps the job's payload and says why, so an admin can decide what to do
+        $failed = Database::getInstance()->query('SELECT queue, payload, exception FROM failed_jobs')->fetch();
+        $this->assertSame('default', $failed['queue']);
+        $this->assertSame(json_encode(['class' => 'Example', 'data' => [1]]), $failed['payload']);
+        $this->assertStringContainsString('health ping', $failed['exception']);
+        $this->assertStringContainsString('not retried', $failed['exception']);
+    }
+
+    // A job that keeps pinging is healthy however long it has been running
+    public function test_job_with_a_fresh_heartbeat_is_left_alone_however_long_it_runs(): void
+    {
+        $id = $this->job(self::NOW - 7200, self::NOW - 5);
+
+        $this->assertSame(0, (new QueueService())->recordAbandoned(self::NOW, 60));
+        $this->assertNotFalse($this->row($id));
+        $this->assertSame(0, $this->failedCount());
+    }
+
+    // A job nobody has claimed is not running, so it cannot be abandoned
+    public function test_unreserved_job_is_left_alone(): void
+    {
+        $id = $this->job();
+
+        $this->assertSame(0, (new QueueService())->recordAbandoned(self::NOW, 60));
+        $this->assertNotFalse($this->row($id));
+    }
+
+    // A job that was claimed but whose runner never started pinging is recorded too
+    public function test_claimed_job_whose_runner_never_started_is_recorded(): void
+    {
+        $id = $this->job();
+        $queue = new QueueService();
+        $queue->claim($id, self::NOW - 61);
+
+        $this->assertSame(1, $queue->recordAbandoned(self::NOW, 60));
+        $this->assertFalse($this->row($id));
+    }
+
+    // A ping moves the heartbeat forward for a reserved job and reports a missing job
+    public function test_heartbeat_updates_a_reserved_job_and_reports_a_missing_one(): void
+    {
+        $id = $this->job(self::NOW - 30, self::NOW - 30);
+        $queue = new QueueService();
+
+        $this->assertTrue($queue->heartbeat($id, self::NOW));
+        $this->assertSame(self::NOW, (int) $this->row($id)['heartbeat_at']);
+
+        // The same second again still counts as alive; a deleted job does not
+        $this->assertTrue($queue->heartbeat($id, self::NOW));
+        Database::getInstance()->query('DELETE FROM jobs WHERE id = :id', [':id' => $id]);
+        $this->assertFalse($queue->heartbeat($id, self::NOW + 10));
+    }
 }

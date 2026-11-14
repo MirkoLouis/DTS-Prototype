@@ -28,6 +28,11 @@ if (!$job) {
     exit(0);
 }
 
+// Start the helper that pings for this job while it runs; the worker records a job whose pings stop
+$queue = new \App\Modules\System\QueueService();
+$heartbeat = $queue->startHeartbeat($jobId, getmypid());
+$exitCode = 0;
+
 try {
     $payload = json_decode($job['payload'], true);
     
@@ -64,7 +69,10 @@ try {
     
     // Delete from queue
     $db->query("DELETE FROM jobs WHERE id = :id", ['id' => $jobId]);
-    exit(1);
+    $exitCode = 1;
+} finally {
+    // The job is over either way, so the pings stop
+    $queue->stopHeartbeat($heartbeat);
 }
 
-exit(0);
+exit($exitCode);

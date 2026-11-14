@@ -342,6 +342,8 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `test:master-migration` | The master migration upgrades a pre-deactivation schema and is idempotent. |
 | `test:restore-backup-migration` | Restoring an older backup re-applies the migration, so the schema stays current. |
 | `test:worker-schedule` | Scheduled worker tasks run on time; restarts never postpone them. |
+| `test:queue-service` | One worker claims a job; a job whose health ping stopped is recorded under failed jobs and not retried. |
+| `test:job-heartbeat` | The heartbeat helper pings while a job runs and stops when the runner or the job is gone; runner.php cleans up after success and failure. |
 | `test:worker-watchdog` | The dev worker watchdog finds the worker process, also after its re-exec. |
 | `test:seeder-duplicate-retry` | The fast seeder recovers from duplicate tracking codes, ignores the test override outside testing, and does not touch real sessions or the response cache. |
 | `test:cache-middleware-write` | The response cache writes atomically and treats empty or unreadable files as a miss. |

@@ -32,6 +32,9 @@ return [
         'debug' => filter_var($env['APP_DEBUG'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
         'pin_cache_duration' => (int) ($env['PIN_CACHE_DURATION'] ?? 900),
         'system_signing_secret' => $env['SYSTEM_SIGNING_SECRET'] ?? '',
-        'system_signing_public' => $env['SYSTEM_SIGNING_PUBLIC'] ?? ''
+        'system_signing_public' => $env['SYSTEM_SIGNING_PUBLIC'] ?? '',
+        // Seconds between a running job's health pings, and how long without one before it is recorded as abandoned
+        'job_heartbeat_seconds' => (int) ($env['JOB_HEARTBEAT_SECONDS'] ?? 10),
+        'job_abandoned_seconds' => (int) ($env['JOB_ABANDONED_SECONDS'] ?? 60)
     ]
 ];
