@@ -12,6 +12,7 @@ All notable changes to this project will be documented in this file.
 - Login runs one bcrypt check even when the username does not exist. Before, an unknown username was refused in about 3 ms and a wrong password in about 50 ms, which revealed which usernames exist. Accounts whose password was set through the UI use PHP's current default cost, so timing can still differ slightly between cost classes, but no longer between "exists" and "does not exist".
 - Spreadsheet reports write every data cell as text (`ReleasedReportService::toRow`). A title, district or submitter name starting with `=` was written as a live formula (formula injection).
 - Report requests store only the report's filters (`date`, `purpose`, `submitter`, `search`; `ReleasedReportService::sanitizeFilters`). Before, the whole form was stored in `report_jobs.filters` and in the queued job, including the CSRF token.
+- A report job can be downloaded, inspected (`/statistics/report/status`) and cancelled only by the user who requested it. Before, any signed-in officer or staff member who knew or guessed a job id (ids are time-based) could download another user's report, read its filters, or cancel it.
 
 ## 2026-11-13 17:07
 

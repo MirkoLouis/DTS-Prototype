@@ -70,23 +70,56 @@ class StatisticsController
         }
     }
 
+    /**
+     * Load a report job only if the signed-in user requested it.
+     *
+     * Job ids are time-based and guessable, and a job carries its requester's filters and data, so
+     * every endpoint that takes a job id goes through this lookup.
+     *
+     * @return array|null the report_jobs row, or null when it does not exist or belongs to someone else
+     */
+    private function ownReportJob(mixed $jobId): ?array
+    {
+        // A job id is always a plain string
+        if (!is_string($jobId) || $jobId === '') {
+            return null;
+        }
+
+        $job = Database::getInstance()->query(
+            "SELECT * FROM report_jobs WHERE id = :id AND user_id = :uid",
+            ['id' => $jobId, 'uid' => (int) ($_SESSION['user_id'] ?? 0)]
+        )->fetch();
+
+        return $job ?: null;
+    }
+
     public function getReportStatus()
     {
-        $jobId = $_GET['job_id'] ?? null;
-        $db = Database::getInstance();
-        $status = $db->query("SELECT * FROM report_jobs WHERE id = :id", ['id' => $jobId])->fetch();
-        
         header('Content-Type: application/json');
-        echo json_encode($status);
+
+        // Unknown jobs and other users' jobs look the same to the caller
+        $job = $this->ownReportJob($_GET['job_id'] ?? null);
+        if ($job === null) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Report not found.']);
+            exit;
+        }
+
+        echo json_encode($job);
         exit;
     }
 
     public function cancelReport()
     {
-        $jobId = $_POST['job_id'] ?? null;
-        $db = Database::getInstance();
-        $db->query("UPDATE report_jobs SET status = 'cancelled' WHERE id = :id AND status IN ('queued', 'processing')", ['id' => $jobId]);
-        
+        // Only the requester's own job can be cancelled; anything else is left untouched
+        $job = $this->ownReportJob($_POST['job_id'] ?? null);
+        if ($job !== null) {
+            Database::getInstance()->query(
+                "UPDATE report_jobs SET status = 'cancelled' WHERE id = :id AND status IN ('queued', 'processing')",
+                ['id' => $job['id']]
+            );
+        }
+
         header('Content-Type: application/json');
         echo json_encode(['status' => 'success']);
         exit;
@@ -95,9 +128,11 @@ class StatisticsController
     public function downloadReport($jobId)
     {
         $db = Database::getInstance();
-        $job = $db->query("SELECT * FROM report_jobs WHERE id = :id", ['id' => $jobId])->fetch();
-        
-        if (!$job || $job['status'] !== 'completed') {
+
+        // Only the user who requested a report can download it
+        $job = $this->ownReportJob($jobId);
+
+        if ($job === null || $job['status'] !== 'completed') {
             header('Location: /statistics');
             exit;
         }

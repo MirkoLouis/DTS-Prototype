@@ -330,6 +330,7 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `test:login-timing` | An unknown username takes about as long to refuse as a wrong password (one bcrypt check either way). |
 | `test:released-report-service` | Report rows are text cells only (no formula injection); report filters are whitelisted. |
 | `test:report-filters` | Stored report filters carry no CSRF token; a formula-like title is downloaded as text. |
+| `test:report-ownership` | A report job is downloaded, inspected and cancelled only by the user who requested it. |
 | `test:verify-hash-label` | System Overview uses the "Verify Hash" label. |
 | `test:ict-unit` | The production seeder includes the ICT Unit, and intake can route to it. |
 | `test:debug-logging` | Requests do not write the temporary router log; the navigation log still records them. |
