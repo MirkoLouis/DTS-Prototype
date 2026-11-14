@@ -10,6 +10,13 @@ use App\Modules\System\BackupService;
 class CreateBackupJob
 {
     /**
+     * @param string $label optional word placed in the file name, e.g. "pre-restore" for the backup a restore makes first
+     */
+    public function __construct(private string $label = '')
+    {
+    }
+
+    /**
      * Dump the database into a zip in the backup folder, then expire backups past the age limit.
      *
      * @return string file name of the backup zip
@@ -24,7 +31,7 @@ class CreateBackupJob
         $backupDir = BackupService::directory();
         $docCount = (int) (Database::getInstance()->query("SELECT COUNT(*) as count FROM documents")->fetch()['count'] ?? 0);
 
-        $filename = BackupService::fileName($database, $docCount, new \DateTimeImmutable());
+        $filename = BackupService::fileName($database, $docCount, new \DateTimeImmutable(), $this->label);
         $filePath = $backupDir . '/' . $filename;
         $zipPath = $filePath . '.zip';
 

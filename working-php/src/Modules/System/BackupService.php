@@ -32,11 +32,15 @@ class BackupService
     }
 
     /**
-     * Name of the SQL file inside a backup: database name, time taken, and number of documents.
+     * Name of the SQL file inside a backup: database name, an optional label (such as "pre-restore"),
+     * time taken, and number of documents.
      */
-    public static function fileName(string $database, int $documentCount, \DateTimeInterface $at): string
+    public static function fileName(string $database, int $documentCount, \DateTimeInterface $at, string $label = ''): string
     {
-        return $database . '_' . $at->format('Y_m_d_His') . '_' . $documentCount . '.sql';
+        // Labels are fixed words chosen by the code; anything else is reduced to safe file-name characters
+        $label = preg_replace('/[^A-Za-z0-9-]/', '', $label);
+
+        return $database . '_' . ($label !== '' ? $label . '_' : '') . $at->format('Y_m_d_His') . '_' . $documentCount . '.sql';
     }
 
     /**

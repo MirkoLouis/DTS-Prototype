@@ -62,6 +62,10 @@ class BackupServiceTest extends TestCase
         $at = new \DateTimeImmutable('2026-03-05 08:15:30');
 
         $this->assertSame('deped_dts_test_2026_03_05_081530_12.sql', BackupService::fileName('deped_dts_test', 12, $at));
+
+        // A label names the kind of backup, and only safe file-name characters survive
+        $this->assertSame('deped_dts_test_pre-restore_2026_03_05_081530_12.sql', BackupService::fileName('deped_dts_test', 12, $at, 'pre-restore'));
+        $this->assertSame('deped_dts_test_evil_2026_03_05_081530_12.sql', BackupService::fileName('deped_dts_test', 12, $at, '../evil'));
     }
 
     // Backups older than the limit are deleted; the newest is kept, and so are those inside the limit
