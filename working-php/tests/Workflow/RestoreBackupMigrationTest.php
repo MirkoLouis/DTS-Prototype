@@ -17,7 +17,7 @@ class RestoreBackupMigrationTest extends TestCase
     // Remove the test backup archive and any SQL file left behind
     protected function tearDown(): void
     {
-        $dir = BASE_PATH . '/storage/app/backups/';
+        $dir = \App\Modules\System\BackupService::directory() . '/';
         @unlink($dir . $this->zipName);
         @unlink($dir . str_replace('.zip', '', $this->zipName));
         parent::tearDown();
@@ -30,7 +30,7 @@ class RestoreBackupMigrationTest extends TestCase
         $sqlName = 'test_restore_' . bin2hex(random_bytes(4)) . '.sql';
         $this->zipName = $sqlName . '.zip';
         $zip = new ZipArchive();
-        $zip->open(BASE_PATH . '/storage/app/backups/' . $this->zipName, ZipArchive::CREATE);
+        $zip->open(\App\Modules\System\BackupService::directory() . '/' . $this->zipName, ZipArchive::CREATE);
         $zip->addFromString($sqlName, "ALTER TABLE users DROP COLUMN deactivated_at;\n");
         $zip->close();
 

@@ -35,6 +35,8 @@ return [
         'system_signing_public' => $env['SYSTEM_SIGNING_PUBLIC'] ?? '',
         // Seconds between a running job's health pings, and how long without one before it is recorded as abandoned
         'job_heartbeat_seconds' => (int) ($env['JOB_HEARTBEAT_SECONDS'] ?? 10),
-        'job_abandoned_seconds' => (int) ($env['JOB_ABANDONED_SECONDS'] ?? 60)
+        'job_abandoned_seconds' => (int) ($env['JOB_ABANDONED_SECONDS'] ?? 60),
+        // Days a backup is kept before it is deleted (the newest backup always stays); 0 keeps every backup
+        'backup_keep_days' => (int) ($env['BACKUP_KEEP_DAYS'] ?? 14)
     ]
 ];

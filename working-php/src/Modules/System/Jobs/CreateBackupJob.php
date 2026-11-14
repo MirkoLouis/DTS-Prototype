@@ -2,48 +2,69 @@
 
 namespace App\Modules\System\Jobs;
 
+use App\Common\Config\Config;
+use App\Common\Database\Database;
+use App\Common\Database\MysqlCli;
+use App\Modules\System\BackupService;
+
 class CreateBackupJob
 {
-    public function handle(): void
+    /**
+     * Dump the database into a zip in the backup folder, then expire backups past the age limit.
+     *
+     * @return string file name of the backup zip
+     * @throws \RuntimeException when the dump fails; no backup file is left behind
+     */
+    public function handle(): string
     {
         ini_set('memory_limit', '2G');
         set_time_limit(1200);
 
-        // Simple mysqldump wrapper
-        $config = require BASE_PATH . '/src/Common/Config/app.config.php';
-        $dbConfig = $config['database'];
-        $host = escapeshellarg($dbConfig['host']);
-        $user = escapeshellarg($dbConfig['user']);
-        $pass = escapeshellarg($dbConfig['password']);
-        $dbname = escapeshellarg($dbConfig['dbname']);
+        $database = (string) Config::get('database', 'dbname');
+        $backupDir = BackupService::directory();
+        $docCount = (int) (Database::getInstance()->query("SELECT COUNT(*) as count FROM documents")->fetch()['count'] ?? 0);
 
-        $backupDir = BASE_PATH . '/storage/app/backups';
-        if (!is_dir($backupDir)) mkdir($backupDir, 0777, true);
-
-        $db = \App\Common\Database\Database::getInstance();
-        $docCount = $db->query("SELECT COUNT(*) as count FROM documents")->fetch()['count'] ?? 0;
-
-        $filename = 'deped_dts_' . date('Y_m_d_His') . '_' . $docCount . '.sql';
+        $filename = BackupService::fileName($database, $docCount, new \DateTimeImmutable());
         $filePath = $backupDir . '/' . $filename;
-        $zipPath = $backupDir . '/' . $filename . '.zip';
+        $zipPath = $filePath . '.zip';
 
-        // Dump DB using MYSQL_PWD environment variable to prevent password disclosure warnings on stderr
-        $envPrefix = $dbConfig['password'] !== '' ? "MYSQL_PWD=" . escapeshellarg($dbConfig['password']) . " " : "";
-        $command = "{$envPrefix}mysqldump --single-transaction --quick -h {$host} -u {$user} {$dbname} > " . escapeshellarg($filePath) . " 2>&1";
-        exec($command, $output, $returnCode);
-
-        if ($returnCode !== 0) {
-            throw new \Exception("Database backup failed: " . implode("\n", $output));
+        // A failed dump leaves no file that could be mistaken for a backup
+        try {
+            MysqlCli::run('mysqldump', $this->dumpArguments($database), null, $filePath);
+        } catch (\Throwable $e) {
+            @unlink($filePath);
+            throw $e;
         }
 
-        // Zip it
+        // Zip the dump, then remove the plain SQL file
         $zip = new \ZipArchive();
-        if ($zip->open($zipPath, \ZipArchive::CREATE) === TRUE) {
-            $zip->addFile($filePath, $filename);
-            $zip->close();
+        if ($zip->open($zipPath, \ZipArchive::CREATE) !== true) {
+            @unlink($filePath);
+            throw new \RuntimeException("Could not create the backup archive {$filename}.zip.");
+        }
+        $zip->addFile($filePath, $filename);
+        $zip->close();
+        unlink($filePath);
+
+        // Remove backups past the age limit; the newest one always stays
+        BackupService::expire($backupDir, (int) Config::get('app', 'backup_keep_days', 14), time());
+
+        return $filename . '.zip';
+    }
+
+    /**
+     * mysqldump arguments: one consistent snapshot, without the tables that belong to the running server.
+     * Tests override this to make the dump fail.
+     *
+     * @return string[]
+     */
+    protected function dumpArguments(string $database): array
+    {
+        $arguments = ['--single-transaction', '--quick'];
+        foreach (BackupService::EXCLUDED_TABLES as $table) {
+            $arguments[] = "--ignore-table={$database}.{$table}";
         }
 
-        // Cleanup sql file
-        if (file_exists($filePath)) unlink($filePath);
+        return $arguments;
     }
 }

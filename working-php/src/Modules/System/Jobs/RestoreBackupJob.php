@@ -3,7 +3,9 @@
 namespace App\Modules\System\Jobs;
 
 use App\Common\Database\Database;
+use App\Common\Database\MysqlCli;
 use App\Common\Database\SqlScriptRunner;
+use App\Modules\System\BackupService;
 
 class RestoreBackupJob
 {
@@ -19,19 +21,12 @@ class RestoreBackupJob
         ini_set('memory_limit', '2G');
         set_time_limit(1200);
 
-        $backupDir = BASE_PATH . '/storage/app/backups';
+        $backupDir = BackupService::directory();
         $zipPath = $backupDir . '/' . $this->fileName;
 
         if (!file_exists($zipPath)) {
             return;
         }
-
-        $config = require BASE_PATH . '/src/Common/Config/app.config.php';
-        $dbConfig = $config['database'];
-        $host = escapeshellarg($dbConfig['host']);
-        $user = escapeshellarg($dbConfig['user']);
-        $pass = escapeshellarg($dbConfig['password']);
-        $dbname = escapeshellarg($dbConfig['dbname']);
 
         // Extract
         $zip = new \ZipArchive();
@@ -44,18 +39,13 @@ class RestoreBackupJob
 
         if ($sqlFile && file_exists($backupDir . '/' . $sqlFile)) {
             $filePath = $backupDir . '/' . $sqlFile;
-            
-            // Restore DB using MYSQL_PWD environment variable to suppress password warnings
-            $envPrefix = $dbConfig['password'] !== '' ? "MYSQL_PWD=" . escapeshellarg($dbConfig['password']) . " " : "";
-            $command = "{$envPrefix}mysql -h {$host} -u {$user} {$dbname} < " . escapeshellarg($filePath) . " 2>&1";
-            exec($command, $output, $returnCode);
 
-            if ($returnCode !== 0) {
-                throw new \Exception("Database restore failed: " . implode("\n", $output));
+            // Feed the dump to the mysql client; the extracted file is removed whether or not it succeeds
+            try {
+                MysqlCli::run('mysql', [], $filePath);
+            } finally {
+                @unlink($filePath);
             }
-            
-            // Cleanup extracted SQL file
-            unlink($filePath);
 
             // A backup taken before a schema change restores the old tables; bring them back up to date
             SqlScriptRunner::runFile(Database::getInstance()->getConnection(), BASE_PATH . '/scripts/migrations/master-migration.sql');

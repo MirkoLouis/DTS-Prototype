@@ -8,7 +8,7 @@ class BackupManagerController
 {
     public function index()
     {
-        $backupDir = BASE_PATH . '/storage/app/backups';
+        $backupDir = BackupService::directory();
         if (!is_dir($backupDir)) {
             mkdir($backupDir, 0777, true);
         }
@@ -66,7 +66,7 @@ class BackupManagerController
     public function download($fileName)
     {
         $safeFileName = basename($fileName);
-        $filePath = BASE_PATH . '/storage/app/backups/' . $safeFileName;
+        $filePath = BackupService::directory() . '/' . $safeFileName;
 
         if (file_exists($filePath)) {
             header('Content-Description: File Transfer');
@@ -87,7 +87,7 @@ class BackupManagerController
     public function delete($fileName)
     {
         $safeFileName = basename($fileName);
-        $filePath = BASE_PATH . '/storage/app/backups/' . $safeFileName;
+        $filePath = BackupService::directory() . '/' . $safeFileName;
 
         if (file_exists($filePath)) {
             unlink($filePath);
