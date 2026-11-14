@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-11-14 14:02
+
+**Version:** 2.7.3-Release+202611141402
+
+### Security
+- Tracking slips are no longer printable by anyone who knows a tracking code. `GET /documents/{code}/print-tracking-form` serves the PDF, which carries the submitter's contact details, only to the browser session that submitted the document (the newest 20 codes per session, cleared when someone signs in on that browser) or to a signed-in user allowed to view it (`DocumentPolicy::view`: officers and admins, and staff whose department is on the route). Anyone else gets a 403, and staff outside the route are returned to their dashboard. A deactivated account's still-open session is refused on this route too (it has no `AuthMiddleware`, because guests use it).
+- The response cache stores bare URLs only. Requests that differed only in their query string (`/?x=1`, `/?x=2`, …) each created a cache file, without signing in.
+- Login runs one bcrypt check even when the username does not exist. Before, an unknown username was refused in about 3 ms and a wrong password in about 50 ms, which revealed which usernames exist. Accounts whose password was set through the UI use PHP's current default cost, so timing can still differ slightly between cost classes, but no longer between "exists" and "does not exist".
+- Spreadsheet reports write every data cell as text (`ReleasedReportService::toRow`). A title, district or submitter name starting with `=` was written as a live formula (formula injection).
+- Report requests store only the report's filters (`date`, `purpose`, `submitter`, `search`; `ReleasedReportService::sanitizeFilters`). Before, the whole form was stored in `report_jobs.filters` and in the queued job, including the CSRF token.
+- A report job can be downloaded, inspected (`/statistics/report/status`) and cancelled only by the user who requested it. Before, any signed-in officer or staff member who knew or guessed a job id (ids are time-based) could download another user's report, read its filters, or cancel it.
+
 ## 2026-11-13 17:07
 
 **Version:** 2.7.2-Release+202611131707

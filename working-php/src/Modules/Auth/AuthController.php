@@ -8,6 +8,9 @@ use App\Common\Validation\Validator;
 
 class AuthController
 {
+    // bcrypt hash (cost 10, like the seeded accounts) of a discarded random string; checked when the username is unknown
+    private const DUMMY_PASSWORD_HASH = '$2y$10$W5vDh5KItZHM5nt1XrMXM.9WpjWvlPF0m//2BCSD.rffnXE3Z2LbC';
+
     /**
      * Show the login form.
      */
@@ -62,10 +65,16 @@ class AuthController
         $stmt = $db->query("SELECT * FROM users WHERE email = :email AND deactivated_at IS NULL LIMIT 1", [':email' => $email]);
         $user = $stmt->fetch();
 
+        // Always run one bcrypt check, so response time does not reveal whether the username exists
+        $passwordOk = password_verify($password, $user['password'] ?? self::DUMMY_PASSWORD_HASH);
+
         // Verify the user exists and the password is correct
-        if ($user && password_verify($password, $user['password'])) {
+        if ($user && $passwordOk) {
             // A successful login forgets earlier failures
             AttemptThrottleService::clear($throttleKey);
+
+            // The codes a guest submitted on this browser belong to that guest, not to the account signing in
+            unset($_SESSION[\App\Modules\Documents\GuestController::SUBMITTED_CODES_KEY]);
 
             // Success! Store user details in session
             $_SESSION['user_id'] = $user['id'];

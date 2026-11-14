@@ -67,6 +67,12 @@ class CacheMiddleware
             return;
         }
 
+        // Only bare URLs are cached: keying on arbitrary query strings would let anyone create an
+        // unbounded number of cache files (/?x=1, /?x=2, ...) and fill the disk
+        if (($_SERVER['QUERY_STRING'] ?? '') !== '' || str_contains($_SERVER['REQUEST_URI'] ?? '', '?')) {
+            return;
+        }
+
         // Do not serve or create cache if there are pending flash messages
         if (isset($_SESSION['success']) || isset($_SESSION['error']) || isset($_SESSION['info'])
             || isset($_SESSION[\App\Modules\Users\SecurityPinCacheService::SESSION_ISSUED]) || isset($_SESSION[\App\Modules\Users\SecurityPinCacheService::SESSION_CLEAR])) {

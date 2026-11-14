@@ -46,7 +46,9 @@ class StatisticsController
             $db = Database::getInstance();
             $jobId = uniqid();
             $userId = $_SESSION['user_id'];
-            $filtersJson = json_encode($_POST);
+            // Store only the report's own filters, never the whole form (which carries the CSRF token)
+            $filters = ReleasedReportService::sanitizeFilters($_POST);
+            $filtersJson = json_encode($filters);
             
             $db->query("INSERT INTO report_jobs (id, user_id, status, progress, total_documents, filters, created_at, updated_at) VALUES (:id, :uid, 'queued', 0, 0, :filters, NOW(), NOW())", [
                 'id' => $jobId,
@@ -54,7 +56,7 @@ class StatisticsController
                 'filters' => $filtersJson
             ]);
 
-            $payload = json_encode(['class' => \App\Modules\Analytics\Jobs\GenerateReportJob::class, 'data' => [$jobId, $userId, $_POST]]);
+            $payload = json_encode(['class' => \App\Modules\Analytics\Jobs\GenerateReportJob::class, 'data' => [$jobId, $userId, $filters]]);
             $db->query("INSERT INTO jobs (queue, payload, attempts, available_at, created_at) VALUES ('default', :payload, 0, UNIX_TIMESTAMP(), UNIX_TIMESTAMP())", [
                 'payload' => $payload
             ]);
@@ -68,23 +70,56 @@ class StatisticsController
         }
     }
 
+    /**
+     * Load a report job only if the signed-in user requested it.
+     *
+     * Job ids are time-based and guessable, and a job carries its requester's filters and data, so
+     * every endpoint that takes a job id goes through this lookup.
+     *
+     * @return array|null the report_jobs row, or null when it does not exist or belongs to someone else
+     */
+    private function ownReportJob(mixed $jobId): ?array
+    {
+        // A job id is always a plain string
+        if (!is_string($jobId) || $jobId === '') {
+            return null;
+        }
+
+        $job = Database::getInstance()->query(
+            "SELECT * FROM report_jobs WHERE id = :id AND user_id = :uid",
+            ['id' => $jobId, 'uid' => (int) ($_SESSION['user_id'] ?? 0)]
+        )->fetch();
+
+        return $job ?: null;
+    }
+
     public function getReportStatus()
     {
-        $jobId = $_GET['job_id'] ?? null;
-        $db = Database::getInstance();
-        $status = $db->query("SELECT * FROM report_jobs WHERE id = :id", ['id' => $jobId])->fetch();
-        
         header('Content-Type: application/json');
-        echo json_encode($status);
+
+        // Unknown jobs and other users' jobs look the same to the caller
+        $job = $this->ownReportJob($_GET['job_id'] ?? null);
+        if ($job === null) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Report not found.']);
+            exit;
+        }
+
+        echo json_encode($job);
         exit;
     }
 
     public function cancelReport()
     {
-        $jobId = $_POST['job_id'] ?? null;
-        $db = Database::getInstance();
-        $db->query("UPDATE report_jobs SET status = 'cancelled' WHERE id = :id AND status IN ('queued', 'processing')", ['id' => $jobId]);
-        
+        // Only the requester's own job can be cancelled; anything else is left untouched
+        $job = $this->ownReportJob($_POST['job_id'] ?? null);
+        if ($job !== null) {
+            Database::getInstance()->query(
+                "UPDATE report_jobs SET status = 'cancelled' WHERE id = :id AND status IN ('queued', 'processing')",
+                ['id' => $job['id']]
+            );
+        }
+
         header('Content-Type: application/json');
         echo json_encode(['status' => 'success']);
         exit;
@@ -93,9 +128,11 @@ class StatisticsController
     public function downloadReport($jobId)
     {
         $db = Database::getInstance();
-        $job = $db->query("SELECT * FROM report_jobs WHERE id = :id", ['id' => $jobId])->fetch();
-        
-        if (!$job || $job['status'] !== 'completed') {
+
+        // Only the user who requested a report can download it
+        $job = $this->ownReportJob($jobId);
+
+        if ($job === null || $job['status'] !== 'completed') {
             header('Location: /statistics');
             exit;
         }
@@ -201,20 +238,8 @@ class StatisticsController
         $writer->addRow(\OpenSpout\Common\Entity\Row::fromValuesWithStyle(['Tracking Code', 'Title', 'Purpose', 'District', 'Submitted By', 'Date Released'], $styleBold));
 
         while ($doc = $stmt->fetch(\PDO::FETCH_ASSOC)) {
-            $guestName = 'N/A';
-            if ($doc['guest_info']) {
-                $gi = json_decode($doc['guest_info'], true);
-                $guestName = $gi['name'] ?? 'N/A';
-            }
-            
-            $writer->addRow(\OpenSpout\Common\Entity\Row::fromValues([
-                $doc['tracking_code'],
-                $doc['title'],
-                $doc['purpose_name'],
-                $doc['district'],
-                $guestName,
-                $doc['updated_at']
-            ]));
+            // Text cells only: guest-typed values must never be evaluated as formulas
+            $writer->addRow(ReleasedReportService::toRow($doc));
         }
 
         $writer->close();

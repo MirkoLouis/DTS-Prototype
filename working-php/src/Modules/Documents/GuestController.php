@@ -9,6 +9,28 @@ use chillerlan\QRCode\QROptions;
 
 class GuestController
 {
+    // Session key listing the tracking codes this browser session submitted (the only slips a guest may print)
+    public const SUBMITTED_CODES_KEY = 'submitted_codes';
+
+    // Newest codes kept per session; a shared kiosk session serves many clients
+    private const MAX_SUBMITTED_CODES = 20;
+
+    /**
+     * Add a tracking code to a session's submitted codes, keeping only the newest ones.
+     *
+     * @param list<string> $codes
+     * @return list<string>
+     */
+    public static function withSubmittedCode(array $codes, string $code): array
+    {
+        // A code already listed is not stored twice
+        if (!in_array($code, $codes, true)) {
+            $codes[] = $code;
+        }
+
+        return array_slice($codes, -self::MAX_SUBMITTED_CODES);
+    }
+
     public function welcome()
     {
         $db = Database::getInstance();
@@ -81,6 +103,9 @@ class GuestController
             header("Location: /");
             exit;
         }
+
+        // Remember the code so this browser session can print its tracking slip without signing in
+        $_SESSION[self::SUBMITTED_CODES_KEY] = self::withSubmittedCode($_SESSION[self::SUBMITTED_CODES_KEY] ?? [], $trackingCode);
 
         header("Location: /success?tracking_code={$trackingCode}&document_id={$documentId}");
         exit;

@@ -310,6 +310,19 @@ class DocumentController
      */
     public function printTrackingForm($tracking_code)
     {
+        // The slip carries the submitter's contact details, so only the browser session that submitted the
+        // document, or a signed-in user allowed to view it, may print it
+        $ownSubmission = in_array($tracking_code, $_SESSION[GuestController::SUBMITTED_CODES_KEY] ?? [], true);
+
+        // This route has no AuthMiddleware (guests use it), so a deactivated account's live session is refused here
+        $account = isset($_SESSION['user_id']) ? \App\Modules\Users\UserModel::findById((int) $_SESSION['user_id']) : null;
+        $signedIn = $account !== null && $account->deactivated_at === null;
+        if (!$signedIn && !$ownSubmission) {
+            http_response_code(403);
+            echo "Please sign in to print this tracking form.";
+            exit;
+        }
+
         $db = Database::getInstance();
         
         $stmt = $db->query("SELECT d.*, p.name as purpose_name 
@@ -322,6 +335,11 @@ class DocumentController
             header("HTTP/1.0 404 Not Found");
             echo "Document not found.";
             exit;
+        }
+
+        // Signed-in users get the same per-department restriction as the document page
+        if ($signedIn && !$ownSubmission) {
+            $this->requireViewAccess($document);
         }
 
         // Generate QR Code
