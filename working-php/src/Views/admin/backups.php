@@ -17,6 +17,12 @@
             </form>
         </div>
 
+        <?php if (!empty($encryptionWarning)): ?>
+            <div class="mb-4 p-4 bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200 rounded-lg" role="alert">
+                <?= e($encryptionWarning) ?>
+            </div>
+        <?php endif; ?>
+
         <?php if (isset($_SESSION['success'])): ?>
             <div id="success-message" class="mb-4 p-4 bg-success-light text-success-active rounded-lg">
                 <?= htmlspecialchars($_SESSION['success']) ?>

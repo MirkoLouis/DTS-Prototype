@@ -31,7 +31,11 @@ class CreateBackupJob
         // A failed dump or a failed archive leaves no file that could be mistaken for a backup
         try {
             MysqlCli::run('mysqldump', $this->dumpArguments($database), null, $filePath);
-            BackupService::archive($filePath, $zipPath);
+            $password = (string) Config::get('app', 'backup_password', '');
+            if ($password === '') {
+                error_log("BACKUP_PASSWORD is not set: backup {$filename}.zip is stored unencrypted.");
+            }
+            BackupService::archive($filePath, $zipPath, $password);
         } finally {
             // The plain SQL file is only an intermediate step, whether or not the backup succeeded
             @unlink($filePath);

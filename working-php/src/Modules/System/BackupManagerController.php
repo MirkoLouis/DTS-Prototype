@@ -47,6 +47,9 @@ class BackupManagerController
             exit;
         }
 
+        // Tell the admin when new backups would be written unencrypted
+        $encryptionWarning = BackupService::encryptionWarning((string) \App\Common\Config\Config::get('app', 'backup_password', ''));
+
         require BASE_PATH . '/src/Views/admin/backups.php';
     }
 

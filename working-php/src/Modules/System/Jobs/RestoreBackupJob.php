@@ -2,6 +2,7 @@
 
 namespace App\Modules\System\Jobs;
 
+use App\Common\Config\Config;
 use App\Common\Database\Database;
 use App\Common\Database\MysqlCli;
 use App\Common\Database\SqlScriptRunner;
@@ -28,27 +29,15 @@ class RestoreBackupJob
             return;
         }
 
-        // Extract
-        $zip = new \ZipArchive();
-        $sqlFile = null;
-        if ($zip->open($zipPath) === TRUE) {
-            $sqlFile = $zip->getNameIndex(0);
-            $zip->extractTo($backupDir);
-            $zip->close();
+        // Take the dump out of the archive, feed it to the mysql client, and never leave the plain SQL file behind
+        $filePath = BackupService::extract($zipPath, $backupDir, (string) Config::get('app', 'backup_password', ''));
+        try {
+            MysqlCli::run('mysql', [], $filePath);
+        } finally {
+            @unlink($filePath);
         }
 
-        if ($sqlFile && file_exists($backupDir . '/' . $sqlFile)) {
-            $filePath = $backupDir . '/' . $sqlFile;
-
-            // Feed the dump to the mysql client; the extracted file is removed whether or not it succeeds
-            try {
-                MysqlCli::run('mysql', [], $filePath);
-            } finally {
-                @unlink($filePath);
-            }
-
-            // A backup taken before a schema change restores the old tables; bring them back up to date
-            SqlScriptRunner::runFile(Database::getInstance()->getConnection(), BASE_PATH . '/scripts/migrations/master-migration.sql');
-        }
+        // A backup taken before a schema change restores the old tables; bring them back up to date
+        SqlScriptRunner::runFile(Database::getInstance()->getConnection(), BASE_PATH . '/scripts/migrations/master-migration.sql');
     }
 }

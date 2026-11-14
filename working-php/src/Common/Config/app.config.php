@@ -35,6 +35,8 @@ return [
         'system_signing_public' => $env['SYSTEM_SIGNING_PUBLIC'] ?? '',
         // Secret (base64 of 32 random bytes) that keys the system audit log and, later, the chain seal
         'integrity_key' => $env['APP_INTEGRITY_KEY'] ?? '',
+        // Password that encrypts backup archives (AES-256); empty leaves backups unencrypted
+        'backup_password' => $env['BACKUP_PASSWORD'] ?? '',
         // Seconds between a running job's health pings, and how long without one before it is recorded as abandoned
         'job_heartbeat_seconds' => (int) ($env['JOB_HEARTBEAT_SECONDS'] ?? 10),
         'job_abandoned_seconds' => (int) ($env['JOB_ABANDONED_SECONDS'] ?? 60),
