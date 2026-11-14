@@ -102,7 +102,9 @@ Comprehensive user manuals are provided in [working-php/documentation/user_manua
 
 4. **Initialize & Seed Production Database:**
    ```bash
-   composer run seed:prod
+   composer run seed:prod            # creates the tables, the first accounts and the keys in .env
+   # On a database that already holds documents or users it refuses; to rebuild it and delete everything:
+   #   composer run seed:prod -- --force
    ```
 
 5. **Launch Local Server & Background Worker:**
@@ -146,8 +148,8 @@ The DTS is meant to run without stopping. Everything that grows over time falls 
 
 | Group | What | Who keeps it bounded |
 | :--- | :--- | :--- |
-| Handled by the app | Page cache (purged hourly), `database_metrics` (rolled up to hourly after 24 h), notifications (newest 10 per user/department), `navigation.log` (renamed at 50 MB), backups older than `BACKUP_KEEP_DAYS`, jobs whose process died (recorded under Failed Jobs) | The worker's scheduler (`console.php`) |
-| Handled by the operating system | nginx logs (`/var/log/nginx/dts_*.log`), PHP-FPM log (`/var/log/php<version>-fpm.log`), PHP session files (`/var/lib/php/sessions`), `storage/logs/worker.log` | logrotate and the PHP session cleaner, which must actually run (below) |
+| Handled by the app | Page cache (purged hourly), `database_metrics` (rolled up to hourly after 24 h), notifications (newest 10 per user/department), `navigation.log` (renamed at 50 MB), session files in `storage/sessions` (removed after `SESSION_LIFETIME`, 12 hours idle by default), backups older than `BACKUP_KEEP_DAYS`, jobs whose process died (recorded under Failed Jobs) | The worker's scheduler (`console.php`) |
+| Handled by the operating system | nginx logs (`/var/log/nginx/dts_*.log`), PHP-FPM log (`/var/log/php<version>-fpm.log`), `storage/logs/worker.log` | logrotate, which must actually run (below) |
 | Kept forever | `documents`, `document_logs`, `user_public_key_histories` (the audit trail) and the signed checkpoints in `storage/checkpoints/` | Nobody: plan disk capacity instead (below) |
 
 ### 1. Keep the queue worker running
@@ -178,22 +180,24 @@ Serve the site with `composer run prod` on that server, not `composer run dev`. 
 
 **Queue job settings** (`.env`, optional): `JOB_HEARTBEAT_SECONDS` (default 10) is how often a running job's helper process reports that the job is alive; `JOB_ABANDONED_SECONDS` (default 60, never less than three heartbeats) is how long without a report before the worker records the job under Failed Jobs. Such a job is not retried. If MySQL is down, the worker exits and the service (or the `composer run dev` watchdog) starts it again; after any restart or pause it waits one round before checking for abandoned jobs, so running jobs are not recorded by mistake.
 
-### 2. Make sure the operating system rotates logs and cleans PHP sessions
+**Secrets in `.env`.** `SYSTEM_SIGNING_SECRET` signs system log entries and checkpoints; `APP_INTEGRITY_KEY` (`php scripts/generate-keys.php --integrity`) keys the system audit log, `storage/logs/system-audit.log`, which records backup requests, restores and deletions outside the database; `BACKUP_PASSWORD` encrypts backup archives with AES-256. `composer run seed:prod` creates the first two. Choose `BACKUP_PASSWORD` yourself and keep copies of all three away from the server: a backup cannot be restored without the password it was made with, and replacing either key makes existing records fail verification.
 
-Ubuntu and Debian already install the rules: `/etc/logrotate.d/nginx` (daily, keep 14, compressed), `/etc/logrotate.d/php<version>-fpm` (weekly, keep 12), and a PHP session cleaner (`/etc/cron.d/php` and `phpsessionclean.timer`; `php.ini` sets `session.gc_probability = 0`, so PHP itself never deletes old session files). The rules only help if logrotate is installed and something runs it. Minimal images (containers, Distrobox) often lack the `logrotate` package itself:
+### 2. Make sure the operating system rotates logs
+
+Ubuntu and Debian already install the rules: `/etc/logrotate.d/nginx` (daily, keep 14, compressed), `/etc/logrotate.d/php<version>-fpm` (weekly, keep 12),. The DTS keeps its own sessions in `storage/sessions` and removes expired ones itself, so the system's PHP session cleaner (`phpsessionclean.timer`) is not needed for it. The rules only help if logrotate is installed and something runs it. Minimal images (containers, Distrobox) often lack the `logrotate` package itself:
 
 ```bash
 command -v logrotate || sudo apt install logrotate     # installs logrotate.timer and /etc/cron.daily/logrotate
 ```
 
-**On a machine with systemd** (a normal server or desktop install), check that both timers are active:
+**On a machine with systemd** (a normal server or desktop install), check that the timer is active:
 
 ```bash
-systemctl list-timers logrotate.timer phpsessionclean.timer
-sudo systemctl enable --now logrotate.timer phpsessionclean.timer    # if either is missing or inactive
+systemctl list-timers logrotate.timer
+sudo systemctl enable --now logrotate.timer    # if it is missing or inactive
 ```
 
-**On a machine without systemd as PID 1** (Docker, Distrobox, WSL), timers never fire. Install and start cron, which runs `/etc/cron.daily/logrotate` and `/etc/cron.d/php`:
+**On a machine without systemd as PID 1** (Docker, Distrobox, WSL), timers never fire. Install and start cron, which runs `/etc/cron.daily/logrotate`:
 
 ```bash
 sudo apt install cron
@@ -240,6 +244,7 @@ Check the CHANGELOG's "Upgrade note" for the version you are installing. An upda
 cd working-php
 cp .env.testing.example .env.testing
 APP_ENV=testing php scripts/generate-keys.php --system   # writes the system key into .env.testing
+APP_ENV=testing php scripts/generate-keys.php --integrity   # writes the integrity key into .env.testing
 ```
 
 You do not create the database by hand: `TestLifecycle` (called from `tests/bootstrap.php`) drops and recreates `deped_dts_test` and the `working-php/.test/` folder before every run, and removes them again after it. Every file a test creates lives in `.test/` (gitignored): the test response cache, checkpoints, integrity result, backups, navigation log and temporary files (`Tests\Support\TestFiles`). Result CSVs are kept. Only `.env.testing` and the system key are one-time setup. Within a run, the suite resets `deped_dts_test` from `database.sql` before every test, and the security tests deliberately corrupt and overwrite data. It therefore refuses to run unless `APP_ENV=testing` and the database name ends in `_test`. The test environment also uses its own response cache, checkpoint directory and integrity-result file so it never touches real data.

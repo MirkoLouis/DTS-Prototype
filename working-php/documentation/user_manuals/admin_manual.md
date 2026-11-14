@@ -68,6 +68,10 @@ Every user action that mutates document state requires a cryptographically secur
    - A backup, restore, report or integrity check runs as a background job. A job that ends with an error is listed under **Failed Jobs** with its error text.
    - A running job reports that it is alive every 10 seconds. If its process dies (a crash, a server restart), it appears under **Failed Jobs** within about a minute with the note "stopped sending its health ping". It is not run again automatically; start it again yourself if it is still needed.
    - Delete entries once you have dealt with them.
+4. **System audit log:**
+   - Backup requests, restores (with document counts before and after) and deletions are written to `storage/logs/system-audit.log`, a file outside the database, because a restore replaces the tables a database record would live in.
+   - Each line is linked to the one before it and protected with `APP_INTEGRITY_KEY`. **Run Integrity Check** also checks this file: "System audit log: intact", or the numbers of the lines that were changed, which also turns the overall status red.
+   - Limit: lines cut off the end of the file are not detectable, because nothing after them records that they existed. Copy the file off the server together with the checkpoints.
 
 ### 4.3 Handling Tampered Documents & Auto-Resolve
 
@@ -91,8 +95,10 @@ When raw database tampering is detected (e.g., unauthorized SQL updates bypassin
 ### 4.4 Managing System Backups (`/system/backups`)
 
 1. **Creating a Backup:** Click **Create Backup Now**. The background job [CreateBackupJob](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Modules/System/Jobs/CreateBackupJob.php) generates a compressed SQL dump in `storage/backups/`.
-2. **Restoring a Snapshot:** Select a backup file and click **Restore**. The system executes [RestoreBackupJob](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Modules/System/Jobs/RestoreBackupJob.php) to restore database tables.
+2. **Restoring a Snapshot:** Select a backup file, click **Restore**, and enter your Security PIN. Before anything is replaced, the system saves the current database as a `…_pre-restore_…` backup, so a restore can itself be undone. When the restore has finished you get a notification with the number of documents before and after and the name of that safety backup.
 3. **Downloading Archives:** Backup files can be downloaded directly for off-site storage.
+   - **Deleting** a backup also asks for your Security PIN. Three wrong PINs lock PIN entry for one minute.
+   - **Encryption:** backups are encrypted with AES-256 under `BACKUP_PASSWORD` from `.env`. Open a downloaded backup with a tool that supports AES zip (7-Zip, for example) and that password. If the page says backups are stored unencrypted, set `BACKUP_PASSWORD`. Keep the password somewhere other than the server: without it a backup cannot be restored.
 4. **What a backup contains:** every table except `jobs`, `cache`, `cache_locks` and `worker_schedule`. Those hold the running server's queue, cache and scheduler state, so a restore leaves them as they are. The file is named after the database it was taken from, for example `deped_dts_2026_11_14_093000_100001.sql.zip`.
 5. **Expiry:** each new backup deletes backups older than `BACKUP_KEEP_DAYS` (set in `.env`, default 14 days). The newest backup is never deleted. Set it to `0` to keep every backup. Download any backup you want to keep longer.
 
