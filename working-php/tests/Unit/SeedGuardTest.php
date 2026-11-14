@@ -82,4 +82,39 @@ class SeedGuardTest extends TestCase
         $this->assertFileExists("{$dir}/keep.txt");
         $this->assertFileExists("{$dir}/sub/sess_c");
     }
+
+    // The guard reads which database the schema file itself rebuilds, so that one is checked too
+    public function test_database_named_in_the_schema_file_is_found(): void
+    {
+        $script = 'const g = require(process.argv[1]);'
+            . 'process.stdout.write(JSON.stringify(JSON.parse(process.argv[2]).map(sql => g.databaseNamedIn(sql))));';
+        $cases = ["CREATE DATABASE IF NOT EXISTS deped_dts;\nUSE deped_dts;\n", "USE `other_db`;", "CREATE TABLE x (id INT);"];
+        $process = proc_open(['node', '-e', $script, BASE_PATH . '/scripts/seeders/seed-guard.js', json_encode($cases)], [['file', '/dev/null', 'r'], ['pipe', 'w'], ['pipe', 'w']], $pipes);
+        $output = stream_get_contents($pipes[1]);
+        $errors = stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        $this->assertSame(0, proc_close($process), "node failed: {$errors}");
+
+        $this->assertSame(['deped_dts', 'other_db', null], json_decode($output, true));
+    }
+
+    // In the seeder, nothing is cleared, generated or rebuilt before the guard has decided
+    public function test_seeder_does_nothing_before_the_guard(): void
+    {
+        $source = file_get_contents(BASE_PATH . '/scripts/seeders/setup-production-db.js');
+        $guard = strpos($source, 'refusalMessage(');
+        $this->assertNotFalse($guard);
+
+        // Each state-changing step comes after the guard's decision
+        foreach (['clearSessionsAndCache();', "'--system']", "'--integrity']", 'connection.query(sqlContent)'] as $step) {
+            $position = strpos($source, $step);
+            $this->assertNotFalse($position, "{$step} not found in the seeder");
+            $this->assertGreaterThan($guard, $position, "{$step} runs before the guard");
+        }
+
+        // Only this app's own folders are cleared, never the folder all PHP apps share
+        $this->assertStringNotContainsString('tmpdir', $source);
+        $this->assertStringContainsString('storage/sessions', $source);
+    }
 }

@@ -52,6 +52,7 @@ class RestoreBackupJob
             $this->import($zipPath);
         } catch (\Throwable $e) {
             $this->recordFailure($e->getMessage(), $safetyBackup);
+            $this->notify('Backup restore failed', "Restoring {$this->fileName} failed: {$e->getMessage()} The state before the restore was saved as {$safetyBackup}.", 'error');
             throw $e;
         }
         $after = $this->counts();
@@ -66,7 +67,14 @@ class RestoreBackupJob
             'logs_after' => $after['logs'],
         ]);
 
-        $this->notify($before['documents'], $after['documents'], $safetyBackup);
+        $lost = max(0, $before['documents'] - $after['documents']);
+        $this->notify(
+            'Backup restored',
+            "Restored {$this->fileName}. Documents: {$before['documents']} before, {$after['documents']} after"
+                . ($lost > 0 ? " ({$lost} newer document(s) are no longer in the database)" : '')
+                . ". The previous state was saved as {$safetyBackup}.",
+            $lost > 0 ? 'warning' : 'success'
+        );
     }
 
     /**
@@ -75,7 +83,8 @@ class RestoreBackupJob
      */
     protected function safetyBackup(): string
     {
-        return (new CreateBackupJob('pre-restore'))->handle();
+        // No expiry here: it could delete the very backup this job is about to restore
+        return (new CreateBackupJob('pre-restore', false))->handle();
     }
 
     /**
@@ -124,20 +133,23 @@ class RestoreBackupJob
     }
 
     /**
-     * Tell the admin who asked for the restore what it changed and where the previous state was saved.
+     * Tell the admin who asked for the restore how it ended.
+     *
+     * A notification that cannot be stored never changes the outcome: the restore has already
+     * succeeded or failed and is on record in the audit log. This happens when the restored
+     * backup predates the admin's own account.
      */
-    private function notify(int $documentsBefore, int $documentsAfter, string $safetyBackup): void
+    private function notify(string $title, string $message, string $type): void
     {
         // A restore started from the command line has nobody to notify
         if ($this->userId === null) {
             return;
         }
 
-        $lost = max(0, $documentsBefore - $documentsAfter);
-        $message = "Restored {$this->fileName}. Documents: {$documentsBefore} before, {$documentsAfter} after"
-            . ($lost > 0 ? " ({$lost} newer document(s) are no longer in the database)" : '')
-            . ". The previous state was saved as {$safetyBackup}.";
-
-        (new NotificationService())->notifyUser($this->userId, 'Backup restored', $message, $lost > 0 ? 'warning' : 'success');
+        try {
+            (new NotificationService())->notifyUser($this->userId, $title, $message, $type);
+        } catch (\Throwable $e) {
+            error_log("Restore of {$this->fileName}: could not notify user {$this->userId}: " . $e->getMessage());
+        }
     }
 }

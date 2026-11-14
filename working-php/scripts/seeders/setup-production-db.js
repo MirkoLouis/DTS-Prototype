@@ -1,45 +1,24 @@
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
-const { refusalMessage, countRows } = require('./seed-guard');
+const { refusalMessage, countRows, databaseNamedIn } = require('./seed-guard');
+const { removeFilesIn } = require('./seed-files');
 
 const mysql = require('mysql2/promise');
 const fs = require('fs');
-const os = require('os');
 
+/**
+ * Remove this app's session files and cached pages, which belong to the data that is about to be replaced.
+ * Only the app's own folders are touched, never the session folder other PHP apps on the server share.
+ */
 function clearSessionsAndCache() {
-    try {
-        const tmpDir = os.tmpdir();
-        const files = fs.readdirSync(tmpDir);
-        for (const file of files) {
-            if (file.startsWith('sess_')) {
-                try { fs.unlinkSync(path.join(tmpDir, file)); } catch (e) {}
-            }
-        }
-    } catch (e) {}
-
-    const cacheDir = path.join(__dirname, '../../cache/responses');
-    if (fs.existsSync(cacheDir)) {
-        try {
-            const files = fs.readdirSync(cacheDir);
-            for (const file of files) {
-                try { fs.unlinkSync(path.join(cacheDir, file)); } catch (e) {}
-            }
-        } catch (e) {}
-    }
+    removeFilesIn(path.join(__dirname, '../../storage/sessions'), /^sess_/);
+    removeFilesIn(path.join(__dirname, '../../cache/responses'), /./);
 }
 
 async function setupDatabase() {
     let connection;
     try {
         console.log('🔄 Starting Database Setup...');
-        clearSessionsAndCache();
-
-        // Ensure the server Ed25519 key exists; system-initiated log entries cannot be signed without it
-        console.log('🔐 Ensuring system signing key exists...');
-        require('child_process').execFileSync('php', [path.join(__dirname, '../generate-keys.php'), '--system'], { stdio: 'inherit' });
-
-        console.log('🔐 Ensuring integrity key exists...');
-        require('child_process').execFileSync('php', [path.join(__dirname, '../generate-keys.php'), '--integrity'], { stdio: 'inherit' });
 
         connection = await mysql.createConnection({
             host: process.env.DB_HOST,
@@ -59,11 +38,19 @@ async function setupDatabase() {
             process.exit(1);
         }
 
-        // Never rebuild a database that already holds documents or accounts unless the operator passed --force
-        const [existingDocuments, existingUsers] = await Promise.all([
-            countRows(connection, process.env.DB_DATABASE, 'documents'),
-            countRows(connection, process.env.DB_DATABASE, 'users')
-        ]);
+        // 1. Load database.sql
+        const sqlFilePath = path.join(__dirname, '../../database.sql');
+        const sqlContent = fs.readFileSync(sqlFilePath, 'utf8');
+
+        // Never rebuild a database that already holds documents or accounts unless the operator passed --force.
+        // Both the database in .env and the one the schema file itself names are checked, since either may be rebuilt.
+        const databases = [...new Set([process.env.DB_DATABASE, databaseNamedIn(sqlContent)].filter(Boolean))];
+        let existingDocuments = 0;
+        let existingUsers = 0;
+        for (const database of databases) {
+            existingDocuments += await countRows(connection, database, 'documents');
+            existingUsers += await countRows(connection, database, 'users');
+        }
         const refusal = refusalMessage(existingDocuments, existingUsers, process.argv);
         if (refusal !== null) {
             console.error('🛑 ' + refusal);
@@ -71,10 +58,16 @@ async function setupDatabase() {
             process.exit(1);
         }
 
-        // 1. Load and execute database.sql
-        const sqlFilePath = path.join(__dirname, '../../database.sql');
-        const sqlContent = fs.readFileSync(sqlFilePath, 'utf8');
-        
+        // From here on the rebuild goes ahead: clear this app's sessions and cached pages
+        clearSessionsAndCache();
+
+        // Ensure the server Ed25519 key exists; system-initiated log entries cannot be signed without it
+        console.log('🔐 Ensuring system signing key exists...');
+        require('child_process').execFileSync('php', [path.join(__dirname, '../generate-keys.php'), '--system'], { stdio: 'inherit' });
+
+        console.log('🔐 Ensuring integrity key exists...');
+        require('child_process').execFileSync('php', [path.join(__dirname, '../generate-keys.php'), '--integrity'], { stdio: 'inherit' });
+
         console.log('🧹 Dropping existing tables and rebuilding schema (including document_snapshot)...');
         await connection.query(sqlContent);
         

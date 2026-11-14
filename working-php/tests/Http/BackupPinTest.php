@@ -170,4 +170,17 @@ class BackupPinTest extends TestCase
         $this->assertMatchesRegularExpression('/id="restore-form"[^>]*class="[^"]*sign-action/', $body);
         $this->assertStringContainsString('sign-pin-input', $body);
     }
+
+    // The PIN prompt and its wiring are part of the page content, so in-app navigation (which swaps only
+    // the content) brings them along; anything after the closing html tag would be dropped
+    public function test_pin_prompt_is_inside_the_page_content(): void
+    {
+        $body = $this->admin()->get('/system/backups')['body'];
+        $end = strpos($body, '</html>');
+
+        $this->assertNotFalse($end);
+        $this->assertNotFalse(strpos($body, 'initBackupsPage'));
+        $this->assertLessThan($end, strpos($body, 'initBackupsPage'));
+        $this->assertFalse(strpos($body, 'SigningModal', $end), 'the signing modal is emitted after the page');
+    }
 }

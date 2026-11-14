@@ -17,7 +17,8 @@ use App\Common\Config\Config;
 class SystemAuditService
 {
     // The same encoding is used to write a line and to compute its mac
-    private const JSON_FLAGS = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE;
+    // Invalid UTF-8 (a file name, a tool's error text) is replaced, not rejected, so an entry is never dropped
+    private const JSON_FLAGS = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE;
 
     /**
      * Path of the audit log. The test suite keeps its own file in the .test folder.
@@ -57,10 +58,18 @@ class SystemAuditService
                     'prev' => self::lastMac($handle),
                 ];
                 $entry['mac'] = self::macFor($entry);
+                $line = json_encode($entry, self::JSON_FLAGS);
+                if ($line === false) {
+                    throw new \RuntimeException('entry could not be encoded: ' . json_last_error_msg());
+                }
+
+                // A previous write that was cut off mid-line must not swallow this entry
+                $prefix = self::endsWithNewline($handle) ? '' : "\n";
 
                 fseek($handle, 0, SEEK_END);
-                fwrite($handle, json_encode($entry, self::JSON_FLAGS) . "\n");
-                fflush($handle);
+                if (fwrite($handle, $prefix . $line . "\n") === false || !fflush($handle)) {
+                    throw new \RuntimeException('entry could not be written (is the disk full?)');
+                }
             } finally {
                 flock($handle, LOCK_UN);
                 fclose($handle);
@@ -83,8 +92,15 @@ class SystemAuditService
             return $result;
         }
 
+        // Read under a shared lock, so a line that is being written right now is not reported as altered
+        $handle = fopen(self::path(), 'r');
+        flock($handle, LOCK_SH);
+        $contents = (string) stream_get_contents($handle);
+        flock($handle, LOCK_UN);
+        fclose($handle);
+
         $previousMac = '';
-        $lines = file(self::path(), FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        $lines = array_values(array_filter(explode("\n", $contents), 'strlen'));
         foreach ($lines as $index => $line) {
             // A line is good when it is an entry, links to the line before it, and its mac matches its contents
             $entry = json_decode($line, true);
@@ -122,6 +138,22 @@ class SystemAuditService
         $decoded = base64_decode((string) Config::get('app', 'integrity_key', ''), true);
 
         return $decoded === false ? '' : $decoded;
+    }
+
+    /**
+     * Whether the locked file is empty or ends with a line break.
+     *
+     * @param resource $handle
+     */
+    private static function endsWithNewline($handle): bool
+    {
+        $size = fstat($handle)['size'] ?? 0;
+        if ($size === 0) {
+            return true;
+        }
+        fseek($handle, -1, SEEK_END);
+
+        return fread($handle, 1) === "\n";
     }
 
     /**

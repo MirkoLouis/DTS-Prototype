@@ -98,7 +98,12 @@ class BackupManagerController
             exit;
         }
 
-        unlink(BackupService::directory() . '/' . $safeFileName);
+        // Only a backup that was really removed is reported and recorded as deleted
+        if (!@unlink(BackupService::directory() . '/' . $safeFileName)) {
+            $_SESSION['error'] = "Backup {$safeFileName} could not be deleted.";
+            header('Location: /system/backups');
+            exit;
+        }
         SystemAuditService::record('backup_deleted', ['file' => $safeFileName, 'user_id' => (int) $_SESSION['user_id']]);
         $_SESSION['success'] = "Backup {$safeFileName} deleted.";
 

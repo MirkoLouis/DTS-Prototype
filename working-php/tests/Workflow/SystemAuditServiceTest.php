@@ -139,4 +139,26 @@ class SystemAuditServiceTest extends TestCase
             rmdir(SystemAuditService::path());
         }
     }
+
+    // Text that is not valid UTF-8 (a file name, a tool's error message) is still recorded, never dropped
+    public function test_invalid_utf8_data_is_still_recorded(): void
+    {
+        SystemAuditService::record('backup_restore_failed', ['reason' => "bad byte \xB1 here"]);
+
+        $entries = $this->entries();
+        $this->assertCount(1, $entries);
+        $this->assertSame('backup_restore_failed', $entries[0]['event']);
+        $this->assertSame([], SystemAuditService::verify()['bad_lines']);
+    }
+
+    // After a write that was cut off mid-line, the next entry starts on its own line and verifies
+    public function test_entry_after_a_cut_off_line_starts_on_its_own_line(): void
+    {
+        $this->recordThree();
+        file_put_contents(SystemAuditService::path(), '{"ts":"cut off', FILE_APPEND);
+        SystemAuditService::record('backup_requested', ['user_id' => 1]);
+
+        // Five lines: three good, the cut-off one, and the new entry, which is intact
+        $this->assertSame(['keyed' => true, 'entries' => 5, 'bad_lines' => [4]], SystemAuditService::verify());
+    }
 }

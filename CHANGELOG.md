@@ -8,12 +8,12 @@ All notable changes to this project will be documented in this file.
 
 ### Security
 - Restoring or deleting a backup requires the admin's Security PIN, proved by signing as for any signed action; wrong PINs count toward the PIN lockout. Before, either took one click.
-- Every restore first saves the current database as a `<database>_pre-restore_…` backup, and does not run if that fails. The admin who asked is notified with the document counts before and after and the safety backup's name.
+- Every restore first saves the current database as a `<database>_pre-restore_…` backup, and does not run if that fails. Making that safety backup never expires old backups, so the backup being restored cannot be deleted under it. The admin who asked is notified when the restore finishes (document counts before and after, and the safety backup's name) and when it fails (the reason, and the safety backup's name); a notification that cannot be stored, for example because the restored backup predates the admin's account, does not turn a finished restore into a failed job.
 - System audit log (`storage/logs/system-audit.log`, `SystemAuditService`): backup requests, restore requests, restores (with counts), failed restores and deletions are recorded outside the database. Each line carries an HMAC-SHA256 under `APP_INTEGRITY_KEY` that includes the previous line's, so an edited line, a removed middle line and reordered lines are detected. The integrity check verifies it, and System Overview shows "System audit log: intact" or the altered line numbers. Lines cut off the end are not detectable.
 - Backup archives are encrypted with AES-256 under `BACKUP_PASSWORD`. Without a password backups are still written, unencrypted, and the backups page warns. Backups made before this version restore as before.
 - A backup archive is accepted for restore only if it holds exactly one file with a plain name ending in `.sql`, so a crafted archive cannot write outside the backup folder.
-- `composer run seed:prod` refuses to rebuild a database that already holds documents or users unless `-- --force` is passed (`scripts/seeders/seed-guard.js`).
-- Sessions are stored in the app's own folder, `storage/sessions`, instead of the folder every PHP app on the server shares, and the app removes expired ones itself (`SessionService`). A session may stay idle for `SESSION_LIFETIME` seconds (default 43200, 12 hours).
+- `composer run seed:prod` refuses to rebuild a database that already holds documents or users unless `-- --force` is passed (`scripts/seeders/seed-guard.js`). It checks the database in `.env` and the one `database.sql` itself names, and a refused run changes nothing: sessions, cached pages and keys are only touched after the check. It clears this app's `storage/sessions`, no longer the session folder all PHP apps share.
+- Sessions are stored in the app's own folder, `storage/sessions`, instead of the folder every PHP app on the server shares, and the app removes expired ones itself (`SessionService`). A session may stay idle for `SESSION_LIFETIME` seconds (default 43200, 12 hours): `AuthMiddleware` ends a session on its first request after the limit, and background requests (the notification poll, chart data) do not count as activity, so an open but unattended tab expires too.
 - `seed.js` clears caches and sessions through the file system API (`scripts/seeders/seed-files.js`), touching only this app's folders. Before, it ran `rm -rf … /tmp/sess_*` through a shell, which also deleted other apps' sessions.
 
 ### Added
@@ -22,7 +22,7 @@ All notable changes to this project will be documented in this file.
 
 ### Upgrade note
 - Run `php scripts/generate-keys.php --integrity`, set `BACKUP_PASSWORD` in `.env`, and keep copies of both (and of `SYSTEM_SIGNING_SECRET`) away from the server.
-- Everyone signs in again once, because sessions move to `storage/sessions`. The web server's user must be able to write to `storage/`.
+- Everyone signs in again once, because sessions move to `storage/sessions`. `storage/sessions` and `storage/logs/system-audit.log` are created by whichever process uses them first; the web server's user and the worker's user must both be able to write to `storage/` (run them as the same user, as `composer run dev` and the `dts-worker.service` template do).
 - Test setup: `APP_ENV=testing php scripts/generate-keys.php --integrity`, and `BACKUP_PASSWORD=test-backup-password` in `.env.testing` (see `.env.testing.example`).
 
 ## 2026-11-14 19:22

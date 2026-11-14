@@ -109,9 +109,6 @@
     }
 
 </script>
-
-<?php $content = ob_get_clean(); ?>
-<?php require BASE_PATH . '/src/Views/layouts/app.php'; ?>
 <script>
     // Deleting and restoring ask for the Security PIN before the form is sent
     function initBackupsPage() {
@@ -136,3 +133,6 @@
     }
 </script>
 <?php require BASE_PATH . '/src/Views/partials/signing-modal.php'; ?>
+
+<?php $content = ob_get_clean(); ?>
+<?php require BASE_PATH . '/src/Views/layouts/app.php'; ?>

@@ -176,4 +176,68 @@ class RestoreBackupJobTest extends TestCase
         $this->assertStringContainsString('BACKUP_PASSWORD', $entry['data']['reason']);
         $this->assertFileDoesNotExist("{$directory}/other.sql");
     }
+
+    // Restoring an old backup must not let expiry delete it (or anything else) while the safety backup is made
+    public function test_restoring_an_old_backup_does_not_expire_it(): void
+    {
+        [$backup, $first] = $this->backupThenAddDocument();
+        $directory = BackupService::directory();
+
+        // The backup to restore, and another one, are both far past the age limit
+        $old = time() - 60 * 86400;
+        touch("{$directory}/{$backup}", $old);
+        copy("{$directory}/{$backup}", "{$directory}/another-old-backup.sql.zip");
+        touch("{$directory}/another-old-backup.sql.zip", $old);
+
+        (new RestoreBackupJob($backup, $this->fx['users']['admin']))->handle();
+
+        $this->assertFileExists("{$directory}/{$backup}");
+        $this->assertFileExists("{$directory}/another-old-backup.sql.zip");
+        $this->assertTrue($this->documentExists($first['tracking_code']));
+        $this->assertSame('backup_restored', $this->lastAuditEntry()['event']);
+    }
+
+    // A backup taken before the requesting admin's account existed still restores; the missing notification is not a failure
+    public function test_restore_succeeds_when_the_requesting_admin_is_not_in_the_backup(): void
+    {
+        [$backup, $first] = $this->backupThenAddDocument();
+
+        // An admin account created after the backup was taken
+        $db = Database::getInstance();
+        $db->query("INSERT INTO users (name, email, password, role, created_at, updated_at) VALUES ('Later Admin', 'later.admin', 'x', 'admin', NOW(), NOW())");
+        $laterAdminId = (int) $db->getConnection()->lastInsertId();
+
+        (new RestoreBackupJob($backup, $laterAdminId))->handle();
+
+        $this->assertTrue($this->documentExists($first['tracking_code']));
+        $entry = $this->lastAuditEntry();
+        $this->assertSame('backup_restored', $entry['event']);
+        $this->assertSame($laterAdminId, $entry['data']['user_id']);
+    }
+
+    // A failed restore tells the admin too, with the reason and where the previous state was saved
+    public function test_failed_restore_notifies_the_admin(): void
+    {
+        Fixtures::submit();
+        $directory = BackupService::directory();
+        file_put_contents("{$directory}/other.sql", "SELECT 1;\n");
+        BackupService::archive("{$directory}/other.sql", "{$directory}/other.sql.zip", 'a different password');
+        unlink("{$directory}/other.sql");
+        $adminId = $this->fx['users']['admin'];
+
+        try {
+            (new RestoreBackupJob('other.sql.zip', $adminId))->handle();
+        } catch (\RuntimeException $e) {
+            // Expected: the archive cannot be read with the configured password
+        }
+
+        $notification = Database::getInstance()->query(
+            'SELECT title, message, type FROM notifications WHERE user_id = :u ORDER BY id DESC LIMIT 1',
+            [':u' => $adminId]
+        )->fetch();
+        $this->assertSame('Backup restore failed', $notification['title']);
+        $this->assertSame('error', $notification['type']);
+        $this->assertStringContainsString('other.sql.zip', $notification['message']);
+        $this->assertStringContainsString($this->safetyBackups()[0], $notification['message']);
+    }
 }

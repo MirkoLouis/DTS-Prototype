@@ -10,9 +10,11 @@ use App\Modules\System\BackupService;
 class CreateBackupJob
 {
     /**
-     * @param string $label optional word placed in the file name, e.g. "pre-restore" for the backup a restore makes first
+     * @param string $label  optional word placed in the file name, e.g. "pre-restore" for the backup a restore makes first
+     * @param bool   $expire whether old backups are removed afterwards; a restore turns this off, because the backup
+     *                       it is about to restore may itself be older than the age limit
      */
-    public function __construct(private string $label = '')
+    public function __construct(private string $label = '', private bool $expire = true)
     {
     }
 
@@ -49,7 +51,9 @@ class CreateBackupJob
         }
 
         // Remove backups past the age limit; the newest one always stays
-        BackupService::expire($backupDir, (int) Config::get('app', 'backup_keep_days', 14), time());
+        if ($this->expire) {
+            BackupService::expire($backupDir, (int) Config::get('app', 'backup_keep_days', 14), time());
+        }
 
         return $filename . '.zip';
     }

@@ -46,4 +46,18 @@ async function countRows(connection, database, table) {
     return Number(rows[0].c);
 }
 
-module.exports = { refusalMessage, countRows };
+/**
+ * Name of the database a schema file switches to with USE, or null when it names none.
+ *
+ * The schema file rebuilds the database it names, which is not necessarily the one in .env, so the
+ * seeder checks that one for existing data as well.
+ *
+ * @param {string} sql contents of the schema file
+ * @returns {string|null}
+ */
+function databaseNamedIn(sql) {
+    const match = /^\s*USE\s+`?([A-Za-z0-9_]+)`?\s*;/im.exec(sql);
+    return match ? match[1] : null;
+}
+
+module.exports = { refusalMessage, countRows, databaseNamedIn };
