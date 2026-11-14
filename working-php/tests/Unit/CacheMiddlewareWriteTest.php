@@ -6,6 +6,7 @@ use App\Common\Middleware\CacheMiddleware;
 use App\Research\Barrier;
 use Tests\Support\HttpClient;
 use Tests\TestCase;
+use Tests\Support\TestFiles;
 
 class CacheMiddlewareWriteTest extends TestCase
 {
@@ -15,8 +16,7 @@ class CacheMiddlewareWriteTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->dir = sys_get_temp_dir() . '/dts-cache-write-' . bin2hex(random_bytes(4));
-        mkdir($this->dir, 0700, true);
+        $this->dir = TestFiles::dir('dts-cache-write');
     }
 
     // Remove the scratch directory and reset the write seam

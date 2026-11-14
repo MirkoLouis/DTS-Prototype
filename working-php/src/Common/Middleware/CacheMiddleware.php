@@ -15,7 +15,7 @@ class CacheMiddleware
      */
     public static function cacheDir(): string
     {
-        return BASE_PATH . (\App\Common\Config\Config::get('app', 'env') === 'testing' ? '/cache/responses-test' : '/cache/responses');
+        return \App\Common\Config\Config::isTesting() ? \App\Common\Config\Config::testPath('cache/responses') : BASE_PATH . '/cache/responses';
     }
 
     /**

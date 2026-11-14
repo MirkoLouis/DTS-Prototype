@@ -28,7 +28,15 @@ if (!$job) {
     exit(0);
 }
 
+// A helper process pings for this job while it runs; the worker records a job whose pings stop
+$queue = new \App\Modules\System\QueueService();
+$heartbeat = null;
+$exitCode = 0;
+
 try {
+    // Without its helper a running job would be recorded as abandoned, so a helper that cannot start fails the job
+    $heartbeat = $queue->startHeartbeat($jobId, getmypid());
+
     $payload = json_decode($job['payload'], true);
     
     $jobClass = $payload['class'];
@@ -43,28 +51,21 @@ try {
         throw new Exception("Job class {$jobClass} not found.");
     }
 
-    // Success: Delete job
-    $db->query("DELETE FROM jobs WHERE id = :id", ['id' => $jobId]);
+    // Success: remove the job from the queue
+    $queue->finish($jobId);
     echo "Job ID: {$jobId} processed successfully.\n";
 
 } catch (\Throwable $e) {
     echo "Job ID: {$jobId} failed: " . $e->getMessage() . "\n";
     
-    // Log failure
-    $db->query(
-        "INSERT INTO failed_jobs (uuid, connection, queue, payload, exception, failed_at) VALUES (:uuid, :connection, :queue, :payload, :exception, NOW())",
-        [
-            'uuid' => uniqid(),
-            'connection' => 'database',
-            'queue' => $job['queue'],
-            'payload' => $job['payload'],
-            'exception' => (string) $e
-        ]
-    );
-    
-    // Delete from queue
-    $db->query("DELETE FROM jobs WHERE id = :id", ['id' => $jobId]);
-    exit(1);
+    // Record the failure once and remove the job from the queue
+    $queue->fail($jobId, (string) $e);
+    $exitCode = 1;
+} finally {
+    // The job is over either way, so the pings stop
+    if ($heartbeat !== null) {
+        $queue->stopHeartbeat($heartbeat);
+    }
 }
 
-exit(0);
+exit($exitCode);

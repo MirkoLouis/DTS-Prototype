@@ -28,7 +28,7 @@ class ChainCheckpointJob
      */
     public static function directory(): string
     {
-        return BASE_PATH . (Config::get('app', 'env') === 'testing' ? '/storage/checkpoints-test' : '/storage/checkpoints');
+        return Config::isTesting() ? Config::testPath('checkpoints') : BASE_PATH . '/storage/checkpoints';
     }
 
     /**

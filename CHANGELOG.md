@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-11-14 19:22
+
+**Version:** 2.7.4-Release+202611141922
+
+### Added
+- Job heartbeat. While a queue job runs, a helper process (`scripts/job-heartbeat.php`, started by `runner.php`) writes `jobs.heartbeat_at` every `JOB_HEARTBEAT_SECONDS` (default 10) on its own database connection, so it keeps reporting while the job is inside a long dump or query. It stops when the job ends or its runner process is gone. A reserved job with no heartbeat for `JOB_ABANDONED_SECONDS` (default 60) is recorded under Failed Jobs ("stopped sending its health ping") and removed from the queue; it is never retried automatically. The timeout is never shorter than three heartbeats, the helper keeps trying through database errors, and the worker waits one round after a start or a pause before it checks. Before, a job whose process died stayed reserved forever and nothing showed it.
+- `Common/Database/MysqlCli`: mysqldump and mysql run as argument arrays through `proc_open`, with the password in the child's environment and the port passed. Before, backups built a shell command string, and mysqldump's error text was written into the `.sql` file.
+- `Modules/System/BackupService` and `Modules/System/QueueService`.
+
+### Fixed
+- A job is claimed by exactly one worker (`QueueService::claim` uses the claiming UPDATE's row count). Before, the follow-up check also passed for a second worker, so two workers could run the same job.
+- The worker re-opens its database connection when MySQL has dropped it (`Database::ensureConnected()`, on every poll). Before, a restart of MySQL or an idle timeout left the worker failing on every query.
+- A failed dump or a failed archive (for example on a full disk) leaves no backup file and is reported as a failure; before, an incomplete zip was reported as a successful backup. A failed restore removes the extracted SQL file.
+- A job is recorded under Failed Jobs once: `runner.php` finishes and fails jobs through `QueueService`, which records a failure only when it removed the job itself.
+
+### Changed
+- Backups leave out `jobs`, `cache`, `cache_locks` and `worker_schedule`, so restoring a backup made from this version on no longer replaces the running server's queue (including the restore job's own row). Backups made by earlier versions still contain those tables; after restoring one, the job that created that backup can appear once under Failed Jobs as abandoned and can be deleted.
+- Backup files are named after the database they were taken from (`<database>_<Y_m_d_His>_<documents>.sql.zip`) instead of always `deped_dts_…`.
+- Backups expire by age: each new backup deletes backups older than `BACKUP_KEEP_DAYS` (default 14), always keeping the newest. `0` keeps every backup. Before, backups were never deleted.
+- Every file a test creates is under `working-php/.test/` (response cache, checkpoints, integrity result, backups, navigation log, temporary files via `Tests\Support\TestFiles`), removed when a run starts and ends. Before, tests used `cache/responses-test`, `storage/checkpoints-test`, the real `storage/app/backups/` and the system temp directory.
+
+### Upgrade note
+- Run `scripts/migrations/master-migration.sql` (adds `jobs.heartbeat_at`), then restart `composer run dev` or `dts-worker.service`. Add `JOB_HEARTBEAT_SECONDS`, `JOB_ABANDONED_SECONDS` and `BACKUP_KEEP_DAYS` to `.env` only if you want values other than the defaults.
+
 ## 2026-11-14 14:02
 
 **Version:** 2.7.3-Release+202611141402

@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Research\ResultWriter;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\TestFiles;
 
 class ResultWriterTest extends TestCase
 {
@@ -42,7 +43,7 @@ class ResultWriterTest extends TestCase
     // A results dir outside storage/test-results is rejected
     public function test_results_dir_outside_storage_is_rejected(): void
     {
-        $outside = sys_get_temp_dir() . '/dts-outside-' . bin2hex(random_bytes(3));
+        $outside = TestFiles::file('dts-outside');
         $this->assertRejected(['DTS_RESULTS_DIR' => $outside], \InvalidArgumentException::class);
 
         // Rejection must not have created the folder

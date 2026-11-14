@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Research\RouteReplay;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\TestFiles;
 
 class RouteReplayTest extends TestCase
 {
@@ -64,7 +65,7 @@ class RouteReplayTest extends TestCase
     // Results go to the directory given, never the real results folder
     public function test_results_are_written_to_given_directory(): void
     {
-        $dir = sys_get_temp_dir() . '/route-replay-' . uniqid();
+        $dir = TestFiles::file('route-replay');
         RouteReplay::writeResults($this->replay(), $dir);
         $this->assertFileExists($dir . '/route-replay-overall.csv');
         $this->assertFileExists($dir . '/route-replay-by_year.csv');
@@ -163,7 +164,7 @@ class RouteReplayTest extends TestCase
     // The long baselines CSV and the profile CSV are written with the specified columns
     public function test_baselines_and_profile_csvs(): void
     {
-        $dir = sys_get_temp_dir() . '/route-replay-' . uniqid();
+        $dir = TestFiles::file('route-replay');
         RouteReplay::writeResults((new RouteReplay())->run(fn() => $this->baselineRows()), $dir);
         $lines = array_map(fn($l) => str_getcsv($l, ',', '"', '\\'), file($dir . '/route-replay-baselines.csv', FILE_IGNORE_NEW_LINES));
         $this->assertSame(['scope', 'key', 'strategy', 'scored', 'exact_matches', 'exact_pct', 'first_dept_matches', 'first_dept_pct'], $lines[0]);

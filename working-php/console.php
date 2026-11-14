@@ -29,13 +29,39 @@ $jobsProcessed = 0;
 // Container-compatible internal task scheduler; last-run times persist in worker_schedule, so restarts never postpone a task
 $schedule = new \App\Modules\System\WorkerScheduleService();
 
+// Job queue operations (claim, heartbeat, abandoned jobs)
+$queue = new \App\Modules\System\QueueService();
+
+// A worker that has just started (after a crash, a reboot or a database outage) waits one round before its
+// first abandoned-job check, so running jobs' helpers can ping first
+$schedule->markRun('abandoned_jobs', time());
+$lastLoopAt = time();
+
 /**
  * Execute periodic system maintenance and telemetry tasks inside the worker loop.
  * Eliminates reliance on host system cron daemons in containerized environments.
  */
-function runScheduledTasks(\App\Modules\System\WorkerScheduleService $schedule): void
+function runScheduledTasks(\App\Modules\System\WorkerScheduleService $schedule, \App\Modules\System\QueueService $queue): void
 {
     $now = time();
+
+    // Record jobs whose health ping has stopped (every 30s); they go to Failed Jobs and are not retried
+    if ($schedule->isDue('abandoned_jobs', 30, $now)) {
+        $schedule->markRun('abandoned_jobs', $now);
+        try {
+            // Never shorter than three ping intervals, whatever .env says
+            $timeout = \App\Modules\System\QueueService::abandonedTimeout(
+                (int) \App\Common\Config\Config::get('app', 'job_abandoned_seconds', 60),
+                (int) \App\Common\Config\Config::get('app', 'job_heartbeat_seconds', 10)
+            );
+            $abandoned = $queue->recordAbandoned($now, $timeout);
+            if ($abandoned > 0) {
+                echo "⏰ [Worker Scheduler] Recorded {$abandoned} abandoned job(s) under Failed Jobs.\n";
+            }
+        } catch (\Throwable $e) {
+            echo "⏰ [Worker Scheduler] Abandoned-job check failed: " . $e->getMessage() . "\n";
+        }
+    }
 
     // 0. Signed chain-head checkpoint every 24 hours (86400s)
     if ($schedule->isDue('checkpoint', 86400, $now)) {
@@ -147,8 +173,18 @@ function cleanupActiveWorkers(array &$activeWorkers) {
 }
 
 while (!$stopWorker) {
+    // Re-open the database connection if MySQL has dropped it since the last poll
+    $db->ensureConnected();
+
+    // After a pause (suspend, a stalled machine, a clock correction) every heartbeat looks old for a moment.
+    // Give the jobs' helpers one full round to ping again before the abandoned-job check runs.
+    if (time() - $lastLoopAt > 30) {
+        $schedule->markRun('abandoned_jobs', time());
+    }
+    $lastLoopAt = time();
+
     // 0. Run scheduled maintenance & telemetry tasks
-    runScheduledTasks($schedule);
+    runScheduledTasks($schedule, $queue);
 
     // 1. Memory Leak Prevention: Check if we exceeded our allowed memory
     if (memory_get_usage(true) > $maxMemory) {
@@ -181,14 +217,8 @@ while (!$stopWorker) {
     if ($job) {
         $jobId = $job['id'];
         
-        // Claim the job atomically. Using UPDATE ensures that if multiple worker processes 
-        // are running concurrently, only one will successfully claim this specific row.
-        $db->query("UPDATE jobs SET reserved_at = UNIX_TIMESTAMP(), attempts = attempts + 1 WHERE id = :id AND reserved_at IS NULL", ['id' => $jobId]);
-        
-        // Ensure we actually reserved it (in case of multiple workers)
-        $check = $db->query("SELECT * FROM jobs WHERE id = :id AND reserved_at IS NOT NULL", ['id' => $jobId])->fetch();
-        
-        if ($check) {
+        // Claim the job: only the worker whose UPDATE reserved the row dispatches it
+        if ($queue->claim((int) $jobId, time())) {
             echo "Dispatching Job ID: {$jobId}\n";
             
             // Dispatch in background
