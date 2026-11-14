@@ -345,6 +345,7 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `test:queue-service` | One worker claims a job; a job whose health ping stopped is recorded under failed jobs and not retried. |
 | `test:job-heartbeat` | The heartbeat helper pings while a job runs and stops when the runner or the job is gone; runner.php cleans up after success and failure. |
 | `test:database-reconnect` | A long-running process re-opens its database connection after MySQL has dropped it, on Philippine time. |
+| `test:mysql-cli` | mysqldump and mysql run as argument arrays with no shell; errors are thrown and never written into the dump. |
 | `test:worker-watchdog` | The dev worker watchdog finds the worker process, also after its re-exec. |
 | `test:seeder-duplicate-retry` | The fast seeder recovers from duplicate tracking codes, ignores the test override outside testing, and does not touch real sessions or the response cache. |
 | `test:cache-middleware-write` | The response cache writes atomically and treats empty or unreadable files as a miss. |
