@@ -64,6 +64,10 @@ Every user action that mutates document state requires a cryptographically secur
 2. **Monitoring Real-Time DB Metrics:**
    - View active database connections, average query response times, and slow query logs fetched via [DatabasePerformanceService](file:///home/mirkolouis/Documents/DTS%20Prototype/working-php/src/Modules/System/DatabasePerformanceService.php).
    - Export performance metrics to CSV for auditing.
+3. **Failed Jobs:**
+   - A backup, restore, report or integrity check runs as a background job. A job that ends with an error is listed under **Failed Jobs** with its error text.
+   - A running job reports that it is alive every 10 seconds. If its process dies (a crash, a server restart), it appears under **Failed Jobs** within about a minute with the note "stopped sending its health ping". It is not run again automatically; start it again yourself if it is still needed.
+   - Delete entries once you have dealt with them.
 
 ### 4.3 Handling Tampered Documents & Auto-Resolve
 
@@ -91,7 +95,6 @@ When raw database tampering is detected (e.g., unauthorized SQL updates bypassin
 3. **Downloading Archives:** Backup files can be downloaded directly for off-site storage.
 4. **What a backup contains:** every table except `jobs`, `cache`, `cache_locks` and `worker_schedule`. Those hold the running server's queue, cache and scheduler state, so a restore leaves them as they are. The file is named after the database it was taken from, for example `deped_dts_2026_11_14_093000_100001.sql.zip`.
 5. **Expiry:** each new backup deletes backups older than `BACKUP_KEEP_DAYS` (set in `.env`, default 14 days). The newest backup is never deleted. Set it to `0` to keep every backup. Download any backup you want to keep longer.
-6. **Abandoned jobs:** a backup, restore, report or integrity check runs as a background job that reports that it is alive every 10 seconds. If its process dies (a crash, a server restart), the job appears under **Failed Jobs** on System Overview within about a minute, with the note "stopped sending its health ping". It is not run again automatically; start it again yourself if it is still needed.
 
 ### 4.5 Keeping the System Running (Deployment Requirements)
 

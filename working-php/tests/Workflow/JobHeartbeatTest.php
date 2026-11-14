@@ -89,6 +89,29 @@ class JobHeartbeatTest extends TestCase
         $this->assertTrue($this->waitFor(fn() => !proc_get_status($helper)['running'], 5), 'the helper outlived its runner');
     }
 
+    // Losing its database connection must not stop the helper: the job is still running, so pings resume
+    public function test_helper_survives_a_dropped_database_connection(): void
+    {
+        $jobId = $this->staleJob();
+        [, $runnerPid] = $this->standInRunner();
+        $helper = (new QueueService())->startHeartbeat($jobId, $runnerPid, 1);
+        $this->processes[] = $helper;
+        $this->assertTrue($this->waitFor(fn() => $this->heartbeatAge($jobId) <= 2, 5), 'no heartbeat was written');
+
+        // Close every other connection to this database from the server side: that is the helper's
+        $db = Database::getInstance();
+        $others = $db->query('SELECT ID FROM information_schema.PROCESSLIST WHERE DB = DATABASE() AND ID <> CONNECTION_ID()')->fetchAll(\PDO::FETCH_COLUMN);
+        $this->assertNotSame([], $others, 'the helper had no database connection');
+        foreach ($others as $id) {
+            $db->getConnection()->exec('KILL ' . (int) $id);
+        }
+
+        // Make the heartbeat old again; only a helper that reconnected can refresh it
+        $db->query('UPDATE jobs SET heartbeat_at = :old WHERE id = :id', [':old' => time() - 500, ':id' => $jobId]);
+        $this->assertTrue($this->waitFor(fn() => $this->heartbeatAge($jobId) <= 2, 6), 'the helper stopped pinging after its connection was dropped');
+        $this->assertTrue(proc_get_status($helper)['running']);
+    }
+
     // The helper exits once its job is no longer in the queue
     public function test_helper_stops_when_the_job_row_is_gone(): void
     {

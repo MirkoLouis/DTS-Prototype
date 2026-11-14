@@ -14,6 +14,7 @@ require BASE_PATH . '/vendor/autoload.php';
 date_default_timezone_set('Asia/Manila');
 
 use App\Common\Config\Config;
+use App\Common\Database\Database;
 use App\Modules\System\QueueService;
 
 // Both ids are required and must be positive whole numbers
@@ -26,9 +27,17 @@ if ($jobId <= 0 || $runnerPid <= 0) {
 
 // Seconds between pings: the optional argument, else JOB_HEARTBEAT_SECONDS, never less than one
 $interval = max(1, (int) ($argv[3] ?? Config::get('app', 'job_heartbeat_seconds', 10)));
-$queue = new QueueService();
 
-// Ping until the runner is gone or the job has left the queue
-while (posix_kill($runnerPid, 0) && $queue->heartbeat($jobId, time())) {
+// Ping until the runner is gone or the job has left the queue. A database error does not end the helper:
+// the job may still be running, so it reconnects and tries again on the next round.
+while (posix_kill($runnerPid, 0)) {
+    try {
+        Database::getInstance()->ensureConnected();
+        if (!(new QueueService())->heartbeat($jobId, time())) {
+            break;
+        }
+    } catch (\Throwable $e) {
+        error_log("Job {$jobId} heartbeat could not be written, retrying: " . $e->getMessage());
+    }
     sleep($interval);
 }

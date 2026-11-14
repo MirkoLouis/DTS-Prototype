@@ -9,13 +9,13 @@ use PDO;
 use RuntimeException;
 
 /**
- * Gives every suite run a fresh test database and fresh -test artifacts.
+ * Gives every suite run a fresh test database and an empty .test folder.
  * The drop is destructive, so TestGuard runs immediately before it and the name comes only from the testing config.
  */
 class TestLifecycle
 {
     /**
-     * Drop and recreate the test database, then reset the -test artifacts.
+     * Drop and recreate the test database, then empty the .test folder.
      */
     public static function begin(array $dbConfig): void
     {

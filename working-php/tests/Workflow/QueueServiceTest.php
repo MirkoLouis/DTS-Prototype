@@ -113,4 +113,48 @@ class QueueServiceTest extends TestCase
         Database::getInstance()->query('DELETE FROM jobs WHERE id = :id', [':id' => $id]);
         $this->assertFalse($queue->heartbeat($id, self::NOW + 10));
     }
+
+    // A finished job leaves the queue without a failure record
+    public function test_finished_job_is_removed_from_the_queue(): void
+    {
+        $id = $this->job(self::NOW, self::NOW);
+
+        $this->assertTrue((new QueueService())->finish($id));
+        $this->assertFalse($this->row($id));
+        $this->assertSame(0, $this->failedCount());
+    }
+
+    // A failed job is recorded once with its error and leaves the queue
+    public function test_failed_job_is_recorded_once(): void
+    {
+        $id = $this->job(self::NOW, self::NOW);
+
+        $this->assertTrue((new QueueService())->fail($id, 'Disk is full.'));
+        $this->assertFalse($this->row($id));
+        $failed = Database::getInstance()->query('SELECT payload, exception FROM failed_jobs')->fetchAll();
+        $this->assertCount(1, $failed);
+        $this->assertSame('Disk is full.', $failed[0]['exception']);
+        $this->assertSame(json_encode(['class' => 'Example', 'data' => [1]]), $failed[0]['payload']);
+    }
+
+    // A job already recorded as abandoned is not recorded a second time when its runner fails later
+    public function test_job_already_recorded_as_abandoned_is_not_recorded_twice(): void
+    {
+        $id = $this->job(self::NOW - 300, self::NOW - 61);
+        $queue = new QueueService();
+        $queue->recordAbandoned(self::NOW, 60);
+
+        $this->assertFalse($queue->fail($id, 'Failed after it was recorded.'));
+        $this->assertFalse($queue->finish($id));
+        $this->assertSame(1, $this->failedCount());
+    }
+
+    // The abandoned timeout is never shorter than three pings, whatever the configuration says
+    public function test_abandoned_timeout_is_at_least_three_pings(): void
+    {
+        $this->assertSame(60, QueueService::abandonedTimeout(60, 10));
+        $this->assertSame(30, QueueService::abandonedTimeout(0, 10));
+        $this->assertSame(30, QueueService::abandonedTimeout(5, 10));
+        $this->assertSame(3, QueueService::abandonedTimeout(0, 0));
+    }
 }

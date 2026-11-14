@@ -101,6 +101,36 @@ class BackupServiceTest extends TestCase
         $this->assertCount(2, glob("{$dir}/*.zip"));
     }
 
+    // Archiving a dump gives a zip holding that one file
+    public function test_archive_zips_the_dump(): void
+    {
+        $dir = TestFiles::dir('archive');
+        file_put_contents("{$dir}/dump.sql", "SELECT 1;\n");
+        BackupService::archive("{$dir}/dump.sql", "{$dir}/dump.sql.zip");
+
+        $zip = new \ZipArchive();
+        $this->assertTrue($zip->open("{$dir}/dump.sql.zip"));
+        $this->assertSame('dump.sql', $zip->getNameIndex(0));
+        $this->assertSame("SELECT 1;\n", $zip->getFromIndex(0));
+        $zip->close();
+    }
+
+    // An archive that cannot be written throws and leaves no zip behind
+    public function test_archive_failure_throws_and_leaves_no_zip(): void
+    {
+        $dir = TestFiles::dir('archive-fail');
+
+        // The dump to archive does not exist, so the zip cannot be completed
+        try {
+            BackupService::archive("{$dir}/missing.sql", "{$dir}/missing.sql.zip");
+            $this->fail('Archiving a missing dump did not throw.');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('backup archive', $e->getMessage());
+        }
+
+        $this->assertFileDoesNotExist("{$dir}/missing.sql.zip");
+    }
+
     // A backup holds the documents and their logs, and leaves the queue and cache tables out
     public function test_backup_excludes_queue_and_cache_tables(): void
     {

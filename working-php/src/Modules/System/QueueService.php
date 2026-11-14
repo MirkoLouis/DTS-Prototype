@@ -73,37 +73,72 @@ class QueueService
             [':cutoff' => $now - $timeoutSeconds]
         )->fetchAll();
 
+        // Each job is removed and recorded together; one that finished in the meantime is skipped
+        $reason = "Job stopped sending its health ping for more than {$timeoutSeconds} seconds (its process ended or the server restarted); recorded here and not retried.";
         $recorded = 0;
-        $connection = $this->db->getConnection();
         foreach ($abandoned as $job) {
-            // Record and remove together, so a job is never lost or recorded twice
-            $connection->beginTransaction();
-            try {
-                $deleted = $this->db->query("DELETE FROM jobs WHERE id = :id AND reserved_at IS NOT NULL", [':id' => $job['id']]);
-
-                // Another process finished or recorded this job in the meantime
-                if ($deleted->rowCount() !== 1) {
-                    $connection->rollBack();
-                    continue;
-                }
-                $this->db->query(
-                    "INSERT INTO failed_jobs (uuid, connection, queue, payload, exception, failed_at) VALUES (:uuid, 'database', :queue, :payload, :exception, NOW())",
-                    [
-                        ':uuid' => bin2hex(random_bytes(16)),
-                        ':queue' => $job['queue'],
-                        ':payload' => $job['payload'],
-                        ':exception' => "Job stopped sending its health ping for more than {$timeoutSeconds} seconds (its process ended or the server restarted); recorded here and not retried.",
-                    ]
-                );
-                $connection->commit();
+            if ($this->fail((int) $job['id'], $reason)) {
                 $recorded++;
-            } catch (\Throwable $e) {
-                $connection->rollBack();
-                throw $e;
             }
         }
 
         return $recorded;
+    }
+
+    /**
+     * Remove a job that finished successfully from the queue.
+     *
+     * @return bool false when the job was no longer queued (it had already been recorded as abandoned)
+     */
+    public function finish(int $jobId): bool
+    {
+        return $this->db->query("DELETE FROM jobs WHERE id = :id", [':id' => $jobId])->rowCount() === 1;
+    }
+
+    /**
+     * Record a job under failed jobs and remove it from the queue, as one step.
+     *
+     * The record is written only when this call removed the job, so a job is never recorded twice
+     * (for example once as abandoned and again when its runner fails later).
+     *
+     * @param string $reason the error text shown to the admin
+     * @return bool true when the job was removed and recorded by this call
+     */
+    public function fail(int $jobId, string $reason): bool
+    {
+        $connection = $this->db->getConnection();
+        $connection->beginTransaction();
+        try {
+            // Lock and read the job, so its queue and payload go into the record
+            $job = $this->db->query("SELECT queue, payload FROM jobs WHERE id = :id FOR UPDATE", [':id' => $jobId])->fetch();
+            if (!$job) {
+                $connection->rollBack();
+                return false;
+            }
+
+            $this->db->query("DELETE FROM jobs WHERE id = :id", [':id' => $jobId]);
+            $this->db->query(
+                "INSERT INTO failed_jobs (uuid, connection, queue, payload, exception, failed_at) VALUES (:uuid, 'database', :queue, :payload, :exception, NOW())",
+                [':uuid' => bin2hex(random_bytes(16)), ':queue' => $job['queue'], ':payload' => $job['payload'], ':exception' => $reason]
+            );
+            $connection->commit();
+
+            return true;
+        } catch (\Throwable $e) {
+            $connection->rollBack();
+            throw $e;
+        }
+    }
+
+    /**
+     * Seconds without a ping after which a job counts as abandoned.
+     *
+     * Never shorter than three ping intervals, so a missing or zero setting cannot make every
+     * running job look abandoned.
+     */
+    public static function abandonedTimeout(int $configuredSeconds, int $heartbeatSeconds): int
+    {
+        return max($configuredSeconds, 3 * max(1, $heartbeatSeconds));
     }
 
     /**

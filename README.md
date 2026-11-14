@@ -176,6 +176,8 @@ Serve the site with `composer run prod` on that server, not `composer run dev`. 
 | Queue worker | Started and watched (restarted within about 5 seconds if it exits), stopped by Ctrl+C | **Not started.** Without `dts-worker.service`, queued jobs (Run Check, backups, reports) never run and no checkpoint is written |
 | Output | Follows the nginx access log | Waits silently until Ctrl+C |
 
+**Queue job settings** (`.env`, optional): `JOB_HEARTBEAT_SECONDS` (default 10) is how often a running job's helper process reports that the job is alive; `JOB_ABANDONED_SECONDS` (default 60, never less than three heartbeats) is how long without a report before the worker records the job under Failed Jobs. Such a job is not retried. If MySQL is down, the worker exits and the service (or the `composer run dev` watchdog) starts it again; after any restart or pause it waits one round before checking for abandoned jobs, so running jobs are not recorded by mistake.
+
 ### 2. Make sure the operating system rotates logs and cleans PHP sessions
 
 Ubuntu and Debian already install the rules: `/etc/logrotate.d/nginx` (daily, keep 14, compressed), `/etc/logrotate.d/php<version>-fpm` (weekly, keep 12), and a PHP session cleaner (`/etc/cron.d/php` and `phpsessionclean.timer`; `php.ini` sets `session.gc_probability = 0`, so PHP itself never deletes old session files). The rules only help if logrotate is installed and something runs it. Minimal images (containers, Distrobox) often lack the `logrotate` package itself:

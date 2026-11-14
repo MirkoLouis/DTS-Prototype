@@ -40,6 +40,31 @@ class BackupService
     }
 
     /**
+     * Zip a dump file into a backup archive.
+     *
+     * Every step is checked: a zip that could not be written completely (for example on a full disk)
+     * is removed, so nothing that looks like a backup is left behind.
+     *
+     * @throws \RuntimeException when the archive cannot be created or completed
+     */
+    public static function archive(string $sqlPath, string $zipPath): void
+    {
+        $zip = new \ZipArchive();
+        $written = is_file($sqlPath)
+            && $zip->open($zipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === true
+            && $zip->addFile($sqlPath, basename($sqlPath))
+            && $zip->close();
+
+        // Success means the zip exists and holds the dump
+        if ($written && is_file($zipPath) && filesize($zipPath) > 0) {
+            return;
+        }
+
+        @unlink($zipPath);
+        throw new \RuntimeException('Could not write the backup archive ' . basename($zipPath) . '.');
+    }
+
+    /**
      * Delete backups older than the age limit, always keeping the newest one.
      *
      * @param int $keepDays days a backup is kept; zero or less turns expiry off

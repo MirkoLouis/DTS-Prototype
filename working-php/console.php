@@ -32,6 +32,11 @@ $schedule = new \App\Modules\System\WorkerScheduleService();
 // Job queue operations (claim, heartbeat, abandoned jobs)
 $queue = new \App\Modules\System\QueueService();
 
+// A worker that has just started (after a crash, a reboot or a database outage) waits one round before its
+// first abandoned-job check, so running jobs' helpers can ping first
+$schedule->markRun('abandoned_jobs', time());
+$lastLoopAt = time();
+
 /**
  * Execute periodic system maintenance and telemetry tasks inside the worker loop.
  * Eliminates reliance on host system cron daemons in containerized environments.
@@ -44,7 +49,11 @@ function runScheduledTasks(\App\Modules\System\WorkerScheduleService $schedule, 
     if ($schedule->isDue('abandoned_jobs', 30, $now)) {
         $schedule->markRun('abandoned_jobs', $now);
         try {
-            $timeout = (int) \App\Common\Config\Config::get('app', 'job_abandoned_seconds', 60);
+            // Never shorter than three ping intervals, whatever .env says
+            $timeout = \App\Modules\System\QueueService::abandonedTimeout(
+                (int) \App\Common\Config\Config::get('app', 'job_abandoned_seconds', 60),
+                (int) \App\Common\Config\Config::get('app', 'job_heartbeat_seconds', 10)
+            );
             $abandoned = $queue->recordAbandoned($now, $timeout);
             if ($abandoned > 0) {
                 echo "⏰ [Worker Scheduler] Recorded {$abandoned} abandoned job(s) under Failed Jobs.\n";
@@ -166,6 +175,13 @@ function cleanupActiveWorkers(array &$activeWorkers) {
 while (!$stopWorker) {
     // Re-open the database connection if MySQL has dropped it since the last poll
     $db->ensureConnected();
+
+    // After a pause (suspend, a stalled machine, a clock correction) every heartbeat looks old for a moment.
+    // Give the jobs' helpers one full round to ping again before the abandoned-job check runs.
+    if (time() - $lastLoopAt > 30) {
+        $schedule->markRun('abandoned_jobs', time());
+    }
+    $lastLoopAt = time();
 
     // 0. Run scheduled maintenance & telemetry tasks
     runScheduledTasks($schedule, $queue);

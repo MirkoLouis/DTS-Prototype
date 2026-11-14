@@ -28,23 +28,14 @@ class CreateBackupJob
         $filePath = $backupDir . '/' . $filename;
         $zipPath = $filePath . '.zip';
 
-        // A failed dump leaves no file that could be mistaken for a backup
+        // A failed dump or a failed archive leaves no file that could be mistaken for a backup
         try {
             MysqlCli::run('mysqldump', $this->dumpArguments($database), null, $filePath);
-        } catch (\Throwable $e) {
+            BackupService::archive($filePath, $zipPath);
+        } finally {
+            // The plain SQL file is only an intermediate step, whether or not the backup succeeded
             @unlink($filePath);
-            throw $e;
         }
-
-        // Zip the dump, then remove the plain SQL file
-        $zip = new \ZipArchive();
-        if ($zip->open($zipPath, \ZipArchive::CREATE) !== true) {
-            @unlink($filePath);
-            throw new \RuntimeException("Could not create the backup archive {$filename}.zip.");
-        }
-        $zip->addFile($filePath, $filename);
-        $zip->close();
-        unlink($filePath);
 
         // Remove backups past the age limit; the newest one always stays
         BackupService::expire($backupDir, (int) Config::get('app', 'backup_keep_days', 14), time());
