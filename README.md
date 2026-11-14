@@ -325,7 +325,11 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | :--- | :--- |
 | `test:document-toast-code` | Toasts name the document's tracking code once. |
 | `test:layout-assets` | The app layout loads no client-side crypto library, and signing still works. |
-| `test:tracking-form-print` | Print-tracking-form links on officer pages, none for staff; the form PDF is served without login. |
+| `test:tracking-form-print` | Print-tracking-form links on officer pages, none for staff; the slip PDF is served only to the submitting session or to staff allowed to view the document. |
+| `test:cache-query-string` | The response cache stores bare URLs only; URLs with a query string create no cache files. |
+| `test:login-timing` | An unknown username takes about as long to refuse as a wrong password (one bcrypt check either way). |
+| `test:released-report-service` | Report rows are text cells only (no formula injection); report filters are whitelisted. |
+| `test:report-filters` | Stored report filters carry no CSRF token; a formula-like title is downloaded as text. |
 | `test:verify-hash-label` | System Overview uses the "Verify Hash" label. |
 | `test:ict-unit` | The production seeder includes the ICT Unit, and intake can route to it. |
 | `test:debug-logging` | Requests do not write the temporary router log; the navigation log still records them. |

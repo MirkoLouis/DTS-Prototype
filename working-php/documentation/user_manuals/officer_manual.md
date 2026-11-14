@@ -60,6 +60,7 @@ All state-mutating actions (Intake, Scan, Finalize, Decline, Release) require an
    - Prompt Modal: Enter your **6-Digit PIN**.
    - The system calculates the initial SHA-256 state hash, generates your Ed25519 signature, and logs `Accepted and Document Routing finalized` in `document_logs`.
 6. **Print Tracking Form:** Click **Print Tracking Form** to generate a printable PDF containing the tracking code and scannable QR code (`/documents/{tracking_code}/print-tracking-form`). Attach this form to the physical paper folder.
+   - Only the client's own browser session (right after submitting), Records Officers, admins, and staff whose department is on the document's route can open this PDF, because it shows the client's contact details.
 
 ### 4.2 Scanning & Receiving Physical Documents (`/documents/scan`)
 
