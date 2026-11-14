@@ -73,6 +73,9 @@ class AuthController
             // A successful login forgets earlier failures
             AttemptThrottleService::clear($throttleKey);
 
+            // The codes a guest submitted on this browser belong to that guest, not to the account signing in
+            unset($_SESSION[\App\Modules\Documents\GuestController::SUBMITTED_CODES_KEY]);
+
             // Success! Store user details in session
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['user_name'] = $user['name'];

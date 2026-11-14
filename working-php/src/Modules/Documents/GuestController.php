@@ -13,7 +13,7 @@ class GuestController
     public const SUBMITTED_CODES_KEY = 'submitted_codes';
 
     // Newest codes kept per session; a shared kiosk session serves many clients
-    private const MAX_SUBMITTED_CODES = 50;
+    private const MAX_SUBMITTED_CODES = 20;
 
     /**
      * Add a tracking code to a session's submitted codes, keeping only the newest ones.

@@ -154,19 +154,34 @@ class TrackingFormPrintTest extends TestCase
         $this->assertSame(404, $client->get('/documents/DEPED-ZZZZZZZZZZ/print-tracking-form')['status']);
     }
 
+    // Signing in clears the guest's submitted codes, so staff using the same browser get no access through them
+    public function test_login_clears_the_guest_sessions_submitted_codes(): void
+    {
+        // A guest submits on a shared browser, then Cash Unit staff sign in on it
+        $client = HttpClient::start();
+        $code = $this->submitAsGuest($client);
+        $client->loginAs('cash.unit');
+
+        // The document is not on the Cash Unit's route, so the slip is refused like any other
+        $response = $client->get("/documents/{$code}/print-tracking-form");
+        $this->assertSame(302, $response['status']);
+        $this->assertSame('/dashboard', $response['headers']['location'] ?? '');
+        $this->assertStringNotContainsString('%PDF', $response['body']);
+    }
+
     // A session remembers only its newest codes, so a shared kiosk session does not grow without limit
-    public function test_submitted_codes_keep_only_the_newest_fifty(): void
+    public function test_submitted_codes_keep_only_the_newest_twenty(): void
     {
         $codes = [];
-        for ($i = 1; $i <= 51; $i++) {
+        for ($i = 1; $i <= 21; $i++) {
             $codes = \App\Modules\Documents\GuestController::withSubmittedCode($codes, "DEPED-{$i}");
         }
 
-        $this->assertCount(50, $codes);
+        $this->assertCount(20, $codes);
         $this->assertNotContains('DEPED-1', $codes);
-        $this->assertSame('DEPED-51', end($codes));
+        $this->assertSame('DEPED-21', end($codes));
 
         // A code already in the list is not stored twice
-        $this->assertCount(50, \App\Modules\Documents\GuestController::withSubmittedCode($codes, 'DEPED-51'));
+        $this->assertCount(20, \App\Modules\Documents\GuestController::withSubmittedCode($codes, 'DEPED-21'));
     }
 }
