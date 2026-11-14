@@ -3,6 +3,7 @@
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use Tests\Support\TestFiles;
 
 require_once BASE_PATH . '/scripts/server-lib.php';
 
@@ -15,8 +16,7 @@ class WorkerWatchdogTest extends TestCase
     // A stand-in worker script in a path with a space, like "DTS Prototype"
     protected function setUp(): void
     {
-        $this->dir = sys_get_temp_dir() . '/dts watchdog ' . bin2hex(random_bytes(4));
-        mkdir($this->dir);
+        $this->dir = TestFiles::dir('dts watchdog');
         $this->script = $this->dir . '/console.php';
         file_put_contents($this->script, '<?php sleep(30);');
     }

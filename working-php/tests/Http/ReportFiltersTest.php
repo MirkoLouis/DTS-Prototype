@@ -6,6 +6,7 @@ use App\Common\Database\Database;
 use Tests\Support\Fixtures;
 use Tests\Support\HttpClient;
 use Tests\TestCase;
+use Tests\Support\TestFiles;
 
 /**
  * The released-documents report stores only its whitelisted filters and downloads guest text as text.
@@ -62,7 +63,7 @@ class ReportFiltersTest extends TestCase
         // Download the spreadsheet and read its worksheet XML
         $response = $this->officer()->get('/statistics/report/download/formulatest1');
         $this->assertSame(200, $response['status']);
-        $file = tempnam(sys_get_temp_dir(), 'dts-report-');
+        $file = TestFiles::file('dts-report');
         file_put_contents($file, $response['body']);
         $zip = new \ZipArchive();
         $this->assertTrue($zip->open($file));

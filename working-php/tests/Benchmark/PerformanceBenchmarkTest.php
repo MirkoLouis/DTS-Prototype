@@ -232,7 +232,7 @@ class PerformanceBenchmarkTest extends TestCase
             // Page rows: label => [client, path builder (iteration => path), untimed pre-step or null].
             // Only /admin-dashboard sits behind CacheMiddleware; the other pages render on every request.
             $clearCache = function () {
-                foreach (glob(BASE_PATH . '/cache/responses-test/*') ?: [] as $cached) {
+                foreach (glob(\App\Common\Middleware\CacheMiddleware::cacheDir() . '/*') ?: [] as $cached) {
                     @unlink($cached);
                 }
             };

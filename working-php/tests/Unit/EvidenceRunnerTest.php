@@ -4,6 +4,7 @@ namespace Tests\Unit;
 
 use App\Research\EvidenceRunner;
 use PHPUnit\Framework\TestCase;
+use Tests\Support\TestFiles;
 
 /**
  * `composer run evidence` runs every thesis step into its own subfolder of one evidence folder.
@@ -21,8 +22,7 @@ class EvidenceRunnerTest extends TestCase
     // A throwaway results root per test
     protected function setUp(): void
     {
-        $this->root = sys_get_temp_dir() . '/evidence-test-' . bin2hex(random_bytes(4));
-        mkdir($this->root, 0775, true);
+        $this->root = TestFiles::dir('evidence-test');
         $this->calls = [];
     }
 

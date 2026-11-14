@@ -2,9 +2,9 @@
 
 namespace Tests\Support;
 
-use App\Modules\Integrity\Jobs\ChainCheckpointJob;
-use App\Modules\Integrity\Jobs\IntegrityCheckJob;
+use App\Common\Config\Config;
 use App\Common\Middleware\CacheMiddleware;
+use App\Modules\Integrity\Jobs\ChainCheckpointJob;
 use PDO;
 use RuntimeException;
 
@@ -31,7 +31,7 @@ class TestLifecycle
     }
 
     /**
-     * Drop the test database and remove the -test artifacts.
+     * Drop the test database and remove the .test folder.
      */
     public static function end(array $dbConfig): void
     {
@@ -64,18 +64,16 @@ class TestLifecycle
     }
 
     /**
-     * Delete the three -test artifacts; refuses any path that is not a -test path.
+     * Delete the .test folder, which holds every file the suite creates; refuses any other path.
      */
     private static function removeArtifacts(): void
     {
-        // Paths come from the app's own helpers; each must be a -test location
-        $paths = [CacheMiddleware::cacheDir(), ChainCheckpointJob::directory(), IntegrityCheckJob::resultPath()];
-        foreach ($paths as $path) {
-            if (!str_contains(basename($path), '-test')) {
-                throw new RuntimeException("Refusing to delete a non-test artifact path: {$path}");
-            }
-            self::removePath($path);
+        // The path comes from the app's own helper and must be the .test folder inside the project
+        $path = rtrim(Config::testPath(''), '/');
+        if ($path !== BASE_PATH . '/.test') {
+            throw new RuntimeException("Refusing to delete a path that is not the .test folder: {$path}");
         }
+        self::removePath($path);
     }
 
     /**

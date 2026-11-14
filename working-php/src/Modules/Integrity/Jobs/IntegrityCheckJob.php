@@ -25,7 +25,7 @@ class IntegrityCheckJob
     // The test suite (app.env = testing) writes its own file so test audits never replace the real result.
     public static function resultPath(): string
     {
-        return BASE_PATH . (\App\Common\Config\Config::get('app', 'env') === 'testing' ? '/cache/integrity-check-result-test.json' : '/cache/integrity-check-result.json');
+        return \App\Common\Config\Config::isTesting() ? \App\Common\Config\Config::testPath('cache/integrity-check-result.json') : BASE_PATH . '/cache/integrity-check-result.json';
     }
 
     // Executes a full cryptographic audit of the system. Verifies the SHA-256 hash chain, 
@@ -215,8 +215,8 @@ class IntegrityCheckJob
                 'checkpoint' => $checkpoint,
             ];
 
-            if (!is_dir(BASE_PATH . '/cache')) {
-                mkdir(BASE_PATH . '/cache', 0777, true);
+            if (!is_dir(dirname(self::resultPath()))) {
+                mkdir(dirname(self::resultPath()), 0777, true);
             }
             file_put_contents(self::resultPath(), json_encode($results));
 

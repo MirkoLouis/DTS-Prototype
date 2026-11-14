@@ -394,7 +394,8 @@ $referer = $_SERVER['HTTP_REFERER'] ?? 'direct';
 $refererPath = $referer !== 'direct' ? (parse_url($referer, PHP_URL_PATH) ?? '/') : 'direct';
 $currentPath = parse_url($uri, PHP_URL_PATH) ?? '/';
 
-$logDir = BASE_PATH . '/storage/logs';
+// The test suite keeps its own log, so test requests never mix into the real navigation log
+$logDir = \App\Common\Config\Config::isTesting() ? \App\Common\Config\Config::testPath('logs') : BASE_PATH . '/storage/logs';
 if (!is_dir($logDir)) {
     mkdir($logDir, 0777, true);
 }

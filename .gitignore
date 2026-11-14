@@ -163,8 +163,7 @@ homestead.vagrant
 # --- working-php test suite ---
 /working-php/.env.testing
 /working-php/storage/test-results/
-/working-php/cache/responses-test/
-/working-php/storage/checkpoints-test/
+/working-php/.test/
 
 # Thesis manuscript working files (kept local, not versioned)
 /Manuscript Revisions.md

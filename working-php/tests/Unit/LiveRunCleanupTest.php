@@ -7,6 +7,7 @@ use App\Research\LiveRunCleanup;
 use InvalidArgumentException;
 use Tests\Support\Fixtures;
 use Tests\TestCase;
+use Tests\Support\TestFiles;
 
 /**
  * Cleanup scoping and refusals of the user-initiated live concurrency run (scripts/manual/live-concurrency.php).
@@ -87,8 +88,7 @@ class LiveRunCleanupTest extends TestCase
     // Checkpoint files written after the run started are reported; older ones are not
     public function test_reports_checkpoints_written_after_run_start(): void
     {
-        $dir = sys_get_temp_dir() . '/dts-live-cp-' . bin2hex(random_bytes(4));
-        mkdir($dir);
+        $dir = TestFiles::dir('dts-live-cp');
         file_put_contents("{$dir}/checkpoint-old.json", '{}');
         touch("{$dir}/checkpoint-old.json", time() - 3600);
         file_put_contents("{$dir}/checkpoint-new.json", '{}');

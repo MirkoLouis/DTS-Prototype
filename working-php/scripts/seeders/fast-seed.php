@@ -281,7 +281,7 @@ if (!$isTesting && $savePath && is_dir($savePath)) {
         }
     }
 }
-// Clear this environment's response cache (cache/responses, or cache/responses-test under testing)
+// Clear this environment's response cache (cache/responses, or .test/cache/responses under testing)
 $htmlCacheFiles = glob(CacheMiddleware::cacheDir() . '/*.html');
 if ($htmlCacheFiles) {
     foreach ($htmlCacheFiles as $cf) {

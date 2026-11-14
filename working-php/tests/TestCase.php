@@ -18,7 +18,7 @@ abstract class TestCase extends BaseTestCase
         parent::setUp();
 
         // Empty the isolated test response cache so no stale page is served
-        foreach (glob(BASE_PATH . '/cache/responses-test/*') ?: [] as $cached) {
+        foreach (glob(\App\Common\Middleware\CacheMiddleware::cacheDir() . '/*') ?: [] as $cached) {
             @unlink($cached);
         }
 

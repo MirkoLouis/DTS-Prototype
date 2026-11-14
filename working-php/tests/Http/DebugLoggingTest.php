@@ -27,7 +27,7 @@ class DebugLoggingTest extends TestCase
         HttpClient::start()->get('/login');
 
         // Read the last line of the navigation log
-        $lines = file(BASE_PATH . '/storage/logs/navigation.log', FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        $lines = file(\App\Common\Config\Config::testPath('logs/navigation.log'), FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
         $last = end($lines);
         $this->assertMatchesRegularExpression('/ms$/', $last);
         $this->assertStringContainsString(' to /login ', $last);
