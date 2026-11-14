@@ -376,6 +376,7 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `test:result-writer` | Result folders: DTS_RESULTS_DIR containment, run-id validation, no overwriting. |
 | `test:test-artifact-paths` | Every file a test creates is under `working-php/.test/`; no test uses the system temp directory. |
 | `test:seed-guard` | The production seeder's guard refuses a database that holds documents or users unless --force is passed. |
+| `test:session-storage` | Sessions are stored in the app's own folder, cleaned up by the app, with a 12-hour idle limit and hardened cookies. |
 | `test:test-guard` | Tests refuse to run outside APP_ENV=testing or against a non-_test database. |
 | `test:test-lifecycle` | The per-run test database and artifact lifecycle. |
 | `test:test-env-probe` | The /__test/env probe reports the testing environment and database. |

@@ -164,6 +164,7 @@ homestead.vagrant
 /working-php/.env.testing
 /working-php/storage/test-results/
 /working-php/.test/
+/working-php/storage/sessions/
 
 # Thesis manuscript working files (kept local, not versioned)
 /Manuscript Revisions.md

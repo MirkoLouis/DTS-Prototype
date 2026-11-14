@@ -270,16 +270,10 @@ $conn->exec("SET SESSION innodb_lock_wait_timeout = 3600");
 
 // --- Truncate & Flush Active Sessions ---
 echo "🧹 Cleaning tables, active session files, and response caches...\n";
-// Under testing, leave the developer's real PHP sessions alone (R20)
-$isTesting = Config::get('app', 'env') === 'testing';
-$savePath = session_save_path() ?: sys_get_temp_dir();
-if (!$isTesting && $savePath && is_dir($savePath)) {
-    $sessFiles = glob($savePath . '/sess_*');
-    if ($sessFiles) {
-        foreach ($sessFiles as $sf) {
-            @unlink($sf);
-        }
-    }
+// Only this app's own session folder is cleared (storage/sessions, or .test/sessions under testing);
+// the folder other PHP apps on the server share is never touched
+foreach (glob(\App\Common\Http\SessionService::directory() . '/sess_*') ?: [] as $sf) {
+    @unlink($sf);
 }
 // Clear this environment's response cache (cache/responses, or .test/cache/responses under testing)
 $htmlCacheFiles = glob(CacheMiddleware::cacheDir() . '/*.html');
