@@ -21,18 +21,18 @@ class DocumentController
         $document = $service->findByTrackingCode($tracking_code, 'ASC');
 
         if (!$document) {
-            header("HTTP/1.0 404 Not Found");
-            echo "Document not found.";
-            exit;
+            render_error_page(404, 'Document not found.');
         }
 
         // Enforce document visibility: staff may only open documents routed through their department
         $this->requireViewAccess($document);
 
-        if (!empty($_SERVER['HTTP_REFERER'])) {
-            $refererPath = parse_url($_SERVER['HTTP_REFERER'], PHP_URL_PATH) ?? '';
+        // Remember where the person came from (a page of this site only) for the "back" link
+        $returnUrl = \App\Common\Http\SafeRedirect::localPath($_SERVER['HTTP_REFERER'] ?? null);
+        if ($returnUrl !== null) {
+            $refererPath = parse_url($returnUrl, PHP_URL_PATH) ?? '';
             if (!empty($refererPath) && !str_contains($refererPath, '/hash-chain') && !str_contains($refererPath, '/documents/')) {
-                $_SESSION['doc_return_url'] = $_SERVER['HTTP_REFERER'];
+                $_SESSION['doc_return_url'] = $returnUrl;
             }
         }
 
@@ -52,9 +52,7 @@ class DocumentController
         $document = $service->findByTrackingCode($tracking_code, 'ASC');
 
         if (!$document) {
-            header("HTTP/1.0 404 Not Found");
-            echo "Document not found.";
-            exit;
+            render_error_page(404, 'Document not found.');
         }
 
         // Enforce document visibility: staff may only open documents routed through their department
@@ -224,13 +222,13 @@ class DocumentController
 
         if (empty($trackingCode)) {
             $_SESSION['error'] = "Tracking code is required.";
-            header("Location: " . ($_SERVER['HTTP_REFERER'] ?? '/'));
+            header("Location: " . \App\Common\Http\SafeRedirect::refererOr('/'));
             exit;
         }
 
         if (empty($pin)) {
             $_SESSION['error'] = "Security PIN is required.";
-            header("Location: " . ($_SERVER['HTTP_REFERER'] ?? '/'));
+            header("Location: " . \App\Common\Http\SafeRedirect::refererOr('/'));
             exit;
         }
 
@@ -252,7 +250,7 @@ class DocumentController
             } else {
                 $_SESSION['error'] = document_message($trackingCode, $e->getMessage());
             }
-            header("Location: " . ($_SERVER['HTTP_REFERER'] ?? '/'));
+            header("Location: " . \App\Common\Http\SafeRedirect::refererOr('/'));
         }
         exit;
     }
@@ -267,13 +265,13 @@ class DocumentController
         
         if (!$documentId || !$reason) {
             $_SESSION['error'] = 'Document ID and decline reason are required.';
-            header('Location: ' . ($_SERVER['HTTP_REFERER'] ?? '/intake'));
+            header('Location: ' . \App\Common\Http\SafeRedirect::refererOr('/intake'));
             exit;
         }
 
         if (empty($pin)) {
             $_SESSION['error'] = "Security PIN is required.";
-            header("Location: " . ($_SERVER['HTTP_REFERER'] ?? '/'));
+            header("Location: " . \App\Common\Http\SafeRedirect::refererOr('/'));
             exit;
         }
 
@@ -299,7 +297,7 @@ class DocumentController
             }
         }
         
-        header('Location: ' . ($_SERVER['HTTP_REFERER'] ?? '/intake'));
+        header('Location: ' . \App\Common\Http\SafeRedirect::refererOr('/intake'));
         exit;
     }
 
@@ -318,9 +316,7 @@ class DocumentController
         $account = isset($_SESSION['user_id']) ? \App\Modules\Users\UserModel::findById((int) $_SESSION['user_id']) : null;
         $signedIn = $account !== null && $account->deactivated_at === null;
         if (!$signedIn && !$ownSubmission) {
-            http_response_code(403);
-            echo "Please sign in to print this tracking form.";
-            exit;
+            render_error_page(403, 'Please sign in to print this tracking form.');
         }
 
         $db = Database::getInstance();
@@ -332,9 +328,7 @@ class DocumentController
         $document = $stmt->fetch();
 
         if (!$document) {
-            header("HTTP/1.0 404 Not Found");
-            echo "Document not found.";
-            exit;
+            render_error_page(404, 'Document not found.');
         }
 
         // Signed-in users get the same per-department restriction as the document page

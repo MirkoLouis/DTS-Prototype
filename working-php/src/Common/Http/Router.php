@@ -61,9 +61,7 @@ class Router
         if (strtoupper($requestMethod) === 'POST') {
             $token = $_POST['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
             if (empty($token) || !hash_equals($_SESSION['csrf_token'] ?? '', $token)) {
-                http_response_code(419);
-                echo "419 Page Expired: CSRF token mismatch. Please refresh and try again.";
-                exit;
+                render_error_page(419);
             }
         }
 
@@ -122,8 +120,18 @@ class Router
                         exit;
                     }
 
+                    // Go back to the page the request came from, but only a page of this site; otherwise the start page
+                    $referer = SafeRedirect::localPath($_SERVER['HTTP_REFERER'] ?? null);
+
+                    // A failing GET (a page load) can loop: back to its own page, or to a start page that sends it straight
+                    // back here. With no usable Referer, or one that is this very page, there is no safe place to go
+                    $isPageLoad = in_array(strtoupper($requestMethod), ['GET', 'HEAD'], true);
+                    if ($isPageLoad && ($referer === null || parse_url($referer, PHP_URL_PATH) === $path)) {
+                        render_error_page(500);
+                    }
+
                     $_SESSION['error'] = "An unexpected error occurred. Please try again or contact support.";
-                    header('Location: ' . ($_SERVER['HTTP_REFERER'] ?? '/'));
+                    header('Location: ' . ($referer ?? '/'));
                     exit;
                 }
             }
@@ -133,11 +141,10 @@ class Router
         $this->abort(404);
     }
 
+    // Answer with the shared error page (a path that matches no route is always a 404, whatever the method)
     private function abort(int $code = 404): void
     {
-        http_response_code($code);
-        echo "404 Not Found";
-        exit;
+        render_error_page($code);
     }
 }
 

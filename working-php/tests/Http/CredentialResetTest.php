@@ -235,17 +235,18 @@ class CredentialResetTest extends TestCase
         return $response;
     }
 
-    // After a password reset, a PJAX navigation gets 401 without a redirect, so the login page (loaded next)
-    // still has the flash message; a followed redirect would have shown and consumed it inside fetch()
-    public function test_pjax_request_of_an_ended_session_gets_401_and_keeps_the_message(): void
+    // After a password reset, a PJAX navigation gets no redirect (the target is in X-PJAX-Location), so the login
+    // page (loaded next) still has the flash message; a followed redirect would have consumed it inside fetch()
+    public function test_pjax_request_of_an_ended_session_is_not_redirected_and_keeps_the_message(): void
     {
         $session = $this->signedIn('cash.unit');
         $this->reset($this->admin(), 'cash.unit', ['target' => 'password', 'pin' => TestDatabase::PIN]);
 
         $response = $this->pjaxGet($session, '/tasks');
 
-        $this->assertSame(401, $response['status']);
+        $this->assertSame(204, $response['status']);
         $this->assertArrayNotHasKey('location', $response['headers']);
+        $this->assertSame('/login', $response['headers']['x-pjax-location']);
         $this->assertStringContainsString('Your password was reset. Please sign in again.', $session->get('/login')['body']);
     }
 
@@ -259,8 +260,9 @@ class CredentialResetTest extends TestCase
 
         $response = $this->pjaxGet($session, '/tasks');
 
-        $this->assertSame(401, $response['status']);
+        $this->assertSame(204, $response['status']);
         $this->assertArrayNotHasKey('location', $response['headers']);
+        $this->assertSame('/login', $response['headers']['x-pjax-location']);
         $this->assertStringContainsString('session has expired', $session->get('/login')['body']);
     }
 

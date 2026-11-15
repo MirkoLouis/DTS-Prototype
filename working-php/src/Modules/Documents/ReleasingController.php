@@ -19,7 +19,7 @@ class ReleasingController
 
         if (empty($pin)) {
             $_SESSION['error'] = "Security PIN is required.";
-            header("Location: " . ($_SERVER['HTTP_REFERER'] ?? '/releasing'));
+            header("Location: " . \App\Common\Http\SafeRedirect::refererOr('/releasing'));
             exit;
         }
 

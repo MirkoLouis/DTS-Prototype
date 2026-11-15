@@ -26,6 +26,14 @@ class HttpSession
     }
 
     /**
+     * Base URL of the server this session talks to (scheme, host and port, no trailing slash).
+     */
+    public function baseUrl(): string
+    {
+        return $this->baseUrl;
+    }
+
+    /**
      * Send a header with every following request, or stop sending it when the value is null
      * (for example "X-PJAX: true", which the in-app navigation script adds).
      */

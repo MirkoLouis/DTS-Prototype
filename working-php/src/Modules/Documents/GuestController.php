@@ -164,9 +164,7 @@ class GuestController
         $document = $service->findByTrackingCode($tracking_code, 'DESC');
 
         if (!$document) {
-            http_response_code(404);
-            echo "Not Found";
-            return;
+            render_error_page(404, 'Document not found.');
         }
 
         ob_start();

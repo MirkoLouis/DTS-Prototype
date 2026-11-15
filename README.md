@@ -270,7 +270,7 @@ The settings and habits the developers recommend for any server that holds real 
 ### 3. Network and the web server
 
 - **LAN only.** The system is designed to run on the office network with no route from the internet. Do not forward its port on the router.
-- **Serve it with `composer run prod`** (NGINX + PHP-FPM over HTTPS on port 8000), never `composer run dev`, on the real server. HTTPS is required for the QR camera and keeps passwords and PINs off the wire; the certificate is self-signed, so each device accepts it once.
+- **Serve it with `composer run prod`** (NGINX + PHP-FPM over HTTPS on port 8000), never `composer run dev`, on the real server. HTTPS is required for the QR camera and keeps passwords and PINs off the wire; the certificate is self-signed, so each device accepts it once. When PHP-FPM is not running NGINX answers 502 (also 503 and 504) with the static page `public/errors/gateway.html` instead of its bare default. `composer run prod` and `composer run dev` write the NGINX site file from `nginx/site.conf` each time they start; a server whose site file was installed some other way needs the updated `nginx/site.conf` (its `error_page 502 503 504` line and the `location = /errors/gateway.html` block) and an NGINX reload.
 - **Never run `composer run proxy` on the real server.** It opens a public Cloudflare tunnel to the app and exists only for remote reviews during development.
 - Sessions are kept in `working-php/storage/sessions`, not the folder all PHP apps share. Run the web server and the worker as the same user, so both can write to `storage/`.
 
@@ -429,6 +429,10 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `test:restore-backup-job` | A restore first saves the current database, is recorded in the system audit log with counts, and notifies the admin; failures restore nothing. |
 | `test:backup-pin` | Downloading, restoring or deleting a backup needs the admin's Security PIN; wrong PINs lock out; backup actions are recorded in the audit log. |
 | `test:account-password` | Self-service password change with lockout, the default-password reminder, and the 10-character rule for passwords and Security PINs. |
+| `test:pjax-redirect` | A redirect during in-app navigation is announced in X-PJAX-Location instead of being followed, so its flash message survives. |
+| `test:nginx-error-page` | The static gateway error page exists, is self-contained, and every NGINX config routes 502, 503 and 504 to it (live NGINX not exercised). |
+| `test:safe-redirect` | Redirect targets from headers or scripts are reduced to a local path and query, or refused; the Referer fallback; the shared relative-path check. |
+| `test:error-page` | Error pages and JSON for 403, 404, 419, 429, 500, 503 and other statuses with the right back link and Retry-After; a real 500 shows no exception text or paths; a failing request redirects back only to a same-host Referer (a failing GET without one shows the 500 page, a failing POST redirects back), and partial output is discarded. |
 | `test:credential-reset` | An admin resets a user's sign-in password, Security PIN or both after entering their own Security PIN; each reset is recorded in the audit log. |
 | `test:system-audit-service` | The system audit log chains its entries with a keyed MAC; edited, removed and reordered lines are detected. |
 | `test:integrity-audit-log` | The integrity check verifies the system audit log; System Overview shows it intact or names the altered lines. |

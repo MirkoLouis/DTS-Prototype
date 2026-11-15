@@ -70,6 +70,23 @@
         });
     }
 
+    // Resolve a redirect target announced by the server: its path, query and hash when it points to this origin,
+    // otherwise null (a value with whitespace or control characters, one that does not parse, or another origin)
+    function sameOriginTarget(value) {
+        if (/[\x00-\x20\x7f]/.test(value)) {
+            return null;
+        }
+
+        let target;
+        try {
+            target = new URL(value, window.location.href);
+        } catch (e) {
+            return null;
+        }
+
+        return target.origin === window.location.origin ? target.pathname + target.search + target.hash : null;
+    }
+
     // Core navigation function — fetches target URL, parses full HTML,
     // swaps #pjax-content, re-runs scripts, fires lifecycle event.
     async function navigateTo(url, pushHistory = true) {
@@ -100,24 +117,27 @@
                 }
             });
 
-            // 401: the session ended (expired, deactivated, password reset). The server did not redirect, so the reason
-            // is still waiting in the session; a full load of /login shows it. A redirect followed inside fetch()
-            // would have shown and consumed it there.
-            if (response.status === 401) {
-                window.location.href = '/login';
+            // The server answers a redirect to a PJAX request with 204 and the target in X-PJAX-Location instead of a
+            // redirect: a redirect followed inside fetch() would render the target page here, consuming its flash
+            // message (for example why the session ended), and the full load below would show it without. Only a
+            // target that resolves to this origin is followed; anything else reloads the requested URL. replace()
+            // swaps the history entry pushed above, so Back does not return to an entry that redirects again.
+            const pjaxLocation = response.headers.get('X-PJAX-Location');
+            if (pjaxLocation !== null) {
+                window.location.replace(sameOriginTarget(pjaxLocation) ?? url);
                 return;
             }
 
-            // If the server issued a redirect (e.g. auth guard → /login), follow it natively.
-            // fetch() with redirect:'follow' (default) gives us the final URL in response.url.
+            // A redirect the server did not announce above (fetch() followed it): load the final URL natively,
+            // again replacing the entry pushed for this navigation.
             if (response.redirected || response.url !== new URL(url, window.location.origin).href) {
-                window.location.href = response.url;
+                window.location.replace(response.url);
                 return;
             }
 
             if (!response.ok) {
-                // Non-2xx (403, 404, 500, etc.) — fall back to a full page load
-                window.location.href = url;
+                // Non-2xx (403, 404, 500, etc.) — fall back to a full page load (replacing the pushed entry)
+                window.location.replace(url);
                 return;
             }
 
