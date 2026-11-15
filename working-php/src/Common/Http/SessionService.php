@@ -55,4 +55,16 @@ class SessionService
     {
         return max(60, (int) Config::get('app', 'session_lifetime', 43200));
     }
+
+    /**
+     * Drop the authenticated session but keep a fresh, anonymous one holding a CSRF token and a flash
+     * error message (shown on the login page). The old session id is destroyed and never reusable.
+     */
+    public static function endAuthenticatedSession(string $message): void
+    {
+        $_SESSION = [];
+        session_regenerate_id(true);
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+        $_SESSION['error'] = $message;
+    }
 }

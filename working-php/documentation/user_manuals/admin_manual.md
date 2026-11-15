@@ -46,7 +46,7 @@ Every user action that mutates document state requires a cryptographically secur
 
 Your sign-in password is part of your sign-in credentials; it proves who you are when you log in. To change it, open the user menu (your name, top right) and click **Change password**. Enter your current password and the new one twice. The new password needs at least 10 characters, must differ from your current password and from `password`, and must not be your Security PIN. Three wrong current passwords in a minute lock this page for one minute, and a password can be changed at most three times per minute. Create your Security PIN first; the change-password form is refused until you have one.
 
-If you are still using the default password, or an administrator set it, you get a notification with a **Change password** link each time you sign in. Nothing is forced, but please change it.
+If you are still using the default password, or an administrator set it, you get a notification with a **Change password** link each time you sign in; it pops up first and then stays in the notification list. Nothing is forced, but please change it. When you change your password you are signed out everywhere, including this browser, and sign in again with the new password.
 
 ---
 
@@ -63,7 +63,7 @@ If you are still using the default password, or an administrator set it, you get
 2. **Resetting a Password or a Security PIN:**
    - If a user forgets their password, or loses their PIN or compromises their key, go to `/users`, find the user and click **Reset**.
    - Choose **Sign-in password** (set back to `password`; the user is reminded to change it), **Security PIN** (the user creates a new one at their next page view) or **Both**, and click the confirm button.
-   - Enter your own Security PIN when asked. Wrong PINs count toward the one-minute lockout. Each reset is recorded in the system audit log.
+   - Enter your own Security PIN when asked. Wrong PINs count toward the one-minute lockout. Each reset is recorded in the system audit log. Resetting a sign-in password signs that user out of all their sessions (you too, if you reset your own); resetting only the Security PIN does not.
    - *Security Policy:* When a Security PIN is reset, the system archives the user's old public key into `user_public_key_histories` with an `activated_at` / `deactivated_at` timeframe. This ensures older signed documents remain cryptographically verifiable while invalidating the compromised key for future signatures.
 
 ### 4.2 System Health & Integrity Monitoring (`/system-overview`)

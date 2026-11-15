@@ -80,8 +80,9 @@ class NotificationService
      *
      * @param string|null $link       internal path such as "/account/password"; other values are stored as no link
      * @param string|null $linkLabel  text of the link
+     * @return int the id of the new notification
      */
-    public function notifyUser(int $userId, string $title, string $message, string $type = 'info', ?string $link = null, ?string $linkLabel = null): void
+    public function notifyUser(int $userId, string $title, string $message, string $type = 'info', ?string $link = null, ?string $linkLabel = null): int
     {
         $safeLink = self::safeLink($link);
         $stmt = $this->db->prepare("
@@ -96,6 +97,7 @@ class NotificationService
             'link' => $safeLink,
             'link_label' => $safeLink === null ? null : $linkLabel
         ]);
+        $notificationId = (int) $this->db->lastInsertId();
 
         // Enforce max limit of 10 per user
         $this->db->prepare("
@@ -113,6 +115,35 @@ class NotificationService
             'user_id1' => $userId,
             'user_id2' => $userId
         ]);
+
+        return $notificationId;
+    }
+
+    // Session key holding the ids of stored notifications that the next page shows as toasts
+    private const SESSION_TOAST_IDS = 'toast_notification_ids';
+
+    /**
+     * Mark a stored notification to pop up as a toast on the signed-in user's next page.
+     *
+     * The notification stays in the bell list; the ids live in the session, so they survive a session id
+     * regeneration, and the layout takes them once with takeToastIds().
+     */
+    public static function toastOnNextPage(int $notificationId): void
+    {
+        $_SESSION[self::SESSION_TOAST_IDS][] = $notificationId;
+    }
+
+    /**
+     * Take (and forget) the ids marked by toastOnNextPage(), so each notification is toasted once.
+     *
+     * @return int[]
+     */
+    public static function takeToastIds(): array
+    {
+        $ids = $_SESSION[self::SESSION_TOAST_IDS] ?? [];
+        unset($_SESSION[self::SESSION_TOAST_IDS]);
+
+        return array_map('intval', is_array($ids) ? $ids : []);
     }
 
     /**

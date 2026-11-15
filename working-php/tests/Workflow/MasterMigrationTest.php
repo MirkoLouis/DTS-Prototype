@@ -78,6 +78,20 @@ class MasterMigrationTest extends TestCase
         $this->assertSame(0, (int) $flagged['c']);
     }
 
+    // A database from before session versions gets users.session_version (default 0), and a second run changes nothing
+    public function test_migration_adds_the_session_version_column(): void
+    {
+        Database::getInstance()->getConnection()->exec('ALTER TABLE users DROP COLUMN session_version');
+        $this->assertFalse($this->columnExists('users', 'session_version'));
+
+        TestDatabase::runSqlFile(BASE_PATH . self::MIGRATION);
+        TestDatabase::runSqlFile(BASE_PATH . self::MIGRATION);
+
+        $this->assertTrue($this->columnExists('users', 'session_version'));
+        $versions = Database::getInstance()->query('SELECT DISTINCT session_version FROM users')->fetchAll(\PDO::FETCH_COLUMN);
+        $this->assertSame(['0'], array_map('strval', $versions));
+    }
+
     // Whether a column exists in the connected database
     private function columnExists(string $table, string $column): bool
     {

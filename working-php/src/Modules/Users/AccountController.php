@@ -3,6 +3,7 @@
 namespace App\Modules\Users;
 
 use App\Common\Database\Database;
+use App\Common\Http\SessionService;
 use App\Modules\Auth\AttemptThrottleService;
 use App\Modules\Auth\CredentialPolicy;
 use App\Modules\Auth\PasswordReminderService;
@@ -80,11 +81,12 @@ class AccountController
         ]);
         PasswordReminderService::clear($userId);
 
-        // A new credential starts a new session id (prevents session fixation)
-        session_regenerate_id(true);
-
-        $_SESSION['success'] = 'Your password has been changed.';
-        redirect_to_role_home($_SESSION['role'] ?? 'staff');
+        // Every session of the account ends, this one included: raising the version ends the others on their next
+        // request, and this one is replaced by an anonymous session (new id) that carries the message to the login page
+        UserCredentialService::raiseSessionVersion($userId);
+        SessionService::endAuthenticatedSession('Your password has been changed. Please sign in again.');
+        header('Location: /login');
+        exit;
     }
 
     /**

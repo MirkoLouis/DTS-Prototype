@@ -76,3 +76,11 @@ SET @sql = IF(@missing, 'ALTER TABLE notifications ADD COLUMN link_label VARCHAR
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
+
+-- 2026-11-15: session version (users.session_version): raised when the sign-in password is reset or changed,
+-- so every session started before that ends on its next request
+SET @missing = (SELECT COUNT(*) = 0 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'session_version');
+SET @sql = IF(@missing, 'ALTER TABLE users ADD COLUMN session_version INT UNSIGNED NOT NULL DEFAULT 0 AFTER must_change_password', 'DO 0');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;

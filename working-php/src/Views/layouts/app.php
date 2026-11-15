@@ -24,6 +24,14 @@ if (isset($_SESSION['user_id'])) {
     }
     
     $unreadNotifications = $notifService->getUnreadForCurrentUser();
+
+    // Stored notifications marked to pop up on this page (taken once, so none is toasted twice); they also stay in the bell list
+    $toastIds = \App\Modules\Notifications\NotificationService::takeToastIds();
+    foreach ($unreadNotifications as $unreadNotification) {
+        if (in_array((int) $unreadNotification['id'], $toastIds, true)) {
+            $sessionAlerts[] = $unreadNotification + ['is_toast' => true];
+        }
+    }
 }
 ?>
 <!DOCTYPE html>

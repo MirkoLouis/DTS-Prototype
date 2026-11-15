@@ -154,10 +154,10 @@ class AccountPasswordTest extends TestCase
         $response = $this->change($client, TestDatabase::PASSWORD, self::NEW_PASSWORD);
 
         $this->assertSame(302, $response['status']);
-        $this->assertSame('/tasks', $response['headers']['location']);
+        $this->assertSame('/login', $response['headers']['location']);
         $this->assertSame('0', (string) $this->user('cash.unit')['must_change_password']);
         $this->assertSame([], $this->reminders('cash.unit'));
-        $this->assertStringContainsString('Your password has been changed.', $client->get('/tasks')['body']);
+        $this->assertStringContainsString('Your password has been changed. Please sign in again.', $client->get('/login')['body']);
         $this->assertTrue($this->canSignIn('cash.unit', self::NEW_PASSWORD));
         $this->assertFalse($this->canSignIn('cash.unit', TestDatabase::PASSWORD));
     }
@@ -264,10 +264,13 @@ class AccountPasswordTest extends TestCase
         $client = $this->signedIn();
         $passwords = [TestDatabase::PASSWORD, 'Chain-Pass-0001', 'Chain-Pass-0002', 'Chain-Pass-0003'];
         for ($i = 0; $i < 3; $i++) {
+            // Each change ends the session, so the user signs in again with the password just set
+            $client = $this->signInWith('cash.unit', $passwords[$i]);
             $this->change($client, $passwords[$i], $passwords[$i + 1]);
         }
         $this->assertTrue(password_verify($passwords[3], $this->user('cash.unit')['password']));
 
+        $client = $this->signInWith('cash.unit', $passwords[3]);
         $this->change($client, $passwords[3], 'Chain-Pass-0004');
 
         $this->assertTrue(password_verify($passwords[3], $this->user('cash.unit')['password']));
@@ -301,16 +304,41 @@ class AccountPasswordTest extends TestCase
         $this->assertSame(1, (int) $this->throttleRow('account-password-outcome')['failures']);
     }
 
-    // A successful change gives the browser a new session id
-    public function test_session_cookie_changes_after_a_successful_change(): void
+    // A successful change signs the user out everywhere: the changing session and every other one
+    public function test_change_signs_out_every_session(): void
+    {
+        $other = HttpClient::start();
+        $other->loginAs('cash.unit');
+        $client = $this->signedIn();
+
+        $response = $this->change($client, TestDatabase::PASSWORD, self::NEW_PASSWORD);
+
+        // The changing session lands on the login page with the message, and is no longer signed in
+        $this->assertSame('/login', $response['headers']['location']);
+        $this->assertStringContainsString('Your password has been changed. Please sign in again.', $client->get('/login')['body']);
+        $this->assertSame('/login', $client->get('/tasks')['headers']['location'] ?? '');
+
+        // The other session ends on its next request
+        $this->assertSame('/login', $other->get('/tasks')['headers']['location'] ?? '');
+        $this->assertStringContainsString('Your password was reset. Please sign in again.', $other->get('/login')['body']);
+
+        // The new password signs in
+        $this->assertTrue($this->canSignIn('cash.unit', self::NEW_PASSWORD));
+    }
+
+    // The session id used for the change is replaced and its session is destroyed, so it cannot be reused
+    public function test_the_changing_session_id_is_replaced_and_destroyed(): void
     {
         $client = $this->signedIn();
         $before = $client->cookie(session_name());
+        $oldFile = \App\Common\Http\SessionService::directory() . '/sess_' . $before;
+        $this->assertFileExists($oldFile);
 
         $this->change($client, TestDatabase::PASSWORD, self::NEW_PASSWORD);
 
         $this->assertNotNull($client->cookie(session_name()));
         $this->assertNotSame($before, $client->cookie(session_name()));
+        $this->assertFileDoesNotExist($oldFile);
     }
 
     // ---------- B. reminder ----------
@@ -331,6 +359,67 @@ class AccountPasswordTest extends TestCase
         // Signing in again replaces the reminder instead of adding another
         $this->assertTrue($this->canSignIn('cash.unit', 'password'));
         $this->assertCount(1, $this->reminders('cash.unit'));
+    }
+
+    // Sign in and return the client with the landing page URL, without loading the page (so its toasts are not consumed)
+    private function signInWithoutLoadingPage(string $username, string $password): array
+    {
+        $client = HttpClient::start();
+        $client->get('/login');
+        $response = $client->post('/login', ['email' => $username, 'password' => $password]);
+
+        return [$client, $response['headers']['location']];
+    }
+
+    // Offsets of the message in the bell list (before the toast container) and in the toast container (after it)
+    private function reminderPlaces(string $body, string $message): array
+    {
+        $toastStart = strpos($body, 'id="toast-container"');
+        $this->assertNotFalse($toastStart);
+
+        return [
+            'bell' => substr_count(substr($body, 0, $toastStart), $message) > 0,
+            'toast' => substr_count(substr($body, $toastStart), $message) > 0,
+            'toast_link' => preg_match('/<a class="notification-link[^"]*"[^>]*href="\/account\/password"/', substr($body, $toastStart)) === 1,
+        ];
+    }
+
+    // The reminder pops up as a toast on the first page, stays in the bell, and is not toasted again
+    public function test_reminder_toasts_once_then_stays_in_the_bell(): void
+    {
+        $this->setPassword('cash.unit', 'password');
+        [$client, $landing] = $this->signInWithoutLoadingPage('cash.unit', 'password');
+
+        $first = $this->reminderPlaces($client->get($landing)['body'], 'You are using the default password.');
+        $this->assertSame(['bell' => true, 'toast' => true, 'toast_link' => true], $first);
+
+        $second = $this->reminderPlaces($client->get($landing)['body'], 'You are using the default password.');
+        $this->assertSame(['bell' => true, 'toast' => false, 'toast_link' => false], $second);
+        $this->assertCount(1, $this->reminders('cash.unit'));
+    }
+
+    // A flagged account with an administrator-set password gets the same, with the other message
+    public function test_administrator_set_reminder_toasts_once_then_stays_in_the_bell(): void
+    {
+        $this->setPassword('cash.unit', TestDatabase::PASSWORD, 1);
+        [$client, $landing] = $this->signInWithoutLoadingPage('cash.unit', TestDatabase::PASSWORD);
+
+        $first = $this->reminderPlaces($client->get($landing)['body'], 'Your password was set by an administrator.');
+        $this->assertSame(['bell' => true, 'toast' => true, 'toast_link' => true], $first);
+
+        $second = $this->reminderPlaces($client->get($landing)['body'], 'Your password was set by an administrator.');
+        $this->assertSame(['bell' => true, 'toast' => false, 'toast_link' => false], $second);
+        $this->assertCount(1, $this->reminders('cash.unit'));
+    }
+
+    // An unflagged account gets no reminder toast
+    public function test_unflagged_account_gets_no_toast(): void
+    {
+        [$client, $landing] = $this->signInWithoutLoadingPage('cash.unit', TestDatabase::PASSWORD);
+        $body = $client->get($landing)['body'];
+
+        $this->assertStringNotContainsString('class="notification-link', $body);
+        $this->assertStringNotContainsString('default password', $body);
     }
 
     // The reminder is shown with its link below the message wherever notifications are rendered

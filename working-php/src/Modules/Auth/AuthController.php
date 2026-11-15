@@ -82,6 +82,9 @@ class AuthController
             $_SESSION['role'] = $user['role'];
             $_SESSION['department_id'] = $user['department_id'];
 
+            // The account's session version at sign-in; a later password reset or change ends this session
+            $_SESSION['session_version'] = (int) ($user['session_version'] ?? 0);
+
             if ($user['department_id']) {
                 $deptStmt = $db->query("SELECT name FROM departments WHERE id = :id", [':id' => $user['department_id']]);
                 $dept = $deptStmt->fetch();

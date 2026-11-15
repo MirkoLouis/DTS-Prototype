@@ -189,6 +189,86 @@ class CredentialResetTest extends TestCase
         $this->assertSame([], $this->auditEvents());
     }
 
+    // A signed-in browser for a seeded user
+    private function signedIn(string $username): HttpClient
+    {
+        $client = HttpClient::start();
+        $client->loginAs($username);
+
+        return $client;
+    }
+
+    // Whether the browser's next page request is sent to the login page, which then explains why
+    private function isSentToLogin(HttpClient $client): bool
+    {
+        $response = $client->get('/tasks');
+        if (($response['headers']['location'] ?? '') !== '/login') {
+            return false;
+        }
+
+        return str_contains($client->get('/login')['body'], 'Your password was reset. Please sign in again.');
+    }
+
+    // A reset of the sign-in password ends every session of that user and the user can sign in again with the default password
+    public function test_password_reset_ends_the_users_sessions(): void
+    {
+        $first = $this->signedIn('cash.unit');
+        $second = $this->signedIn('cash.unit');
+        $this->reset($this->admin(), 'cash.unit', ['target' => 'password', 'pin' => TestDatabase::PIN]);
+
+        $this->assertTrue($this->isSentToLogin($first));
+        $this->assertTrue($this->isSentToLogin($second));
+
+        $again = HttpClient::start();
+        $again->get('/login');
+        $response = $again->post('/login', ['email' => 'cash.unit', 'password' => 'password']);
+        $this->assertSame('/tasks', $response['headers']['location']);
+    }
+
+    // A reset of the Security PIN alone leaves sessions working
+    public function test_pin_reset_keeps_the_users_sessions(): void
+    {
+        $session = $this->signedIn('cash.unit');
+        $this->reset($this->admin(), 'cash.unit', ['target' => 'pin', 'pin' => TestDatabase::PIN]);
+
+        $this->assertSame(200, $session->get('/tasks')['status']);
+    }
+
+    // Resetting both ends the sessions
+    public function test_both_reset_ends_the_users_sessions(): void
+    {
+        $session = $this->signedIn('cash.unit');
+        $this->reset($this->admin(), 'cash.unit', ['target' => 'both', 'pin' => TestDatabase::PIN]);
+
+        $this->assertTrue($this->isSentToLogin($session));
+    }
+
+    // An admin who resets their own sign-in password is signed out like anyone else
+    public function test_admin_resetting_their_own_password_is_signed_out(): void
+    {
+        $client = $this->admin();
+        $this->reset($client, 'admin', ['target' => 'password', 'pin' => TestDatabase::PIN]);
+
+        $this->assertSame('/login', $client->get('/users')['headers']['location'] ?? '');
+    }
+
+    // A session from before the column existed (no stored value) keeps working while the account's counter is 0
+    public function test_session_without_a_stored_version_keeps_working_while_the_counter_is_zero(): void
+    {
+        $session = $this->signedIn('cash.unit');
+        $file = \App\Common\Http\SessionService::directory() . '/sess_' . $session->cookie(session_name());
+        $stored = (string) file_get_contents($file);
+        $stripped = preg_replace('/session_version\|i:\d+;/', '', $stored);
+        $this->assertNotSame($stored, $stripped, 'the session stores the account version at sign-in');
+        file_put_contents($file, $stripped);
+
+        $this->assertSame(200, $session->get('/tasks')['status']);
+
+        // Once the counter moves, the same session ends
+        Database::getInstance()->query('UPDATE users SET session_version = 1 WHERE email = :e', [':e' => 'cash.unit']);
+        $this->assertTrue($this->isSentToLogin($session));
+    }
+
     // The old reset-signature route is gone and its action no longer works
     public function test_old_reset_signature_route_is_gone(): void
     {

@@ -47,11 +47,14 @@ class PasswordReminderService
             return;
         }
 
-        // Earlier reminders go first, so reminders never pile up
+        // Earlier reminders go first (and so does a toast still waiting for one), so reminders never pile up
         $notifications = new NotificationService();
         $notifications->deleteForUserByLink($userId, CredentialPolicy::CHANGE_PASSWORD_PATH);
         $message = $usedDefaultPassword ? self::MESSAGE_DEFAULT_PASSWORD : self::MESSAGE_SET_BY_ADMINISTRATOR;
-        $notifications->notifyUser($userId, $message, $message, 'warning', CredentialPolicy::CHANGE_PASSWORD_PATH, CredentialPolicy::CHANGE_PASSWORD_LABEL);
+        $notificationId = $notifications->notifyUser($userId, $message, $message, 'warning', CredentialPolicy::CHANGE_PASSWORD_PATH, CredentialPolicy::CHANGE_PASSWORD_LABEL);
+
+        // The reminder pops up as a toast on the first page after sign-in, then lives in the notification list
+        NotificationService::toastOnNextPage($notificationId);
 
         // A cached page must not show the old notification list
         CacheMiddleware::forgetUserPages($userId);

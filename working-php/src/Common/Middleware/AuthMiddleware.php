@@ -40,13 +40,19 @@ class AuthMiddleware
         // Re-read the account on every request (before the session lock is released) so a deactivation applies immediately
         $db = Database::getInstance();
         $user = $db->query(
-            "SELECT u.name, u.role, u.department_id, u.security_key_set_at, d.name AS department_name
+            "SELECT u.name, u.role, u.department_id, u.security_key_set_at, u.session_version, d.name AS department_name
              FROM users u LEFT JOIN departments d ON d.id = u.department_id
              WHERE u.id = :id AND u.deactivated_at IS NULL",
             ['id' => $_SESSION['user_id']]
         )->fetch();
         if (!$user) {
             $this->endSession("Your account is no longer active.");
+        }
+
+        // A sign-in password reset or change raises the account's session version; a session started before
+        // that (or, for a session without a stored version, any raise above 0) ends here
+        if ((int) ($_SESSION['session_version'] ?? 0) !== (int) $user['session_version']) {
+            $this->endSession("Your password was reset. Please sign in again.");
         }
 
         // Keep the session's copy of the account (name, role, department) equal to the database, so an admin's edit
@@ -89,10 +95,7 @@ class AuthMiddleware
      */
     private function endSession(string $message): never
     {
-        $_SESSION = [];
-        session_regenerate_id(true);
-        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-        $_SESSION['error'] = $message;
+        \App\Common\Http\SessionService::endAuthenticatedSession($message);
 
         $this->refuse($message);
     }

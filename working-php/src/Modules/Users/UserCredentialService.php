@@ -55,7 +55,21 @@ class UserCredentialService
     }
 
     /**
-     * Set the sign-in password to the default password and flag the account for the reminder.
+     * Raise the account's session version, which ends every session started before (AuthMiddleware compares it
+     * with the version stored in the session at sign-in).
+     *
+     * @return int the new version, for a session that must stay signed in
+     */
+    public static function raiseSessionVersion(int $userId): int
+    {
+        $db = Database::getInstance();
+        $db->query('UPDATE users SET session_version = session_version + 1 WHERE id = :id', [':id' => $userId]);
+
+        return (int) $db->query('SELECT session_version FROM users WHERE id = :id', [':id' => $userId])->fetch()['session_version'];
+    }
+
+    /**
+     * Set the sign-in password to the default password, flag the account for the reminder and end its sessions.
      */
     private function resetSignInPassword(int $userId): void
     {
@@ -64,6 +78,7 @@ class UserCredentialService
             ':id' => $userId,
         ]);
         PasswordReminderService::flag($userId);
+        self::raiseSessionVersion($userId);
     }
 
     /**
