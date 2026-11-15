@@ -40,11 +40,12 @@ class TestArtifactPathsTest extends TestCase
         $this->assertSame(self::TEST_ROOT . 'cache/responses', CacheMiddleware::cacheDir());
     }
 
-    // Under APP_ENV=testing, sessions, backups and the system audit log use the .test folder too
+    // Under APP_ENV=testing, sessions, backups, the backup working folders and the system audit log use the .test folder too
     public function test_sessions_backups_and_audit_log_use_the_test_folder_when_testing(): void
     {
         $this->assertSame(self::TEST_ROOT . 'sessions', \App\Common\Http\SessionService::directory());
         $this->assertSame(self::TEST_ROOT . 'backups', \App\Modules\System\BackupService::directory());
+        $this->assertSame(self::TEST_ROOT . 'temp', \App\Modules\System\BackupService::temporaryRoot());
         $this->assertSame(self::TEST_ROOT . 'logs/system-audit.log', \App\Modules\System\SystemAuditService::path());
     }
 

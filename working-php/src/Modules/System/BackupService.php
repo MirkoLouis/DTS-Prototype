@@ -16,6 +16,18 @@ class BackupService
 
     private const SECONDS_PER_DAY = 86400;
 
+    // Time limit of a backup or restore job, for set_time_limit(); it does not count time spent in the dump and
+    // mysql child processes, so it says nothing about whether a working folder is still in use
+    public const JOB_TIME_LIMIT_SECONDS = 1200;
+
+    // A new working folder is not judged abandoned for this long: a job needs a moment between creating the
+    // folder and locking it
+    public const WORKING_DIRECTORY_GRACE_SECONDS = 60;
+
+    // Lock handles of the working folders this process created, keyed by folder path; the operating system
+    // releases each lock when the process ends, however it ends
+    private static array $workingDirectoryLocks = [];
+
     /**
      * The folder backups are stored in, created when missing.
      *
@@ -29,6 +41,135 @@ class BackupService
         }
 
         return $directory;
+    }
+
+    /**
+     * The folder that holds the working folders of running jobs, created when missing.
+     */
+    public static function temporaryRoot(): string
+    {
+        $directory = Config::isTesting() ? Config::testPath('temp') : BASE_PATH . '/storage/temp';
+        if (!is_dir($directory)) {
+            mkdir($directory, 0777, true);
+        }
+
+        return $directory;
+    }
+
+    /**
+     * Create a new, uniquely named folder for one job's intermediate files and return its path.
+     * Only the owner can read it, because a dump holds password hashes and contact details.
+     *
+     * The folder is locked until the job removes it or its process ends, so another job can tell a
+     * running job's folder from a leftover.
+     */
+    public static function workingDirectory(): string
+    {
+        $directory = self::temporaryRoot() . '/' . bin2hex(random_bytes(8));
+        mkdir($directory, 0700);
+
+        // Hold an exclusive lock on the lock file for as long as the job runs
+        $handle = fopen($directory . '/.lock', 'c');
+        if ($handle === false || !flock($handle, LOCK_EX)) {
+            throw new \RuntimeException('Could not lock the working folder ' . basename($directory) . '.');
+        }
+        self::$workingDirectoryLocks[$directory] = $handle;
+
+        return $directory;
+    }
+
+    /**
+     * Delete a working folder and everything in it.
+     *
+     * Does nothing unless the folder is directly inside the temporary root, so a wrong path can never delete anything else.
+     */
+    public static function removeWorkingDirectory(string $directory): void
+    {
+        // Resolve the path and refuse anything that is not a direct child of the temporary root
+        $real = realpath($directory);
+        $root = realpath(self::temporaryRoot());
+        if ($real === false || $root === false || dirname($real) !== $root) {
+            return;
+        }
+
+        // Release the lock this process holds on the folder
+        foreach ([$directory, $real] as $key) {
+            if (isset(self::$workingDirectoryLocks[$key])) {
+                flock(self::$workingDirectoryLocks[$key], LOCK_UN);
+                fclose(self::$workingDirectoryLocks[$key]);
+                unset(self::$workingDirectoryLocks[$key]);
+            }
+        }
+
+        self::deleteTree($real);
+    }
+
+    /**
+     * Delete a folder with everything in it, dot-files and nested folders included.
+     * A symbolic link is unlinked, never followed.
+     */
+    private static function deleteTree(string $path): void
+    {
+        foreach (scandir($path) ?: [] as $name) {
+            // Skip the folder itself and its parent
+            if ($name === '.' || $name === '..') {
+                continue;
+            }
+
+            // Descend into real folders only; links and files are unlinked
+            $child = $path . '/' . $name;
+            if (is_dir($child) && !is_link($child)) {
+                self::deleteTree($child);
+                continue;
+            }
+            @unlink($child);
+        }
+        @rmdir($path);
+    }
+
+    /**
+     * Whether no process holds the lock of a working folder. A folder without a lock file is not held.
+     */
+    private static function isUnheld(string $folder): bool
+    {
+        $handle = @fopen($folder . '/.lock', 'r');
+        if ($handle === false) {
+            return true;
+        }
+
+        // Release the probe lock at once, so the folder can be removed afterwards
+        $unheld = flock($handle, LOCK_EX | LOCK_NB);
+        if ($unheld) {
+            flock($handle, LOCK_UN);
+        }
+        fclose($handle);
+
+        return $unheld;
+    }
+
+    /**
+     * Remove working folders left behind by a job that was killed before it could clean up.
+     *
+     * A folder is abandoned when no running job holds its lock and it is older than the grace period.
+     *
+     * @return string[] names of the removed folders
+     */
+    public static function clearAbandonedWorkingDirectories(int $now): array
+    {
+        $removed = [];
+        foreach (glob(self::temporaryRoot() . '/*', GLOB_ONLYDIR) ?: [] as $folder) {
+            // A recent folder may belong to a job that has not locked it yet, and a locked one is in use
+            if (filemtime($folder) >= $now - self::WORKING_DIRECTORY_GRACE_SECONDS || !self::isUnheld($folder)) {
+                continue;
+            }
+            self::removeWorkingDirectory($folder);
+            if (!is_dir($folder)) {
+                $removed[] = basename($folder);
+                error_log('Removed abandoned backup working folder ' . basename($folder) . '.');
+            }
+        }
+
+        return $removed;
     }
 
     /**

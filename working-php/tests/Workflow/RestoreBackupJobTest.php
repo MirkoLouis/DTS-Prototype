@@ -26,6 +26,12 @@ class RestoreBackupJobTest extends TestCase
         @unlink(SystemAuditService::path());
     }
 
+    // Working folders currently in the test temporary root
+    private function workingFolders(): array
+    {
+        return glob(Config::testPath('temp') . '/*', GLOB_ONLYDIR) ?: [];
+    }
+
     // Back up a database holding one document, then add a second one; returns [backup name, first, second]
     private function backupThenAddDocument(): array
     {
@@ -93,6 +99,8 @@ class RestoreBackupJobTest extends TestCase
 
         $entry = $this->lastAuditEntry();
         $this->assertSame('backup_restored', $entry['event']);
+        $this->assertSame([], $this->workingFolders());
+        $this->assertSame([], glob(BackupService::directory() . '/*.sql') ?: []);
         $this->assertSame($backup, $entry['data']['file']);
         $this->assertSame($adminId, $entry['data']['user_id']);
         $this->assertSame($this->safetyBackups()[0], $entry['data']['safety_backup']);
@@ -175,6 +183,8 @@ class RestoreBackupJobTest extends TestCase
         $this->assertSame('backup_restore_failed', $entry['event']);
         $this->assertStringContainsString('BACKUP_PASSWORD', $entry['data']['reason']);
         $this->assertFileDoesNotExist("{$directory}/other.sql");
+        $this->assertSame([], $this->workingFolders());
+        $this->assertSame([], glob("{$directory}/*.sql") ?: []);
     }
 
     // Restoring an old backup must not let expiry delete it (or anything else) while the safety backup is made

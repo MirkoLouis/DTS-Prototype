@@ -53,7 +53,11 @@
                         $backup['file_name_html'] = sprintf('<span class="font-mono">%s</span>', htmlspecialchars($backup['file_name']));
                         $backup['actions_html'] = sprintf('
                             <div class="flex justify-end items-center space-x-4">
-                                <a href="/system/backups/download/%s" class="text-accent-1 hover:text-accent-1-active">Download</a>
+                                <form action="/system/backups/download/%s" method="POST" class="sign-action" data-message="Enter your Security PIN to download this backup." data-keeps-page="true">
+                                    <input type="hidden" name="csrf_token" value="' . ($_SESSION['csrf_token'] ?? '') . '">
+                                    <input type="hidden" name="pin" class="sign-pin-input">
+                                    <button type="submit" class="text-accent-1 hover:text-accent-1-active">Download</button>
+                                </form>
                                 <button type="button" class="text-gray-500 hover:text-gray-700" onclick="openRestoreModal(\'%s\')">Restore</button>
                                 <form action="/system/backups/delete/%s" method="POST" class="sign-action" data-message="Enter your Security PIN to delete this backup.">
                                     <input type="hidden" name="csrf_token" value="' . ($_SESSION['csrf_token'] ?? '') . '">
@@ -110,7 +114,7 @@
 
 </script>
 <script>
-    // Deleting and restoring ask for the Security PIN before the form is sent
+    // Deleting, restoring and downloading ask for the Security PIN before the form is sent
     function initBackupsPage() {
         document.querySelectorAll('form.sign-action').forEach(form => {
             form.addEventListener('submit', function (e) {
@@ -121,6 +125,11 @@
                     window.SigningModal.show(message, function (pin) {
                         pinInput.value = pin;
                         form.submit();
+
+                        // A download leaves the page open, so the PIN must not stay in the form for the next use
+                        if (form.dataset.keepsPage === 'true') {
+                            pinInput.value = '';
+                        }
                     });
                 }
             });

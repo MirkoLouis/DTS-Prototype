@@ -29,7 +29,10 @@ class RestoreBackupJob
     public function handle(): void
     {
         ini_set('memory_limit', '2G');
-        set_time_limit(1200);
+        set_time_limit(BackupService::JOB_TIME_LIMIT_SECONDS);
+
+        // A job that was killed cannot clean up after itself, so the next one clears it once no running job holds it
+        BackupService::clearAbandonedWorkingDirectories(time());
 
         $zipPath = BackupService::directory() . '/' . $this->fileName;
 
@@ -92,12 +95,13 @@ class RestoreBackupJob
      */
     private function import(string $zipPath): void
     {
-        // Take the dump out of the archive, feed it to the mysql client, and never leave the plain SQL file behind
-        $filePath = BackupService::extract($zipPath, BackupService::directory(), (string) Config::get('app', 'backup_password', ''));
+        // Take the dump out of the archive into a working folder, feed it to the mysql client, and never leave the plain SQL file behind
+        $workingDir = BackupService::workingDirectory();
         try {
+            $filePath = BackupService::extract($zipPath, $workingDir, (string) Config::get('app', 'backup_password', ''));
             MysqlCli::run('mysql', [], $filePath);
         } finally {
-            @unlink($filePath);
+            BackupService::removeWorkingDirectory($workingDir);
         }
 
         // A backup taken before a schema change restores the old tables; bring them back up to date
