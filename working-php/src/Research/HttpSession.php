@@ -45,6 +45,14 @@ class HttpSession
     }
 
     /**
+     * Value of a cookie the server has set in this session, or null when it has not set one by that name.
+     */
+    public function cookie(string $name): ?string
+    {
+        return $this->cookies[$name] ?? null;
+    }
+
+    /**
      * Read the CSRF token from the last page body (meta tag or hidden input).
      */
     protected function csrfToken(): string

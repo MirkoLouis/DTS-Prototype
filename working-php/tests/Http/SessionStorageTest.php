@@ -56,13 +56,11 @@ class SessionStorageTest extends TestCase
         $this->assertStringContainsString('samesite=strict', $cookie);
     }
 
-    // The session file of the most recently used session
-    private function newestSessionFile(): string
+    // The session file of a client, named after its session cookie. Picking the newest file instead would be
+    // ambiguous: file times have one-second precision, and sessions of earlier tests are still in the folder
+    private function sessionFile(HttpClient $client): string
     {
-        $files = glob(SessionService::directory() . '/sess_*') ?: [];
-        usort($files, fn($a, $b) => filemtime($b) <=> filemtime($a));
-
-        return $files[0];
+        return SessionService::directory() . '/sess_' . $client->cookie(session_name());
     }
 
     // The last-activity time stored in a session file
@@ -87,7 +85,7 @@ class SessionStorageTest extends TestCase
         $client->loginAs('cash.unit');
         $this->assertSame(200, $client->get('/tasks')['status']);
 
-        $this->age($this->newestSessionFile(), 43201);
+        $this->age($this->sessionFile($client), 43201);
         $response = $client->get('/tasks');
 
         $this->assertSame(302, $response['status']);
@@ -102,7 +100,7 @@ class SessionStorageTest extends TestCase
         $client->loginAs('cash.unit');
         $client->get('/tasks');
 
-        $this->age($this->newestSessionFile(), 43000);
+        $this->age($this->sessionFile($client), 43000);
 
         $this->assertSame(200, $client->get('/tasks')['status']);
     }
@@ -113,7 +111,7 @@ class SessionStorageTest extends TestCase
         $client = HttpClient::start();
         $client->loginAs('cash.unit');
         $client->get('/tasks');
-        $file = $this->newestSessionFile();
+        $file = $this->sessionFile($client);
         $this->age($file, 1000);
         $before = $this->lastActivity($file);
 
