@@ -254,7 +254,7 @@ async function setupDatabase() {
         
         // Admin User
         await connection.query(
-            "INSERT INTO users (name, email, password, role, created_at, updated_at) VALUES (?, ?, ?, 'admin', NOW(), NOW())",
+            "INSERT INTO users (name, email, password, must_change_password, role, created_at, updated_at) VALUES (?, ?, ?, 1, 'admin', NOW(), NOW())",
             ['Admin User', 'admin', hashedPassword]
         );
 
@@ -263,7 +263,7 @@ async function setupDatabase() {
         for (const dept of depts) {
             if (dept.name === 'Records Unit') {
                 await connection.query(
-                    "INSERT INTO users (name, email, password, department_id, role, created_at, updated_at) VALUES (?, ?, ?, ?, 'officer', NOW(), NOW())",
+                    "INSERT INTO users (name, email, password, must_change_password, department_id, role, created_at, updated_at) VALUES (?, ?, ?, 1, ?, 'officer', NOW(), NOW())",
                     ['Records Officer', 'records.unit', hashedPassword, dept.id]
                 );
             } else {
@@ -272,7 +272,7 @@ async function setupDatabase() {
                 const email = slug;
                 
                 await connection.query(
-                    "INSERT INTO users (name, email, password, department_id, role, created_at, updated_at) VALUES (?, ?, ?, ?, 'staff', NOW(), NOW())",
+                    "INSERT INTO users (name, email, password, must_change_password, department_id, role, created_at, updated_at) VALUES (?, ?, ?, 1, ?, 'staff', NOW(), NOW())",
                     [`${dept.name} Staff`, email, hashedPassword, dept.id]
                 );
             }

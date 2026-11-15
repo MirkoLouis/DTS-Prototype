@@ -3,27 +3,35 @@
 namespace App\Modules\Users;
 
 use App\Common\Database\Database;
+use App\Modules\Auth\AttemptThrottleService;
+use App\Modules\Auth\CredentialPolicy;
 
 class SecurityKeyController
 {
+    // Throttle scope of PINs refused for equalling the sign-in password, keyed by user id
+    private const THROTTLE_SCOPE = 'pin-setup';
+
     public function store()
     {
         $pin = $_POST['pin'] ?? '';
         $pinConfirm = $_POST['pin_confirm'] ?? '';
         
-        if (strlen($pin) < 6) {
-            $_SESSION['error'] = "PIN must be at least 6 characters.";
-            $this->redirectBasedOnRole();
-        }
-
-        if ($pin !== $pinConfirm) {
-            $_SESSION['error'] = "PIN and Confirm PIN do not match.";
+        // Fields sent as arrays (pin[]=x) are never a PIN
+        if (!is_string($pin) || !is_string($pinConfirm)) {
+            $_SESSION['error'] = "Enter the Security PIN and its confirmation.";
             $this->redirectBasedOnRole();
         }
 
         $db = Database::getInstance();
         $userId = $_SESSION['user_id'];
-        
+
+        // The rules for creating a PIN; the first broken one is shown
+        $refusal = $this->refusal((int) $userId, $pin, $pinConfirm);
+        if ($refusal !== null) {
+            $_SESSION['error'] = $refusal;
+            $this->redirectBasedOnRole();
+        }
+
         $keypair = sodium_crypto_sign_keypair();
         $secretKey = sodium_crypto_sign_secretkey($keypair);
         $publicKey = sodium_crypto_sign_publickey($keypair);
@@ -77,40 +85,56 @@ class SecurityKeyController
         unset($_SESSION['pin_cache_key']);
         $_SESSION[\App\Modules\Users\SecurityPinCacheService::SESSION_CLEAR] = true;
 
-        // Fix: Clear the user's personal page cache. If we don't, CacheMiddleware might serve an old cached version 
+        // Clear the user's personal page cache. If we don't, CacheMiddleware might serve an old cached version
         // of the dashboard containing the setup modal, causing it to pop up infinitely.
-        $prefix = "cache_user_{$userId}";
-        $cacheDir = \App\Common\Middleware\CacheMiddleware::cacheDir() . '/';
-        if (is_dir($cacheDir)) {
-            $files = glob($cacheDir . $prefix . '_*.html');
-            if ($files) {
-                foreach ($files as $file) {
-                    if (is_file($file)) {
-                        @unlink($file);
-                    }
-                }
-            }
-        }
+        \App\Common\Middleware\CacheMiddleware::forgetUserPages((int) $userId);
 
         $_SESSION['success'] = "Digital Signature successfully generated and secured.";
         $this->redirectBasedOnRole();
     }
 
+    /**
+     * The reason a new PIN is refused, or null when it may be created.
+     *
+     * A key is only created for an account without one (an admin reset clears it), so this form can neither
+     * replace a key nor be used for unlimited guessing of the sign-in password: every "equals the sign-in
+     * password" refusal counts as a failed attempt, and a locked-out account is refused before any comparison.
+     */
+    private function refusal(int $userId, string $pin, string $pinConfirm): ?string
+    {
+        $account = Database::getInstance()->query("SELECT password, security_key_set_at FROM users WHERE id = :id", ['id' => $userId])->fetch();
+
+        // An existing key is replaced only through an admin reset
+        if (!$account || $account['security_key_set_at'] !== null) {
+            return 'Your Security PIN is already set. Ask an administrator to reset it.';
+        }
+
+        // Refuse without comparing anything while the account is timed out
+        $throttleKey = AttemptThrottleService::key(self::THROTTLE_SCOPE, (string) $userId);
+        if (AttemptThrottleService::secondsLocked($throttleKey, time()) > 0) {
+            return AttemptThrottleService::MESSAGE;
+        }
+
+        // A new PIN has the same minimum length as a new password (existing shorter PINs keep working)
+        if (!CredentialPolicy::isLongEnough($pin)) {
+            return CredentialPolicy::tooShortMessage('Security PIN');
+        }
+
+        if ($pin !== $pinConfirm) {
+            return 'PIN and Confirm PIN do not match.';
+        }
+
+        // The PIN must differ from the sign-in password; a match counts as a failed attempt
+        if (password_verify($pin, $account['password'])) {
+            $lockedNow = AttemptThrottleService::recordFailure($throttleKey, time());
+            return $lockedNow ? AttemptThrottleService::MESSAGE : 'The Security PIN must be different from your sign-in password.';
+        }
+
+        return null;
+    }
+
     private function redirectBasedOnRole()
     {
-        $role = $_SESSION['role'] ?? 'staff';
-        switch ($role) {
-            case 'admin':
-                header("Location: /admin-dashboard");
-                break;
-            case 'officer':
-                header("Location: /intake");
-                break;
-            case 'staff':
-            default:
-                header("Location: /tasks");
-                break;
-        }
-        exit;
+        redirect_to_role_home($_SESSION['role'] ?? 'staff');
     }
 }

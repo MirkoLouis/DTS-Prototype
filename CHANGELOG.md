@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-11-15 06:19
+
+**Version:** 2.7.6-Release+202611150619
+
+### Security
+- Users change their own sign-in password at **Change password** (user menu, `/account/password`, any role). Three wrong current passwords within a minute time the user out for one minute, like login and PIN entry, and a correct password is refused while timed out. An account can also change its password (or hit the "must differ from your Security PIN" refusal) at most three times per minute, so the form cannot be used to guess the PIN. A user creates their Security PIN first; until then the change-password form is refused. A successful change signs the user out everywhere, the current session included: the browser lands on the login page with "Your password has been changed. Please sign in again."
+- An admin reset of the sign-in password ends all of that user's signed-in sessions (an admin who resets their own password is signed out too). `users.session_version` is raised by a reset or change; the session stores the value at sign-in and `AuthMiddleware` ends a session whose value differs ("Your password was reset. Please sign in again."; a session without a stored value counts as 0). A Security PIN-only reset does not end sessions. The new password needs at least 10 characters (any mix of letters, numbers and symbols), must match its confirmation, must differ from the current password and from `password`, and must not be the user's Security PIN. The PIN check unlocks the user's signing key with the new password without signing anything and without counting toward the PIN lockout (`DigitalSignatureService::unlocksKey`).
+- A new Security PIN needs at least 10 characters (any characters; before, 6) and must differ from the sign-in password. The minimum is one constant, `CredentialPolicy::MIN_LENGTH`, used for passwords and PINs. Existing shorter PINs keep working: nothing re-validates a PIN's length when it is used to sign. `POST /security-key` now refuses an account that already has a key, so a Security PIN can only be replaced through an admin reset; each PIN refused for equalling the sign-in password counts as a failed attempt (three in a minute time the form out), so the form is no password oracle.
+- The admin no longer types or sees another person's password. A new account starts with the default password `password` (`CredentialPolicy::DEFAULT_PASSWORD`, the only password allowed to be shorter than 10 characters). The Users page no longer has password fields; editing an account never changes a password.
+- The **Reset** button on the Users page opens a modal with three choices: Sign-in password (back to `password`), Security PIN (clears the key, as **Reset Signature** did) or Both. Confirming asks for the admin's own Security PIN (wrong PINs count toward the PIN lockout), and each reset is recorded in the system audit log as `user_credentials_reset` (`target_user_id`, `target`, `user_id`). `POST /users/{id}/reset-credentials` replaces `POST /users/{id}/reset-signature`, which no longer exists. Reset is offered for every active account, also one without a Security PIN.
+- The check of the admin's PIN is one shared class, `PinConfirmationService`, used by the backups page and the reset.
+
+### Added
+- Password reminder (nothing is forced). `users.must_change_password` is set when an admin creates an account or resets its sign-in password, and when someone signs in with the literal password `password`; the seeded accounts of `setup-production-db.js` start with it set. On every successful sign-in while it is set, the user gets one notification, "You are using the default password." or "Your password was set by an administrator.", with a **Change password** link; earlier reminders are removed first. The reminder pops up as a toast on the first page after sign-in and then stays in the notification list (`NotificationService::toastOnNextPage()` marks any stored notification to be toasted once on the next page; `notifyUser()` now returns the new id). Changing the password clears the flag and the reminders.
+- Notifications can carry an optional link (`notifications.link`, `notifications.link_label`), shown below the message in the notification list and in toasts. Only internal paths starting with `/` are kept (no `//`, whitespace, control characters or backslashes). A failure while storing the reminder is logged and never fails the sign-in.
+- Tests `AccountPasswordTest` (`composer run test:account-password`) and `CredentialResetTest` (`composer run test:credential-reset`); `MasterMigrationTest` covers the new columns.
+
+### Changed
+- The Security PIN setup prompt says what the PIN is, asks for at least 10 characters instead of "6-digit", and, like the change-password page, warns that using one passcode for sign-in and signing is a security risk.
+- Test fixtures sign in with `TestDatabase::PASSWORD` (`Fixture-Pass-2026`), no longer `password`, so test logins raise no reminder.
+
+### Upgrade note
+- Run `working-php/scripts/migrations/master-migration.sql` (adds `users.must_change_password`, `users.session_version`, `notifications.link` and `notifications.link_label`; safe to run again). Without it, signing in with the default password and any page that stores a notification fail. Existing accounts are not flagged by the migration; an account is reminded from the next time it is reset or signs in with `password`.
+- Seeded accounts still use `password` as the sign-in password. Change them (each owner signs in and uses **Change password**), and create a new Security PIN of at least 10 characters where a seeded PIN is shorter.
+
 ## 2026-11-14 21:46
 
 **Version:** 2.7.5-Release+202611142146

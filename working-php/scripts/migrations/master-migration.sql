@@ -56,3 +56,31 @@ SET @sql = IF(@missing, 'ALTER TABLE jobs ADD COLUMN heartbeat_at INT UNSIGNED N
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
+
+-- 2026-11-15: password reminder (users.must_change_password is 1 while the account still has a default or
+-- administrator-set sign-in password) and an optional link on notifications (notifications.link, link_label)
+SET @missing = (SELECT COUNT(*) = 0 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'must_change_password');
+SET @sql = IF(@missing, 'ALTER TABLE users ADD COLUMN must_change_password TINYINT(1) NOT NULL DEFAULT 0 AFTER deactivated_at', 'DO 0');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @missing = (SELECT COUNT(*) = 0 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notifications' AND COLUMN_NAME = 'link');
+SET @sql = IF(@missing, 'ALTER TABLE notifications ADD COLUMN link VARCHAR(255) NULL AFTER type', 'DO 0');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @missing = (SELECT COUNT(*) = 0 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notifications' AND COLUMN_NAME = 'link_label');
+SET @sql = IF(@missing, 'ALTER TABLE notifications ADD COLUMN link_label VARCHAR(100) NULL AFTER link', 'DO 0');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- 2026-11-15: session version (users.session_version): raised when the sign-in password is reset or changed,
+-- so every session started before that ends on its next request
+SET @missing = (SELECT COUNT(*) = 0 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'session_version');
+SET @sql = IF(@missing, 'ALTER TABLE users ADD COLUMN session_version INT UNSIGNED NOT NULL DEFAULT 0 AFTER must_change_password', 'DO 0');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;

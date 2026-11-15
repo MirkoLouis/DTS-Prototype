@@ -33,11 +33,15 @@ All state-mutating actions (Intake, Scan, Finalize, Decline, Release) require an
 
 1. Navigate to `/login` and sign in with your officer credentials.
 2. The system automatically redirects first-time users to `/security-key`.
-3. Enter your secret **6-Digit Security PIN**.
+3. Enter your secret **Security PIN** of at least 10 characters (letters, numbers and symbols are all allowed). The Security PIN is a second passcode that unlocks your signing key; you enter it to sign an action on a document. It must be different from your sign-in password. A Security PIN can only be replaced through an administrator reset.
 4. Click **Set Security Key**. The system generates your cryptographic Ed25519 keypair. Your private key is encrypted with your PIN before being stored safely in the database.
 
 > [!WARNING]
-> Keep your 6-digit PIN secret. You will be prompted to enter this PIN every time you intake, scan, decline, or release a document.
+> Keep your PIN secret. You will be prompted to enter this PIN every time you intake, scan, decline, or release a document. Using the same passcode for sign-in and for signing is a security risk: anyone who learns one would have both.
+
+### Changing Your Sign-In Password
+
+Your sign-in password is part of your sign-in credentials; it proves who you are when you log in. A new account starts with the password `password`, and you get a notification with a **Change password** link each time you sign in until you change it. Open the user menu (your name, top right), click **Change password**, and enter your current password and the new one twice. The new password needs at least 10 characters and must differ from your current password, from `password` and from your Security PIN. Three wrong current passwords in a minute lock the page for one minute, and a password can be changed at most three times per minute. Create your Security PIN first; the change-password form is refused until you have one. The reminder pops up when you sign in and then stays in the notification list. Nothing is forced, but please change it. When you change your password you are signed out everywhere, including this browser, and sign in again with the new password. If an administrator resets your password, you are signed out and sign in again with `password`.
 
 ---
 
@@ -57,7 +61,7 @@ All state-mutating actions (Intake, Scan, Finalize, Decline, Release) require an
    - Adjust department order (e.g., *Records -> Administrative -> Budget -> Accounting -> ODS*).
 5. **Finalize & Sign:**
    - Click **Finalize & Accept Document**.
-   - Prompt Modal: Enter your **6-Digit PIN**.
+   - Prompt Modal: Enter your **Security PIN**.
    - The system calculates the initial SHA-256 state hash, generates your Ed25519 signature, and logs `Accepted and Document Routing finalized` in `document_logs`.
 6. **Print Tracking Form:** Click **Print Tracking Form** to generate a printable PDF containing the tracking code and scannable QR code (`/documents/{tracking_code}/print-tracking-form`). Attach this form to the physical paper folder.
    - Only the client's own browser session (right after submitting), Records Officers, admins, and staff whose department is on the document's route can open this PDF, because it shows the client's contact details.

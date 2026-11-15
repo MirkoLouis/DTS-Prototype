@@ -32,16 +32,6 @@
                         </div>
 
                         <div>
-                            <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Password *</label>
-                            <input type="password" name="password" id="password" required class="mt-1 block w-full border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:border-accent-1 focus:ring-accent-1 sm:text-sm p-2 border">
-                        </div>
-
-                        <div>
-                            <label for="password_confirmation" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Confirm Password *</label>
-                            <input type="password" name="password_confirmation" id="password_confirmation" required class="mt-1 block w-full border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:border-accent-1 focus:ring-accent-1 sm:text-sm p-2 border">
-                        </div>
-
-                        <div>
                             <label for="role" class="block text-sm font-medium text-gray-700 dark:text-gray-300">System Role *</label>
                             <select name="role" id="role" required class="mt-1 block w-full border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:border-accent-1 focus:ring-accent-1 sm:text-sm p-2 border">
                                 <option value="staff">Staff (Department Account)</option>
@@ -61,7 +51,12 @@
                         </div>
 
                     </div>
-                    
+
+                    <p class="mt-6 text-sm text-gray-600 dark:text-gray-400">
+                        The new account signs in with the default password <code class="font-mono"><?= e(\App\Modules\Auth\CredentialPolicy::DEFAULT_PASSWORD) ?></code>
+                        and is reminded to change it. Give the user the username and this password.
+                    </p>
+
                     <div class="mt-6 flex items-center justify-end">
                         <a href="/users" class="mr-4 text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">Cancel</a>
                         <button type="submit" class="inline-flex items-center px-4 py-2 bg-accent-1 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-1-hover focus:outline-none focus:border-accent-1-border-active focus:ring focus:ring-accent-1-light transition">

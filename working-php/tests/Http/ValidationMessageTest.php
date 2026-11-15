@@ -24,7 +24,7 @@ class ValidationMessageTest extends TestCase
         $client = HttpClient::start();
         $client->loginAs('admin');
         $client->get('/users/create');
-        $response = $client->post('/users', ['name' => '', 'email' => '', 'password' => '', 'password_confirmation' => '', 'role' => '']);
+        $response = $client->post('/users', ['name' => '', 'email' => '', 'role' => '']);
         $this->assertSame(302, $response['status']);
 
         // The error box on the form lists the messages as plain text

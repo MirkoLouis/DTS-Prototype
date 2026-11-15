@@ -56,6 +56,42 @@ class MasterMigrationTest extends TestCase
         $this->assertTrue($this->columnExists('jobs', 'heartbeat_at'));
     }
 
+    // A database from before the password reminder gets users.must_change_password (default 0) and the
+    // notification link columns, and a second run changes nothing
+    public function test_migration_adds_the_password_reminder_columns(): void
+    {
+        $connection = Database::getInstance()->getConnection();
+        $connection->exec('ALTER TABLE users DROP COLUMN must_change_password');
+        $connection->exec('ALTER TABLE notifications DROP COLUMN link, DROP COLUMN link_label');
+        $this->assertFalse($this->columnExists('users', 'must_change_password'));
+        $this->assertFalse($this->columnExists('notifications', 'link'));
+
+        TestDatabase::runSqlFile(BASE_PATH . self::MIGRATION);
+        TestDatabase::runSqlFile(BASE_PATH . self::MIGRATION);
+
+        $this->assertTrue($this->columnExists('users', 'must_change_password'));
+        $this->assertTrue($this->columnExists('notifications', 'link'));
+        $this->assertTrue($this->columnExists('notifications', 'link_label'));
+
+        // Existing accounts are not flagged by the migration
+        $flagged = Database::getInstance()->query('SELECT COUNT(*) c FROM users WHERE must_change_password <> 0')->fetch();
+        $this->assertSame(0, (int) $flagged['c']);
+    }
+
+    // A database from before session versions gets users.session_version (default 0), and a second run changes nothing
+    public function test_migration_adds_the_session_version_column(): void
+    {
+        Database::getInstance()->getConnection()->exec('ALTER TABLE users DROP COLUMN session_version');
+        $this->assertFalse($this->columnExists('users', 'session_version'));
+
+        TestDatabase::runSqlFile(BASE_PATH . self::MIGRATION);
+        TestDatabase::runSqlFile(BASE_PATH . self::MIGRATION);
+
+        $this->assertTrue($this->columnExists('users', 'session_version'));
+        $versions = Database::getInstance()->query('SELECT DISTINCT session_version FROM users')->fetchAll(\PDO::FETCH_COLUMN);
+        $this->assertSame(['0'], array_map('strval', $versions));
+    }
+
     // Whether a column exists in the connected database
     private function columnExists(string $table, string $column): bool
     {

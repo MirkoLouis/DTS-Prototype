@@ -5,7 +5,7 @@ namespace App\Modules\Auth;
 use App\Common\Database\Database;
 
 /**
- * Failed-attempt limiting for login and Security PIN entry.
+ * Failed-attempt limiting for login, Security PIN entry and the current-password check of a password change.
  *
  * MAX_FAILURES failures within WINDOW_SECONDS lock the key for LOCKOUT_SECONDS. Keys are
  * SHA-256 digests of "scope|subject", so neither emails nor IPs are stored in clear.
@@ -19,7 +19,7 @@ class AttemptThrottleService
     public const MESSAGE = 'Too many failed attempts. Timed out for 1 minute.';
 
     /**
-     * Build the throttle key for a scope ('login' or 'pin') and its subject.
+     * Build the throttle key for a scope ('login', 'pin' or 'account-password') and its subject.
      */
     public static function key(string $scope, string $subject): string
     {

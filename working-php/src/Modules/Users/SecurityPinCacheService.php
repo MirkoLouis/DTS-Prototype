@@ -86,13 +86,7 @@ class SecurityPinCacheService
             return null;
         }
 
-        // decryptPrivateKey throws on a wrong PIN
-        try {
-            DigitalSignatureService::decryptPrivateKey($user['private_key'], $pin);
-            return true;
-        } catch (\Exception $e) {
-            return false;
-        }
+        return DigitalSignatureService::unlocksKey($user['private_key'], $pin);
     }
 
     /**

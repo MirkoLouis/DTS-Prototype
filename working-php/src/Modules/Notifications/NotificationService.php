@@ -49,20 +49,55 @@ class NotificationService
     }
 
     /**
-     * Send a notification to a specific user
+     * Keep a notification link only when it is an internal path ("/..." without whitespace, control
+     * characters or backslashes, and not "//host").
+     *
+     * Anything else (an absolute URL, "javascript:", a protocol-relative URL) becomes null, so a
+     * notification can never send a user to another site. Used when storing and when rendering.
      */
-    public function notifyUser(int $userId, string $title, string $message, string $type = 'info'): void
+    public static function safeLink(?string $link): ?string
     {
+        // No link, or not an internal path
+        if ($link === null || !str_starts_with($link, '/')) {
+            return null;
+        }
+
+        // A second slash makes browsers treat the path as another host
+        if (str_starts_with($link, '//')) {
+            return null;
+        }
+
+        // Whitespace, control characters (browsers strip tabs and newlines inside URLs) and backslashes are never valid
+        if (preg_match('/[\x00-\x20\x7f\\\\]/', $link) === 1) {
+            return null;
+        }
+
+        return $link;
+    }
+
+    /**
+     * Send a notification to a specific user, optionally with a link to an internal page.
+     *
+     * @param string|null $link       internal path such as "/account/password"; other values are stored as no link
+     * @param string|null $linkLabel  text of the link
+     * @return int the id of the new notification
+     */
+    public function notifyUser(int $userId, string $title, string $message, string $type = 'info', ?string $link = null, ?string $linkLabel = null): int
+    {
+        $safeLink = self::safeLink($link);
         $stmt = $this->db->prepare("
-            INSERT INTO notifications (user_id, title, message, type)
-            VALUES (:user_id, :title, :message, :type)
+            INSERT INTO notifications (user_id, title, message, type, link, link_label)
+            VALUES (:user_id, :title, :message, :type, :link, :link_label)
         ");
         $stmt->execute([
             'user_id' => $userId,
             'title' => $title,
             'message' => $message,
-            'type' => $type
+            'type' => $type,
+            'link' => $safeLink,
+            'link_label' => $safeLink === null ? null : $linkLabel
         ]);
+        $notificationId = (int) $this->db->lastInsertId();
 
         // Enforce max limit of 10 per user
         $this->db->prepare("
@@ -80,6 +115,44 @@ class NotificationService
             'user_id1' => $userId,
             'user_id2' => $userId
         ]);
+
+        return $notificationId;
+    }
+
+    // Session key holding the ids of stored notifications that the next page shows as toasts
+    private const SESSION_TOAST_IDS = 'toast_notification_ids';
+
+    /**
+     * Mark a stored notification to pop up as a toast on the signed-in user's next page.
+     *
+     * The notification stays in the bell list; the ids live in the session, so they survive a session id
+     * regeneration, and the layout takes them once with takeToastIds().
+     */
+    public static function toastOnNextPage(int $notificationId): void
+    {
+        $_SESSION[self::SESSION_TOAST_IDS][] = $notificationId;
+    }
+
+    /**
+     * Take (and forget) the ids marked by toastOnNextPage(), so each notification is toasted once.
+     *
+     * @return int[]
+     */
+    public static function takeToastIds(): array
+    {
+        $ids = $_SESSION[self::SESSION_TOAST_IDS] ?? [];
+        unset($_SESSION[self::SESSION_TOAST_IDS]);
+
+        return array_map('intval', is_array($ids) ? $ids : []);
+    }
+
+    /**
+     * Delete every notification of a user that points to the given internal path.
+     */
+    public function deleteForUserByLink(int $userId, string $link): void
+    {
+        $this->db->prepare("DELETE FROM notifications WHERE user_id = :user_id AND link = :link")
+            ->execute(['user_id' => $userId, 'link' => $link]);
     }
 
     /**

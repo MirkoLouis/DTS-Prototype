@@ -19,6 +19,24 @@ class CacheMiddleware
     }
 
     /**
+     * Delete the cached pages of one user, so their next request renders fresh (for example the Security PIN setup prompt).
+     */
+    public static function forgetUserPages(int $userId): void
+    {
+        $directory = self::cacheDir() . '/';
+        if (!is_dir($directory)) {
+            return;
+        }
+
+        // Remove each cached page of this user
+        foreach (glob($directory . "cache_user_{$userId}_*.html") ?: [] as $file) {
+            if (is_file($file)) {
+                @unlink($file);
+            }
+        }
+    }
+
+    /**
      * Write a cache file atomically: temp file in the same directory, then rename() over the target,
      * so a concurrent reader sees either the old complete file or the new complete one. Empty output is never cached.
      */

@@ -40,8 +40,6 @@ class UserDepartmentTest extends TestCase
         return [
             'name' => 'New Account',
             'email' => $username,
-            'password' => 'password123',
-            'password_confirmation' => 'password123',
             'role' => $role,
             'department_id' => $departmentId,
         ];
@@ -195,11 +193,12 @@ class UserDepartmentTest extends TestCase
         $this->assertSame('staff', $this->user('cash.unit')['role']);
     }
 
-    // Changing the password and the department in one edit saves both
-    public function test_edit_with_new_password_also_saves_department(): void
+    // An edit saves the department and, since an edit no longer changes passwords, ignores a posted password
+    public function test_edit_saves_department_and_ignores_a_posted_password(): void
     {
         $id = $this->fx['users']['personnel.unit'];
         $cash = $this->departmentId('Cash Unit');
+        $hashBefore = Database::getInstance()->query('SELECT password FROM users WHERE id = :id', [':id' => $id])->fetch()['password'];
         $this->admin()->post("/users/{$id}/update", [
             'name' => 'Personnel Unit Staff', 'email' => 'personnel.unit', 'role' => 'staff', 'department_id' => $cash,
             'password' => 'newpassword1', 'password_confirmation' => 'newpassword1',
@@ -207,7 +206,7 @@ class UserDepartmentTest extends TestCase
 
         $this->assertSame($cash, (int) $this->user('personnel.unit')['department_id']);
         $hash = Database::getInstance()->query('SELECT password FROM users WHERE id = :id', [':id' => $id])->fetch()['password'];
-        $this->assertTrue(password_verify('newpassword1', $hash));
+        $this->assertSame($hashBefore, $hash);
     }
 
     // A role sent as an array is refused like any other invalid role, not answered with a server error

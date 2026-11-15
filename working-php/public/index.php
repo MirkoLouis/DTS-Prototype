@@ -176,6 +176,14 @@ $router->post('/security-key', [App\Modules\Users\SecurityKeyController::class, 
     App\Common\Middleware\AuthMiddleware::class
 ]);
 
+// Self-service password change (any signed-in role)
+$router->get('/account/password', [App\Modules\Users\AccountController::class, 'showPasswordForm'], [
+    App\Common\Middleware\AuthMiddleware::class
+]);
+$router->post('/account/password', [App\Modules\Users\AccountController::class, 'changePassword'], [
+    App\Common\Middleware\AuthMiddleware::class
+]);
+
 // Admin Dashboard Routes
 $router->get('/admin-dashboard', [\App\Modules\Analytics\AdminDashboardController::class, 'index'], [
     App\Common\Middleware\AuthMiddleware::class, 
@@ -255,7 +263,7 @@ $router->post('/users/(?P<id>\d+)/reactivate', [App\Modules\Users\UserController
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
 
-$router->post('/users/(?P<id>\d+)/reset-signature', [App\Modules\Users\UserController::class, 'resetSignature'], [
+$router->post('/users/(?P<id>\d+)/reset-credentials', [App\Modules\Users\UserController::class, 'resetCredentials'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
