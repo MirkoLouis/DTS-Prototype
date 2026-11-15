@@ -157,7 +157,7 @@ $router->post('/system/backups/delete/(?P<fileName>.+)', [App\Modules\System\Bac
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);
-$router->get('/system/backups/download/(?P<fileName>.+)', [App\Modules\System\BackupManagerController::class, 'download'], [
+$router->post('/system/backups/download/(?P<fileName>.+)', [App\Modules\System\BackupManagerController::class, 'download'], [
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin'
 ]);

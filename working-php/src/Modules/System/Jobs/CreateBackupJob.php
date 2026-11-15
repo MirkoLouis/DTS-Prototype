@@ -27,15 +27,19 @@ class CreateBackupJob
     public function handle(): string
     {
         ini_set('memory_limit', '2G');
-        set_time_limit(1200);
+        set_time_limit(BackupService::JOB_TIME_LIMIT_SECONDS);
+
+        // A job that was killed cannot clean up after itself, so the next one clears it once no running job holds it
+        BackupService::clearAbandonedWorkingDirectories(time());
 
         $database = (string) Config::get('database', 'dbname');
         $backupDir = BackupService::directory();
         $docCount = (int) (Database::getInstance()->query("SELECT COUNT(*) as count FROM documents")->fetch()['count'] ?? 0);
 
         $filename = BackupService::fileName($database, $docCount, new \DateTimeImmutable(), $this->label);
-        $filePath = $backupDir . '/' . $filename;
-        $zipPath = $filePath . '.zip';
+        $workingDir = BackupService::workingDirectory();
+        $filePath = $workingDir . '/' . $filename;
+        $zipPath = $backupDir . '/' . $filename . '.zip';
 
         // A failed dump or a failed archive leaves no file that could be mistaken for a backup
         try {
@@ -47,7 +51,7 @@ class CreateBackupJob
             BackupService::archive($filePath, $zipPath, $password);
         } finally {
             // The plain SQL file is only an intermediate step, whether or not the backup succeeded
-            @unlink($filePath);
+            BackupService::removeWorkingDirectory($workingDir);
         }
 
         // Remove backups past the age limit; the newest one always stays

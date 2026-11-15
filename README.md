@@ -273,8 +273,9 @@ The settings and habits the developers recommend for any server that holds real 
 
 ### 4. Backups
 
-- **Restore and delete ask for the admin's Security PIN.** Every restore first saves the current database as a `…_pre-restore_…` backup, so a restore can be undone.
+- **Download, restore and delete ask for the admin's Security PIN**, and each is recorded in the system audit log; a link alone no longer serves a backup. Every restore first saves the current database as a `…_pre-restore_…` backup, so a restore can be undone.
 - **Download backups to another machine regularly.** A backup that exists only on the server is lost with it. Backups older than `BACKUP_KEEP_DAYS` (default 14) are deleted when a new one is made; the newest always stays.
+- **Intermediate files live in `storage/temp/`.** A backup or restore writes its plain SQL file into its own folder there and removes it when it finishes, so `storage/app/backups/` holds only finished `.zip` files. Each folder is locked while its job runs. If a job is killed, the next backup or restore clears what it left behind once no running job holds the folder.
 - **Never run `composer run seed:prod -- --force` on a server with real data** unless you mean to delete all of it. Without `--force` the seeder refuses a database that holds documents or users.
 
 ### 5. Evidence kept off the server
@@ -423,7 +424,7 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `test:mysql-cli` | mysqldump and mysql run as argument arrays with no shell; errors are thrown and never written into the dump. |
 | `test:backup-service` | Backups go to their own folder, carry the database name, leave out queue and cache tables, restore deleted data, and expire by age (newest always kept). |
 | `test:restore-backup-job` | A restore first saves the current database, is recorded in the system audit log with counts, and notifies the admin; failures restore nothing. |
-| `test:backup-pin` | Restoring or deleting a backup needs the admin's Security PIN; wrong PINs lock out; backup actions are recorded in the audit log. |
+| `test:backup-pin` | Downloading, restoring or deleting a backup needs the admin's Security PIN; wrong PINs lock out; backup actions are recorded in the audit log. |
 | `test:system-audit-service` | The system audit log chains its entries with a keyed MAC; edited, removed and reordered lines are detected. |
 | `test:integrity-audit-log` | The integrity check verifies the system audit log; System Overview shows it intact or names the altered lines. |
 | `test:worker-watchdog` | The dev worker watchdog finds the worker process, also after its re-exec. |

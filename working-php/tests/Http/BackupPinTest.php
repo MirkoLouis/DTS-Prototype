@@ -98,6 +98,89 @@ class BackupPinTest extends TestCase
         $this->assertStringContainsString('Backup ' . self::FILE . ' deleted.', $client->get('/system/backups')['body']);
     }
 
+    // The test backup's bytes, as a download must serve them
+    private function backupBytes(): string
+    {
+        return (string) file_get_contents(BackupService::directory() . '/' . self::FILE);
+    }
+
+    // Downloading without a PIN is refused: no file is served and nothing is recorded
+    public function test_download_without_a_pin_is_refused(): void
+    {
+        $client = $this->admin();
+        $response = $client->post('/system/backups/download/' . self::FILE, []);
+
+        $this->assertNotSame($this->backupBytes(), $response['body']);
+        $this->assertSame(302, $response['status']);
+        $this->assertSame('/system/backups', $response['headers']['location']);
+        $this->assertStringContainsString('Security PIN is required.', $client->get('/system/backups')['body']);
+        $this->assertSame([], $this->auditEvents());
+    }
+
+    // Downloading with a wrong PIN is refused: no file is served and nothing is recorded
+    public function test_download_with_a_wrong_pin_is_refused(): void
+    {
+        $client = $this->admin();
+        $response = $client->post('/system/backups/download/' . self::FILE, ['pin' => '000000']);
+
+        $this->assertNotSame($this->backupBytes(), $response['body']);
+        $this->assertSame(302, $response['status']);
+        $this->assertSame('/system/backups', $response['headers']['location']);
+        $this->assertMatchesRegularExpression('/bg-red-100[^>]*>\s*\S/', $client->get('/system/backups')['body']);
+        $this->assertSame([], $this->auditEvents());
+    }
+
+    // Downloading with the right PIN serves the backup and records who downloaded it
+    public function test_download_with_the_right_pin_serves_the_backup_and_is_recorded(): void
+    {
+        $client = $this->admin();
+        $response = $client->post('/system/backups/download/' . self::FILE, ['pin' => TestDatabase::PIN]);
+
+        $this->assertSame($this->backupBytes(), $response['body']);
+        $events = $this->auditEvents();
+        $this->assertCount(1, $events);
+        $this->assertSame('backup_downloaded', $events[0]['event']);
+        $this->assertSame(['file' => self::FILE, 'user_id' => $this->fx['users']['admin']], $events[0]['data']);
+    }
+
+    // A link alone no longer serves a backup: the old GET route does not return the file
+    public function test_download_link_alone_does_not_serve_the_backup(): void
+    {
+        $client = $this->admin();
+        $response = $client->get('/system/backups/download/' . self::FILE);
+
+        $this->assertSame(404, $response['status']);
+        $this->assertNotSame($this->backupBytes(), $response['body']);
+        $this->assertSame([], $this->auditEvents());
+    }
+
+    // The backups page asks for the PIN on the download too
+    public function test_backups_page_download_form_asks_for_the_pin(): void
+    {
+        $body = $this->admin()->get('/system/backups')['body'];
+
+        $this->assertMatchesRegularExpression('/action="\/system\/backups\/download\/' . preg_quote(self::FILE, '/') . '"[^>]*class="[^"]*sign-action/', $body);
+
+        // The download form carries the CSRF token and the hidden field the signing modal fills with the PIN
+        preg_match('/<form action="\/system\/backups\/download\/[^"]*".*?<\/form>/s', $body, $form);
+        $this->assertStringContainsString('name="csrf_token"', $form[0] ?? '');
+        $this->assertMatchesRegularExpression('/<input type="hidden" name="pin" class="sign-pin-input">/', $form[0] ?? '');
+    }
+
+    // Three wrong PINs lock out the next download, even with the right PIN
+    public function test_three_wrong_pins_lock_out_the_next_download(): void
+    {
+        $client = $this->admin();
+        for ($i = 0; $i < 3; $i++) {
+            $client->post('/system/backups/download/' . self::FILE, ['pin' => '000000']);
+            $client->get('/system/backups');
+        }
+        $response = $client->post('/system/backups/download/' . self::FILE, ['pin' => TestDatabase::PIN]);
+
+        $this->assertNotSame($this->backupBytes(), $response['body']);
+        $this->assertSame([], $this->auditEvents());
+    }
+
     // Restoring without a PIN queues nothing
     public function test_restore_without_a_pin_queues_nothing(): void
     {

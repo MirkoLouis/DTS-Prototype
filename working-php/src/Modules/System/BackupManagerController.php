@@ -70,21 +70,24 @@ class BackupManagerController
     public function download($fileName)
     {
         $safeFileName = basename($fileName);
-        $filePath = BackupService::directory() . '/' . $safeFileName;
 
-        if (file_exists($filePath)) {
-            header('Content-Description: File Transfer');
-            header('Content-Type: application/zip');
-            header('Content-Disposition: attachment; filename="'.basename($filePath).'"');
-            header('Expires: 0');
-            header('Cache-Control: must-revalidate');
-            header('Pragma: public');
-            header('Content-Length: ' . filesize($filePath));
-            readfile($filePath);
+        // A backup holds the whole database, so the admin proves who they are before it leaves the server
+        if (!$this->confirmedWithPin('Download backup', $safeFileName)) {
+            header('Location: /system/backups');
             exit;
         }
 
-        header('Location: /system/backups');
+        // Record the download, then send the file
+        $filePath = BackupService::directory() . '/' . $safeFileName;
+        SystemAuditService::record('backup_downloaded', ['file' => $safeFileName, 'user_id' => (int) $_SESSION['user_id']]);
+        header('Content-Description: File Transfer');
+        header('Content-Type: application/zip');
+        header('Content-Disposition: attachment; filename="' . basename($filePath) . '"');
+        header('Expires: 0');
+        header('Cache-Control: must-revalidate');
+        header('Pragma: public');
+        header('Content-Length: ' . filesize($filePath));
+        readfile($filePath);
         exit;
     }
 

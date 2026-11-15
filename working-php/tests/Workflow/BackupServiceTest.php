@@ -26,6 +26,30 @@ class BackupServiceTest extends TestCase
         foreach (glob(BackupService::directory() . '/*') ?: [] as $file) {
             unlink($file);
         }
+        $this->emptyTemporaryRoot();
+    }
+
+    // Remove every working folder left in the test temporary root, dot-files and nested folders included
+    private function emptyTemporaryRoot(): void
+    {
+        foreach (glob(Config::testPath('temp') . '/*', GLOB_ONLYDIR) ?: [] as $folder) {
+            BackupService::removeWorkingDirectory($folder);
+        }
+    }
+
+    // Working folders currently in the test temporary root
+    private function workingFolders(): array
+    {
+        return glob(Config::testPath('temp') . '/*', GLOB_ONLYDIR) ?: [];
+    }
+
+    // Names of files in the backup folder that are not finished zips
+    private function nonZipFiles(): array
+    {
+        return array_values(array_filter(
+            array_map('basename', glob(BackupService::directory() . '/*') ?: []),
+            fn($name) => !str_ends_with($name, '.zip')
+        ));
     }
 
     // Create an empty zip file aged the given number of days
@@ -204,6 +228,165 @@ class BackupServiceTest extends TestCase
         }
 
         $this->assertSame([], glob(BackupService::directory() . '/*') ?: []);
+        $this->assertSame([], $this->workingFolders());
+    }
+
+    // A successful backup leaves only the zip in the backup folder and no working folder
+    public function test_backup_job_leaves_only_a_zip_and_no_working_folder(): void
+    {
+        $name = (new CreateBackupJob())->handle();
+
+        $this->assertSame([$name], array_map('basename', glob(BackupService::directory() . '/*') ?: []));
+        $this->assertSame([], $this->nonZipFiles());
+        $this->assertSame([], $this->workingFolders());
+    }
+
+    // The temporary root is under the test folder when testing
+    public function test_temporary_root_uses_the_test_folder_when_testing(): void
+    {
+        $this->assertSame(Config::testPath('temp'), BackupService::temporaryRoot());
+        $this->assertDirectoryExists(BackupService::temporaryRoot());
+    }
+
+    // Each call gives a new folder inside the temporary root
+    public function test_working_directories_are_distinct_and_inside_the_temporary_root(): void
+    {
+        $first = BackupService::workingDirectory();
+        $second = BackupService::workingDirectory();
+
+        $this->assertNotSame($first, $second);
+        $this->assertDirectoryExists($first);
+        $this->assertDirectoryExists($second);
+        $this->assertSame(Config::testPath('temp'), dirname($first));
+        $this->assertSame(Config::testPath('temp'), dirname($second));
+    }
+
+    // Removing a working folder deletes its files and the folder
+    public function test_remove_working_directory_deletes_folder_and_files(): void
+    {
+        $folder = BackupService::workingDirectory();
+        file_put_contents("{$folder}/dump.sql", 'x');
+
+        BackupService::removeWorkingDirectory($folder);
+
+        $this->assertDirectoryDoesNotExist($folder);
+    }
+
+    // A folder outside the temporary root is never removed
+    public function test_remove_working_directory_refuses_a_folder_outside_the_temporary_root(): void
+    {
+        $outside = BackupService::directory() . '/outside';
+        mkdir($outside);
+        file_put_contents("{$outside}/keep.sql", 'x');
+
+        BackupService::removeWorkingDirectory($outside);
+        BackupService::removeWorkingDirectory(Config::testPath('temp'));
+        BackupService::removeWorkingDirectory(Config::testPath('temp') . '/../backups/outside');
+
+        $this->assertFileExists("{$outside}/keep.sql");
+        $this->assertDirectoryExists(Config::testPath('temp'));
+        unlink("{$outside}/keep.sql");
+        rmdir($outside);
+    }
+
+    // A folder with a dot-file and a nested folder is removed completely
+    public function test_remove_working_directory_deletes_dot_files_and_nested_folders(): void
+    {
+        $folder = BackupService::workingDirectory();
+        file_put_contents("{$folder}/.hidden", 'x');
+        mkdir("{$folder}/nested/deeper", 0700, true);
+        file_put_contents("{$folder}/nested/deeper/file.sql", 'x');
+
+        BackupService::removeWorkingDirectory($folder);
+
+        $this->assertDirectoryDoesNotExist($folder);
+    }
+
+    // A symbolic link inside a working folder is unlinked, never followed
+    public function test_remove_working_directory_does_not_follow_symbolic_links(): void
+    {
+        $outside = BackupService::directory() . '/linked-target';
+        mkdir($outside);
+        file_put_contents("{$outside}/keep.txt", 'x');
+        $folder = BackupService::workingDirectory();
+        symlink($outside, "{$folder}/link");
+
+        BackupService::removeWorkingDirectory($folder);
+
+        $this->assertDirectoryDoesNotExist($folder);
+        $this->assertFileExists("{$outside}/keep.txt");
+        unlink("{$outside}/keep.txt");
+        rmdir($outside);
+    }
+
+    // Make a working folder as a killed job leaves it: a lock file nobody holds, and an old modification time
+    private function abandonedFolder(int $ageSeconds): string
+    {
+        $folder = BackupService::temporaryRoot() . '/' . bin2hex(random_bytes(8));
+        mkdir($folder, 0700);
+        file_put_contents("{$folder}/.lock", '');
+        file_put_contents("{$folder}/dump.sql", 'x');
+        touch($folder, self::NOW - $ageSeconds);
+
+        return $folder;
+    }
+
+    // A folder held by a running job is kept however old it is
+    public function test_a_held_working_directory_is_kept_however_old(): void
+    {
+        $held = BackupService::workingDirectory();
+        touch($held, self::NOW - 10 * self::DAY);
+
+        $removed = BackupService::clearAbandonedWorkingDirectories(self::NOW);
+
+        $this->assertSame([], $removed);
+        $this->assertDirectoryExists($held);
+        $this->assertFileExists("{$held}/.lock");
+    }
+
+    // A folder nobody holds and past the grace period is removed
+    public function test_an_unheld_old_working_directory_is_removed(): void
+    {
+        $abandoned = $this->abandonedFolder(BackupService::WORKING_DIRECTORY_GRACE_SECONDS + 10);
+        $held = BackupService::workingDirectory();
+        touch($held, self::NOW - 10 * self::DAY);
+
+        $removed = BackupService::clearAbandonedWorkingDirectories(self::NOW);
+
+        $this->assertSame([basename($abandoned)], $removed);
+        $this->assertDirectoryDoesNotExist($abandoned);
+        $this->assertDirectoryExists($held);
+    }
+
+    // A folder without a lock file counts as not held
+    public function test_a_working_directory_without_a_lock_file_is_removed_when_old(): void
+    {
+        $abandoned = $this->abandonedFolder(BackupService::WORKING_DIRECTORY_GRACE_SECONDS + 10);
+        unlink("{$abandoned}/.lock");
+
+        $this->assertSame([basename($abandoned)], BackupService::clearAbandonedWorkingDirectories(self::NOW));
+    }
+
+    // A fresh unheld folder may belong to a job between mkdir and taking its lock, so it stays
+    public function test_a_fresh_unheld_working_directory_is_kept(): void
+    {
+        $fresh = $this->abandonedFolder(BackupService::WORKING_DIRECTORY_GRACE_SECONDS - 10);
+
+        $removed = BackupService::clearAbandonedWorkingDirectories(self::NOW);
+
+        $this->assertSame([], $removed);
+        $this->assertDirectoryExists($fresh);
+    }
+
+    // A backup run clears working folders a killed job left behind
+    public function test_backup_job_clears_abandoned_working_directories(): void
+    {
+        $old = $this->abandonedFolder(0);
+        touch($old, time() - BackupService::WORKING_DIRECTORY_GRACE_SECONDS - 60);
+
+        (new CreateBackupJob())->handle();
+
+        $this->assertDirectoryDoesNotExist($old);
     }
 
     // Write a small dump and archive it, optionally encrypted; returns [directory, zip path]
