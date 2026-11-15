@@ -114,6 +114,13 @@ class AuthMiddleware
             exit;
         }
 
+        // In-app navigation: answer 401 with no body and no redirect, so the flash message stays in the session;
+        // pjax-router.js then loads /login itself, and that page shows the message
+        if (request_is_pjax()) {
+            http_response_code(401);
+            exit;
+        }
+
         header("Location: /login");
         exit;
     }

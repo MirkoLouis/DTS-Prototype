@@ -100,6 +100,14 @@
                 }
             });
 
+            // 401: the session ended (expired, deactivated, password reset). The server did not redirect, so the reason
+            // is still waiting in the session; a full load of /login shows it. A redirect followed inside fetch()
+            // would have shown and consumed it there.
+            if (response.status === 401) {
+                window.location.href = '/login';
+                return;
+            }
+
             // If the server issued a redirect (e.g. auth guard → /login), follow it natively.
             // fetch() with redirect:'follow' (default) gives us the final URL in response.url.
             if (response.redirected || response.url !== new URL(url, window.location.origin).href) {

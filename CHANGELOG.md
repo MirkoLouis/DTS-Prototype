@@ -19,6 +19,9 @@ All notable changes to this project will be documented in this file.
 - Notifications can carry an optional link (`notifications.link`, `notifications.link_label`), shown below the message in the notification list and in toasts. Only internal paths starting with `/` are kept (no `//`, whitespace, control characters or backslashes). A failure while storing the reminder is logged and never fails the sign-in.
 - Tests `AccountPasswordTest` (`composer run test:account-password`) and `CredentialResetTest` (`composer run test:credential-reset`); `MasterMigrationTest` covers the new columns.
 
+### Fixed
+- The sign-in page now shows why a session ended (password reset or changed, idle expiry, deactivated account) also after in-app navigation. A request from the navigation script (`X-PJAX: true`) of an ended session is answered with 401 and no redirect (`request_is_pjax()`, `AuthMiddleware::refuse()`), and `pjax-router.js` then loads `/login` itself; before, the redirect was followed inside `fetch()`, which consumed the message.
+
 ### Changed
 - The Security PIN setup prompt says what the PIN is, asks for at least 10 characters instead of "6-digit", and, like the change-password page, warns that using one passcode for sign-in and signing is a security risk.
 - Test fixtures sign in with `TestDatabase::PASSWORD` (`Fixture-Pass-2026`), no longer `password`, so test logins raise no reminder.

@@ -135,6 +135,19 @@ if (!function_exists('request_expects_json')) {
     }
 }
 
+if (!function_exists('request_is_pjax')) {
+    /**
+     * Whether the request comes from the in-app navigation script (pjax-router.js), which sends "X-PJAX: true".
+     *
+     * That script fetches the page and swaps its content; a redirect would be followed inside fetch(), so a
+     * flash message shown on the target page would be consumed before the browser loads it for real.
+     */
+    function request_is_pjax(): bool
+    {
+        return strtolower($_SERVER['HTTP_X_PJAX'] ?? '') === 'true';
+    }
+}
+
 if (!function_exists('redirect_to_role_home')) {
     /**
      * Redirect to the landing page of a role (admin dashboard, Records Officer intake, staff tasks) and stop.
