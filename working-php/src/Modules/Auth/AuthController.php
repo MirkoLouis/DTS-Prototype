@@ -90,8 +90,16 @@ class AuthController
                 }
             }
 
-            // Prevent session fixation
+            // Prevent session fixation (before anything that could fail)
             session_regenerate_id(true);
+
+            // A default or administrator-set password is flagged and reminded about (nothing is forced);
+            // a failure here is logged and never fails the sign-in
+            try {
+                PasswordReminderService::afterSignIn($user, $password);
+            } catch (\Throwable $e) {
+                error_log('Password reminder failed for user ' . $user['id'] . ': ' . $e->getMessage());
+            }
 
             $this->redirectBasedOnRole($user['role']);
         } else {
@@ -139,18 +147,6 @@ class AuthController
      */
     private function redirectBasedOnRole($role)
     {
-        switch ($role) {
-            case 'admin':
-                header("Location: /admin-dashboard");
-                break;
-            case 'officer':
-                header("Location: /intake");
-                break;
-            case 'staff':
-            default:
-                header("Location: /tasks");
-                break;
-        }
-        exit;
+        redirect_to_role_home($role);
     }
 }

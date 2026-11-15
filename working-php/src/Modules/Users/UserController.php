@@ -4,6 +4,8 @@ namespace App\Modules\Users;
 
 use App\Common\Database\Database;
 use App\Common\Validation\Validator;
+use App\Modules\Auth\CredentialPolicy;
+use App\Modules\System\SystemAuditService;
 
 class UserController
 {
@@ -54,9 +56,7 @@ class UserController
         [$errors, $validated] = Validator::validate($_POST, [
             'name' => 'required',
             'email' => 'required',
-            'password' => 'required|min:8',
-            'role' => 'required',
-            'password_confirmation' => 'required'
+            'role' => 'required'
         ]);
 
         if (!empty($errors)) {
@@ -67,16 +67,8 @@ class UserController
 
         $name = $validated['name'];
         $email = $validated['email'];
-        $password = $validated['password'];
-        $password_confirmation = $validated['password_confirmation'];
         // A role that is not a plain string (e.g. role[]=x) is treated as invalid by UserService::departmentFor
         $role = is_string($validated['role']) ? $validated['role'] : '';
-
-        if ($password !== $password_confirmation) {
-            $_SESSION['error'] = 'Passwords do not match.';
-            header('Location: /users/create');
-            exit;
-        }
 
         // The role decides which department the account needs; a rule violation returns to the form
         try {
@@ -97,20 +89,19 @@ class UserController
             exit;
         }
 
-        $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
-        
-        $sql = "INSERT INTO users (name, email, password, role, department_id, created_at, updated_at) 
-                VALUES (:name, :email, :password, :role, :department_id, NOW(), NOW())";
-                
+        // A new account starts with the default password and the reminder flag; the user chooses their own at /account/password
+        $sql = "INSERT INTO users (name, email, password, must_change_password, role, department_id, created_at, updated_at)
+                VALUES (:name, :email, :password, 1, :role, :department_id, NOW(), NOW())";
+
         $db->query($sql, [
             ':name' => $name,
             ':email' => $email,
-            ':password' => $hashedPassword,
+            ':password' => UserCredentialService::defaultPasswordHash(),
             ':role' => $role,
             ':department_id' => $departmentId
         ]);
 
-        $_SESSION['success'] = 'User created successfully.';
+        $_SESSION['success'] = 'User created with the default password "' . CredentialPolicy::DEFAULT_PASSWORD . '". They are reminded to change it when they sign in.';
         header('Location: /users');
         exit;
     }
@@ -135,9 +126,7 @@ class UserController
         [$errors, $validated] = Validator::validate($_POST, [
             'name' => 'required',
             'email' => 'required',
-            'role' => 'required',
-            'password' => '',
-            'password_confirmation' => ''
+            'role' => 'required'
         ]);
 
         if (!empty($errors)) {
@@ -150,14 +139,6 @@ class UserController
         $email = $validated['email'];
         // A role that is not a plain string (e.g. role[]=x) is treated as invalid by UserService::departmentFor
         $role = is_string($validated['role']) ? $validated['role'] : '';
-        $password = $validated['password'];
-        $password_confirmation = $validated['password_confirmation'];
-
-        if (!empty($password) && $password !== $password_confirmation) {
-            $_SESSION['error'] = 'Passwords do not match.';
-            header("Location: /users/{$id}/edit");
-            exit;
-        }
 
         // The role decides which department the account needs; a rule violation returns to the form
         try {
@@ -182,29 +163,14 @@ class UserController
             exit;
         }
 
-        if (!empty($password)) {
-            $hashedPassword = password_hash($password, PASSWORD_BCRYPT);
-            $sql = "UPDATE users SET name = :name, email = :email, role = :role, department_id = :department_id, password = :password, updated_at = NOW() WHERE id = :id";
-            $params = [
-                ':name' => $name,
-                ':email' => $email,
-                ':role' => $role,
-                ':department_id' => $departmentId,
-                ':password' => $hashedPassword,
-                ':id' => $id
-            ];
-        } else {
-            $sql = "UPDATE users SET name = :name, email = :email, role = :role, department_id = :department_id, updated_at = NOW() WHERE id = :id";
-            $params = [
-                ':name' => $name,
-                ':email' => $email,
-                ':role' => $role,
-                ':department_id' => $departmentId,
-                ':id' => $id
-            ];
-        }
-
-        $db->query($sql, $params);
+        // An edit never changes a password; an admin changes their own at /account/password
+        $db->query("UPDATE users SET name = :name, email = :email, role = :role, department_id = :department_id, updated_at = NOW() WHERE id = :id", [
+            ':name' => $name,
+            ':email' => $email,
+            ':role' => $role,
+            ':department_id' => $departmentId,
+            ':id' => $id
+        ]);
 
         $_SESSION['success'] = 'User updated successfully.';
         header('Location: /users');
@@ -240,41 +206,53 @@ class UserController
         exit;
     }
 
-    public function resetSignature($id)
+    /**
+     * Reset a user's sign-in password, Security PIN or both (POST /users/{id}/reset-credentials).
+     *
+     * The admin proves who they are with their own Security PIN, and each reset is recorded in the system audit log.
+     */
+    public function resetCredentials($id)
     {
-        if (($_SESSION['role'] ?? '') !== 'admin') {
-            $_SESSION['error'] = 'Unauthorized action.';
+        $userId = (int) $id;
+        $target = $_POST['target'] ?? null;
+
+        // Only the three known targets are accepted; checked first so a bad request never counts as a wrong PIN
+        if (!UserCredentialService::isValidTarget($target)) {
+            $_SESSION['error'] = 'Choose what to reset: the sign-in password, the Security PIN, or both.';
             header('Location: /users');
             exit;
         }
 
-        $db = Database::getInstance();
-        
-        // Close every key period still open now, including seeded periods with a future end.
-        // PHP time (Asia/Manila) matches the clock that writes log timestamps; SQL NOW() uses the server timezone.
-        $now = date('Y-m-d H:i:s');
-        $db->query("UPDATE user_public_key_histories SET deactivated_at = :now, updated_at = :now2 WHERE user_id = :id AND (deactivated_at IS NULL OR deactivated_at > :now3)", [':id' => $id, ':now' => $now, ':now2' => $now, ':now3' => $now]);
-        $db->query("UPDATE users SET public_key = NULL, private_key = NULL, security_key_set_at = NULL WHERE id = :id", [':id' => $id]);
-
-        // The key period is closed, so drop the memoized key histories
-        \App\Modules\Integrity\DigitalSignatureService::clearKeyCache();
-        
-        // Clear the user's personal page cache so they see the setup modal immediately on their next request
-        $prefix = "cache_user_{$id}";
-        $cacheDir = \App\Common\Middleware\CacheMiddleware::cacheDir() . '/';
-        if (is_dir($cacheDir)) {
-            $files = glob($cacheDir . $prefix . '_*.html');
-            if ($files) {
-                foreach ($files as $file) {
-                    if (is_file($file)) {
-                        @unlink($file);
-                    }
-                }
-            }
+        // The account must exist
+        $account = Database::getInstance()->query("SELECT name FROM users WHERE id = :id", [':id' => $userId])->fetch();
+        if (!$account) {
+            $_SESSION['error'] = 'User not found.';
+            header('Location: /users');
+            exit;
         }
 
-        $_SESSION['success'] = 'User digital signature reset successfully.';
+        // The admin's own Security PIN, checked like any signed action (wrong PINs count toward the lockout)
+        $submittedPin = is_string($_POST['pin'] ?? null) ? $_POST['pin'] : '';
+        $adminId = (int) $_SESSION['user_id'];
+        $refusal = PinConfirmationService::refusal($adminId, $submittedPin, "ADMIN: Reset credentials|{$userId}|{$target}");
+        if ($refusal !== null) {
+            $_SESSION['error'] = $refusal;
+            header('Location: /users');
+            exit;
+        }
+
+        (new UserCredentialService())->reset($userId, $target);
+        SystemAuditService::record('user_credentials_reset', ['target_user_id' => $userId, 'target' => $target, 'user_id' => $adminId]);
+
+        $_SESSION['success'] = 'Reset done for ' . $account['name'] . ': ' . self::RESET_SUMMARY[$target] . '.';
         header('Location: /users');
         exit;
     }
+
+    // What each reset target did, for the confirmation message
+    private const RESET_SUMMARY = [
+        UserCredentialService::TARGET_PASSWORD => 'the sign-in password is now the default password',
+        UserCredentialService::TARGET_PIN => 'the Security PIN was cleared and must be created again',
+        UserCredentialService::TARGET_BOTH => 'the sign-in password is now the default password and the Security PIN was cleared',
+    ];
 }

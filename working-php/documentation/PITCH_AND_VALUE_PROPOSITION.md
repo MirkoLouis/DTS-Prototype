@@ -112,7 +112,7 @@ The system uses distinct cryptographic primitives for specific security guarante
 | :--- | :--- | :--- |
 | **Data Integrity** | SHA-256 Hashing | Micro-sharded hash chain (`previous_hash` binding) |
 | **Authenticity & Non-Repudiation** | Ed25519 Digital Signatures | Detached Sodium signature over document ID, action, time, parent hash, state hash and remarks |
-| **Key Confidentiality** | Argon2id + AES-256-CBC | Encrypted private key wrapping using 6-digit user Security PIN |
+| **Key Confidentiality** | Argon2id + AES-256-CBC | Encrypted private key wrapping using the user's Security PIN (at least 10 characters) |
 
 - **State Hash:** SHA-256 calculated over normalized document metadata (tracking code, title, submitter info, district, department, purpose ID, finalized route).
 - **Ed25519 Signatures:** Keypairs generated using `libsodium`. The private key is wrapped with AES-256-CBC using an Argon2id-derived key from the user's PIN. The signature binds the actor's identity directly to the exact state hash of the document at that instant.
@@ -149,7 +149,7 @@ Every sealed log entry includes a complete JSON snapshot of the valid document s
    [ Scan QR Code with Kiosk/Phone Camera ]
              │
              ▼
-   [ System Confirms Match & Asks for 6-Digit PIN ]
+   [ System Confirms Match & Asks for Security PIN ]
              │
              ▼
    [ Signed & Updated Instantly — No Manual Typing! ]

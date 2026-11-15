@@ -32,16 +32,6 @@
                         </div>
 
                         <div>
-                            <label for="password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Password (Leave blank to keep current)</label>
-                            <input type="password" name="password" id="password" class="mt-1 block w-full border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:border-accent-1 focus:ring-accent-1 sm:text-sm p-2 border">
-                        </div>
-
-                        <div>
-                            <label for="password_confirmation" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Confirm Password (Leave blank to keep current)</label>
-                            <input type="password" name="password_confirmation" id="password_confirmation" class="mt-1 block w-full border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:border-accent-1 focus:ring-accent-1 sm:text-sm p-2 border">
-                        </div>
-
-                        <div>
                             <label for="role" class="block text-sm font-medium text-gray-700 dark:text-gray-300">System Role *</label>
                             <select name="role" id="role" required class="mt-1 block w-full border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:border-accent-1 focus:ring-accent-1 sm:text-sm p-2 border">
                                 <option value="staff" <?= $user['role'] === 'staff' ? 'selected' : '' ?>>Staff (Department Account)</option>

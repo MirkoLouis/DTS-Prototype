@@ -72,6 +72,23 @@ class DigitalSignatureService
     }
 
     /**
+     * Whether a secret unlocks a stored private key.
+     *
+     * Side-effect free: it signs nothing and touches no PIN lockout, so callers decide what a
+     * failure means (SecurityPinCacheService counts it, the password change only refuses).
+     */
+    public static function unlocksKey(string $storedPrivateKey, string $secret): bool
+    {
+        // decryptPrivateKey throws on a wrong secret or a malformed key
+        try {
+            self::decryptPrivateKey($storedPrivateKey, $secret);
+            return true;
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
      * Generate an Ed25519 signature for a log entry's signed message.
      *
      * Users sign with their PIN-protected key; system actions (userId null) sign with the server key.

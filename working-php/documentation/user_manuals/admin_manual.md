@@ -15,7 +15,7 @@ As a **System Administrator** (`admin`), you possess full control and global vis
 | Feature / Resource | Permission Level | Description |
 | :--- | :--- | :--- |
 | **Admin Dashboard** (`/admin-dashboard`) | Full Access | Live system throughput, decline trends, department load vs. step-time analytics. |
-| **User Management** (`/users`) | Full Access | Create, edit, deactivate and reactivate users (accounts are never deleted, so their signed history stays verifiable), and reset Ed25519 digital signature key pairs. |
+| **User Management** (`/users`) | Full Access | Create, edit, deactivate and reactivate users (accounts are never deleted, so their signed history stays verifiable), and reset a user's sign-in password, Security PIN or both (with your own Security PIN). |
 | **System Overview & Health** (`/system-overview`) | Full Access | Run audit jobs, view DB performance metrics, clear personal/system caches, delete failed background jobs. |
 | **Integrity & Tamper Control** (`/all-documents`, `/system-health/*`) | Full Access | View all document hash chains, freeze/unfreeze documents, execute snapshot-based Auto-Resolve. |
 | **System Backups** (`/system/backups`) | Full Access | Generate manual database backups, restore database snapshots, download/delete backup archives. |
@@ -33,13 +33,20 @@ Every user action that mutates document state requires a cryptographically secur
 1. **Access Login Portal:** Navigate to `/login` using your web browser.
 2. **Authenticate:** Enter your assigned admin email address and password.
 3. **Security Key Setup Prompt:** If you have not set up your security key, the system automatically redirects you to the Security Key Setup screen (`/security-key`).
-4. **Create Your 6-Digit PIN:**
-   - Enter a secure 6-digit numeric PIN.
+4. **Create Your Security PIN:**
+   - The Security PIN is a second passcode that unlocks your signing key; you enter it to sign an action on a document.
+   - Enter a PIN of at least 10 characters (letters, numbers and symbols are all allowed). It must be different from your sign-in password. Using the same passcode for sign-in and for signing is a security risk: anyone who learns one would have both. A Security PIN can only be replaced through an admin reset.
    - *Technical Note:* The system derives an encryption key from your PIN using Argon2id (libsodium) to encrypt your newly generated Ed25519 private key with AES-256-CBC before storing it in the database (`users.private_key`).
 5. **Confirm Initialization:** Click **Set Security Key**. Once completed, your public key is published to `users.public_key` and logged in `user_public_key_histories`.
 
 > [!IMPORTANT]
-> Your Security PIN is never stored in plain text and cannot be recovered by the system. If you forget your PIN, another Administrator must reset your digital signature key pair via the User Management panel.
+> Your Security PIN is never stored in plain text and cannot be recovered by the system. If you forget your PIN, another Administrator must reset it (**Reset**, then **Security PIN**) via the User Management panel.
+
+### Changing Your Own Password
+
+Your sign-in password is part of your sign-in credentials; it proves who you are when you log in. To change it, open the user menu (your name, top right) and click **Change password**. Enter your current password and the new one twice. The new password needs at least 10 characters, must differ from your current password and from `password`, and must not be your Security PIN. Three wrong current passwords in a minute lock this page for one minute, and a password can be changed at most three times per minute. Create your Security PIN first; the change-password form is refused until you have one.
+
+If you are still using the default password, or an administrator set it, you get a notification with a **Change password** link each time you sign in. Nothing is forced, but please change it.
 
 ---
 
@@ -51,10 +58,13 @@ Every user action that mutates document state requires a cryptographically secur
    - Navigate to **Users Management** -> **Create User** (`/users/create`).
    - Fill in full name, email, role (`admin`, `officer`, or `staff`), and choose the **Department**.
    - Staff and Records Officer accounts need a department, because documents are routed to departments. A Records Officer must belong to the **Records Unit**. An Admin account has no department (choose "None (Admin)").
-   - Click **Save User**. To move an account to another department later, use **Edit** on the Users page.
-2. **Resetting Digital Signatures:**
-   - If a user loses their PIN or compromises their key, go to `/users`, locate the user, and click **Reset Signature**.
-   - *Security Policy:* The system archives the user's old public key into `user_public_key_histories` with an `activated_at` / `deactivated_at` timeframe. This ensures older signed documents remain cryptographically verifiable while invalidating the compromised key for future signatures.
+   - You do not type a password. The new account signs in with the default password `password` and is reminded to change it. Give the user their username and that password.
+   - Click **Save User**. To move an account to another department later, use **Edit** on the Users page. Edit never changes a password.
+2. **Resetting a Password or a Security PIN:**
+   - If a user forgets their password, or loses their PIN or compromises their key, go to `/users`, find the user and click **Reset**.
+   - Choose **Sign-in password** (set back to `password`; the user is reminded to change it), **Security PIN** (the user creates a new one at their next page view) or **Both**, and click the confirm button.
+   - Enter your own Security PIN when asked. Wrong PINs count toward the one-minute lockout. Each reset is recorded in the system audit log.
+   - *Security Policy:* When a Security PIN is reset, the system archives the user's old public key into `user_public_key_histories` with an `activated_at` / `deactivated_at` timeframe. This ensures older signed documents remain cryptographically verifiable while invalidating the compromised key for future signatures.
 
 ### 4.2 System Health & Integrity Monitoring (`/system-overview`)
 

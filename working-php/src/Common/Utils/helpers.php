@@ -135,6 +135,24 @@ if (!function_exists('request_expects_json')) {
     }
 }
 
+if (!function_exists('redirect_to_role_home')) {
+    /**
+     * Redirect to the landing page of a role (admin dashboard, Records Officer intake, staff tasks) and stop.
+     */
+    function redirect_to_role_home(?string $role): never
+    {
+        // Each role lands on its own page; any other role gets the staff page
+        $path = match ($role) {
+            'admin' => '/admin-dashboard',
+            'officer' => '/intake',
+            default => '/tasks',
+        };
+
+        header("Location: {$path}");
+        exit;
+    }
+}
+
 if (!function_exists('validation_error_message')) {
     /**
      * Join validation errors into one plain-text message for a flash error.

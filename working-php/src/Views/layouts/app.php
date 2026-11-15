@@ -185,6 +185,9 @@ if (isset($_SESSION['user_id'])) {
                                 </button>
 
                                 <div id="user-dropdown-menu" class="hidden absolute right-0 z-50 mt-2 w-48 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none py-1">
+                                    <a href="<?= e(\App\Modules\Auth\CredentialPolicy::CHANGE_PASSWORD_PATH) ?>" class="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition duration-150 ease-in-out">
+                                        <?= e(\App\Modules\Auth\CredentialPolicy::CHANGE_PASSWORD_LABEL) ?>
+                                    </a>
                                     <form method="POST" action="/logout">
     <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
                                         <button type="submit" class="block w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition duration-150 ease-in-out">Log Out</button>
@@ -324,22 +327,27 @@ if (isset($_SESSION['user_id'])) {
     $modalSize = 4; // max-w-lg
     $hideCloseButton = true;
     
+    $pinMinLength = \App\Modules\Auth\CredentialPolicy::MIN_LENGTH;
     $modalContent = '
         <p class="mb-2 text-gray-600 dark:text-gray-400">
-            To interact with documents, you must generate a cryptographic Ed25519 digital signature. 
+            To interact with documents, you must generate a cryptographic Ed25519 digital signature.
             This ensures non-repudiation and secures the blockchain-like document ledger against tampering.
         </p>
+        <p class="mb-2 text-gray-600 dark:text-gray-400">
+            <strong>Security PIN:</strong> ' . e(\App\Modules\Auth\CredentialPolicy::SECURITY_PIN_DEFINITION) . '
+        </p>
+        <p class="mb-4 text-gray-600 dark:text-gray-400">' . e(\App\Modules\Auth\CredentialPolicy::SHARED_NOTE) . '</p>
         <form action="/security-key" method="POST" id="security-key-form">
             <input type="hidden" name="csrf_token" value="' . ($_SESSION['csrf_token'] ?? '') . '">
             <!-- Hidden submit to safely capture Enter key -->
             <button type="submit" class="hidden" aria-hidden="true"></button>
             <div class="mb-4">
-                <label for="pin" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Create a 6-digit Security PIN</label>
-                <input type="password" name="pin" id="pin" minlength="6" required class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-2 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1">
+                <label for="pin" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Create a Security PIN (at least ' . $pinMinLength . ' characters)</label>
+                <input type="password" name="pin" id="pin" minlength="' . $pinMinLength . '" required class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-2 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1">
             </div>
             <div class="mb-4">
                 <label for="pin_confirm" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Confirm Security PIN</label>
-                <input type="password" name="pin_confirm" id="pin_confirm" minlength="6" required class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-2 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1">
+                <input type="password" name="pin_confirm" id="pin_confirm" minlength="' . $pinMinLength . '" required class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-2 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1">
                 <p class="mt-2 text-sm text-gray-500">This PIN will be used to encrypt your private key. You will need it every time you approve or process a document.</p>
             </div>
         </form>
@@ -548,6 +556,8 @@ if (isset($_SESSION['user_id'])) {
                                 } else if (notif.type === 'error') {
                                     borderColor = 'border-red-500'; bgColor = 'bg-red-50 dark:bg-red-900'; iconColor = 'text-red-700 dark:text-red-400'; titleColor = 'text-red-800 dark:text-red-300'; textColor = 'text-red-700 dark:text-red-400';
                                     iconSvg = '<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />';
+                                } else if (notif.type === 'warning') {
+                                    borderColor = 'border-yellow-500'; bgColor = 'bg-yellow-50 dark:bg-yellow-900'; iconColor = 'text-yellow-700 dark:text-yellow-400'; titleColor = 'text-yellow-800 dark:text-yellow-300'; textColor = 'text-yellow-700 dark:text-yellow-400';
                                 }
 
                                 const toastHtml = `
@@ -559,6 +569,7 @@ if (isset($_SESSION['user_id'])) {
                                             <div class="flex-1 pr-6">
                                                 <strong class="toast-title block leading-tight font-medium ${titleColor}"></strong>
                                                 <p class="toast-text mt-0.5 text-sm ${textColor}"></p>
+                                                <a class="toast-link notification-link mt-2 inline-block text-sm font-medium underline ${textColor}"></a>
                                             </div>
                                             <button class="mark-notification-read absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition" title="Dismiss">
                                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -572,6 +583,16 @@ if (isset($_SESSION['user_id'])) {
                                 const toastEl = holder.firstElementChild;
                                 toastEl.querySelector('.toast-title').textContent = String(notif.title ?? '');
                                 toastEl.querySelector('.toast-text').textContent = String(notif.message ?? '');
+
+                                // Show the optional link only for an internal path ("/x": no "//host", whitespace, control characters or backslashes)
+                                const toastLink = toastEl.querySelector('.toast-link');
+                                const linkPath = typeof notif.link === 'string' ? notif.link : '';
+                                if (/^\/(?!\/)[^\x00-\x20\x7f\\]*$/.test(linkPath)) {
+                                    toastLink.setAttribute('href', linkPath);
+                                    toastLink.textContent = String(notif.link_label || 'Open');
+                                } else {
+                                    toastLink.remove();
+                                }
                                 toastEl.querySelector('.mark-notification-read').dataset.id = notifIdStr;
                                 toastContainer.appendChild(toastEl);
                                 setupToastAutoDismiss();

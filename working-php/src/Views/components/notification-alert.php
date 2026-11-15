@@ -47,6 +47,15 @@ $toastClasses = isset($notification['is_toast']) && $notification['is_toast'] ? 
             <p class="mt-0.5 text-sm <?= $textColor ?>">
                 <?= $message ?>
             </p>
+            <?php
+            // An optional link to an internal page, shown below the message; anything but an internal path is dropped
+            $notificationLink = \App\Modules\Notifications\NotificationService::safeLink($notification['link'] ?? null);
+            ?>
+            <?php if ($notificationLink !== null): ?>
+                <a class="notification-link mt-2 inline-block text-sm font-medium underline <?= $textColor ?>" href="<?= e($notificationLink) ?>">
+                    <?= e($notification['link_label'] ?? 'Open') ?>
+                </a>
+            <?php endif; ?>
             <?php if (isset($notification['created_at'])): ?>
                 <p class="mt-2 text-xs <?= $textColor ?> opacity-75">
                     <?= date('M j, Y h:i A', strtotime($notification['created_at'])) ?>

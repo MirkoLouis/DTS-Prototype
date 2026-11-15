@@ -3,6 +3,7 @@
 namespace App\Modules\System;
 
 use App\Common\Database\Database;
+use App\Modules\Users\PinConfirmationService;
 
 class BackupManagerController
 {
@@ -151,22 +152,10 @@ class BackupManagerController
             return false;
         }
 
-        // No PIN, or a cached PIN token that is no longer valid
-        $pin = \App\Modules\Users\SecurityPinCacheService::resolvePin($_POST['pin'] ?? '');
-        if (empty($pin)) {
-            $_SESSION['error'] = 'Security PIN is required.';
-            return false;
-        }
-
-        // Signing fails on a wrong PIN and while the admin is locked out
-        try {
-            \App\Modules\Integrity\DigitalSignatureService::signAction(
-                (int) $_SESSION['user_id'],
-                $pin,
-                "ADMIN: {$action}|" . hash('sha256', $safeFileName)
-            );
-        } catch (\Exception $e) {
-            $_SESSION['error'] = $e->getMessage();
+        // The shared check refuses a missing or wrong PIN and counts wrong ones toward the lockout
+        $refusal = PinConfirmationService::refusal((int) $_SESSION['user_id'], $_POST['pin'] ?? '', "ADMIN: {$action}|" . hash('sha256', $safeFileName));
+        if ($refusal !== null) {
+            $_SESSION['error'] = $refusal;
             return false;
         }
 

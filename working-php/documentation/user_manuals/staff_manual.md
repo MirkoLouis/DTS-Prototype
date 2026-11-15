@@ -33,12 +33,16 @@ Every task completion or receipt log generates a cryptographically binding **Ed2
 
 1. Navigate to `/login` and sign in with your email and password.
 2. You will be automatically directed to the **Security Key Setup** screen (`/security-key`).
-3. Choose a secret **6-Digit Security PIN**.
+3. Choose a secret **Security PIN** of at least 10 characters (letters, numbers and symbols are all allowed). The Security PIN is a second passcode that unlocks your signing key; you enter it to sign an action on a document. It must be different from your sign-in password. A Security PIN can only be replaced through an administrator reset.
 4. Click **Set Security Key**.
 5. The system generates your unique cryptographic keypair. Your private key is encrypted with your PIN and stored securely.
 
 > [!IMPORTANT]
-> Do not share your 6-digit PIN with anyone. Every document action signed with your PIN is permanently linked to your identity in the immutable audit trail.
+> Do not share your PIN with anyone. Every document action signed with your PIN is permanently linked to your identity in the immutable audit trail. Using the same passcode for sign-in and for signing is a security risk: anyone who learns one would have both.
+
+### Changing Your Sign-In Password
+
+Your sign-in password is part of your sign-in credentials; it proves who you are when you log in. A new account starts with the password `password`, and you get a notification with a **Change password** link each time you sign in until you change it. Open the user menu (your name, top right), click **Change password**, and enter your current password and the new one twice. The new password needs at least 10 characters and must differ from your current password, from `password` and from your Security PIN. Three wrong current passwords in a minute lock the page for one minute, and a password can be changed at most three times per minute. Create your Security PIN first; the change-password form is refused until you have one. Nothing is forced, but please change it.
 
 ---
 
@@ -61,7 +65,7 @@ When a physical document folder is delivered to your department:
 1. Click the **Scan QR Code** button in the header (or open the scanner modal).
 2. Point your camera at the QR code on the document's tracking sheet.
 3. The scanner identifies the document. Click **Receive Document**.
-4. Enter your **6-Digit Security PIN** and click confirm.
+4. Enter your **Security PIN** and click confirm.
 5. The system logs a `Received` entry ("Document received by [Department Name].") signed with your cryptographic key.
 
 ### 4.3 Actioning & Completing a Task (`/tasks/{id}/complete`)
@@ -88,5 +92,7 @@ After performing your required office work (e.g., verifying budget allocation, s
   *A:* Check the current routing step. The previous department may not have marked their task as complete yet in the DTS software. Scan the QR code to verify the current active department.
 - **Q: I get "Action Denied: You lack permissions for this document".**  
   *A:* Staff members can only process documents currently positioned at their department's step index. If the document is currently assigned to another department, processing is restricted by system security policies.
-- **Q: What should I do if I forget my 6-digit PIN?**  
-  *A:* Contact your System Administrator to request a Digital Signature Reset. They will reset your signature key while safely archiving your past signed logs.
+- **Q: What should I do if I forget my Security PIN?**  
+  *A:* Contact your System Administrator to request a Security PIN reset. They will reset your signature key while safely archiving your past signed logs, and you create a new PIN (at least 10 characters) at your next page view.
+- **Q: What should I do if I forget my sign-in password?**  
+  *A:* Contact your System Administrator to request a sign-in password reset. It is set back to `password`, and you are reminded to change it when you sign in.

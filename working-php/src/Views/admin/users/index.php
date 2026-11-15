@@ -84,18 +84,14 @@
                             ', htmlspecialchars(addslashes($user['email'])), htmlspecialchars($user['name']), htmlspecialchars($user['email']));
                             
                             if (!empty($user['public_key'])) {
-                                $user['signature_html'] = sprintf('
+                                $user['signature_html'] = '
                                     <div class="flex items-center text-green-600">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
                                             <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                                         </svg>
                                         <span>Active</span>
-                                        <form action="/users/%s/reset-signature" method="POST" class="inline-block ml-2 confirm-action" data-message="Reset signature for %s?">
-                                            <input type="hidden" name="csrf_token" value="' . ($_SESSION['csrf_token'] ?? '') . '">
-                                            <button type="submit" class="text-xs text-red-500 hover:text-red-700 underline">Reset</button>
-                                        </form>
                                     </div>
-                                ', $user['id'], htmlspecialchars(addslashes($user['name'])));
+                                ';
                             } else {
                                 $user['signature_html'] = '<span class="text-gray-400 italic text-xs">Not set</span>';
                             }
@@ -108,9 +104,18 @@
                             if (!empty($user['deactivated_at'])) {
                                 $user['role_html'] .= ' <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 uppercase">Deactivated</span>';
                                 $actions .= $userActionForm("/users/{$userId}/reactivate", 'Reactivate this user? They will be able to sign in again.', 'Reactivate', 'text-accent-1 hover:text-accent-1-active');
-                            } elseif ($_SESSION['user_id'] != $userId) {
-                                // Active accounts other than the signed-in admin can be deactivated (never deleted)
-                                $actions .= $userActionForm("/users/{$userId}/delete", 'Deactivate this user? They will no longer be able to sign in, but their signed history is kept.', 'Deactivate', 'text-red-600 hover:text-red-900');
+                            } else {
+                                // Every active account can have its credentials reset (opens the reset modal below)
+                                $actions .= sprintf(
+                                    '<button type="button" class="reset-credentials-trigger ml-2 text-red-500 hover:text-red-700" data-reset-user-id="%d" data-reset-user-name="%s">Reset</button>',
+                                    $userId,
+                                    htmlspecialchars($user['name'], ENT_QUOTES)
+                                );
+
+                                // Accounts other than the signed-in admin can be deactivated (never deleted)
+                                if ($_SESSION['user_id'] != $userId) {
+                                    $actions .= $userActionForm("/users/{$userId}/delete", 'Deactivate this user? They will no longer be able to sign in, but their signed history is kept.', 'Deactivate', 'text-red-600 hover:text-red-900');
+                                }
                             }
                             $user['actions_html'] = '<div class="space-x-2 text-left">' . $actions . '</div>';
                         }
@@ -139,6 +144,81 @@
         </div>
     </div>
 </div>
+
+<!-- Reset credentials modal: choose what to reset, then the admin's Security PIN is asked for (SigningModal) -->
+<div id="reset-credentials-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-75">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full text-gray-900 dark:text-gray-100">
+        <form id="reset-credentials-form" method="POST" class="sign-action" data-message="Enter your own Security PIN to confirm this reset.">
+            <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token'] ?? '') ?>">
+            <input type="hidden" name="pin" class="sign-pin-input">
+            <h2 class="text-lg font-medium">Reset credentials</h2>
+            <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Reset for <strong id="reset-credentials-user-name"></strong>:</p>
+            <fieldset class="mt-4 space-y-3">
+                <legend class="sr-only">What to reset</legend>
+                <label class="flex items-start gap-2 text-sm">
+                    <input type="radio" name="target" value="password" required class="mt-1">
+                    <span><strong>Sign-in password</strong>: sets it to the default password "<?= e(\App\Modules\Auth\CredentialPolicy::DEFAULT_PASSWORD) ?>"; the user is reminded to change it.</span>
+                </label>
+                <label class="flex items-start gap-2 text-sm">
+                    <input type="radio" name="target" value="pin" class="mt-1">
+                    <span><strong>Security PIN</strong>: clears it; the user creates a new one at their next page view.</span>
+                </label>
+                <label class="flex items-start gap-2 text-sm">
+                    <input type="radio" name="target" value="both" class="mt-1">
+                    <span><strong>Both</strong>: does both of the above.</span>
+                </label>
+            </fieldset>
+            <div class="mt-6 flex justify-end space-x-2">
+                <button type="button" id="reset-credentials-cancel" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-md">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-md">Confirm reset</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Opening the reset modal for a row, and asking for the admin's Security PIN before the form is sent
+    function initResetCredentialsModal() {
+        const modal = document.getElementById('reset-credentials-modal');
+        const form = document.getElementById('reset-credentials-form');
+        if (!modal || !form) return;
+        const pinInput = form.querySelector('.sign-pin-input');
+
+        // The Reset button of a row fills in the user and opens the modal
+        document.querySelectorAll('.reset-credentials-trigger').forEach(button => {
+            button.addEventListener('click', function () {
+                form.action = '/users/' + encodeURIComponent(this.dataset.resetUserId) + '/reset-credentials';
+                document.getElementById('reset-credentials-user-name').textContent = this.dataset.resetUserName;
+                form.reset();
+                pinInput.value = '';
+                modal.classList.remove('hidden');
+            });
+        });
+
+        document.getElementById('reset-credentials-cancel').addEventListener('click', function () {
+            modal.classList.add('hidden');
+        });
+
+        // Ask for the admin's Security PIN, then send the form
+        form.addEventListener('submit', function (e) {
+            if (pinInput.value) return;
+            e.preventDefault();
+            window.SigningModal.show(this.dataset.message, function (pin) {
+                pinInput.value = pin;
+                form.submit();
+
+                // The PIN must not stay in the form for the next use
+                pinInput.value = '';
+            });
+        });
+    }
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initResetCredentialsModal);
+    } else {
+        initResetCredentialsModal();
+    }
+</script>
+<?php require BASE_PATH . '/src/Views/partials/signing-modal.php'; ?>
 <?php $content = ob_get_clean(); ?>
 
 <?php require BASE_PATH . '/src/Views/layouts/app.php'; ?>

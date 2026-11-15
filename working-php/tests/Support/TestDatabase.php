@@ -11,10 +11,11 @@ use App\Common\Database\SqlScriptRunner;
 class TestDatabase
 {
     public const PIN = '123456';
-    public const PASSWORD = 'password';
+    // Sign-in password of every fixture user: not the default 'password', so a test login raises no password reminder
+    public const PASSWORD = 'Fixture-Pass-2026';
 
-    // bcrypt of 'password', same hash the production seeder uses
-    private const PASSWORD_HASH = '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi';
+    // bcrypt (cost 10) of PASSWORD, computed once so seeding stays fast
+    private const PASSWORD_HASH = '$2y$10$cQgY8zv5tAuC1uqp.iGdp.tEB87OjvZAxOi0V1q8aIV46DrDh14py';
 
     public const DEPARTMENTS = [
         'Records Unit', 'Cash Unit', 'Administrative Unit', 'Personnel Unit', 'Supply Unit',

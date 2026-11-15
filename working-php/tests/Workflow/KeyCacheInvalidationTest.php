@@ -11,7 +11,7 @@ use Tests\TestCase;
 
 /**
  * DigitalSignatureService memoizes key histories per process. A long-lived process that verifies across
- * a key reset must clear that cache (SecurityKeyController::store and UserController::resetSignature do).
+ * a key reset must clear that cache (SecurityKeyController::store and UserCredentialService::resetSecurityPin do).
  */
 class KeyCacheInvalidationTest extends TestCase
 {

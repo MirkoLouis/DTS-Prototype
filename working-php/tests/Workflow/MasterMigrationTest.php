@@ -56,6 +56,28 @@ class MasterMigrationTest extends TestCase
         $this->assertTrue($this->columnExists('jobs', 'heartbeat_at'));
     }
 
+    // A database from before the password reminder gets users.must_change_password (default 0) and the
+    // notification link columns, and a second run changes nothing
+    public function test_migration_adds_the_password_reminder_columns(): void
+    {
+        $connection = Database::getInstance()->getConnection();
+        $connection->exec('ALTER TABLE users DROP COLUMN must_change_password');
+        $connection->exec('ALTER TABLE notifications DROP COLUMN link, DROP COLUMN link_label');
+        $this->assertFalse($this->columnExists('users', 'must_change_password'));
+        $this->assertFalse($this->columnExists('notifications', 'link'));
+
+        TestDatabase::runSqlFile(BASE_PATH . self::MIGRATION);
+        TestDatabase::runSqlFile(BASE_PATH . self::MIGRATION);
+
+        $this->assertTrue($this->columnExists('users', 'must_change_password'));
+        $this->assertTrue($this->columnExists('notifications', 'link'));
+        $this->assertTrue($this->columnExists('notifications', 'link_label'));
+
+        // Existing accounts are not flagged by the migration
+        $flagged = Database::getInstance()->query('SELECT COUNT(*) c FROM users WHERE must_change_password <> 0')->fetch();
+        $this->assertSame(0, (int) $flagged['c']);
+    }
+
     // Whether a column exists in the connected database
     private function columnExists(string $table, string $column): bool
     {
