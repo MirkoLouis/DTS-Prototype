@@ -78,7 +78,7 @@ class CredentialResetTest extends TestCase
     {
         $client = $this->admin();
         $before = $this->user('cash.unit');
-        for ($i = 0; $i < 3; $i++) {
+        for ($i = 0; $i < AttemptThrottleService::MAX_FAILURES; $i++) {
             $this->reset($client, 'cash.unit', ['target' => 'both', 'pin' => '000000']);
             $client->get('/users');
         }

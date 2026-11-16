@@ -61,7 +61,7 @@
                 <div>
                     <label for="email" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Username</label>
                     <input id="email" class="block mt-1 w-full <?= field_error_class('email') ?> bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:border-accent-1 focus:ring-accent-1 p-2 border" 
-                           type="text" name="email" required autofocus value="<?= old('email') ?>">
+                           type="text" name="email" required <?= old('email') === '' ? 'autofocus' : '' ?> value="<?= old('email') ?>">
                     <?php if (has_error('email')): ?>
                         <p class="mt-1 text-xs text-red-600 dark:text-red-400 font-medium"><?= error_msg('email') ?></p>
                     <?php endif; ?>
@@ -71,7 +71,7 @@
                 <div class="mt-4">
                     <label for="password" class="block font-medium text-sm text-gray-700 dark:text-gray-300">Password</label>
                     <input id="password" class="block mt-1 w-full <?= field_error_class('password') ?> bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:border-accent-1 focus:ring-accent-1 p-2 border" 
-                           type="password" name="password" required>
+                           type="password" name="password" required <?= old('email') !== '' ? 'autofocus' : '' ?>>
                     <?php if (has_error('password')): ?>
                         <p class="mt-1 text-xs text-red-600 dark:text-red-400 font-medium"><?= error_msg('password') ?></p>
                     <?php endif; ?>

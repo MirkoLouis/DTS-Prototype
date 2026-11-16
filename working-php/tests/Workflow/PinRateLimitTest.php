@@ -62,13 +62,13 @@ class PinRateLimitTest extends TestCase
         return $s;
     }
 
-    // Three wrong PINs time the user out; even the correct PIN is refused afterwards
-    public function test_third_wrong_pin_times_out_signing(): void
+    // MAX_FAILURES wrong PINs time the user out; even the correct PIN is refused afterwards
+    public function test_last_allowed_wrong_pin_times_out_signing(): void
     {
         $s = $this->inTransitToCash();
 
-        // The first two failures report the ordinary wrong-PIN error
-        for ($i = 0; $i < 2; $i++) {
+        // The failures before the limit report the ordinary wrong-PIN error
+        for ($i = 1; $i < AttemptThrottleService::MAX_FAILURES; $i++) {
             $message = $this->scanWith($s['tracking_code'], '000000');
             $this->assertNotNull($message);
             $this->assertNotSame(AttemptThrottleService::MESSAGE, $message);
@@ -87,7 +87,7 @@ class PinRateLimitTest extends TestCase
     public function test_correct_pin_after_timeout_expires_succeeds(): void
     {
         $s = $this->inTransitToCash();
-        for ($i = 0; $i < 3; $i++) {
+        for ($i = 0; $i < AttemptThrottleService::MAX_FAILURES; $i++) {
             $this->scanWith($s['tracking_code'], '000000');
         }
         $this->assertSame(AttemptThrottleService::MESSAGE, $this->scanWith($s['tracking_code'], TestDatabase::PIN));
