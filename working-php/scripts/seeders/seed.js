@@ -6,6 +6,7 @@ const os = require('os');
 const { exec } = require('child_process');
 const util = require('util');
 const crypto = require('crypto');
+const { rateLimitMessage } = require('./seed-guard');
 const execPromise = util.promisify(exec);
 
 // --- SETTINGS ---
@@ -58,6 +59,13 @@ class ApiClient {
                     headers,
                     redirect: 'manual'
                 });
+
+                // Rate limited: every further request would fail too, so stop with the reason instead of thousands of errors
+                const rateLimited = rateLimitMessage(response.status, response.headers.get('retry-after'));
+                if (rateLimited) {
+                    console.error(`\n${rateLimited}`);
+                    process.exit(1);
+                }
 
                 const setCookie = response.headers.get('set-cookie');
                 if (setCookie) {

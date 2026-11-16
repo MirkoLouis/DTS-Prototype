@@ -120,6 +120,10 @@
                 if (!response.ok) {
                     if (response.status === 404) {
                         displayError(`Document with tracking code ${trackingCode} not found.`);
+                    } else if (response.status === 429) {
+                        // Rate limited: say when to try again, and hold the polling back until then
+                        const waitSeconds = pausePollingAfterRateLimit(response);
+                        displayError(`Too many requests from your connection. Please wait ${waitSeconds} second(s) and try again.`);
                     } else {
                         displayError('Error tracking document. Please try again.');
                     }
@@ -199,15 +203,38 @@
     // Real-time Polling Logic
     const POLLING_INTERVAL = 60000; // 60 seconds
 
+    // Longest pause accepted from a Retry-After header, so a bad value cannot stop polling for hours
+    const MAX_POLLING_PAUSE_SECONDS = 600;
+
+    // Time (ms since epoch) before which polling stays quiet, set when the server answers 429 Too Many Requests
+    let pollingPausedUntil = 0;
+
+    // Read Retry-After from a 429 response, pause polling until it has passed, and return the seconds to wait
+    function pausePollingAfterRateLimit(response) {
+        const retryAfterSeconds = parseInt(response.headers.get('Retry-After'), 10);
+        const requestedSeconds = Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0 ? retryAfterSeconds : 60;
+        const waitSeconds = Math.min(requestedSeconds, MAX_POLLING_PAUSE_SECONDS);
+        pollingPausedUntil = Date.now() + waitSeconds * 1000;
+        return waitSeconds;
+    }
+
     // Periodically polls the server to check if any tracked document has changed status, automatically refreshing the card if it has.
     async function pollForUpdates() {
         const documentCards = document.querySelectorAll('.document-card');
         if (documentCards.length === 0) return;
 
+        // Rate limited a moment ago: wait until Retry-After has passed (one second of tolerance, so a pause that ends
+        // just as the next poll is due does not cost an extra polling interval)
+        if (Date.now() < pollingPausedUntil - 1000) return;
+
         const trackingCodes = Array.from(documentCards).map(card => card.dataset.trackingCode);
         
         try {
             const response = await fetch(`/api/track/status?codes=${trackingCodes.join(',')}`);
+            if (response.status === 429) {
+                pausePollingAfterRateLimit(response);
+                return;
+            }
             if (!response.ok) return;
             
             const statuses = await response.json();
@@ -219,6 +246,11 @@
 
                     if (isChanged) {
                         const cardResponse = await fetch(`/api/track/module/${update.tracking_code}`);
+                        if (cardResponse.status === 429) {
+                            // Stop refreshing cards; the next poll after Retry-After picks the changes up
+                            pausePollingAfterRateLimit(cardResponse);
+                            return;
+                        }
                         if (cardResponse.ok) {
                             const newCardHtml = await cardResponse.text();
                             card.outerHTML = newCardHtml;

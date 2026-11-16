@@ -227,7 +227,8 @@ class PerformanceBenchmarkTest extends TestCase
             $officer->loginAs('records.unit');
             $staff = HttpClient::start();
             $staff->loginAs('cash.unit');
-            $guest = HttpClient::start();
+            // The guest loop sends more /track requests from one IP than the per-IP limit allows
+            $guest = HttpClient::startWithoutRateLimit();
 
             // Page rows: label => [client, path builder (iteration => path), untimed pre-step or null].
             // Only /admin-dashboard sits behind CacheMiddleware; the other pages render on every request.

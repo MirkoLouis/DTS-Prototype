@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-11-16
+
+**Version:** 2.7.7
+
+### Security
+- Per-IP rate limiting of the public guest routes (`RateLimitMiddleware`, `RateLimitService`): fixed window of 60 seconds per client and route. `POST /submit-document` allows 10 requests, `GET /documents/{code}/print-tracking-form` 10, `GET /track` 60, `GET /api/track/module/{code}` 120 and `GET /api/track/status` 240. The limits are constants of `RateLimitMiddleware` (the only place they are written), the limiter is the first middleware of each route, and they apply to signed-in users on those routes too. A request over the limit gets HTTP 429 with `Retry-After` and the styled page ("Too many requests came from your connection…", with the seconds to wait), or JSON for `/api/` and XHR callers; it does no other work, so a refused submission creates no document.
+- The client is `REMOTE_ADDR` only; `X-Forwarded-For` and similar headers are ignored because the caller chooses them. Behind a reverse proxy that does not pass the real address in `REMOTE_ADDR`, every visitor would share one counter (the documented NGINX + PHP-FPM setup passes it).
+- Counters live in the new `rate_limits` table under SHA-256 of route and IP (no IP address is stored). Each hit is one atomic `INSERT … ON DUPLICATE KEY UPDATE` on the limiter's own database connection, so simultaneous requests cannot exceed the limit and a hit stays counted when the request's transaction rolls back. The worker deletes expired counters hourly (scheduled task `rate_limit_purge`, `RateLimitPurgeTask`).
+- Fail open, like `AttemptThrottleService`: when the `rate_limits` table is missing (migration not run) or the limiter's query fails, the request is allowed and one line is written to PHP's error log.
+
+### Added
+- `RATE_LIMIT_ENABLED` in `.env` (default `true` when absent; a real environment variable of the same name takes precedence over `.env`; an unrecognised value counts as on). Keep it on a real server. Set it to `false` only while running `composer seed:dev` (`scripts/seeders/seed.js`), `composer manual:live-concurrency` or a benchmark against a server from one IP.
+- `scripts/seeders/seed.js` stops at the first HTTP 429 with a message naming `RATE_LIMIT_ENABLED` instead of failing thousands of requests (`rateLimitMessage()` in `seed-guard.js`).
+- The tracking page backs off on HTTP 429: it shows how long to wait when a card cannot be loaded and pauses its 60-second status polling until `Retry-After` has passed.
+- `Database::openConnection()` opens an independent connection with the application's settings (used by the limiter).
+- Tests `RateLimitServiceTest`, `RateLimitMiddlewareTest`, `RateLimitHttpTest` and `RateLimitPurgeTaskTest` (`composer run test:rate-limit-service`, `test:rate-limit-middleware`, `test:rate-limit-http`, `test:rate-limit-purge-task`); `MasterMigrationTest` covers the new table and `SeedGuardTest` the seeder message. `HttpClient::startWithoutRateLimit()` starts a test server with the limiter off; the SQL-injection suite, the guest-submission concurrency test and the guest loop of the benchmark use it.
+
+### Upgrade note
+- Run `working-php/scripts/migrations/master-migration.sql` (adds the `rate_limits` table; safe to run again). Until it exists the limits are off and a line is written to PHP's error log.
+- Seeding the API seeder, the live concurrency run or a benchmark against a running server from one IP needs `RATE_LIMIT_ENABLED=false` for the run (restart PHP-FPM after changing `.env`), then back to `true`. `seed:prod` and `seed:fast` write to the database directly and are not affected.
+
 ## 2026-11-15 06:19
 
 **Version:** 2.7.6-Release+202611150619

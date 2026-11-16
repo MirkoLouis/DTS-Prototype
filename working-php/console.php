@@ -131,7 +131,13 @@ function runScheduledTasks(\App\Modules\System\WorkerScheduleService $schedule, 
         }
     }
 
-    // 5. Cleanup stale pending documents (>3 days without intake) every 24 hours (86400s)
+    // 5. Delete expired rate-limit counters every hour (3600s)
+    $purgedCounters = \App\Common\RateLimit\RateLimitPurgeTask::runIfDue($schedule, new \App\Common\RateLimit\RateLimitService(), $now);
+    if ($purgedCounters !== null) {
+        echo "⏰ [Worker Scheduler] Rate limit purge: removed {$purgedCounters} expired counter(s).\n";
+    }
+
+    // 6. Cleanup stale pending documents (>3 days without intake) every 24 hours (86400s)
     if ($schedule->isDue('stale_cleanup', 86400, $now)) {
         $schedule->markRun('stale_cleanup', $now);
         echo "⏰ [Worker Scheduler] Running stale pending documents cleanup...\n";

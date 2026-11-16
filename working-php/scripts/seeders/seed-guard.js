@@ -60,4 +60,29 @@ function databaseNamedIn(sql) {
     return match ? match[1] : null;
 }
 
-module.exports = { refusalMessage, countRows, databaseNamedIn };
+/**
+ * Message for the API seeder when the server answers 429 Too Many Requests, or null for any other status.
+ *
+ * The guest routes are rate limited per IP, and the seeder submits thousands of documents from one IP, so the
+ * first 429 means every later request would fail the same way.
+ *
+ * @param {number} status        HTTP status of the response
+ * @param {string|null} retryAfter value of the Retry-After header, if any
+ * @returns {string|null}
+ */
+function rateLimitMessage(status, retryAfter) {
+    // Only 429 is a rate-limit answer
+    if (status !== 429) {
+        return null;
+    }
+
+    const wait = retryAfter ? ` (the server asks for ${retryAfter} s between bursts)` : '';
+    return [
+        `The server refused a request with HTTP 429 Too Many Requests${wait}.`,
+        'The public routes limit each IP address, and the seeder sends far more requests than that from one IP.',
+        'Set RATE_LIMIT_ENABLED=false in the server\'s .env, restart PHP-FPM, run the seeder, then set it back to true.',
+        'Never leave rate limiting off on a server that real users reach.',
+    ].join('\n');
+}
+
+module.exports = { refusalMessage, countRows, databaseNamedIn, rateLimitMessage };

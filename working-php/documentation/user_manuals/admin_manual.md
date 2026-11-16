@@ -128,5 +128,7 @@ The DTS is designed to run without stopping. Three things must be in place on th
 
 - **Q: What happens if the background worker (`console.php`) stops?**  
   *A:* Queue items (report exports, integrity checks, backups) will remain in `queued` status. Restart the worker from terminal using `composer run worker` (or `php console.php`).
+- **Q: A visitor or kiosk sees "Too Many Requests" (HTTP 429). Why?**  
+  *A:* The public pages limit each connection (IP address) per minute: 10 document submissions, 10 tracking-form prints, 60 loads of the tracking page, 120 tracking-card loads and 240 status checks. The page says how many seconds to wait; the limit then resets by itself. Many kiosks behind one shared address count together. The limits apply while `RATE_LIMIT_ENABLED` in `.env` is `true` (the default); keep it on. On an existing database, run `scripts/migrations/master-migration.sql` once so the `rate_limits` table exists; until then the limits are off and a line is written to PHP's error log.
 - **Q: Why does clearing cache fail on certain pages?**  
   *A:* Caching uses Symfony Cache backed by database/filesystem storage. Click **Clear System Cache** on `/admin-dashboard` or `/clear-personal-cache` to invalidate stale cached analytics.

@@ -9,7 +9,9 @@
  * Fires N simultaneous guest submissions (titles CONC-LIVE-{run_id}-{i}), verifies them in the database
  * the same way tests/Concurrency/GuestSubmissionConcurrencyTest does, appends a row to
  * storage/test-results/<run_id>/live-concurrency.csv, and ALWAYS deletes the documents it created (finally block,
- * plus a shutdown/signal fallback). It is not part of PHPUnit; the automated equivalent is composer test:concurrency.
+ * plus a shutdown/signal fallback). All workers submit from one IP, so the server must run with RATE_LIMIT_ENABLED=false
+ * (the public routes allow 10 submissions per IP per minute); otherwise the surplus submissions fail with HTTP 429.
+ * It is not part of PHPUnit; the automated equivalent is composer test:concurrency.
  */
 
 define('BASE_PATH', dirname(__DIR__, 2));

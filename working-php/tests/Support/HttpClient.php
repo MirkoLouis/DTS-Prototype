@@ -14,14 +14,32 @@ class HttpClient extends HttpSession
     // Parallel workers given to the built-in server (PHP_CLI_SERVER_WORKERS)
     public const CLI_SERVER_WORKERS = 16;
 
-    // Server process handle, set only when this client started the built-in server itself
-    private static $process = null;
-    private static ?string $startedUrl = null;
+    // Built-in servers this process started, by whether rate limiting is on: [processes, urls]
+    private static array $processes = [];
+    private static array $startedUrls = [];
 
     /**
-     * Start the PHP built-in server (multi-worker) or attach to TEST_BASE_URL when set.
+     * Start the PHP built-in server (multi-worker) with rate limiting on, or attach to TEST_BASE_URL when set.
      */
     public static function start(): self
+    {
+        return self::launch(true);
+    }
+
+    /**
+     * Like start(), but the server runs with RATE_LIMIT_ENABLED=false, for suites that send more guest requests
+     * from one IP than the per-IP limits allow (many submissions, benchmark loops). With TEST_BASE_URL the external
+     * server's own setting applies, so it must be started with RATE_LIMIT_ENABLED=false for those suites.
+     */
+    public static function startWithoutRateLimit(): self
+    {
+        return self::launch(false);
+    }
+
+    /**
+     * Start (or reuse) the server for the given rate-limit setting, or attach to TEST_BASE_URL when set.
+     */
+    private static function launch(bool $rateLimited): self
     {
         // An external server (nginx/FPM) takes priority
         $external = getenv('TEST_BASE_URL');
@@ -34,8 +52,9 @@ class HttpClient extends HttpSession
         }
 
         // Reuse a server this process already started
-        if (self::$startedUrl !== null) {
-            return new self(self::$startedUrl);
+        $slot = $rateLimited ? 'limited' : 'unlimited';
+        if (isset(self::$startedUrls[$slot])) {
+            return new self(self::$startedUrls[$slot]);
         }
 
         // Find a free port by binding port 0 and releasing it
@@ -45,11 +64,13 @@ class HttpClient extends HttpSession
 
         // Launch the server with the testing environment and parallel workers
         $env = array_merge(getenv(), ['APP_ENV' => 'testing', 'PHP_CLI_SERVER_WORKERS' => (string) self::CLI_SERVER_WORKERS]);
+        $env['RATE_LIMIT_ENABLED'] = $rateLimited ? 'true' : 'false';
         $cmd = [PHP_BINARY, '-S', "127.0.0.1:{$port}", '-t', 'public', 'public/index.php'];
-        self::$process = proc_open($cmd, [0 => ['file', '/dev/null', 'r'], 1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes, BASE_PATH, $env);
-        if (!is_resource(self::$process)) {
+        $process = proc_open($cmd, [0 => ['file', '/dev/null', 'r'], 1 => ['file', '/dev/null', 'w'], 2 => ['file', '/dev/null', 'w']], $pipes, BASE_PATH, $env);
+        if (!is_resource($process)) {
             throw new RuntimeException('Could not start the PHP built-in server.');
         }
+        self::$processes[$slot] = $process;
         register_shutdown_function([self::class, 'stop']);
 
         // Wait until the port accepts connections
@@ -57,8 +78,8 @@ class HttpClient extends HttpSession
             $sock = @fsockopen('127.0.0.1', $port, $e, $s, 0.1);
             if ($sock) {
                 fclose($sock);
-                self::$startedUrl = "http://127.0.0.1:{$port}";
-                return new self(self::$startedUrl);
+                self::$startedUrls[$slot] = "http://127.0.0.1:{$port}";
+                return new self(self::$startedUrls[$slot]);
             }
             usleep(50000);
         }
@@ -83,17 +104,19 @@ class HttpClient extends HttpSession
     }
 
     /**
-     * Stop the server this class started, if any.
+     * Stop the servers this class started, if any.
      */
     public static function stop(): void
     {
-        // Terminate the child process and forget it
-        if (is_resource(self::$process)) {
-            proc_terminate(self::$process);
-            proc_close(self::$process);
+        // Terminate each child process and forget it
+        foreach (self::$processes as $process) {
+            if (is_resource($process)) {
+                proc_terminate($process);
+                proc_close($process);
+            }
         }
-        self::$process = null;
-        self::$startedUrl = null;
+        self::$processes = [];
+        self::$startedUrls = [];
     }
 
     /**

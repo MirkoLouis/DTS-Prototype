@@ -119,6 +119,10 @@
         "test:test-env-probe": "phpunit tests/Http/TestEnvProbeTest.php",
         "test:http-client-probe": "phpunit tests/Unit/HttpClientProbeTest.php",
         "test:composer-scripts": "phpunit tests/Unit/ComposerScriptsTest.php",
+        "test:rate-limit-service": "phpunit tests/Unit/RateLimitServiceTest.php",
+        "test:rate-limit-middleware": "phpunit tests/Unit/RateLimitMiddlewareTest.php",
+        "test:rate-limit-http": "phpunit tests/Http/RateLimitHttpTest.php",
+        "test:rate-limit-purge-task": "phpunit tests/Workflow/RateLimitPurgeTaskTest.php",
         "bench": "phpunit --testsuite benchmark --group benchmark",
         "replay": "php scripts/route-replay.php",
         "manual:live-concurrency": "php scripts/manual/live-concurrency.php",
@@ -216,12 +220,16 @@
         "test:results-extension": "The PHPUnit results extension writes test-outcomes.csv, summary.csv and run.json.",
         "test:result-writer": "Result folders: DTS_RESULTS_DIR containment, run-id validation, no overwriting.",
         "test:test-artifact-paths": "Every file a test creates is under working-php/.test/; no test uses the system temp directory.",
-        "test:seed-guard": "The production seeder's guard refuses a database that holds documents or users unless --force is passed.",
+        "test:seed-guard": "The production seeder's guard refuses a database that holds documents or users unless --force is passed, and the API seeder stops with a clear message on HTTP 429.",
         "test:session-storage": "Sessions are stored in the app's own folder, cleaned up by the app, with a 12-hour idle limit and hardened cookies.",
         "test:test-guard": "Tests refuse to run outside APP_ENV=testing or against a non-_test database.",
         "test:test-lifecycle": "The per-run test database and artifact lifecycle.",
         "test:test-env-probe": "The /__test/env probe reports the testing environment and database.",
         "test:http-client-probe": "The test HTTP client refuses servers that are not running the testing environment.",
-        "test:composer-scripts": "Every test class has a composer script with a description, listed in the README."
+        "test:composer-scripts": "Every test class has a composer script with a description, listed in the README.",
+        "test:rate-limit-service": "Rate limiting: fixed window per bucket and client, window reset, independent buckets and clients, a hit survives a rollback of the main connection, purge of expired rows, hashed keys, fail open.",
+        "test:rate-limit-middleware": "The rate-limit middleware: the RATE_LIMIT_ENABLED switch, the client taken from REMOTE_ADDR only, and the five route limits defined once with the limiter first.",
+        "test:rate-limit-http": "Per-IP limits on guest submission, tracking, the tracking API and the tracking-form print: 429 page or JSON with Retry-After, independent buckets, recovery after the window, fail open without the table.",
+        "test:rate-limit-purge-task": "The hourly worker task that deletes expired rate_limits rows."
     }
 }

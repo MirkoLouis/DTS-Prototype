@@ -17,6 +17,12 @@ if (file_exists($envPath)) {
     }
 }
 
+// Rate limiting switch: a real environment variable wins over .env (the test suite starts a server without the
+// limiter that way); only an explicit off value (false, 0, off, no) switches it off, see RateLimitSwitch
+require_once __DIR__ . '/../RateLimit/RateLimitSwitch.php';
+$rateLimitSetting = getenv('RATE_LIMIT_ENABLED') !== false ? getenv('RATE_LIMIT_ENABLED') : ($env['RATE_LIMIT_ENABLED'] ?? null);
+$rateLimitEnabled = \App\Common\RateLimit\RateLimitSwitch::isOn($rateLimitSetting);
+
 return [
     'database' => [
         'host' => $env['DB_HOST'] ?? '127.0.0.1',
@@ -43,6 +49,8 @@ return [
         'job_heartbeat_seconds' => (int) ($env['JOB_HEARTBEAT_SECONDS'] ?? 10),
         'job_abandoned_seconds' => (int) ($env['JOB_ABANDONED_SECONDS'] ?? 60),
         // Days a backup is kept before it is deleted (the newest backup always stays); 0 keeps every backup
-        'backup_keep_days' => (int) ($env['BACKUP_KEEP_DAYS'] ?? 14)
+        'backup_keep_days' => (int) ($env['BACKUP_KEEP_DAYS'] ?? 14),
+        // Per-IP rate limits on the public guest routes (see RateLimitMiddleware); keep true on a real server
+        'rate_limit_enabled' => $rateLimitEnabled
     ]
 ];

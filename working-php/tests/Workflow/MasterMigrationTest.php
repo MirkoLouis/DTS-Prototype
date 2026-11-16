@@ -92,6 +92,36 @@ class MasterMigrationTest extends TestCase
         $this->assertSame(['0'], array_map('strval', $versions));
     }
 
+    // A database from before rate limiting gets the rate_limits table, a second run changes nothing, and rows survive it
+    public function test_migration_creates_the_rate_limits_table(): void
+    {
+        Database::getInstance()->getConnection()->exec('DROP TABLE rate_limits');
+        $this->assertFalse($this->tableExists('rate_limits'));
+
+        TestDatabase::runSqlFile(BASE_PATH . self::MIGRATION);
+        $this->assertTrue($this->tableExists('rate_limits'));
+
+        // A counter written after the first run is still there after the second
+        Database::getInstance()->query('INSERT INTO rate_limits (rate_key, hits, expires_at) VALUES (:k, 3, 1800000060)', [':k' => str_repeat('a', 64)]);
+        TestDatabase::runSqlFile(BASE_PATH . self::MIGRATION);
+
+        $this->assertSame(1, (int) Database::getInstance()->query('SELECT COUNT(*) c FROM rate_limits')->fetch()['c']);
+        $this->assertTrue($this->columnExists('rate_limits', 'rate_key'));
+        $this->assertTrue($this->columnExists('rate_limits', 'hits'));
+        $this->assertTrue($this->columnExists('rate_limits', 'expires_at'));
+    }
+
+    // Whether a table exists in the connected database
+    private function tableExists(string $table): bool
+    {
+        $row = Database::getInstance()->query(
+            'SELECT COUNT(*) c FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = :t',
+            [':t' => $table]
+        )->fetch();
+
+        return (int) $row['c'] === 1;
+    }
+
     // Whether a column exists in the connected database
     private function columnExists(string $table, string $column): bool
     {
