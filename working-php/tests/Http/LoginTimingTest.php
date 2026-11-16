@@ -26,7 +26,7 @@ class LoginTimingTest extends TestCase
     // An unknown username takes about as long as a wrong password for a real account
     public function test_unknown_username_takes_as_long_as_a_wrong_password(): void
     {
-        // Two wrong passwords for a real account (three would trigger the lockout, which skips the check)
+        // Two wrong passwords for a real account (MAX_FAILURES of them would trigger the lockout, which skips the check)
         $known = min($this->failedLoginSeconds('cash.unit'), $this->failedLoginSeconds('cash.unit'));
 
         // Three different usernames that do not exist

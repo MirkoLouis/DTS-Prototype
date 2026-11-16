@@ -135,21 +135,55 @@ if (!function_exists('request_expects_json')) {
     }
 }
 
-if (!function_exists('redirect_to_role_home')) {
+if (!function_exists('request_is_pjax')) {
     /**
-     * Redirect to the landing page of a role (admin dashboard, Records Officer intake, staff tasks) and stop.
+     * Whether the request comes from the in-app navigation script (pjax-router.js), which sends "X-PJAX: true".
+     *
+     * That script fetches the page and swaps its content; a redirect would be followed inside fetch(), so a
+     * flash message shown on the target page would be consumed before the browser loads it for real.
      */
-    function redirect_to_role_home(?string $role): never
+    function request_is_pjax(): bool
     {
-        // Each role lands on its own page; any other role gets the staff page
-        $path = match ($role) {
+        return strtolower($_SERVER['HTTP_X_PJAX'] ?? '') === 'true';
+    }
+}
+
+if (!function_exists('role_home_path')) {
+    /**
+     * Landing page of a role: admin dashboard, Records Officer intake, staff tasks (any other role gets the staff page).
+     */
+    function role_home_path(?string $role): string
+    {
+        return match ($role) {
             'admin' => '/admin-dashboard',
             'officer' => '/intake',
             default => '/tasks',
         };
+    }
+}
 
-        header("Location: {$path}");
+if (!function_exists('redirect_to_role_home')) {
+    /**
+     * Redirect to the landing page of a role and stop.
+     */
+    function redirect_to_role_home(?string $role): never
+    {
+        header('Location: ' . role_home_path($role));
         exit;
+    }
+}
+
+if (!function_exists('render_error_page')) {
+    /**
+     * Answer the request with an error page (a JSON body for scripts) and stop.
+     *
+     * @param int         $status            HTTP status (403, 404, 405, 419, 429, 500, 503 have their own wording)
+     * @param string|null $message           sentence shown instead of the default one; never exception text
+     * @param int|null    $retryAfterSeconds sent as Retry-After (for 429 and 503)
+     */
+    function render_error_page(int $status, ?string $message = null, ?int $retryAfterSeconds = null): never
+    {
+        \App\Common\Http\ErrorPage::render($status, $message, $retryAfterSeconds);
     }
 }
 

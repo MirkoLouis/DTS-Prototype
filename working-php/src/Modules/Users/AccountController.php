@@ -18,7 +18,7 @@ class AccountController
     private const THROTTLE_SCOPE = 'account-password';
 
     // Throttle scope counting POSTs that got past the current-password check (a successful change or a refusal
-    // for equalling the Security PIN): at most three per minute, the same rate as the PIN lockout
+    // for equalling the Security PIN): at most AttemptThrottleService::MAX_FAILURES per minute, the same rate as the PIN lockout
     private const OUTCOME_THROTTLE_SCOPE = 'account-password-outcome';
 
     /**

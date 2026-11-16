@@ -114,6 +114,7 @@ class AuthMiddleware
             exit;
         }
 
+        // (For in-app navigation PjaxRedirect turns this redirect into a header, so the message is kept for /login)
         header("Location: /login");
         exit;
     }

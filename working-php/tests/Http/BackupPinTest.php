@@ -167,11 +167,11 @@ class BackupPinTest extends TestCase
         $this->assertMatchesRegularExpression('/<input type="hidden" name="pin" class="sign-pin-input">/', $form[0] ?? '');
     }
 
-    // Three wrong PINs lock out the next download, even with the right PIN
-    public function test_three_wrong_pins_lock_out_the_next_download(): void
+    // MAX_FAILURES wrong PINs lock out the next download, even with the right PIN
+    public function test_too_many_wrong_pins_lock_out_the_next_download(): void
     {
         $client = $this->admin();
-        for ($i = 0; $i < 3; $i++) {
+        for ($i = 0; $i < \App\Modules\Auth\AttemptThrottleService::MAX_FAILURES; $i++) {
             $client->post('/system/backups/download/' . self::FILE, ['pin' => '000000']);
             $client->get('/system/backups');
         }
@@ -219,11 +219,11 @@ class BackupPinTest extends TestCase
         $this->assertSame([], $this->auditEvents());
     }
 
-    // Three wrong PINs lock the admin out, so even the right PIN is refused for a while
-    public function test_three_wrong_pins_lock_out_the_next_attempt(): void
+    // MAX_FAILURES wrong PINs lock the admin out, so even the right PIN is refused for a while
+    public function test_too_many_wrong_pins_lock_out_the_next_attempt(): void
     {
         $client = $this->admin();
-        for ($i = 0; $i < 3; $i++) {
+        for ($i = 0; $i < \App\Modules\Auth\AttemptThrottleService::MAX_FAILURES; $i++) {
             $client->post('/system/backups/delete/' . self::FILE, ['pin' => '000000']);
             $client->get('/system/backups');
         }

@@ -46,7 +46,7 @@ class ThrottleTableMissingTest extends TestCase
         $bad = $client->post('/login', ['email' => 'cash.unit', 'password' => 'wrong']);
         $this->assertSame(302, $bad['status']);
         $this->assertStringContainsString('/login', $bad['headers']['location'] ?? '');
-        $this->assertStringContainsString('These credentials do not match our records.', $client->get('/login')['body']);
+        $this->assertStringContainsString('Wrong username or password. Please double-check and try again.', $client->get('/login')['body']);
 
         // Correct password: redirected away from the login page
         $client->get('/login');

@@ -13,7 +13,7 @@ use App\Common\Database\Database;
  */
 class AttemptThrottleService
 {
-    public const MAX_FAILURES = 3;
+    public const MAX_FAILURES = 5;
     public const WINDOW_SECONDS = 60;
     public const LOCKOUT_SECONDS = 60;
     public const MESSAGE = 'Too many failed attempts. Timed out for 1 minute.';

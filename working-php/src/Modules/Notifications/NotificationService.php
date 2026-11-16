@@ -57,22 +57,8 @@ class NotificationService
      */
     public static function safeLink(?string $link): ?string
     {
-        // No link, or not an internal path
-        if ($link === null || !str_starts_with($link, '/')) {
-            return null;
-        }
-
-        // A second slash makes browsers treat the path as another host
-        if (str_starts_with($link, '//')) {
-            return null;
-        }
-
-        // Whitespace, control characters (browsers strip tabs and newlines inside URLs) and backslashes are never valid
-        if (preg_match('/[\x00-\x20\x7f\\\\]/', $link) === 1) {
-            return null;
-        }
-
-        return $link;
+        // Only a plain relative path passes (the rules are shared with every other redirect target)
+        return $link !== null && \App\Common\Http\SafeRedirect::isRelativePath($link) ? $link : null;
     }
 
     /**

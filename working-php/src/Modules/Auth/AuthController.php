@@ -8,6 +8,9 @@ use App\Common\Validation\Validator;
 
 class AuthController
 {
+    // Shown after a failed sign-in, whichever of username and password was wrong
+    public const FAILED_SIGN_IN_MESSAGE = 'Wrong username or password. Please double-check and try again.';
+
     // bcrypt hash (cost 10, like the seeded accounts) of a discarded random string; checked when the username is unknown
     private const DUMMY_PASSWORD_HASH = '$2y$10$W5vDh5KItZHM5nt1XrMXM.9WpjWvlPF0m//2BCSD.rffnXE3Z2LbC';
 
@@ -108,11 +111,10 @@ class AuthController
         } else {
             // Failed login: count it, and show the timeout message if this failure triggered the lock
             $lockedNow = AttemptThrottleService::recordFailure($throttleKey, time());
-            $_SESSION['error'] = $lockedNow ? AttemptThrottleService::MESSAGE : "These credentials do not match our records.";
-            $_SESSION['field_errors'] = [
-                'email' => 'Invalid username or password.',
-                'password' => 'Invalid username or password.'
-            ];
+            // One general message for an unknown username, a wrong password and a deactivated account, so it never says
+            // which was wrong; no field error is set, so the form keeps the typed username and only the password is empty
+            $_SESSION['error'] = $lockedNow ? AttemptThrottleService::MESSAGE : self::FAILED_SIGN_IN_MESSAGE;
+            unset($_SESSION['field_errors']);
             $old = $_POST;
             unset($old['password']);
             $_SESSION['old'] = $old;

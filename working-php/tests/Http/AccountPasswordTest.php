@@ -174,11 +174,11 @@ class AccountPasswordTest extends TestCase
         $this->assertStringContainsString('current password is not correct', $this->pageAfter($client));
     }
 
-    // Three wrong current passwords lock out a fourth attempt, even with the correct current password
-    public function test_three_wrong_attempts_lock_out_the_correct_password(): void
+    // MAX_FAILURES wrong current passwords lock out the next attempt, even with the correct current password
+    public function test_too_many_wrong_attempts_lock_out_the_correct_password(): void
     {
         $client = $this->signedIn();
-        for ($i = 0; $i < 3; $i++) {
+        for ($i = 0; $i < AttemptThrottleService::MAX_FAILURES; $i++) {
             $this->change($client, 'not-the-password', self::NEW_PASSWORD);
         }
 
@@ -232,7 +232,7 @@ class AccountPasswordTest extends TestCase
         $before = $this->user('cash.unit')['password'];
 
         // As many refusals as the rate limit allows: none of them may count as a wrong PIN
-        for ($i = 0; $i < 3; $i++) {
+        for ($i = 0; $i < AttemptThrottleService::MAX_FAILURES; $i++) {
             $this->change($client, TestDatabase::PASSWORD, $pin);
         }
 
@@ -258,33 +258,38 @@ class AccountPasswordTest extends TestCase
         $this->assertTrue($this->canSignIn('cash.unit', self::NEW_PASSWORD));
     }
 
-    // At most three changes per minute and account: the fourth is refused with the timeout message
-    public function test_fourth_change_in_a_minute_is_refused(): void
+    // At most MAX_FAILURES changes per minute and account: the next one is refused with the timeout message
+    public function test_change_beyond_the_limit_in_a_minute_is_refused(): void
     {
-        $client = $this->signedIn();
-        $passwords = [TestDatabase::PASSWORD, 'Chain-Pass-0001', 'Chain-Pass-0002', 'Chain-Pass-0003'];
-        for ($i = 0; $i < 3; $i++) {
+        // The chain of passwords: the fixture password, then one new password per allowed change
+        $passwords = [TestDatabase::PASSWORD];
+        for ($i = 1; $i <= AttemptThrottleService::MAX_FAILURES + 1; $i++) {
+            $passwords[] = sprintf('Chain-Pass-%04d', $i);
+        }
+
+        $last = AttemptThrottleService::MAX_FAILURES;
+        for ($i = 0; $i < $last; $i++) {
             // Each change ends the session, so the user signs in again with the password just set
             $client = $this->signInWith('cash.unit', $passwords[$i]);
             $this->change($client, $passwords[$i], $passwords[$i + 1]);
         }
-        $this->assertTrue(password_verify($passwords[3], $this->user('cash.unit')['password']));
+        $this->assertTrue(password_verify($passwords[$last], $this->user('cash.unit')['password']));
 
-        $client = $this->signInWith('cash.unit', $passwords[3]);
-        $this->change($client, $passwords[3], 'Chain-Pass-0004');
+        $client = $this->signInWith('cash.unit', $passwords[$last]);
+        $this->change($client, $passwords[$last], $passwords[$last + 1]);
 
-        $this->assertTrue(password_verify($passwords[3], $this->user('cash.unit')['password']));
+        $this->assertTrue(password_verify($passwords[$last], $this->user('cash.unit')['password']));
         $this->assertStringContainsString(AttemptThrottleService::MESSAGE, $this->pageAfter($client));
     }
 
-    // Three refusals for "equals the Security PIN" lock out the fourth POST, even with a valid different password
-    public function test_three_pin_match_refusals_lock_out_the_next_change(): void
+    // MAX_FAILURES refusals for "equals the Security PIN" lock out the next POST, even with a valid different password
+    public function test_too_many_pin_match_refusals_lock_out_the_next_change(): void
     {
         $pin = 'my-long-pin-1234';
         $client = $this->signedIn();
         $this->clearKey();
         $this->setPin($client, $pin);
-        for ($i = 0; $i < 3; $i++) {
+        for ($i = 0; $i < AttemptThrottleService::MAX_FAILURES; $i++) {
             $this->change($client, TestDatabase::PASSWORD, $pin);
         }
 
@@ -612,12 +617,12 @@ class AccountPasswordTest extends TestCase
         $this->assertStringContainsString('Your Security PIN is already set. Ask an administrator to reset it.', $client->get('/tasks')['body']);
     }
 
-    // The "equals the sign-in password" refusal counts as a failed attempt: the fourth attempt is locked out first
-    public function test_three_pin_equals_password_refusals_lock_out_the_fourth_attempt(): void
+    // The "equals the sign-in password" refusal counts as a failed attempt: after MAX_FAILURES the next attempt is locked out first
+    public function test_too_many_pin_equals_password_refusals_lock_out_the_next_attempt(): void
     {
         $client = $this->signedIn();
         $this->clearKey();
-        for ($i = 0; $i < 3; $i++) {
+        for ($i = 0; $i < AttemptThrottleService::MAX_FAILURES; $i++) {
             $this->setPin($client, TestDatabase::PASSWORD);
         }
 

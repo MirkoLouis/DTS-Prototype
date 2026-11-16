@@ -14,12 +14,38 @@ class HttpSession
     private array $cookies = [];
     private string $lastBody = '';
 
+    // Extra request headers sent with every request (name => value), set with withHeader()
+    private array $extraHeaders = [];
+
     /**
      * @param bool $verifyTls false skips certificate and host-name checks (self-signed LAN certificate)
      */
     public function __construct(string $baseUrl, private bool $verifyTls = true)
     {
         $this->baseUrl = rtrim($baseUrl, '/');
+    }
+
+    /**
+     * Base URL of the server this session talks to (scheme, host and port, no trailing slash).
+     */
+    public function baseUrl(): string
+    {
+        return $this->baseUrl;
+    }
+
+    /**
+     * Send a header with every following request, or stop sending it when the value is null
+     * (for example "X-PJAX: true", which the in-app navigation script adds).
+     */
+    public function withHeader(string $name, ?string $value): void
+    {
+        // A null value removes the header again
+        if ($value === null) {
+            unset($this->extraHeaders[$name]);
+            return;
+        }
+
+        $this->extraHeaders[$name] = $value;
     }
 
     /**
@@ -89,6 +115,15 @@ class HttpSession
                 return strlen($line);
             },
         ]);
+
+        // Extra headers requested with withHeader()
+        if ($this->extraHeaders) {
+            $lines = [];
+            foreach ($this->extraHeaders as $name => $value) {
+                $lines[] = "{$name}: {$value}";
+            }
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $lines);
+        }
 
         // Referer of the page the form was posted from
         if ($referer !== null) {

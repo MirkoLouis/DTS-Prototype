@@ -78,7 +78,7 @@ class CredentialResetTest extends TestCase
     {
         $client = $this->admin();
         $before = $this->user('cash.unit');
-        for ($i = 0; $i < 3; $i++) {
+        for ($i = 0; $i < AttemptThrottleService::MAX_FAILURES; $i++) {
             $this->reset($client, 'cash.unit', ['target' => 'both', 'pin' => '000000']);
             $client->get('/users');
         }
@@ -223,6 +223,68 @@ class CredentialResetTest extends TestCase
         $again->get('/login');
         $response = $again->post('/login', ['email' => 'cash.unit', 'password' => 'password']);
         $this->assertSame('/tasks', $response['headers']['location']);
+    }
+
+    // GET a page the way the in-app navigation script does (X-PJAX header), then stop sending the header
+    private function pjaxGet(HttpClient $client, string $path): array
+    {
+        $client->withHeader('X-PJAX', 'true');
+        $response = $client->get($path);
+        $client->withHeader('X-PJAX', null);
+
+        return $response;
+    }
+
+    // After a password reset, a PJAX navigation gets no redirect (the target is in X-PJAX-Location), so the login
+    // page (loaded next) still has the flash message; a followed redirect would have consumed it inside fetch()
+    public function test_pjax_request_of_an_ended_session_is_not_redirected_and_keeps_the_message(): void
+    {
+        $session = $this->signedIn('cash.unit');
+        $this->reset($this->admin(), 'cash.unit', ['target' => 'password', 'pin' => TestDatabase::PIN]);
+
+        $response = $this->pjaxGet($session, '/tasks');
+
+        $this->assertSame(204, $response['status']);
+        $this->assertArrayNotHasKey('location', $response['headers']);
+        $this->assertSame('/login', $response['headers']['x-pjax-location']);
+        $this->assertStringContainsString('Your password was reset. Please sign in again.', $session->get('/login')['body']);
+    }
+
+    // The same for a session that expired by idling
+    public function test_pjax_request_of_an_idle_expired_session_keeps_the_expiry_message(): void
+    {
+        $session = $this->signedIn('cash.unit');
+        $file = \App\Common\Http\SessionService::directory() . '/sess_' . $session->cookie(session_name());
+        $aged = preg_replace('/last_activity\|i:\d+;/', 'last_activity|i:' . (time() - 43201) . ';', (string) file_get_contents($file));
+        file_put_contents($file, $aged);
+
+        $response = $this->pjaxGet($session, '/tasks');
+
+        $this->assertSame(204, $response['status']);
+        $this->assertArrayNotHasKey('location', $response['headers']);
+        $this->assertSame('/login', $response['headers']['x-pjax-location']);
+        $this->assertStringContainsString('session has expired', $session->get('/login')['body']);
+    }
+
+    // A plain request of an ended session is still redirected to the login page, which shows the message
+    public function test_plain_request_of_an_ended_session_is_still_redirected(): void
+    {
+        $session = $this->signedIn('cash.unit');
+        $this->reset($this->admin(), 'cash.unit', ['target' => 'password', 'pin' => TestDatabase::PIN]);
+
+        $response = $session->get('/tasks');
+
+        $this->assertSame(302, $response['status']);
+        $this->assertSame('/login', $response['headers']['location']);
+        $this->assertStringContainsString('Your password was reset. Please sign in again.', $session->get('/login')['body']);
+    }
+
+    // A valid session is served normally to a PJAX request
+    public function test_pjax_request_of_a_valid_session_gets_the_page(): void
+    {
+        $session = $this->signedIn('cash.unit');
+
+        $this->assertSame(200, $this->pjaxGet($session, '/tasks')['status']);
     }
 
     // A reset of the Security PIN alone leaves sessions working

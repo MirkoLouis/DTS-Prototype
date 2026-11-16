@@ -29,6 +29,9 @@ require BASE_PATH . '/src/Common/Utils/helpers.php';
 
 use App\Common\Http\Router;
 
+// In-app navigation requests get redirects as a header instead of a followed redirect (keeps flash messages)
+\App\Common\Http\PjaxRedirect::register();
+
 // Initialize the Custom Router
 $router = new Router();
 
@@ -48,6 +51,34 @@ if (\App\Common\Config\Config::get('app', 'env') === 'testing') {
             ],
         ]);
     });
+
+    // Test-only: answer with the shared error page (status, message and Retry-After taken from the query string)
+    $router->get('/__test/error', function () {
+        render_error_page((int) ($_GET['status'] ?? 500), $_GET['message'] ?? null, isset($_GET['retry']) ? (int) $_GET['retry'] : null);
+    });
+
+    // Test-only: an unhandled exception whose text must never reach the visitor (GET and POST)
+    $router->get('/__test/throw', function () {
+        throw new \RuntimeException('secret-detail in /srv/app/Secret.php');
+    });
+    $router->post('/__test/throw', function () {
+        throw new \RuntimeException('secret-detail in /srv/app/Secret.php');
+    });
+
+    // Test-only: redirect to the target given in the query string (to check what the redirect handling accepts)
+    $router->get('/__test/redirect', function () {
+        header('Location: ' . ($_GET['to'] ?? '/'));
+        exit;
+    });
+
+    // Test-only: a page that fails half-way, with and without the response cache around it
+    $partialFailure = function () {
+        ob_start();
+        echo 'PARTIAL-OUTPUT';
+        render_error_page(500);
+    };
+    $router->get('/__test/partial-error', $partialFailure);
+    $router->get('/__test/partial-error-cached', $partialFailure, [App\Common\Middleware\CacheMiddleware::class . ':55']);
 }
 
 

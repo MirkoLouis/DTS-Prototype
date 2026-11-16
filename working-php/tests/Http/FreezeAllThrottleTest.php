@@ -30,7 +30,7 @@ class FreezeAllThrottleTest extends TestCase
         $client = HttpClient::start();
         $client->loginAs('admin');
         $key = AttemptThrottleService::key('pin', (string) $this->fx['users']['admin']);
-        for ($i = 0; $i < 3; $i++) {
+        for ($i = 0; $i < AttemptThrottleService::MAX_FAILURES; $i++) {
             AttemptThrottleService::recordFailure($key, time());
         }
 

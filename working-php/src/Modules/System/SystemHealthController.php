@@ -286,7 +286,7 @@ class SystemHealthController
 
         if (empty($pin)) {
             $_SESSION['error'] = "Security PIN is required.";
-            header("Location: " . ($_SERVER['HTTP_REFERER'] ?? "/documents/{$tracking_code}"));
+            header("Location: " . \App\Common\Http\SafeRedirect::refererOr("/documents/{$tracking_code}"));
             exit;
         }
 
@@ -303,7 +303,7 @@ class SystemHealthController
             }
         }
         
-        $referer = $_SERVER['HTTP_REFERER'] ?? "/documents/{$tracking_code}";
+        $referer = \App\Common\Http\SafeRedirect::refererOr("/documents/{$tracking_code}");
         header("Location: $referer");
         exit;
     }
@@ -316,7 +316,7 @@ class SystemHealthController
 
         if (empty($pin)) {
             $_SESSION['error'] = "Security PIN is required.";
-            header("Location: " . ($_SERVER['HTTP_REFERER'] ?? "/documents/{$tracking_code}"));
+            header("Location: " . \App\Common\Http\SafeRedirect::refererOr("/documents/{$tracking_code}"));
             exit;
         }
 
@@ -333,7 +333,7 @@ class SystemHealthController
             }
         }
         
-        $referer = $_SERVER['HTTP_REFERER'] ?? "/documents/{$tracking_code}";
+        $referer = \App\Common\Http\SafeRedirect::refererOr("/documents/{$tracking_code}");
         header("Location: $referer");
         exit;
     }
@@ -449,7 +449,7 @@ class SystemHealthController
         
         $_SESSION['success'] = "Your personalized cache has been cleared successfully.";
         
-        $referer = $_SERVER['HTTP_REFERER'] ?? '/';
+        $referer = \App\Common\Http\SafeRedirect::refererOr('/');
         header("Location: " . $referer);
         exit;
     }
