@@ -163,10 +163,25 @@ function initStatistics() {
         let pollingInterval;
         let startTime;
         let currentJobId;
+        // One report job per page: while one runs, Generate shows its progress again instead of starting another
+        let reportJobRunning = false;
+        // Set when the router is about to replace the page; late poll answers must then do nothing (no download, no redirect)
+        let pageLeft = false;
+        document.addEventListener('dts:before-swap', () => {
+            pageLeft = true;
+            reportJobRunning = false;
+            clearInterval(pollingInterval);
+        }, { once: true });
 
         generateReportBtn.addEventListener('click', async function(e) {
             e.preventDefault();
-            
+            if (reportJobRunning) {
+                ModalDialog.open(reportModal, { opener: generateReportBtn });
+                return;
+            }
+            // A request is in flight (the button says Preparing...): ignore a second click
+            if (generateReportBtn.disabled) return;
+
             // Populate hidden form with current filters
             const dateFilter = document.querySelector('input[name="date"]');
             const purposeFilter = document.querySelector('select[name="purpose"]');
@@ -210,7 +225,8 @@ function initStatistics() {
                 const data = await response.json();
                 currentJobId = data.job_id;
 
-                reportModal.style.display = 'block';
+                // Shared modal module: focus trap, Escape, inert page behind; focus returns to the Generate button on close
+                ModalDialog.open(reportModal, { opener: generateReportBtn });
                 progressBar.style.width = '0%';
                 progressBar.classList.remove('bg-green-500', 'bg-red-500');
                 progressBar.classList.add('bg-accent-1');
@@ -223,6 +239,8 @@ function initStatistics() {
                 downloadBtnContainer.innerHTML = '';
 
                 startTime = Date.now();
+                reportJobRunning = true;
+                clearInterval(pollingInterval);
                 pollingInterval = setInterval(() => pollJobStatus(currentJobId), 3000);
 
             } catch (error) {
@@ -247,7 +265,7 @@ function initStatistics() {
                 }
                 finishJob(false, currentJobId, "Report cancelled.");
             } else {
-                reportModal.style.display = 'none';
+                ModalDialog.close(reportModal);
             }
         });
 
@@ -257,7 +275,7 @@ function initStatistics() {
                 if (!response.ok) throw new Error('Could not get report status.');
                 const job = await response.json();
 
-                if (!job) return;
+                if (!job || pageLeft) return;
 
                 progressBar.style.width = `${job.progress || 0}%`;
                 
@@ -341,6 +359,8 @@ function initStatistics() {
 
         function finishJob(success, jobId, error = null) {
             clearInterval(pollingInterval);
+            reportJobRunning = false;
+            if (pageLeft) return;
             progressBar.style.width = '100%';
             
             closeReportModalBtn.textContent = 'Close';
@@ -355,7 +375,7 @@ function initStatistics() {
                 
                 downloadBtnContainer.innerHTML = `
                     <div class="mt-4 flex justify-center">
-                        <a href="/statistics/report/download/${jobId}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none transition">
+                        <a href="/statistics/report/download/${jobId}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition">
                             Download Spreadsheet Again
                         </a>
                     </div>

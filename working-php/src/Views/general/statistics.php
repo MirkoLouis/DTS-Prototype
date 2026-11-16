@@ -1,7 +1,7 @@
 <?php $title = ($_SESSION['department_name'] ?? 'Department') . ' Statistics'; ob_start(); ?>
-<h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+<h1 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
     <?= htmlspecialchars($_SESSION['department_name'] ?? 'Department') ?> Statistics
-</h2>
+</h1>
 <?php $header = ob_get_clean(); ?>
 <?php ob_start(); ?>
 <div class="py-10">
@@ -23,8 +23,8 @@
             <?php
                 $panelTitle = 'Released Documents History';
                 $panelActionHtml = '
-                    <button type="button" class="open-modal-btn inline-flex items-center px-4 py-2 bg-gray-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 focus:outline-none transition mr-2" data-modal="past-reports-modal">Past Reports</button>
-                    <button type="button" id="generate-report-btn" class="inline-flex items-center px-4 py-2 bg-accent-1 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-1-hover focus:outline-none transition">Generate Report</button>
+                    <button type="button" class="open-modal-btn inline-flex items-center px-4 py-2 bg-gray-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 transition mr-2" data-modal="past-reports-modal">Past Reports</button>
+                    <button type="button" id="generate-report-btn" class="inline-flex items-center px-4 py-2 bg-accent-1 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-1-hover focus:outline-none focus:ring-2 focus:ring-accent-1 transition">Generate Report</button>
                 ';
                 
                 $purposeOptions = [];

@@ -1,7 +1,7 @@
 <?php $title = 'Backup Manager'; ob_start(); ?>
-<h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+<h1 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
     Backup Manager
-</h2>
+</h1>
 <?php $header = ob_get_clean(); ?>
 
 <?php ob_start(); ?>
@@ -24,14 +24,14 @@
         <?php endif; ?>
 
         <?php if (isset($_SESSION['success'])): ?>
-            <div id="success-message" class="mb-4 p-4 bg-success-light text-success-active rounded-lg">
+            <div id="success-message" role="status" class="mb-4 p-4 bg-success-light text-success-active rounded-lg">
                 <?= htmlspecialchars($_SESSION['success']) ?>
                 <?php unset($_SESSION['success']); ?>
             </div>
         <?php endif; ?>
 
         <?php if (isset($_SESSION['error'])): ?>
-            <div class="mb-4 p-4 bg-red-100 text-red-800 rounded-lg">
+            <div role="alert" class="mb-4 p-4 bg-red-100 text-red-800 rounded-lg">
                 <?= htmlspecialchars($_SESSION['error']) ?>
                 <?php unset($_SESSION['error']); ?>
             </div>
@@ -40,10 +40,10 @@
         <!-- Backup List -->
         <div class="bg-white overflow-hidden shadow-sm sm:rounded-lg">
             <div class="p-6 text-gray-900">
-                <h3 class="text-lg font-semibold mb-4">Available Backups</h3>
+                <h2 class="text-lg font-semibold mb-4">Available Backups</h2>
                 <form action="/system/backups" method="GET" class="mb-4">
                     <div class="flex items-center space-x-4">
-                        <input type="text" name="search" placeholder="Search by file name or date" class="border-gray-300 focus:border-accent-1 rounded-md shadow-sm" value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
+                        <input type="text" name="search" aria-label="Search backups by file name or date" autocomplete="off" placeholder="Search by file name or date" class="border-gray-300 focus:border-accent-1 rounded-md shadow-sm" value="<?= htmlspecialchars($_GET['search'] ?? '') ?>">
                         <a href="/system/backups" class="text-gray-500 hover:text-gray-700">Clear</a>
                     </div>
                 </form>
@@ -58,7 +58,7 @@
                                     <input type="hidden" name="pin" class="sign-pin-input">
                                     <button type="submit" class="text-accent-1 hover:text-accent-1-active">Download</button>
                                 </form>
-                                <button type="button" class="text-gray-500 hover:text-gray-700" onclick="openRestoreModal(\'%s\')">Restore</button>
+                                <button type="button" class="text-gray-500 hover:text-gray-700" onclick="openRestoreModal(\'%s\', this)">Restore</button>
                                 <form action="/system/backups/delete/%s" method="POST" class="sign-action" data-message="Enter your Security PIN to delete this backup.">
                                     <input type="hidden" name="csrf_token" value="' . ($_SESSION['csrf_token'] ?? '') . '">
                                     <input type="hidden" name="pin" class="sign-pin-input">
@@ -88,28 +88,30 @@
 </div>
 
 <!-- Restore Modal -->
-<div id="restore-modal" style="display:none;" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-75">
+<div id="restore-modal" role="dialog" aria-modal="true" aria-labelledby="restore-modal-title" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-75">
     <div class="bg-white p-6 mx-4 rounded-lg shadow-xl max-w-md w-full">
         <form id="restore-form" method="POST" class="sign-action" data-message="Enter your Security PIN to restore this backup. The current database is backed up first.">
             <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
             <input type="hidden" name="pin" class="sign-pin-input">
-            <h2 class="text-lg font-medium text-gray-900 text-red-500">FINAL WARNING: Restore Database?</h2>
+            <h2 id="restore-modal-title" class="text-lg font-medium text-gray-900 text-red-500">FINAL WARNING: Restore Database?</h2>
             <p class="mt-2 text-sm text-gray-600">
                 Restore <strong id="restore-file-name"></strong>?
             </p>
             <div class="mt-6 flex justify-end space-x-2">
-                <button type="button" onclick="document.getElementById('restore-modal').style.display='none'" class="px-4 py-2 bg-gray-200 rounded-md">Cancel</button>
-                <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-md">Restore Now</button>
+                <button type="button" onclick="ModalDialog.close(document.getElementById('restore-modal'))" class="px-4 py-2 bg-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-accent-1">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-red-500">Restore Now</button>
             </div>
         </form>
     </div>
 </div>
 
 <script>
-    function openRestoreModal(fileName) {
+    // opener: the Restore button, passed explicitly (Safari and Firefox on macOS do not focus a clicked button)
+    function openRestoreModal(fileName, opener) {
         document.getElementById('restore-file-name').textContent = fileName;
         document.getElementById('restore-form').action = `/system/backups/restore/${fileName}`;
-        document.getElementById('restore-modal').style.display = 'flex';
+        // The shared modal module focuses the first control and returns the focus to the Restore button on close
+        ModalDialog.open(document.getElementById('restore-modal'), { opener: opener });
     }
 
 </script>
@@ -130,7 +132,7 @@
                         if (form.dataset.keepsPage === 'true') {
                             pinInput.value = '';
                         }
-                    });
+                    }, e.submitter);
                 }
             });
         });

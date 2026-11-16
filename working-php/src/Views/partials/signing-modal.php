@@ -7,7 +7,7 @@ $modalSize = 3; // max-w-md
 $hideCloseButton = true;
 $modalContent = '
 <div class="flex items-center mb-4 text-accent-1 dark:text-accent-1-hover">
-    <svg class="w-8 h-8 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg aria-hidden="true" class="w-8 h-8 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
     </svg>
     <span class="text-sm font-medium">Authentication Required</span>
@@ -18,10 +18,11 @@ $modalContent = '
 </p>
 
 <div class="mb-4">
-    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+    <label for="signing-modal-pin" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
         Security PIN
     </label>
-    <input type="password" id="signing-modal-pin" class="block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-2 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1" placeholder="Enter your PIN..." required>
+    <!-- autocomplete="off" (not current-password): the PIN is not the sign-in password, so a password manager must not offer to fill or save one here -->
+    <input type="password" id="signing-modal-pin" autocomplete="off" data-1p-ignore data-lpignore="true" aria-describedby="signing-modal-message" class="block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-2 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1" placeholder="Enter your PIN..." required>
 </div>
 ';
 $modalFooter = '
@@ -42,7 +43,9 @@ require BASE_PATH . '/src/Views/components/modal.php';
 
     window.SigningModal = {
         callback: null,
-        show: function(message, callback) {
+        // opener: the control that asked (the submit event's submitter or the click's button); passed explicitly because
+        // Safari and Firefox on macOS do not focus a button when it is clicked, so document.activeElement cannot be trusted
+        show: function(message, callback, opener) {
             // Reuse the server-issued encrypted token instead of prompting; the PIN itself is never stored
             let cachedToken = null;
             try { cachedToken = sessionStorage.getItem('dts_pin_token'); } catch (e) {}
@@ -52,14 +55,13 @@ require BASE_PATH . '/src/Views/components/modal.php';
             }
             this.callback = callback;
             document.getElementById('signing-modal-message').innerText = message;
-            document.getElementById('signing-modal-pin').value = '';
-            document.getElementById('signing-modal').classList.remove('hidden');
-            setTimeout(() => {
-                document.getElementById('signing-modal-pin').focus();
-            }, 100);
+            const pinInput = document.getElementById('signing-modal-pin');
+            pinInput.value = '';
+            // The shared module shows it on top of any modal that is already open, focuses the PIN field and returns the focus to the control that asked
+            ModalDialog.open(document.getElementById('signing-modal'), { opener: opener, initialFocus: pinInput });
         },
         hide: function() {
-            document.getElementById('signing-modal').classList.add('hidden');
+            ModalDialog.close(document.getElementById('signing-modal'));
             this.callback = null;
         }
     };
@@ -72,6 +74,12 @@ require BASE_PATH . '/src/Views/components/modal.php';
         const pinInput = document.getElementById('signing-modal-pin');
 
         if (!confirmBtn) return;
+
+        // Escape and a click outside close the modal through the shared module: drop the pending action
+        document.getElementById('signing-modal').addEventListener('modaldialog:close', function() {
+            window.SigningModal.callback = null;
+            pinInput.value = '';
+        });
 
         confirmBtn.addEventListener('click', function() {
             const pin = pinInput.value;

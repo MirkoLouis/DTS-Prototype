@@ -100,7 +100,7 @@ if ($status === 'pending') {
         <?php if ($wasJustRerouted): ?>
             <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-4 rounded-r">
                 <p class="text-sm text-blue-700 flex items-center">
-                    <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
+                    <svg aria-hidden="true" class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path></svg>
                     This document's route was just updated for additional processing and is now in transit.
                 </p>
             </div>
@@ -231,7 +231,7 @@ if ($status === 'pending') {
 
                                             <div class="relative z-10 w-8 h-8 rounded-full flex items-center justify-center <?= $dotColor ?> text-white font-bold text-sm shadow">
                                                 <?php if ($isCompleted): ?>
-                                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                                                    <svg aria-hidden="true" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
                                                 <?php else: ?>
                                                     <?= $stepNum ?>
                                                 <?php endif; ?>

@@ -19,6 +19,7 @@ class SecurityKeyController
         // Fields sent as arrays (pin[]=x) are never a PIN
         if (!is_string($pin) || !is_string($pinConfirm)) {
             $_SESSION['error'] = "Enter the Security PIN and its confirmation.";
+            $_SESSION['pin_setup_error'] = $_SESSION['error'];
             $this->redirectBasedOnRole();
         }
 
@@ -29,6 +30,8 @@ class SecurityKeyController
         $refusal = $this->refusal((int) $userId, $pin, $pinConfirm);
         if ($refusal !== null) {
             $_SESSION['error'] = $refusal;
+            // The mandatory prompt shows the refusal itself (layouts/app.php), so it does not depend on a toast
+            $_SESSION['pin_setup_error'] = $refusal;
             $this->redirectBasedOnRole();
         }
 

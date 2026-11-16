@@ -36,7 +36,11 @@ if ($type === 'success') {
 }
 $toastClasses = isset($notification['is_toast']) && $notification['is_toast'] ? 'toast-message pointer-events-auto animate-slide-in-right' : '';
 ?>
-<div role="alert" class="rounded-md border <?= $borderColor ?> <?= $bgColor ?> p-4 shadow-sm mb-3 relative <?= $toastClasses ?>">
+<?php
+// Errors and warnings interrupt a screen reader (role="alert"); success and information wait their turn (role="status", a polite live region)
+$liveRegionRole = in_array($type, ['error', 'warning'], true) ? 'alert' : 'status';
+?>
+<div role="<?= $liveRegionRole ?>" data-notification-item class="rounded-md border <?= $borderColor ?> <?= $bgColor ?> p-4 shadow-sm mb-3 relative <?= $toastClasses ?>">
     <div class="flex items-start gap-4">
         <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="-mt-0.5 w-6 h-6 <?= $iconColor ?>">
             <?= $iconSvg ?>
@@ -63,8 +67,8 @@ $toastClasses = isset($notification['is_toast']) && $notification['is_toast'] ? 
             <?php endif; ?>
         </div>
         
-        <button class="<?= isset($notification['id']) ? 'mark-notification-read' : 'dismiss-alert' ?> absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition" <?= isset($notification['id']) ? 'data-id="'.$notification['id'].'"' : '' ?> title="Dismiss">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+        <button type="button" class="<?= isset($notification['id']) ? 'mark-notification-read' : 'dismiss-alert' ?> absolute top-4 right-4 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-accent-1 transition" <?= isset($notification['id']) ? 'data-id="'.$notification['id'].'"' : '' ?> title="Dismiss" aria-label="Dismiss notification">
+            <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
         </button>
     </div>
 </div>

@@ -84,6 +84,36 @@ if (!function_exists('field_error_class')) {
     }
 }
 
+if (!function_exists('field_error_id')) {
+    /**
+     * The id of the element that shows a field's error message (the field points at it with aria-describedby).
+     *
+     * @param string $key
+     * @return string
+     */
+    function field_error_id(string $key): string
+    {
+        return preg_replace('/[^A-Za-z0-9_-]/', '_', $key) . '-error';
+    }
+}
+
+if (!function_exists('field_error_attributes')) {
+    /**
+     * Accessibility attributes of a field that failed validation: aria-invalid plus aria-describedby pointing at its
+     * error message (rendered with id field_error_id($key)). Empty when the field has no error. Echo inside the input tag.
+     *
+     * @param string $key
+     * @return string
+     */
+    function field_error_attributes(string $key): string
+    {
+        if (!has_error($key)) {
+            return '';
+        }
+        return 'aria-invalid="true" aria-describedby="' . field_error_id($key) . '"';
+    }
+}
+
 if (!function_exists('clear_form_flash')) {
     /**
      * Clear form state retention and error flash data from the session.

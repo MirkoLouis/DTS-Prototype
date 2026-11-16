@@ -1,7 +1,7 @@
 <?php $title = ($_SESSION['department_name'] ?? 'Department') . ' Tasks'; ob_start(); ?>
-<h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+<h1 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
     <?= htmlspecialchars($_SESSION['department_name'] ?? 'Department') ?> Tasks
-</h2>
+</h1>
 <?php $header = ob_get_clean(); ?>
 
 <?php ob_start(); ?>
@@ -97,7 +97,7 @@ function initStaffTasksPage() {
             window.SigningModal.show(`Enter your Security PIN to cryptographically sign the completion of document: ${trackingCode}`, function(pin) {
                 form.querySelector('.complete-pin-input').value = pin;
                 form.submit();
-            });
+            }, this);
         });
     });
 
@@ -120,7 +120,7 @@ function initStaffTasksPage() {
                     window.SigningModal.show(`Enter your Security PIN to cryptographically sign the receipt of document: ${trackingCode}`, function(pin) {
                         pinInput.value = pin;
                         scanForm.submit();
-                    });
+                    }, e.submitter);
                 }
             }
         });

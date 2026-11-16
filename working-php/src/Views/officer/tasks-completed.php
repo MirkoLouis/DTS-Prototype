@@ -1,7 +1,7 @@
 <?php $title = ($_SESSION['department_name'] ?? 'Department') . ' Completed Tasks'; ob_start(); ?>
-<h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+<h1 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
     <?= htmlspecialchars($_SESSION['department_name'] ?? 'Department') ?> Completed Tasks
-</h2>
+</h1>
 <?php $header = ob_get_clean(); ?>
 
 <?php ob_start(); ?>
@@ -11,7 +11,7 @@
         <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
             <div class="p-6 text-gray-900 dark:text-gray-100">
                 <div class="flex justify-between items-center mb-6">
-                    <h3 class="text-lg font-bold">Recently Completed Tasks</h3>
+                    <h2 class="text-lg font-bold">Recently Completed Tasks</h2>
                 </div>
                 
                 <?php 

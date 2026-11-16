@@ -1,7 +1,7 @@
 <?php $title = 'Edit User'; ob_start(); ?>
-<h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+<h1 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
     Edit User
-</h2>
+</h1>
 <?php $header = ob_get_clean(); ?>
 
 <?php ob_start(); ?>
@@ -23,12 +23,12 @@
                         
                         <div>
                             <label for="name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Full Name *</label>
-                            <input type="text" name="name" id="name" value="<?= htmlspecialchars($user['name']) ?>" required class="mt-1 block w-full border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:border-accent-1 focus:ring-accent-1 sm:text-sm p-2 border">
+                            <input type="text" name="name" id="name" autocomplete="off" value="<?= htmlspecialchars($user['name']) ?>" required class="mt-1 block w-full border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:border-accent-1 focus:ring-accent-1 sm:text-sm p-2 border">
                         </div>
 
                         <div>
                             <label for="email" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Username / Email *</label>
-                            <input type="text" name="email" id="email" value="<?= htmlspecialchars($user['email']) ?>" required class="mt-1 block w-full border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:border-accent-1 focus:ring-accent-1 sm:text-sm p-2 border">
+                            <input type="text" name="email" id="email" autocomplete="off" value="<?= htmlspecialchars($user['email']) ?>" required class="mt-1 block w-full border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:border-accent-1 focus:ring-accent-1 sm:text-sm p-2 border">
                         </div>
 
                         <div>

@@ -1,7 +1,9 @@
 <?php
 
 /**
- * Manual responsive-layout check: screenshots every main page at 360 px and 1280 px and reports horizontal overflow.
+ * Manual browser checks: (1) responsive layout: screenshots every main page at 360, 1024 and 1280 px and reports horizontal
+ * overflow (page-screenshots.mjs); (2) accessibility: keyboard pass of every modal dialog plus a markup audit of every
+ * page at 1280 and 360 px (accessibility-check.mjs). One launcher runs both.
  *
  * Usage (from working-php/):
  *   composer manual:page-screenshots            or            php scripts/manual/page-screenshots.php
@@ -88,6 +90,36 @@ $keylessUser = 'personnel.unit';
     [':email' => $keylessUser]
 );
 
+// A stored integrity-check result that names one log entry of the completed document, so System Overview lists an issue with a
+// real "Verify Hash" button (the log itself is untouched; the page's debug endpoint recomputes its hash). Written under .test/cache.
+$resultPath = \App\Modules\Integrity\Jobs\IntegrityCheckJob::resultPath();
+if (!is_dir(dirname($resultPath))) {
+    mkdir(dirname($resultPath), 0755, true);
+}
+$flaggedLogId = (int) \App\Common\Database\Database::getInstance()->query(
+    'SELECT id FROM document_logs WHERE document_id = :id ORDER BY id LIMIT 1',
+    [':id' => $completed['id']]
+)->fetchColumn();
+file_put_contents($resultPath, json_encode([
+    'verified_percentage' => 50,
+    'last_checked' => date('Y-m-d H:i:s'),
+    'mismatched_ids' => [$flaggedLogId],
+    'mismatched_document_tracking_codes' => [],
+]));
+
+// One failed job, so System Overview offers "View Details", "Clear ALL failed jobs" and per-job "Resolve" (confirm-action forms)
+\App\Common\Database\Database::getInstance()->query(
+    'INSERT INTO failed_jobs (uuid, connection, queue, payload, exception) VALUES (:uuid, :connection, :queue, :payload, :exception)',
+    [':uuid' => 'fixture-failed-job-1', ':connection' => 'database', ':queue' => 'default', ':payload' => json_encode(['displayName' => 'ExampleJob']), ':exception' => 'Example failure for the accessibility check']
+);
+
+// One placeholder backup archive (under .test/) so the Backup Manager lists a row with its Restore button
+$backupDirectory = \App\Modules\System\BackupService::directory();
+if (!is_dir($backupDirectory)) {
+    mkdir($backupDirectory, 0755, true);
+}
+file_put_contents($backupDirectory . '/example-backup.zip', '');
+
 // Find a free port by binding port 0 and releasing it
 $probe = stream_socket_server('tcp://127.0.0.1:0', $errorNumber, $errorMessage);
 $port = (int) explode(':', stream_socket_get_name($probe, false))[1];
@@ -160,13 +192,22 @@ $context = [
 $contextFile = Config::testPath('screens/context.json');
 file_put_contents($contextFile, json_encode($context, JSON_PRETTY_PRINT));
 
-// Run the Node script in the foreground and pass its exit code on
-$command = [
-    'node',
-    __DIR__ . '/page-screenshots.mjs',
-    $contextFile,
-];
-$node = proc_open($command, [0 => STDIN, 1 => STDOUT, 2 => STDERR], $nodePipes, BASE_PATH);
-$exitCode = is_resource($node) ? proc_close($node) : 1;
+// Run the Node scripts one after the other in the foreground (layout check first, then the accessibility check,
+// which also creates report and integrity jobs) and pass on the worst exit code
+$exitCode = 0;
+foreach (['page-screenshots.mjs', 'accessibility-check.mjs'] as $script) {
+    // The output (stderr merged into stdout) is relayed through a pipe: children that inherit a redirected STDOUT/STDERR
+    // file reset its offset, so the second script would overwrite the lines of the first
+    $node = proc_open(['node', __DIR__ . '/' . $script, $contextFile], [0 => ['file', '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['redirect', 1]], $nodePipes, BASE_PATH);
+    if (!is_resource($node)) {
+        $exitCode = 1;
+        continue;
+    }
+    while (($line = fgets($nodePipes[1])) !== false) {
+        fwrite(STDOUT, $line);
+    }
+    fclose($nodePipes[1]);
+    $exitCode = max($exitCode, proc_close($node));
+}
 $stopServer();
 exit($exitCode);
