@@ -8,9 +8,9 @@
 
 <?php ob_start(); ?>
 <div class="py-10">
-    <div class="mx-[20vh] sm:px-6 lg:px-8 space-y-6">
+    <div class="px-4 sm:px-6 lg:px-8 xl:mx-[20vh] space-y-6">
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900 dark:text-gray-100">
+                <div class="p-4 sm:p-6 text-gray-900 dark:text-gray-100">
                     <div class="flex justify-between items-center mb-6">
                         <h3 class="text-2xl font-bold">Global Analytics</h3>
                         <form action="/clear-personal-cache" method="POST" class="confirm-action m-0" data-message="Are you sure you want to clear your dashboard cache? This will refresh your view but preserve others' caches.">
@@ -37,7 +37,7 @@
 
                                 <!-- Document Status Distribution Chart -->
                                 <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-inner flex flex-col justify-between">
-                                    <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-600 pb-3 mb-4 h-[68px]">
+                                    <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-600 pb-3 mb-4 gap-2 md:gap-0 md:h-[68px]">
                                         <h4 class="text-lg font-bold">Document Status Distribution</h4>
                                     </div>
                                     <div class="relative h-64 flex-grow">
@@ -47,9 +47,9 @@
 
                                 <!-- Global Throughput Chart -->
                                 <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-inner flex flex-col justify-between">
-                                    <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-600 pb-3 mb-4 h-[68px]">
+                                    <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-600 pb-3 mb-4 gap-2 md:gap-0 md:h-[68px]">
                                         <h4 class="text-lg font-bold leading-tight pr-2">Departmental Average TAT over time (hrs)</h4>
-                                        <select id="globalThroughputPeriod" class="filter-input border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-1.5 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1 text-xs shrink-0">
+                                        <select id="globalThroughputPeriod" class="min-w-0 filter-input border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-1.5 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1 text-xs">
                                             <option value="daily">Daily</option>
                                             <option value="weekly">Weekly</option>
                                             <option value="monthly">Monthly</option>
@@ -63,9 +63,9 @@
 
                                 <!-- Average Processing Time by Dept Chart -->
                                 <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-inner flex flex-col justify-between">
-                                    <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-600 pb-3 mb-4 h-[68px]">
+                                    <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-600 pb-3 mb-4 gap-2 md:gap-0 md:h-[68px]">
                                         <h4 class="text-lg font-bold leading-tight pr-2">Average TAT by Department (hrs)</h4>
-                                        <button id="view-all-avg-tat-btn" type="button" class="flex-shrink-0 inline-flex items-center px-4 py-2 bg-accent-1 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-1-hover focus:bg-indigo-500 active:bg-indigo-900 focus:outline-none focus:ring-2 focus:ring-accent-1 focus:ring-offset-2 transition ease-in-out duration-150 shadow-sm h-[32px]">
+                                        <button id="view-all-avg-tat-btn" type="button" class="flex-shrink-0 inline-flex items-center px-4 md:px-3 2xl:px-4 py-2 bg-accent-1 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-1-hover focus:bg-indigo-500 active:bg-indigo-900 focus:outline-none focus:ring-2 focus:ring-accent-1 focus:ring-offset-2 transition ease-in-out duration-150 shadow-sm h-[32px]">
                                             View All
                                         </button>
                                     </div>
@@ -81,7 +81,7 @@
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <!-- Decline Trends Chart -->
                                 <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-inner flex flex-col justify-between">
-                                    <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-600 pb-3 mb-4 h-[48px]">
+                                    <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-600 pb-3 mb-4 gap-2 md:gap-0 md:h-[48px]">
                                         <h4 class="text-lg font-bold pr-2">Decline Rate Trends</h4>
                                         <select id="returnDeclinePeriod" class="filter-input border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-1.5 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1 text-xs shrink-0">
                                             <option value="daily">Daily</option>
@@ -97,7 +97,7 @@
 
                                 <!-- Peak Intake Hours Chart -->
                                 <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-inner flex flex-col justify-between">
-                                    <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-600 pb-3 mb-4 h-[48px]">
+                                    <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-600 pb-3 mb-4 gap-2 md:gap-0 md:h-[48px]">
                                         <h4 class="text-lg font-bold">Peak Intake Hours (Submissions by Hour)</h4>
                                     </div>
                                     <div class="relative h-64 flex-grow">
@@ -112,8 +112,8 @@
                             <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-inner">
                                 <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-200 dark:border-gray-600 pb-3 mb-4 gap-3">
                                     <h4 id="load-vs-time-title" class="text-lg font-bold">Load vs. Processing Time</h4>
-                                    <div class="flex flex-row flex-wrap items-center gap-3 shrink-0">
-                                        <select id="department-filter" class="filter-input border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-1.5 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1 text-xs">
+                                    <div class="flex flex-row flex-wrap items-center gap-3 max-w-full sm:shrink-0">
+                                        <select id="department-filter" class="max-w-full filter-input border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-1.5 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1 text-xs">
                                             <?php foreach($departments as $department): ?>
                                                 <option value="<?= htmlspecialchars($department['id']) ?>"><?= htmlspecialchars($department['name']) ?></option>
                                             <?php endforeach; ?>
@@ -137,7 +137,7 @@
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <!-- Processing Hotspots Chart -->
                                 <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-inner flex flex-col justify-between">
-                                    <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-600 pb-3 mb-4 h-[48px]">
+                                    <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-600 pb-3 mb-4 gap-2 md:gap-0 md:h-[48px]">
                                         <h4 class="text-lg font-bold">Processing Hotspots (Purpose Popularity)</h4>
                                     </div>
                                     <div class="relative h-96 flex-grow">
@@ -147,7 +147,7 @@
 
                                 <!-- Submission Volume by District Chart -->
                                 <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-inner flex flex-col justify-between">
-                                    <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-600 pb-3 mb-4 h-[48px]">
+                                    <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-600 pb-3 mb-4 gap-2 md:gap-0 md:h-[48px]">
                                         <h4 class="text-lg font-bold">Submission Volume by District</h4>
                                     </div>
                                     <div class="relative h-96 flex-grow">

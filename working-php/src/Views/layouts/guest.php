@@ -74,7 +74,8 @@
         </button>
     </div>
 
-    <div class="container mx-auto px-4 py-10 max-w-4xl">
+    <!-- On phones the fixed button bar needs its own row above the logo -->
+    <div class="container mx-auto px-4 pt-20 pb-10 sm:py-10 max-w-4xl">
         <div class="text-center mb-10 flex flex-col items-center">
             <img src="/images/logoipsum-411.png" alt="DTS Logo" class="h-16 w-auto mb-4 dark:brightness-200">
             <h1 class="text-3xl font-bold">Document Tracking System</h1>

@@ -1,5 +1,5 @@
 <?php $title = 'Manage Route — ' . ($document['tracking_code'] ?? 'Document'); ob_start(); ?>
-<div class="flex justify-between items-center w-full">
+<div class="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center w-full">
     <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
         Manage Document Route: <?php echo htmlspecialchars($document['tracking_code']); ?>
     </h2>
@@ -16,7 +16,7 @@
 <?php ob_start(); ?>
 
 <div class="py-10">
-    <div class="mx-[20vh] sm:px-6 lg:px-8 space-y-6">
+    <div class="px-4 sm:px-6 lg:px-8 xl:mx-[20vh] space-y-6">
         
         <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
             <div class="p-6 text-gray-900 dark:text-gray-100">

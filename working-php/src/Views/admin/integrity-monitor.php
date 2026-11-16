@@ -6,7 +6,7 @@
 
 <?php ob_start(); ?>
 <div class="py-10">
-    <div class="mx-[20vh] sm:px-6 lg:px-8 space-y-6">
+    <div class="px-4 sm:px-6 lg:px-8 xl:mx-[20vh] space-y-6">
         <?php 
             $panelTitle = 'All Documents';
             

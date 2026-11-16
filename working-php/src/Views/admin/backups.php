@@ -6,7 +6,7 @@
 
 <?php ob_start(); ?>
 <div class="py-10">
-    <div class="mx-[20vh] sm:px-6 lg:px-8 space-y-6">
+    <div class="px-4 sm:px-6 lg:px-8 xl:mx-[20vh] space-y-6">
         <!-- Action Buttons -->
         <div class="flex justify-end mb-6">
             <form id="create-backup-form" action="/system/backups/create" method="POST">
@@ -89,7 +89,7 @@
 
 <!-- Restore Modal -->
 <div id="restore-modal" style="display:none;" class="fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-75">
-    <div class="bg-white p-6 rounded-lg shadow-xl max-w-md w-full">
+    <div class="bg-white p-6 mx-4 rounded-lg shadow-xl max-w-md w-full">
         <form id="restore-form" method="POST" class="sign-action" data-message="Enter your Security PIN to restore this backup. The current database is backed up first.">
             <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
             <input type="hidden" name="pin" class="sign-pin-input">

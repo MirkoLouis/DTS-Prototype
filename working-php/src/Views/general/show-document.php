@@ -1,5 +1,5 @@
 <?php $title = 'Document — ' . ($document['tracking_code'] ?? 'Details'); ob_start(); ?>
-<div class="flex justify-between items-center w-full">
+<div class="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center w-full">
     <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
         Document Details: <?php echo htmlspecialchars($document['tracking_code']); ?>
     </h2>
@@ -40,7 +40,7 @@
 
 <?php ob_start(); ?>
 <div class="py-10">
-    <div class="mx-[20vh] sm:px-6 lg:px-8 space-y-6">
+    <div class="px-4 sm:px-6 lg:px-8 xl:mx-[20vh] space-y-6">
         <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
             <div class="p-6 text-gray-900 dark:text-gray-100">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -160,9 +160,9 @@
 
                 <!-- Document Logs -->
                 <div class="mt-8">
-                    <div class="flex justify-between items-center mb-4">
+                    <div class="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-4">
                         <h3 class="text-2xl font-bold">Document History</h3>
-                        <div class="flex items-center space-x-2">
+                        <div class="flex flex-wrap items-center gap-2">
                             <a href="/documents/<?php echo htmlspecialchars($document['tracking_code']); ?>/hash-chain" class="inline-flex items-center px-4 py-2 bg-accent-1 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-1-hover active:bg-accent-1-active focus:outline-none focus:ring-2 focus:ring-accent-1 transition ease-in-out duration-150">
                                 View Hash Chain
                             </a>

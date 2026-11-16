@@ -6,7 +6,7 @@
 
 <?php ob_start(); ?>
 <div class="py-10">
-    <div class="mx-[20vh] sm:px-6 lg:px-8 space-y-6">
+    <div class="px-4 sm:px-6 lg:px-8 xl:mx-[20vh] space-y-6">
         
         <?php if (isset($_SESSION['success'])): ?>
             <div class="bg-success-light border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
@@ -24,7 +24,7 @@
 
         <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg" id="users-section">
             <div class="p-6 text-gray-900 dark:text-gray-100">
-                <div class="flex justify-between items-center mb-6">
+                <div class="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-6">
                     <h3 class="text-2xl font-bold">All User Accounts</h3>
                     <a href="/users/create" class="inline-flex items-center px-4 py-2 bg-accent-1 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-1-hover active:bg-accent-1-active focus:outline-none focus:border-accent-1-border-active focus:ring focus:ring-accent-1-light disabled:opacity-25 transition">
                         Create User
@@ -147,7 +147,7 @@
 
 <!-- Reset credentials modal: choose what to reset, then the admin's Security PIN is asked for (SigningModal) -->
 <div id="reset-credentials-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-75">
-    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-xl max-w-md w-full text-gray-900 dark:text-gray-100">
+    <div class="bg-white dark:bg-gray-800 p-6 mx-4 rounded-lg shadow-xl max-w-md w-full text-gray-900 dark:text-gray-100">
         <form id="reset-credentials-form" method="POST" class="sign-action" data-message="Enter your own Security PIN to confirm this reset.">
             <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token'] ?? '') ?>">
             <input type="hidden" name="pin" class="sign-pin-input">

@@ -18,7 +18,7 @@
 $filterConfig = $filterConfig ?? [];
 ?>
 
-<form method="GET" action="" class="flex flex-row flex-wrap md:flex-nowrap items-end gap-3 pb-4 border-b border-gray-200 dark:border-gray-700 w-full mb-6">
+<form method="GET" action="" class="flex flex-row flex-wrap items-end gap-3 pb-4 border-b border-gray-200 dark:border-gray-700 w-full mb-6">
     <?php foreach ($filterConfig as $name => $config): ?>
         <?php 
         $value = $_GET[$name] ?? ($config['type'] === 'select' ? 'all' : ''); 
