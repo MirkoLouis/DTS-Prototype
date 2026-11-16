@@ -126,6 +126,7 @@
         "bench": "phpunit --testsuite benchmark --group benchmark",
         "replay": "php scripts/route-replay.php",
         "manual:live-concurrency": "php scripts/manual/live-concurrency.php",
+        "manual:page-screenshots": "php scripts/manual/page-screenshots.php",
         "dev": "php scripts/dev.php",
         "prod": "php scripts/prod.php",
         "worker": "php console.php",

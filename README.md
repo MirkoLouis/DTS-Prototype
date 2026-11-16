@@ -535,6 +535,22 @@ COMPOSER_PROCESS_TIMEOUT=0 composer manual:live-concurrency -- --base-url=https:
 - It warns if a checkpoint was written during the run, because those chain heads will show as missing in the next audit.
 - Results are appended to `storage/test-results/<run_id>/live-concurrency.csv` (each script run gets its own folder).
 
+**Responsive layout check (`manual:page-screenshots`).** Screenshots the main pages of every role at 360, 1024 and 1280 px and reports layout overflow. It uses the TEST database only: it builds fresh fixtures, starts PHP's built-in server in the testing environment with rate limiting off, runs a headless Chromium through `playwright-core` and stops the server again. It refuses to run unless the configured database name ends in `_test`.
+
+**It resets the TEST database (drops every table and recreates the schema) and shares `.test/` with PHPUnit, so never run it while PHPUnit is running, and never run PHPUnit while it runs.** PHPUnit also empties `.test/` when it finishes, which deletes the screenshots.
+
+`composer run manual:page-screenshots` needs no `COMPOSER_PROCESS_TIMEOUT` override: `composer.json` sets `"process-timeout": 0` under `config` for all scripts.
+
+```bash
+cd working-php
+npm install --prefix .test/browser playwright-core   # once, and again after every PHPUnit run (PHPUnit empties .test/)
+composer manual:page-screenshots                      # or: php scripts/manual/page-screenshots.php
+```
+
+- Needs a headless Chromium: the default path is `~/.cache/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell`; set `CHROMIUM_PATH` to use another binary.
+- Output: `working-php/.test/screens/<width>/<page>.png` (at 360 px also `<page>--menu-open.png`, `<page>--notifications-open.png` and the opened global confirm, signing PIN, Users reset and backups restore modals plus a toast), including the mandatory Security PIN prompt (a fixture account whose signing key was cleared). One line per page: `OK`, `OVERFLOW by N px` (past the viewport; clipped or fixed elements count, content inside a deliberately scrollable `overflow-x: auto` container such as a table does not), `CLIPPED by N px` (past its card's padding) or `SQUEEZED`. At 360 px it also checks that the menu and the notification list close each other and that the menu closes when the viewport grows past `lg`. Exit code 1 when any check fails.
+- `playwright-core` is installed outside `package.json` on purpose; MySQL must already be running.
+
 ---
 
 ## 🔐 Default Test Accounts (Password: `password`)

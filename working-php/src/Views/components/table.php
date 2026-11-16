@@ -25,6 +25,10 @@ $columns = $tableConfig['columns'] ?? [];
 $data = $tableConfig['data'] ?? [];
 $emptyMessage = $tableConfig['empty_message'] ?? 'No records found.';
 $wrapperClasses = $tableConfig['wrapper_classes'] ?? 'overflow-x-auto';
+// A wide table must always scroll inside its own container, whatever classes the caller passes
+if (!str_contains($wrapperClasses, 'overflow-x-auto')) {
+    $wrapperClasses = 'overflow-x-auto ' . $wrapperClasses;
+}
 ?>
 
 <div class="<?= htmlspecialchars($wrapperClasses) ?>">

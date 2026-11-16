@@ -195,10 +195,18 @@
 
             // Swap the navigation links container so the server-rendered active states
             // are perfectly replicated without buggy client-side string matching
-            const newNav = newDoc.getElementById('pjax-nav-links');
-            const currentNav = document.getElementById('pjax-nav-links');
-            if (newNav && currentNav) {
-                currentNav.innerHTML = newNav.innerHTML;
+            // The desktop bar and the mobile menu hold the same links, so both are swapped
+            ['pjax-nav-links', 'pjax-mobile-nav-links'].forEach((navId) => {
+                const newNav = newDoc.getElementById(navId);
+                const currentNav = document.getElementById(navId);
+                if (newNav && currentNav) {
+                    currentNav.innerHTML = newNav.innerHTML;
+                }
+            });
+
+            // Close the mobile menu after in-app navigation
+            if (typeof window.closeMobileMenu === 'function') {
+                window.closeMobileMenu();
             }
 
             // Synchronize notification bell badge and dropdown list across PJAX swaps

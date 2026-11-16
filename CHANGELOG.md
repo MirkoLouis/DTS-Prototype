@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 
 ## 2026-11-16
 
+**Version:** 2.7.8
+
+### Changed
+- Responsive layout: the main pages are usable at 360 px without the page scrolling sideways, and look the same at desktop width (1280 px and up).
+- Navigation: below the `lg` breakpoint the role's links are in a navigation menu opened by a menu button (`aria-controls`, `aria-expanded`, a visually hidden label). The links are defined once in `layouts/app.php` and rendered for both the desktop bar and the menu; the menu also holds the change-password link and Log Out. In-app navigation (`pjax-router.js`) swaps the menu links so the active link stays current and closes the menu. The theme toggle and the notification bell stay visible on phones.
+- Dropdowns and toasts: the notification list spans the viewport width on phones and drops down from the bell from `sm` up; toasts span the width on phones.
+- Page containers: the fixed side margin `mx-[20vh]` now applies only from the `xl` breakpoint (1280 px); smaller screens get normal padding. Applied to every page that had it (including account password, system health, backups and Users). **Deliberate change:** between 1024 and 1279 px, page content is now full width with normal padding; it used to keep the wide side margin there.
+- The filter row of `components/table-filters.php` (Intake, Completed, Tasks, All Documents, Users and the data panels) wraps inside its card instead of forcing one line from `md` up; before, the Clear button stuck out past the card at 1280 px. Look unchanged when the controls fit.
+- The mobile menu swaps all page-dependent entries (role links and Change password) with in-app navigation; it closes when the viewport grows past `lg` and when the notification list opens (and the list closes when the menu opens).
+- Admin dashboard: three chart-header controls no longer stick out of their cards at 360 and 1280 px; the Users reset and backups restore modals keep a side margin on phones.
+- Header and button rows (document view, manage route, hash chain, Users, data panels, department analytics, pagination, modal footer, admin dashboard chart headers) stack vertically on small screens. The guest layout leaves a row for the fixed button bar above the logo.
+- `components/table.php` always wraps the table in a horizontally scrollable container.
+- `public/css/tailwind.css` rebuilt.
+
+### Added
+- `composer manual:page-screenshots` (`scripts/manual/page-screenshots.php` and `.mjs`): screenshots every main page at 360 px and 1280 px against the test database and reports horizontal overflow (see the README, manual tests).
+- Tests in `LayoutAssetsTest`: menu button and `aria-controls`, mobile menu equals desktop bar per role, active link in both, scrollable table wrapper, no unconditional `mx-[20vh]`, new classes exist in the built CSS.
+
+## 2026-11-16
+
 **Version:** 2.7.7
 
 ### Security
