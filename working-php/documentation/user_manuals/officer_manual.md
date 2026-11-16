@@ -64,6 +64,7 @@ Your sign-in password is part of your sign-in credentials; it proves who you are
    - Prompt Modal: Enter your **Security PIN**.
    - The system calculates the initial SHA-256 state hash, generates your Ed25519 signature, and logs `Accepted and Document Routing finalized` in `document_logs`.
 6. **Print Tracking Form:** Click **Print Tracking Form** to generate a printable PDF containing the tracking code and scannable QR code (`/documents/{tracking_code}/print-tracking-form`). Attach this form to the physical paper folder.
+   - A connection can open at most 10 tracking forms per minute; beyond that the page says "Too Many Requests" and how many seconds to wait.
    - Only the client's own browser session (right after submitting), Records Officers, admins, and staff whose department is on the document's route can open this PDF, because it shows the client's contact details.
 
 ### 4.2 Scanning & Receiving Physical Documents (`/documents/scan`)

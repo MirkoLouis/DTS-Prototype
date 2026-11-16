@@ -57,6 +57,15 @@ if (\App\Common\Config\Config::get('app', 'env') === 'testing') {
         render_error_page((int) ($_GET['status'] ?? 500), $_GET['message'] ?? null, isset($_GET['retry']) ? (int) $_GET['retry'] : null);
     });
 
+    // Test-only: the client-supplied forwarding header and the connecting address the server saw
+    $router->get('/__test/client-headers', function () {
+        header('Content-Type: application/json');
+        echo json_encode([
+            'x_forwarded_for' => $_SERVER['HTTP_X_FORWARDED_FOR'] ?? null,
+            'remote_addr' => $_SERVER['REMOTE_ADDR'] ?? null,
+        ]);
+    });
+
     // Test-only: an unhandled exception whose text must never reach the visitor (GET and POST)
     $router->get('/__test/throw', function () {
         throw new \RuntimeException('secret-detail in /srv/app/Secret.php');
@@ -89,14 +98,15 @@ $router->post('/login', [App\Modules\Auth\AuthController::class, 'login']);
 $router->post('/logout', [App\Modules\Auth\AuthController::class, 'logout']);
 
 // --- Guest / Public Routes ---
+// Public routes that do real work are rate limited per IP; the limits are the RateLimitMiddleware constants
 $router->get('/', [App\Modules\Documents\GuestController::class, 'welcome'], [
     App\Common\Middleware\CacheMiddleware::class . ':55'
 ]);
-$router->post('/submit-document', [App\Modules\Documents\GuestController::class, 'store']);
+$router->post('/submit-document', [App\Modules\Documents\GuestController::class, 'store'], [App\Common\Middleware\RateLimitMiddleware::class . ':' . App\Common\Middleware\RateLimitMiddleware::SUBMIT]);
 $router->get('/success', [App\Modules\Documents\GuestController::class, 'success']);
-$router->get('/track', [App\Modules\Documents\GuestController::class, 'track']);
-$router->get('/api/track/module/(?P<tracking_code>[A-Za-z0-9\-]+)', [App\Modules\Documents\GuestController::class, 'getTrackedDocumentModule']);
-$router->get('/api/track/status', [App\Modules\Documents\GuestController::class, 'getStatusUpdates']);
+$router->get('/track', [App\Modules\Documents\GuestController::class, 'track'], [App\Common\Middleware\RateLimitMiddleware::class . ':' . App\Common\Middleware\RateLimitMiddleware::TRACK]);
+$router->get('/api/track/module/(?P<tracking_code>[A-Za-z0-9\-]+)', [App\Modules\Documents\GuestController::class, 'getTrackedDocumentModule'], [App\Common\Middleware\RateLimitMiddleware::class . ':' . App\Common\Middleware\RateLimitMiddleware::TRACK_MODULE]);
+$router->get('/api/track/status', [App\Modules\Documents\GuestController::class, 'getStatusUpdates'], [App\Common\Middleware\RateLimitMiddleware::class . ':' . App\Common\Middleware\RateLimitMiddleware::TRACK_POLL]);
 
 // Role-based dashboard redirect — routes each role to its dedicated landing page.
 $router->get('/dashboard', function() {
@@ -323,7 +333,7 @@ $router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/hash-chain', [App\Mod
     App\Common\Middleware\AuthMiddleware::class,
     App\Common\Guards\RoleGuard::class . ':admin,officer,staff'
 ]);
-$router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/print-tracking-form', [App\Modules\Documents\DocumentController::class, 'printTrackingForm']);
+$router->get('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/print-tracking-form', [App\Modules\Documents\DocumentController::class, 'printTrackingForm'], [App\Common\Middleware\RateLimitMiddleware::class . ':' . App\Common\Middleware\RateLimitMiddleware::PDF]);
 
 $router->post('/documents/(?P<tracking_code>[A-Za-z0-9\-]+)/freeze', [App\Modules\System\SystemHealthController::class, 'freeze'], [
     App\Common\Middleware\AuthMiddleware::class,

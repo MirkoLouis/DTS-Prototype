@@ -84,3 +84,7 @@ SET @sql = IF(@missing, 'ALTER TABLE users ADD COLUMN session_version INT UNSIGN
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
+
+-- 2026-11-16: per-IP rate limiting of the public guest routes (fixed window; the key is SHA-256 of bucket|client IP,
+-- expires_at is the Unix time the window ends)
+CREATE TABLE IF NOT EXISTS rate_limits ( rate_key CHAR(64) PRIMARY KEY, hits INT UNSIGNED NOT NULL, expires_at INT UNSIGNED NOT NULL, INDEX idx_rate_limits_expires_at (expires_at) );

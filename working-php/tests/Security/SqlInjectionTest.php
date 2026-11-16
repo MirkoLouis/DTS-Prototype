@@ -44,7 +44,8 @@ class SqlInjectionTest extends TestCase
      */
     public function test_sql_injection_payloads_have_no_effect(): void
     {
-        $client = HttpClient::start();
+        // 35 submissions from one IP exceed the per-IP submission limit, which is not what this suite tests
+        $client = HttpClient::startWithoutRateLimit();
 
         // Baseline row counts; only legitimate guest submissions (payload stored as plain text) may change them
         $documentsBefore = $this->rowCount('documents');

@@ -25,6 +25,18 @@ class Database
      */
     private function connect(): void
     {
+        $this->connection = self::openConnection();
+    }
+
+    /**
+     * Open a new, independent PDO connection with the application's settings.
+     *
+     * Callers that must commit outside the request's transaction (rate limiting) use this instead of the shared instance.
+     *
+     * @throws Exception when the server cannot be reached
+     */
+    public static function openConnection(): PDO
+    {
         $config = require BASE_PATH . '/src/Common/Config/app.config.php';
         $dbConfig = $config['database'];
 
@@ -42,10 +54,12 @@ class Database
         try {
             // Establish the PDO connection. We wrap this in a try-catch to prevent leaking 
             // raw database credentials directly to the user/logs on connection failure.
-            $this->connection = new PDO($dsn, $dbConfig['user'], $dbConfig['password'], $options);
+            $connection = new PDO($dsn, $dbConfig['user'], $dbConfig['password'], $options);
 
             // Run the session on Philippine time so SQL NOW() matches the Asia/Manila times PHP writes
-            $this->connection->exec("SET time_zone = '+08:00'");
+            $connection->exec("SET time_zone = '+08:00'");
+
+            return $connection;
         } catch (PDOException $e) {
             // In a real production app, we would log this securely and show a generic error
             error_log("Database Connection Failed: " . $e->getMessage());

@@ -67,6 +67,48 @@ class GuestSubmissionConcurrencyTest extends TestCase
         $this->assertLessThan(2 * $slowest, $batch, sprintf('Batch took %.3fs, slowest single request %.3fs: the server is serializing requests.', $batch, $slowest));
     }
 
+    // Simultaneous submissions from one IP against the LIMITED server: exactly 10 are accepted, the rest get 429
+    public function test_simultaneous_submissions_cannot_exceed_the_rate_limit(): void
+    {
+        // An external server's limiter setting is unknown, so only the built-in server is used
+        if (getenv('TEST_BASE_URL')) {
+            $this->markTestSkipped('Needs the built-in server started with rate limiting on.');
+        }
+
+        $workers = 30;
+        $db = Database::getInstance();
+        $purposeId = (int) $db->query('SELECT id FROM purposes WHERE is_official = 1 ORDER BY id LIMIT 1')->fetch()['id'];
+        HttpClient::start();
+
+        // Every worker holds its own session and CSRF token (loaded before the barrier), then posts at the shared start
+        $results = Barrier::forkAll($workers, function (int $i, HttpClient $client) use ($purposeId): array {
+            $response = $client->post('/submit-document', [
+                'guest_name' => "Limit Guest {$i}",
+                'guest_email' => "limit{$i}@example.com",
+                'guest_phone' => '09171234567',
+                'district' => 'N/A',
+                'department' => 'Records Unit',
+                'title' => "LIMIT-{$i}",
+                'purpose_id' => (string) $purposeId,
+            ]);
+
+            return ['status' => $response['status'], 'location' => $response['headers']['location'] ?? ''];
+        }, function (int $i): HttpClient {
+            $client = HttpClient::start();
+            $client->get('/');
+
+            return $client;
+        });
+
+        // Exactly the limit is accepted, everything else is refused, and only accepted requests created documents
+        $accepted = count(array_filter($results, fn($r) => $r['status'] === 302 && str_starts_with($r['location'], '/success')));
+        $refused = count(array_filter($results, fn($r) => $r['status'] === 429));
+        $documents = (int) $db->query('SELECT COUNT(*) c FROM documents')->fetch()['c'];
+        $this->assertSame(10, $accepted, 'accepted: ' . json_encode(array_column($results, 'status')));
+        $this->assertSame($workers - 10, $refused);
+        $this->assertSame(10, $documents);
+    }
+
     // N simultaneous kiosk submissions each get a distinct code that maps back to their own document
     public function test_100_simultaneous_submissions_get_unique_matching_codes(): void
     {
@@ -76,7 +118,8 @@ class GuestSubmissionConcurrencyTest extends TestCase
         $purposeId = (int) $db->query('SELECT id FROM purposes WHERE is_official = 1 ORDER BY id LIMIT 1')->fetch()['id'];
 
         // Make sure the server is up before any child needs it
-        $warmer = HttpClient::start();
+        // The batch submits from one IP, far above the per-IP submission limit, so the server runs without the limiter
+        $warmer = HttpClient::startWithoutRateLimit();
 
         // Each repetition is one simultaneous batch
         for ($run = 1; $run <= $runs; $run++) {
@@ -89,7 +132,7 @@ class GuestSubmissionConcurrencyTest extends TestCase
             // Every worker is an independent kiosk session: the form (CSRF) loads before the barrier,
             // so only the POSTs are released together at the shared start
             $openForm = function (int $i): HttpClient {
-                $client = HttpClient::start();
+                $client = HttpClient::startWithoutRateLimit();
                 $client->get('/');
 
                 return $client;

@@ -25,6 +25,24 @@ class ErrorPage
     private const GENERIC = ['Something went wrong', 'The request could not be completed. Go back and try again.'];
 
     /**
+     * Statuses that have their own wording, in table order.
+     *
+     * @return list<int>
+     */
+    public static function knownStatuses(): array
+    {
+        return array_keys(self::STATUSES);
+    }
+
+    /**
+     * Page title of a status with its own wording (for example "Not Found" for 404).
+     */
+    public static function title(int $status): string
+    {
+        return (self::STATUSES[$status] ?? self::GENERIC)[0];
+    }
+
+    /**
      * Send the error response and stop.
      */
     public static function render(int $status, ?string $message = null, ?int $retryAfterSeconds = null): never

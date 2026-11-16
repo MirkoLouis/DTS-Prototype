@@ -2,6 +2,9 @@
 
 namespace Tests\Http;
 
+use App\Common\Http\ErrorPage;
+use App\Common\Middleware\RateLimitMiddleware;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\HttpClient;
 use Tests\TestCase;
 
@@ -21,6 +24,129 @@ class ErrorPageTest extends TestCase
         $client->withHeader('Accept', 'application/json');
 
         return $client;
+    }
+
+    // Case name => status the application produces for it through a real request (the cases of the test below)
+    private const REAL_REQUEST_CASES = [
+        'a signed-in user opens a page their role may not open' => 403,
+        'a guest opens an unknown address' => 404,
+        'a signed-in user opens an unknown address' => 404,
+        'a POST without a CSRF token' => 419,
+        'the eleventh guest submission within a minute' => 429,
+        'a page request whose handler throws' => 500,
+    ];
+
+    // Statuses in ErrorPage's table that no application code produces (verified by the source scan below). When the
+    // application starts producing one, remove it from this list and add a real-request case to REAL_REQUEST_CASES.
+    // 405: the router answers 404 for an address that matches no route, whatever the method, and never 405.
+    // 503: nothing in the application reports "busy or in maintenance"; NGINX's own 503 is the static gateway page.
+    private const RESERVED_STATUSES = [405, 503];
+
+    // One case per way the application really produces an error page
+    public static function realRequestCases(): array
+    {
+        $cases = [];
+        foreach (array_keys(self::REAL_REQUEST_CASES) as $name) {
+            $cases[$name] = [$name];
+        }
+
+        return $cases;
+    }
+
+    // Make the real request of a case; returns [response, expected status, expected back link]
+    private function produce(string $case): array
+    {
+        $guest = HttpClient::start();
+        switch ($case) {
+            case 'a signed-in user opens a page their role may not open':
+                // Staff may not open the admin-only user list
+                $guest->loginAs('cash.unit');
+                return [$guest->get('/users'), 403, '/tasks'];
+            case 'a guest opens an unknown address':
+                return [$guest->get('/no-such-page'), 404, '/'];
+            case 'a signed-in user opens an unknown address':
+                $guest->loginAs('admin');
+                return [$guest->get('/no-such-page'), 404, '/admin-dashboard'];
+            case 'a POST without a CSRF token':
+                $guest->get('/');
+                return [$guest->post('/submit-document', ['guest_name' => 'x'], false), 419, '/'];
+            case 'the eleventh guest submission within a minute':
+                // The limit comes from the route's own constant ("bucket,max,windowSeconds"), not a copied number
+                $max = (int) explode(',', RateLimitMiddleware::SUBMIT)[1];
+                $fields = [
+                    'guest_name' => 'Error Page Guest', 'guest_email' => 'errors@example.com', 'guest_phone' => '09171234567',
+                    'district' => 'N/A', 'department' => 'Records Unit', 'title' => 'Error page check',
+                    'purpose_id' => (string) reset($this->fx['purposes']),
+                ];
+                for ($i = 0; $i <= $max; $i++) {
+                    $guest->get('/');
+                    $response = $guest->post('/submit-document', $fields);
+                }
+                return [$response, 429, '/'];
+            case 'a page request whose handler throws':
+                // No production route throws on demand, so the test-only route stands in for any failing handler
+                return [$guest->get('/__test/throw'), 500, '/'];
+        }
+        $this->fail("unknown case {$case}");
+    }
+
+    // Every status the application produces is reached by a real request and answered with the shared styled page
+    #[DataProvider('realRequestCases')]
+    public function test_each_error_page_is_reached_by_a_real_request(string $case): void
+    {
+        [$response, $status, $backLink] = $this->produce($case);
+
+        // The status, and the shared page: its status number, its title from ErrorPage's table, a way back
+        $this->assertSame($status, $response['status'], $case);
+        $this->assertStringContainsString('text/html', $response['headers']['content-type'] ?? '', $case);
+        $this->assertStringContainsString((string) $status, $response['body'], $case);
+        $this->assertStringContainsString(htmlspecialchars(ErrorPage::title($status)), $response['body'], $case);
+        $this->assertStringContainsString('href="' . $backLink . '"', $response['body'], $case);
+        $this->assertStringContainsString('</html>', $response['body'], $case);
+
+        // A rate-limited response says when to come back
+        if ($status === 429) {
+            $this->assertGreaterThanOrEqual(1, (int) ($response['headers']['retry-after'] ?? 0), $case);
+        }
+    }
+
+    // Statuses with a page but no producer are exactly the documented reserved set, so an unused page cannot hide
+    public function test_unproduced_statuses_are_exactly_the_reserved_set(): void
+    {
+        $producedByRealRequests = array_unique(array_values(self::REAL_REQUEST_CASES));
+        $unproduced = array_values(array_diff(ErrorPage::knownStatuses(), $producedByRealRequests));
+        sort($unproduced);
+        $this->assertSame(self::RESERVED_STATUSES, $unproduced, 'ErrorPage has a page that no real-request case reaches: add a case, or list the status as reserved.');
+
+        // Nothing in the application produces a reserved status; when it starts to, move it out of RESERVED_STATUSES
+        $files = iterator_to_array(new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(BASE_PATH . '/src', \FilesystemIterator::SKIP_DOTS)), false);
+        $files[] = new \SplFileInfo(BASE_PATH . '/public/index.php');
+        $files[] = new \SplFileInfo(BASE_PATH . '/console.php');
+        foreach ($files as $file) {
+            // Only PHP sources, and not the status table or helper docs themselves
+            if ($file->getExtension() !== 'php' || in_array($file->getFilename(), ['ErrorPage.php', 'helpers.php'], true)) {
+                continue;
+            }
+            foreach (self::RESERVED_STATUSES as $reserved) {
+                $this->assertDoesNotMatchRegularExpression(
+                    '/(render_error_page|ErrorPage::render|abort)\(\s*' . $reserved . '\b/',
+                    file_get_contents($file->getPathname()),
+                    "{$file->getFilename()} now produces {$reserved}: remove it from RESERVED_STATUSES and add a real-request case."
+                );
+            }
+        }
+    }
+
+    // An address under /api/ answers JSON even when the caller sent no Accept header
+    public function test_unknown_api_address_answers_json_404(): void
+    {
+        $response = HttpClient::start()->get('/api/no-such-endpoint');
+
+        $this->assertSame(404, $response['status']);
+        $this->assertStringContainsString('application/json', $response['headers']['content-type'] ?? '');
+        $body = json_decode($response['body'], true);
+        $this->assertFalse($body['success']);
+        $this->assertNotSame('', $body['message']);
     }
 
     // An unknown route is a 404 page for a guest, with a way back to the start page

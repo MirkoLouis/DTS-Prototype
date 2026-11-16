@@ -99,6 +99,35 @@ class SeedGuardTest extends TestCase
         $this->assertSame(['deped_dts', 'other_db', null], json_decode($output, true));
     }
 
+    // A 429 from the server gives the API seeder a clear message that names RATE_LIMIT_ENABLED; other statuses give none
+    public function test_rate_limited_response_gives_a_clear_message(): void
+    {
+        $script = 'const g = require(process.argv[1]);'
+            . 'process.stdout.write(JSON.stringify([g.rateLimitMessage(429, "60"), g.rateLimitMessage(429, null), g.rateLimitMessage(200, null), g.rateLimitMessage(500, null)]));';
+        $process = proc_open(['node', '-e', $script, BASE_PATH . '/scripts/seeders/seed-guard.js'], [['file', '/dev/null', 'r'], ['pipe', 'w'], ['pipe', 'w']], $pipes);
+        $output = stream_get_contents($pipes[1]);
+        $errors = stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        $this->assertSame(0, proc_close($process), "node failed: {$errors}");
+
+        [$withRetry, $withoutRetry, $ok, $serverError] = json_decode($output, true);
+        $this->assertStringContainsString('429', $withRetry);
+        $this->assertStringContainsString('60 s', $withRetry);
+        $this->assertStringContainsString('RATE_LIMIT_ENABLED=false', $withRetry);
+        $this->assertStringContainsString('RATE_LIMIT_ENABLED=false', $withoutRetry);
+        $this->assertNull($ok);
+        $this->assertNull($serverError);
+    }
+
+    // The API seeder checks every response with that helper
+    public function test_api_seeder_stops_on_429(): void
+    {
+        $source = file_get_contents(BASE_PATH . '/scripts/seeders/seed.js');
+        $this->assertStringContainsString("require('./seed-guard')", $source);
+        $this->assertStringContainsString('rateLimitMessage(response.status', $source);
+    }
+
     // In the seeder, nothing is cleared, generated or rebuilt before the guard has decided
     public function test_seeder_does_nothing_before_the_guard(): void
     {
