@@ -234,7 +234,8 @@ function initAdminDashboard() {
 
     const openAvgTatModal = () => {
         if (!avgTatModal) return;
-        avgTatModal.classList.remove('hidden');
+        // The shared modal module handles focus, Escape, the backdrop click and the close button
+        ModalDialog.open(avgTatModal, { opener: viewAllAvgTatBtn });
 
         // Fetch full dataset with all departments
         const signal = window.__pjaxController?.signal;
@@ -293,13 +294,6 @@ function initAdminDashboard() {
     if (viewAllAvgTatBtn) {
         viewAllAvgTatBtn.addEventListener('click', openAvgTatModal);
     }
-
-    const closeBtns = document.querySelectorAll('#avg-tat-modal .close-modal-btn, #avg-tat-modal .close-modal-backdrop');
-    closeBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            if (avgTatModal) avgTatModal.classList.add('hidden');
-        });
-    });
 
 
 

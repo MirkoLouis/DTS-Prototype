@@ -80,6 +80,21 @@ Comprehensive user manuals are provided in [working-php/documentation/user_manua
 
 ---
 
+## ♿ Accessibility (`working-php`)
+
+The interface is built to be operated without a mouse and read by a screen reader:
+
+- **Modal dialogs** (confirm, signing PIN, backups restore, Users reset, QR scanner, report progress, decline and the guest tracking dialogs) all use one shared module, `public/js/modal-dialog.js`, following the WAI-ARIA modal dialog pattern: they carry `role="dialog"`, `aria-modal="true"` and a label; focus moves into the dialog on open and back to the control that opened it on close; Tab and Shift+Tab stay inside (focus trap); the page behind is `inert`; Escape or a click outside closes the top dialog (stacked dialogs close one at a time). The mandatory Security PIN prompt is the exception: it cannot be dismissed, it keeps the focus and its Log Out button stays reachable, and a refused PIN is explained inside it (an alert linked to both fields). Dialogs that could not be dismissed by Escape or an outside click before and can now: report progress, integrity progress (the job keeps running; the Run button re-opens its progress), the guest track dialog, backups restore and Users reset. Toasts stay visible and live above an open dialog (they are not made inert); they can be dismissed with the pointer, and Tab stays inside the dialog.
+- **Menus**: the user menu and the notification list are real buttons with `aria-expanded` and `aria-controls`, and close on Escape with the focus back on their button. The unread count is part of the bell's accessible name.
+- **Names and labels**: icon-only buttons and links have an accessible name, decorative icons are hidden from assistive technology, every form control has a label, and failed fields point at their message (`aria-invalid`, `aria-describedby`). Forms carry `autocomplete` hints (login, guest form, password change, Security PIN).
+- **Structure and announcements**: every page has exactly one `h1` (the header bar title, the system name on guest pages, the status title on error pages) and no skipped heading level. Toasts and flash messages are live regions (`role="alert"` for errors and warnings, `role="status"` for success and information); while a dialog is open they stay live, and a refused Security PIN is also shown inside the prompt.
+- **Forms and password managers**: `autocomplete` is a hint, browsers and password managers decide. The signing PIN field uses `off` and the setup fields `new-password`, but a password manager may still offer to fill or save a Security PIN.
+- **Focus** is always visible: no control removes its outline without a focus ring.
+
+Checked by `composer test:accessibility-markup` (HTML level) and by the keyboard pass of the browser check described under "Manual tests". It has not been tested with a real screen reader.
+
+---
+
 ## ⚡ Quick Start (`working-php`)
 
 1. **Navigate to the Active Codebase:**
@@ -404,6 +419,7 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | :--- | :--- |
 | `test:document-toast-code` | Toasts name the document's tracking code once. |
 | `test:layout-assets` | The app layout loads no client-side crypto library, and signing still works. |
+| `test:accessibility-markup` | Pages have one h1 and no skipped heading level; dialogs, buttons and form controls are labelled; autocomplete hints, live regions and focus styles are in place. |
 | `test:tracking-form-print` | Print-tracking-form links on officer pages, none for staff; the slip PDF is served only to the submitting session or to staff allowed to view the document. |
 | `test:cache-query-string` | The response cache stores bare URLs only; URLs with a query string create no cache files. |
 | `test:login-timing` | An unknown username takes about as long to refuse as a wrong password (one bcrypt check either way). |
@@ -535,7 +551,7 @@ COMPOSER_PROCESS_TIMEOUT=0 composer manual:live-concurrency -- --base-url=https:
 - It warns if a checkpoint was written during the run, because those chain heads will show as missing in the next audit.
 - Results are appended to `storage/test-results/<run_id>/live-concurrency.csv` (each script run gets its own folder).
 
-**Responsive layout check (`manual:page-screenshots`).** Screenshots the main pages of every role at 360, 1024 and 1280 px and reports layout overflow. It uses the TEST database only: it builds fresh fixtures, starts PHP's built-in server in the testing environment with rate limiting off, runs a headless Chromium through `playwright-core` and stops the server again. It refuses to run unless the configured database name ends in `_test`.
+**Responsive layout and accessibility check (`manual:page-screenshots`).** One launcher runs two browser scripts: `page-screenshots.mjs` screenshots the main pages of every role at 360, 1024 and 1280 px and reports layout overflow; `accessibility-check.mjs` runs a keyboard pass at 1280 and 360 px (see the last bullet below). It uses the TEST database only: it builds fresh fixtures, starts PHP's built-in server in the testing environment with rate limiting off, runs a headless Chromium through `playwright-core` and stops the server again. It refuses to run unless the configured database name ends in `_test`.
 
 **It resets the TEST database (drops every table and recreates the schema) and shares `.test/` with PHPUnit, so never run it while PHPUnit is running, and never run PHPUnit while it runs.** PHPUnit also empties `.test/` when it finishes, which deletes the screenshots.
 
@@ -549,6 +565,7 @@ composer manual:page-screenshots                      # or: php scripts/manual/p
 
 - Needs a headless Chromium: the default path is `~/.cache/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell`; set `CHROMIUM_PATH` to use another binary.
 - Output: `working-php/.test/screens/<width>/<page>.png` (at 360 px also `<page>--menu-open.png`, `<page>--notifications-open.png` and the opened global confirm, signing PIN, Users reset and backups restore modals plus a toast), including the mandatory Security PIN prompt (a fixture account whose signing key was cleared). One line per page: `OK`, `OVERFLOW by N px` (past the viewport; clipped or fixed elements count, content inside a deliberately scrollable `overflow-x: auto` container such as a table does not), `CLIPPED by N px` (past its card's padding) or `SQUEEZED`. At 360 px it also checks that the menu and the notification list close each other and that the menu closes when the viewport grows past `lg`. Exit code 1 when any check fails.
+- Accessibility pass (`accessibility-check.mjs`, output after the layout lines, one line per page or dialog): for each modal dialog (global confirm, signing PIN alone and on top of the Users reset and backups restore dialogs, Users reset, backups restore, scan QR on three pages, report progress, past reports, integrity progress, verify hash, average TAT, decline, guest tracking and guest QR) it opens the dialog with the keyboard (focus the real opener, press Enter; every dialog has a real opener in the fixtures, including Verify Hash, for which the launcher stores an integrity result naming one log entry), asserts the focus is inside, presses Tab and Shift+Tab at least (number of controls + 2) times and asserts the focus never leaves it and wraps in both directions, asserts the page behind is `inert` or hidden while a toast stays visible and not inert, presses Escape and asserts the dialog closed and the focus is back on the opener. For stacks it re-checks the lower dialog's trap and inert background after the top one closes, and a separate case closes the lower dialog first. The mandatory Security PIN prompt must survive Escape and a click outside, keep Log Out reachable and show a refused PIN inside itself. After an in-app navigation with a dialog (or a stack of two) open, no dialog may be open, nothing may be `inert` and Tab must move through the page; a `confirm-action` form reached by in-app navigation (Users deactivate, Clear ALL failed jobs) must ask first and send exactly one request after "Yes, Proceed" (POSTs are recorded and aborted). Two activations of Generate Report send one job request and re-open the progress; closing the guest QR dialog while the camera is still starting stops the camera (a stub stands in for the camera). On every page it checks exactly one `h1`, no skipped heading level, an accessible name with at least one letter or digit on every button and link, a label on every form control, no duplicate ids and complete `role="dialog"` markup. The Backup Manager lists one placeholder archive (`.test/backups/example-backup.zip`) so its Restore button exists, and System Overview lists one failed job. Not covered: that one Escape closes only one layer when a menu is also open (code-reviewed, not driven), screen readers, browsers other than Chromium. Exit code 1 when any line fails.
 - `playwright-core` is installed outside `package.json` on purpose; MySQL must already be running.
 
 ---

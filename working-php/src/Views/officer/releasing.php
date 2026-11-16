@@ -1,7 +1,7 @@
 <?php $title = 'Document Releasing'; ob_start(); ?>
-<h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+<h1 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
     Document Releasing
-</h2>
+</h1>
 <?php $header = ob_get_clean(); ?>
 
 <?php ob_start(); ?>
@@ -85,7 +85,7 @@ function initReleasingPage() {
             window.SigningModal.show(`Enter your Security PIN to cryptographically sign the release of document: ${trackingCode}`, function(pin) {
                 form.querySelector('.complete-pin-input').value = pin;
                 form.submit();
-            });
+            }, this);
         });
     });
 
@@ -108,7 +108,7 @@ function initReleasingPage() {
                     window.SigningModal.show(`Enter your Security PIN to cryptographically sign the receipt of document: ${trackingCode}`, function(pin) {
                         pinInput.value = pin;
                         scanForm.submit();
-                    });
+                    }, e.submitter);
                 }
             }
         });

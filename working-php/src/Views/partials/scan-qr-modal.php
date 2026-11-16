@@ -31,10 +31,20 @@ require BASE_PATH . '/src/Views/components/modal.php';
         
         let html5QrcodeScanner = null;
 
+        // Stop the camera and remove the scanner UI; never throws (clear() rejects when the scanner never started)
+        function stopScanner() {
+            if (!html5QrcodeScanner) return Promise.resolve();
+            return Promise.resolve(html5QrcodeScanner.clear()).catch(() => {});
+        }
+
+        // However the modal closes (Cancel, Escape, a click outside, a scan) the camera is released
+        qrModal.addEventListener('modaldialog:close', stopScanner);
+
         function onScanSuccess(decodedText, decodedResult) {
             if (html5QrcodeScanner) {
-                html5QrcodeScanner.clear().then(() => {
-                    qrModal.classList.add('hidden');
+                stopScanner().then(() => {
+                    // The page submits the form next, so the focus is not returned to the scan button
+                    ModalDialog.close(qrModal, { restoreFocus: false });
                     if (trackingInput && targetForm) {
                         trackingInput.value = decodedText;
                         if (typeof targetForm.requestSubmit === 'function') {
@@ -51,7 +61,8 @@ require BASE_PATH . '/src/Views/components/modal.php';
 
         if (scanBtn) {
             scanBtn.addEventListener('click', () => {
-                qrModal.classList.remove('hidden');
+                // The shared module opens it (focus trap, Escape, inert page behind) and returns the focus to this button on close
+                ModalDialog.open(qrModal, { opener: scanBtn });
                 if (!html5QrcodeScanner) {
                     html5QrcodeScanner = new Html5QrcodeScanner(
                         "qr-reader", { fps: 10, qrbox: 250 });
@@ -60,15 +71,10 @@ require BASE_PATH . '/src/Views/components/modal.php';
             });
         }
 
+        // Cancel closes through the shared module; the close event above stops the scanner
         if (closeBtn) {
             closeBtn.addEventListener('click', () => {
-                if (html5QrcodeScanner) {
-                    html5QrcodeScanner.clear().then(() => {
-                        qrModal.classList.add('hidden');
-                    });
-                } else {
-                    qrModal.classList.add('hidden');
-                }
+                ModalDialog.close(qrModal);
             });
         }
     }

@@ -1,9 +1,9 @@
 <?php $title = 'Admin Dashboard'; ?>
 
 <?php ob_start(); ?>
-<h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+<h1 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
     Admin Dashboard
-</h2>
+</h1>
 <?php $header = ob_get_clean(); ?>
 
 <?php ob_start(); ?>
@@ -12,10 +12,10 @@
             <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
                 <div class="p-4 sm:p-6 text-gray-900 dark:text-gray-100">
                     <div class="flex justify-between items-center mb-6">
-                        <h3 class="text-2xl font-bold">Global Analytics</h3>
+                        <h2 class="text-2xl font-bold">Global Analytics</h2>
                         <form action="/clear-personal-cache" method="POST" class="confirm-action m-0" data-message="Are you sure you want to clear your dashboard cache? This will refresh your view but preserve others' caches.">
                             <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
-                            <button type="submit" class="inline-flex items-center px-3 py-1 bg-gray-200 dark:bg-gray-700 border border-transparent rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest hover:bg-gray-300 dark:hover:bg-accent-2 focus:outline-none transition">
+                            <button type="submit" class="inline-flex items-center px-3 py-1 bg-gray-200 dark:bg-gray-700 border border-transparent rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest hover:bg-gray-300 dark:hover:bg-accent-2 focus:outline-none focus:ring-2 focus:ring-accent-1 transition">
                                 Clear Cache
                             </button>
                         </form>
@@ -38,7 +38,7 @@
                                 <!-- Document Status Distribution Chart -->
                                 <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-inner flex flex-col justify-between">
                                     <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-600 pb-3 mb-4 gap-2 md:gap-0 md:h-[68px]">
-                                        <h4 class="text-lg font-bold">Document Status Distribution</h4>
+                                        <h3 class="text-lg font-bold">Document Status Distribution</h3>
                                     </div>
                                     <div class="relative h-64 flex-grow">
                                         <canvas id="statusDistributionChart"></canvas>
@@ -48,8 +48,8 @@
                                 <!-- Global Throughput Chart -->
                                 <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-inner flex flex-col justify-between">
                                     <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-600 pb-3 mb-4 gap-2 md:gap-0 md:h-[68px]">
-                                        <h4 class="text-lg font-bold leading-tight pr-2">Departmental Average TAT over time (hrs)</h4>
-                                        <select id="globalThroughputPeriod" class="min-w-0 filter-input border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-1.5 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1 text-xs">
+                                        <h3 class="text-lg font-bold leading-tight pr-2">Departmental Average TAT over time (hrs)</h3>
+                                        <select id="globalThroughputPeriod" aria-label="Period for Departmental Average TAT over time" class="min-w-0 filter-input border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-1.5 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1 text-xs">
                                             <option value="daily">Daily</option>
                                             <option value="weekly">Weekly</option>
                                             <option value="monthly">Monthly</option>
@@ -64,7 +64,7 @@
                                 <!-- Average Processing Time by Dept Chart -->
                                 <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-inner flex flex-col justify-between">
                                     <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-600 pb-3 mb-4 gap-2 md:gap-0 md:h-[68px]">
-                                        <h4 class="text-lg font-bold leading-tight pr-2">Average TAT by Department (hrs)</h4>
+                                        <h3 class="text-lg font-bold leading-tight pr-2">Average TAT by Department (hrs)</h3>
                                         <button id="view-all-avg-tat-btn" type="button" class="flex-shrink-0 inline-flex items-center px-4 md:px-3 2xl:px-4 py-2 bg-accent-1 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-1-hover focus:bg-indigo-500 active:bg-indigo-900 focus:outline-none focus:ring-2 focus:ring-accent-1 focus:ring-offset-2 transition ease-in-out duration-150 shadow-sm h-[32px]">
                                             View All
                                         </button>
@@ -82,8 +82,8 @@
                                 <!-- Decline Trends Chart -->
                                 <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-inner flex flex-col justify-between">
                                     <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-600 pb-3 mb-4 gap-2 md:gap-0 md:h-[48px]">
-                                        <h4 class="text-lg font-bold pr-2">Decline Rate Trends</h4>
-                                        <select id="returnDeclinePeriod" class="filter-input border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-1.5 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1 text-xs shrink-0">
+                                        <h3 class="text-lg font-bold pr-2">Decline Rate Trends</h3>
+                                        <select id="returnDeclinePeriod" aria-label="Period for Decline Rate Trends" class="filter-input border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-1.5 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1 text-xs shrink-0">
                                             <option value="daily">Daily</option>
                                             <option value="weekly">Weekly</option>
                                             <option value="monthly">Monthly</option>
@@ -98,7 +98,7 @@
                                 <!-- Peak Intake Hours Chart -->
                                 <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-inner flex flex-col justify-between">
                                     <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-600 pb-3 mb-4 gap-2 md:gap-0 md:h-[48px]">
-                                        <h4 class="text-lg font-bold">Peak Intake Hours (Submissions by Hour)</h4>
+                                        <h3 class="text-lg font-bold">Peak Intake Hours (Submissions by Hour)</h3>
                                     </div>
                                     <div class="relative h-64 flex-grow">
                                         <canvas id="peakIntakeHoursChart"></canvas>
@@ -111,14 +111,14 @@
                         <div class="bg-gray-50 dark:bg-gray-700/50 p-5 rounded-lg shadow">
                             <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-inner">
                                 <div class="flex flex-col sm:flex-row sm:items-center justify-between border-b border-gray-200 dark:border-gray-600 pb-3 mb-4 gap-3">
-                                    <h4 id="load-vs-time-title" class="text-lg font-bold">Load vs. Processing Time</h4>
+                                    <h3 id="load-vs-time-title" class="text-lg font-bold">Load vs. Processing Time</h3>
                                     <div class="flex flex-row flex-wrap items-center gap-3 max-w-full sm:shrink-0">
-                                        <select id="department-filter" class="max-w-full filter-input border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-1.5 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1 text-xs">
+                                        <select id="department-filter" aria-label="Department for Load vs. Processing Time" class="max-w-full filter-input border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-1.5 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1 text-xs">
                                             <?php foreach($departments as $department): ?>
                                                 <option value="<?= htmlspecialchars($department['id']) ?>"><?= htmlspecialchars($department['name']) ?></option>
                                             <?php endforeach; ?>
                                         </select>
-                                        <select id="departmentPeriod" class="filter-input border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-1.5 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1 text-xs">
+                                        <select id="departmentPeriod" aria-label="Period for Load vs. Processing Time" class="filter-input border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-1.5 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1 text-xs">
                                             <option value="daily">Daily</option>
                                             <option value="weekly">Weekly</option>
                                             <option value="monthly">Monthly</option>
@@ -138,7 +138,7 @@
                                 <!-- Processing Hotspots Chart -->
                                 <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-inner flex flex-col justify-between">
                                     <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-600 pb-3 mb-4 gap-2 md:gap-0 md:h-[48px]">
-                                        <h4 class="text-lg font-bold">Processing Hotspots (Purpose Popularity)</h4>
+                                        <h3 class="text-lg font-bold">Processing Hotspots (Purpose Popularity)</h3>
                                     </div>
                                     <div class="relative h-96 flex-grow">
                                         <canvas id="processingHotspotsChart"></canvas>
@@ -148,7 +148,7 @@
                                 <!-- Submission Volume by District Chart -->
                                 <div class="bg-white dark:bg-gray-800 p-4 rounded-lg shadow-inner flex flex-col justify-between">
                                     <div class="flex items-center justify-between border-b border-gray-200 dark:border-gray-600 pb-3 mb-4 gap-2 md:gap-0 md:h-[48px]">
-                                        <h4 class="text-lg font-bold">Submission Volume by District</h4>
+                                        <h3 class="text-lg font-bold">Submission Volume by District</h3>
                                     </div>
                                     <div class="relative h-96 flex-grow">
                                         <canvas id="submissionDistrictsChart"></canvas>
@@ -175,12 +175,12 @@
                     <div class="px-6 pt-5 pb-4 sm:p-6">
                         <!-- Header -->
                         <div class="flex justify-between items-center border-b border-gray-200 dark:border-gray-700 pb-3 mb-4">
-                            <h3 id="avg-tat-modal-title" class="text-xl font-bold text-gray-900 dark:text-white">
+                            <h2 id="avg-tat-modal-title" class="text-xl font-bold text-gray-900 dark:text-white">
                                 Average Turnaround Time (TAT) by Department
-                            </h3>
-                            <button type="button" class="close-modal-btn text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 focus:outline-none p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition" data-modal="avg-tat-modal">
+                            </h2>
+                            <button type="button" class="close-modal-btn text-gray-400 hover:text-gray-500 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-accent-1 p-1 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition" data-modal="avg-tat-modal">
                                 <span class="sr-only">Close</span>
-                                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <svg aria-hidden="true" class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
                                 </svg>
                             </button>

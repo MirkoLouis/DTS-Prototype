@@ -1,7 +1,7 @@
 <?php $title = 'User Management'; ob_start(); ?>
-<h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+<h1 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
     User Management
-</h2>
+</h1>
 <?php $header = ob_get_clean(); ?>
 
 <?php ob_start(); ?>
@@ -9,7 +9,7 @@
     <div class="px-4 sm:px-6 lg:px-8 xl:mx-[20vh] space-y-6">
         
         <?php if (isset($_SESSION['success'])): ?>
-            <div class="bg-success-light border border-green-400 text-green-700 px-4 py-3 rounded relative" role="alert">
+            <div class="bg-success-light border border-green-400 text-green-700 px-4 py-3 rounded relative" role="status">
                 <span class="block sm:inline"><?= htmlspecialchars($_SESSION['success']) ?></span>
                 <?php unset($_SESSION['success']); ?>
             </div>
@@ -25,7 +25,7 @@
         <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg" id="users-section">
             <div class="p-6 text-gray-900 dark:text-gray-100">
                 <div class="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-6">
-                    <h3 class="text-2xl font-bold">All User Accounts</h3>
+                    <h2 class="text-2xl font-bold">All User Accounts</h2>
                     <a href="/users/create" class="inline-flex items-center px-4 py-2 bg-accent-1 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-1-hover active:bg-accent-1-active focus:outline-none focus:border-accent-1-border-active focus:ring focus:ring-accent-1-light disabled:opacity-25 transition">
                         Create User
                     </a>
@@ -68,11 +68,11 @@
                             
                             $user['account_html'] = sprintf('
                                 <div class="flex items-center space-x-3">
-                                    <button onclick="const btn=this; btn.querySelector(\'.copy-icon\').style.display=\'none\'; btn.querySelector(\'.check-icon\').style.display=\'block\'; navigator.clipboard.writeText(\'%s\'); setTimeout(() => { btn.querySelector(\'.copy-icon\').style.display=\'block\'; btn.querySelector(\'.check-icon\').style.display=\'none\'; }, 2000);" class="text-gray-400 hover:text-accent-1 transition-colors focus:outline-none" title="Copy Email">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="copy-icon h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <button type="button" onclick="const btn=this; btn.querySelector(\'.copy-icon\').style.display=\'none\'; btn.querySelector(\'.check-icon\').style.display=\'block\'; navigator.clipboard.writeText(\'%s\'); setTimeout(() => { btn.querySelector(\'.copy-icon\').style.display=\'block\'; btn.querySelector(\'.check-icon\').style.display=\'none\'; }, 2000);" class="text-gray-400 hover:text-accent-1 transition-colors rounded focus:outline-none focus:ring-2 focus:ring-accent-1" aria-label="Copy Email" title="Copy Email">
+                                        <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="copy-icon h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                         </svg>
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="check-icon h-4 w-4 text-green-500" style="display: none;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="check-icon h-4 w-4 text-green-500" style="display: none;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                                         </svg>
                                     </button>
@@ -86,7 +86,7 @@
                             if (!empty($user['public_key'])) {
                                 $user['signature_html'] = '
                                     <div class="flex items-center text-green-600">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                                        <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="h-4 w-4 mr-1" viewBox="0 0 20 20" fill="currentColor">
                                             <path fill-rule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
                                         </svg>
                                         <span>Active</span>
@@ -146,12 +146,12 @@
 </div>
 
 <!-- Reset credentials modal: choose what to reset, then the admin's Security PIN is asked for (SigningModal) -->
-<div id="reset-credentials-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-75">
+<div id="reset-credentials-modal" role="dialog" aria-modal="true" aria-labelledby="reset-credentials-title" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-75">
     <div class="bg-white dark:bg-gray-800 p-6 mx-4 rounded-lg shadow-xl max-w-md w-full text-gray-900 dark:text-gray-100">
         <form id="reset-credentials-form" method="POST" class="sign-action" data-message="Enter your own Security PIN to confirm this reset.">
             <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token'] ?? '') ?>">
             <input type="hidden" name="pin" class="sign-pin-input">
-            <h2 class="text-lg font-medium">Reset credentials</h2>
+            <h2 id="reset-credentials-title" class="text-lg font-medium">Reset credentials</h2>
             <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Reset for <strong id="reset-credentials-user-name"></strong>:</p>
             <fieldset class="mt-4 space-y-3">
                 <legend class="sr-only">What to reset</legend>
@@ -169,8 +169,8 @@
                 </label>
             </fieldset>
             <div class="mt-6 flex justify-end space-x-2">
-                <button type="button" id="reset-credentials-cancel" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-md">Cancel</button>
-                <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-md">Confirm reset</button>
+                <button type="button" id="reset-credentials-cancel" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-accent-1">Cancel</button>
+                <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-red-500">Confirm reset</button>
             </div>
         </form>
     </div>
@@ -191,12 +191,13 @@
                 document.getElementById('reset-credentials-user-name').textContent = this.dataset.resetUserName;
                 form.reset();
                 pinInput.value = '';
-                modal.classList.remove('hidden');
+                // The shared modal module focuses the first option and returns the focus to this Reset button on close
+                ModalDialog.open(modal, { opener: this });
             });
         });
 
         document.getElementById('reset-credentials-cancel').addEventListener('click', function () {
-            modal.classList.add('hidden');
+            ModalDialog.close(modal);
         });
 
         // Ask for the admin's Security PIN, then send the form
@@ -209,7 +210,7 @@
 
                 // The PIN must not stay in the form for the next use
                 pinInput.value = '';
-            });
+            }, e.submitter);
         });
     }
     if (document.readyState === 'loading') {

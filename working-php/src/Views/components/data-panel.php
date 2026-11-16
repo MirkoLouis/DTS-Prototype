@@ -17,7 +17,7 @@ $panelTitle = $panelTitle ?? 'Documents';
 <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
     <div class="p-6 text-gray-900 dark:text-gray-100">
         <div class="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-6">
-            <h3 class="text-2xl font-bold"><?= htmlspecialchars($panelTitle) ?></h3>
+            <h2 class="text-2xl font-bold"><?= htmlspecialchars($panelTitle) ?></h2>
             <?php if (isset($panelActionHtml)): ?>
                 <div>
                     <?= $panelActionHtml ?>

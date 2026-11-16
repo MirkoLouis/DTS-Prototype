@@ -53,10 +53,10 @@ if ($totalPages <= 1) {
                 <!-- Prev Arrow -->
                 <?php if ($currentPage <= 1): ?>
                     <span aria-disabled="true">
-                        <span class="inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 cursor-not-allowed rounded-l-md leading-5">&laquo;</span>
+                        <span class="inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 cursor-not-allowed rounded-l-md leading-5"><span class="sr-only">Previous page</span><span aria-hidden="true">&laquo;</span></span>
                     </span>
                 <?php else: ?>
-                    <a href="<?= $paginator->getUrl($currentPage - 1) ?>" class="inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-l-md leading-5 hover:text-gray-400 dark:hover:text-gray-300">&laquo;</a>
+                    <a href="<?= $paginator->getUrl($currentPage - 1) ?>" class="inline-flex items-center px-2 py-2 text-sm font-medium text-gray-500 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-l-md leading-5 hover:text-gray-400 dark:hover:text-gray-300" aria-label="Previous page">&laquo;</a>
                 <?php endif; ?>
 
                 <!-- Page Numbers -->
@@ -95,10 +95,10 @@ if ($totalPages <= 1) {
                 <!-- Next Arrow -->
                 <?php if ($currentPage >= $totalPages): ?>
                     <span aria-disabled="true">
-                        <span class="inline-flex items-center px-2 py-2 -ml-px text-sm font-medium text-gray-500 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 cursor-not-allowed rounded-r-md leading-5">&raquo;</span>
+                        <span class="inline-flex items-center px-2 py-2 -ml-px text-sm font-medium text-gray-500 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 cursor-not-allowed rounded-r-md leading-5"><span class="sr-only">Next page</span><span aria-hidden="true">&raquo;</span></span>
                     </span>
                 <?php else: ?>
-                    <a href="<?= $paginator->getUrl($currentPage + 1) ?>" class="inline-flex items-center px-2 py-2 -ml-px text-sm font-medium text-gray-500 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-r-md leading-5 hover:text-gray-400 dark:hover:text-gray-300">&raquo;</a>
+                    <a href="<?= $paginator->getUrl($currentPage + 1) ?>" class="inline-flex items-center px-2 py-2 -ml-px text-sm font-medium text-gray-500 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-r-md leading-5 hover:text-gray-400 dark:hover:text-gray-300" aria-label="Next page">&raquo;</a>
                 <?php endif; ?>
             </span>
         </div>

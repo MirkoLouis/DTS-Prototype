@@ -5,18 +5,7 @@
  * so all elements re-bind correctly after client-side navigation.
  */
 function initSystemHealth() {
-    // Reusable Modal Logic
-    const closeBtns = document.querySelectorAll('.close-modal-btn');
-    closeBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const modalId = btn.getAttribute('data-modal');
-            const modal = document.getElementById(modalId);
-            if (modal) {
-                modal.classList.add('hidden');
-                modal.style.display = '';
-            }
-        });
-    });
+    // Modal open/close (Escape, focus trap, close buttons) is handled by the shared module public/js/modal-dialog.js
 
     // Database Performance Chart
     const dbPerformanceContainer = document.getElementById('db-performance-chart-container');
@@ -86,9 +75,32 @@ function initSystemHealth() {
     let pollingInterval;
     let startTime;
     let currentJobId;
+    let integrityJobRunning = false;
+    let reloadTimer;
+    let pageLeft = false;
+
+    // In-app navigation: stop polling and cancel the pending reload, so a check that finishes later does not reload an unrelated page
+    document.addEventListener('dts:before-swap', () => {
+        pageLeft = true;
+        integrityJobRunning = false;
+        clearInterval(pollingInterval);
+        clearTimeout(reloadTimer);
+    }, { once: true });
+
+    // Escape or a click outside hides the progress while the check keeps running: the button works again (so the focus can
+    // return to it) and a click on it shows the progress again instead of starting a second check
+    if (integrityModal && runCheckButton) {
+        integrityModal.addEventListener('modaldialog:close', () => {
+            runCheckButton.disabled = false;
+        });
+    }
 
     if (runCheckButton) {
         runCheckButton.addEventListener('click', async function() {
+            if (integrityJobRunning && integrityModal) {
+                ModalDialog.open(integrityModal, { opener: runCheckButton });
+                return;
+            }
             try {
                 runCheckButton.disabled = true;
                 
@@ -106,13 +118,13 @@ function initSystemHealth() {
 
                 const data = await response.json();
                 currentJobId = data.job_id;
+                integrityJobRunning = true;
 
                 // Show Modal
                 if (integrityModal) {
-                    integrityModal.classList.remove('hidden');
-                    integrityModal.style.display = '';
+                    ModalDialog.open(integrityModal, { opener: runCheckButton });
                 }
-                
+
                 integrityProgressBar.style.width = '0%';
                 integrityProgressBar.classList.remove('bg-green-500', 'bg-red-500');
                 integrityProgressBar.classList.add('bg-accent-1');
@@ -126,6 +138,7 @@ function initSystemHealth() {
                 startTime = Date.now();
 
                 // Start polling
+                clearInterval(pollingInterval);
                 pollingInterval = setInterval(() => {
                     pollIntegrityStatus(currentJobId);
                 }, 3000);
@@ -143,6 +156,7 @@ function initSystemHealth() {
             const response = await fetch(`/api/system-health/integrity-status/${jobId}`);
             if (!response.ok) throw new Error('Could not get integrity status.');
             const job = await response.json();
+            if (pageLeft) return;
 
             integrityProgressBar.style.width = `${job.progress || 0}%`;
             
@@ -174,6 +188,8 @@ function initSystemHealth() {
 
     function finishIntegrityJob(success, jobId, error = null) {
         clearInterval(pollingInterval);
+        integrityJobRunning = false;
+        if (pageLeft) return;
         integrityProgressBar.style.width = '100%';
         integrityProgressBar.classList.remove('bg-accent-1');
         closeIntegrityModalBtn.textContent = 'Close & Refresh';
@@ -185,7 +201,7 @@ function initSystemHealth() {
             integrityProgressText.textContent = 'Integrity verification complete!';
             integrityProgressTime.textContent = 'System verified.';
             
-            setTimeout(() => {
+            reloadTimer = setTimeout(() => {
                 window.location.reload();
             }, 2000);
         } else {
@@ -219,8 +235,7 @@ function initSystemHealth() {
                 }
             } else {
                 if (integrityModal) {
-                    integrityModal.classList.add('hidden');
-                    integrityModal.style.display = '';
+                    ModalDialog.close(integrityModal, { restoreFocus: false });
                 }
                 window.location.reload();
             }
@@ -267,8 +282,7 @@ function initSystemHealth() {
                 }
 
                 if (debugModal) {
-                    debugModal.classList.remove('hidden');
-                    debugModal.style.display = '';
+                    ModalDialog.open(debugModal, { opener: btn });
                 }
             } catch (error) {
                 console.error('Debug error:', error);

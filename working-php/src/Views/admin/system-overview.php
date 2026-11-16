@@ -1,7 +1,7 @@
 <?php $title = 'System Overview'; ob_start(); ?>
-<h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+<h1 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
     System Overview
-</h2>
+</h1>
 <?php $header = ob_get_clean();
 ob_start(); ?>
 <div class="py-10">
@@ -13,11 +13,11 @@ ob_start(); ?>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <!-- Failed Jobs -->
                         <div class="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg shadow">
-                            <h4 class="text-lg font-bold mb-2">Failed Jobs</h4>
+                            <h2 class="text-lg font-bold mb-2">Failed Jobs</h2>
                             <div class="flex items-center justify-between">
                                 <p class="text-3xl font-semibold <?= $appHealthMetrics['failed_jobs_count'] > 0 ? 'text-red-500' : '' ?>"><?= htmlspecialchars($appHealthMetrics['failed_jobs_count']) ?></p>
                                 <?php if($appHealthMetrics['failed_jobs_count'] > 0): ?>
-                                    <button id="view-failed-jobs" class="text-sm text-accent-1 dark:text-accent-1-hover hover:underline focus:outline-none">
+                                    <button type="button" id="view-failed-jobs" class="rounded text-sm text-accent-1 dark:text-accent-1-hover hover:underline focus:outline-none focus:ring-2 focus:ring-accent-1">
                                         View Details
                                     </button>
                                 <?php endif; ?>
@@ -25,7 +25,7 @@ ob_start(); ?>
                         </div>
                         <!-- Cache Status -->
                         <div class="bg-gray-50 dark:bg-gray-700/50 p-6 rounded-lg shadow">
-                            <h4 class="text-lg font-bold mb-2">Cache Status</h4>
+                            <h2 class="text-lg font-bold mb-2">Cache Status</h2>
                             <?php if($appHealthMetrics['cache_status']): ?>
                                 <p class="text-3xl font-semibold text-green-500">Operational</p>
                             <?php else: ?>
@@ -38,7 +38,7 @@ ob_start(); ?>
                     <?php if($appHealthMetrics['failed_jobs_count'] > 0): ?>
                         <div id="failed-jobs-details" class="bg-red-50 dark:bg-red-900/10 pt-3 px-5 pb-5 rounded-lg shadow hidden">
                             <div class="flex justify-between items-center mb-4 border-b border-red-200 dark:border-red-800 pb-2">
-                                <h3 class="text-xl font-bold text-red-700 dark:text-red-400">Failed Jobs Details</h3>
+                                <h2 class="text-xl font-bold text-red-700 dark:text-red-400">Failed Jobs Details</h2>
                                 <form action="/system-health/failed-jobs/delete-all" method="POST" class="confirm-action" data-message="Are you sure you want to clear ALL failed jobs?">
     <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
                                     <button type="submit" class="text-xs text-red-600 dark:text-red-400 hover:underline">Clear All Jobs</button>
@@ -60,11 +60,11 @@ ob_start(); ?>
                                     $job['error_html'] = sprintf(
                                         '<div class="flex items-start justify-between gap-2 group">
                                             <div class="text-xs text-red-600 dark:text-red-400 line-clamp-3 break-words" title="%s">%s</div>
-                                            <button onclick="const btn=this; btn.querySelector(\'.copy-icon\').style.display=\'none\'; btn.querySelector(\'.check-icon\').style.display=\'block\'; navigator.clipboard.writeText(\'%s\'); setTimeout(() => { btn.querySelector(\'.copy-icon\').style.display=\'block\'; btn.querySelector(\'.check-icon\').style.display=\'none\'; }, 2000);" class="text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors focus:outline-none shrink-0 mt-0.5" title="Copy Error Stack Trace">
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="copy-icon h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <button type="button" onclick="const btn=this; btn.querySelector(\'.copy-icon\').style.display=\'none\'; btn.querySelector(\'.check-icon\').style.display=\'block\'; navigator.clipboard.writeText(\'%s\'); setTimeout(() => { btn.querySelector(\'.copy-icon\').style.display=\'block\'; btn.querySelector(\'.check-icon\').style.display=\'none\'; }, 2000);" class="text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors rounded focus:outline-none focus:ring-2 focus:ring-red-400 shrink-0 mt-0.5" aria-label="Copy Error Stack Trace" title="Copy Error Stack Trace">
+                                                <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="copy-icon h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                                 </svg>
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="check-icon h-3.5 w-3.5 text-green-500" style="display: none;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="check-icon h-3.5 w-3.5 text-green-500" style="display: none;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                                                 </svg>
                                             </button>
@@ -108,9 +108,9 @@ ob_start(); ?>
                          class="bg-gray-50 dark:bg-gray-700/50 pt-5 px-5 pb-5 rounded-lg shadow"
                          data-url="/api/system-health/db-performance">
                         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-gray-200 dark:border-gray-700 w-full mb-6">
-                            <h3 class="text-2xl font-bold text-gray-900 dark:text-gray-100 whitespace-nowrap shrink-0">
+                            <h2 class="text-2xl font-bold text-gray-900 dark:text-gray-100 whitespace-nowrap shrink-0">
                                 Database Performance
-                            </h3>
+                            </h2>
 
                             <div class="flex flex-row flex-wrap sm:flex-nowrap items-end gap-3">
                                 <div class="w-full sm:w-auto">
@@ -137,7 +137,7 @@ ob_start(); ?>
 
                     <!-- Section: Database Integrity -->
                     <div class="bg-gray-50 dark:bg-gray-700/50 pt-3 px-5 pb-5 rounded-lg shadow">
-                        <h3 class="text-xl font-bold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Database Integrity</h3>
+                        <h2 class="text-xl font-bold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Database Integrity</h2>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-4">
                             <div class="md:col-span-1 bg-white dark:bg-gray-800 p-6 rounded-lg shadow-inner">
                                 <h3 class="text-lg font-bold mb-4 text-center">Verification Status</h3>
@@ -208,7 +208,7 @@ ob_start(); ?>
                                     <button id="run-integrity-check" 
                                             data-url="/system-health/run-check"
                                             class="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-accent-1 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent-1">
-                                        <svg id="button-spinner" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                        <svg id="button-spinner" aria-hidden="true" class="animate-spin -ml-1 mr-3 h-5 w-5 text-white hidden" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                                             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                         </svg>
@@ -238,7 +238,7 @@ ob_start(); ?>
                     <?php if (!empty($paginatedIssues)): ?>
                         <div class="bg-red-50 dark:bg-red-900/20 pt-3 px-5 pb-5 rounded-lg shadow">
                             <div class="flex justify-between items-center mb-4 border-b border-red-200 dark:border-red-700 pb-2">
-                                <h3 class="text-xl font-bold text-red-600 dark:text-red-400">Integrity Issues Detected</h3>
+                                <h2 class="text-xl font-bold text-red-600 dark:text-red-400">Integrity Issues Detected</h2>
                                 <form action="/system-health/freeze-all" method="POST" class="sign-action" data-message="Enter your Security PIN to digitally sign and freeze ALL documents with integrity issues.">
                                     <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
                                     <input type="hidden" name="pin" class="sign-pin-input">
@@ -303,11 +303,11 @@ ob_start(); ?>
 
                     <!-- Section: Admin Utilities -->
                     <div class="bg-gray-50 dark:bg-gray-700/50 pt-3 px-5 pb-5 rounded-lg shadow">
-                        <h3 class="text-xl font-bold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Admin Utilities</h3>
+                        <h2 class="text-xl font-bold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Admin Utilities</h2>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                             <!-- Backup Manager Link -->
                             <a href="/system/backups" class="block p-6 bg-white dark:bg-gray-800 rounded-lg shadow-inner hover:bg-gray-100 dark:hover:bg-gray-700 transition ease-in-out duration-150">
-                                <h4 class="text-lg font-bold mb-2 text-accent-1 dark:text-accent-1-hover">Backup Manager &rarr;</h4>
+                                <h3 class="text-lg font-bold mb-2 text-accent-1 dark:text-accent-1-hover">Backup Manager &rarr;</h3>
                                 <p class="text-sm text-gray-600 dark:text-gray-300">
                                     Create, download, and manage database backups.
                                 </p>
@@ -330,10 +330,10 @@ $modalSize = 5; // max-w-xl
 $hideCloseButton = true;
 $modalContent = '
     <div class="text-center py-4">
-        <svg class="mx-auto h-12 w-12 text-accent-1 animate-pulse mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <svg aria-hidden="true" class="mx-auto h-12 w-12 text-accent-1 animate-pulse mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
-        <h4 class="text-lg font-bold text-gray-900 mb-2">Analyzing cryptographic integrity...</h4>
+        <h3 class="text-lg font-bold text-gray-900 mb-2">Analyzing cryptographic integrity...</h3>
         <div class="w-full bg-gray-200 rounded-full h-4 mb-4 dark:bg-gray-700">
             <div id="integrity-progress-bar" class="bg-accent-1 h-4 rounded-full transition-all duration-500 ease-out" style="width: 0%"></div>
         </div>
@@ -353,16 +353,16 @@ $modalContent = '
     <div class="space-y-6">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div class="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                <h4 class="text-sm font-bold text-red-700 dark:text-red-400 uppercase mb-2">Stored in Database</h4>
+                <h3 class="text-sm font-bold text-red-700 dark:text-red-400 uppercase mb-2">Stored in Database</h3>
                 <p id="stored-hash-val" class="font-mono text-xs break-all dark:text-red-300"></p>
             </div>
             <div class="p-4 bg-indigo-50 dark:bg-indigo-900/20 border border-accent-1-light dark:border-indigo-800 rounded-lg">
-                <h4 class="text-sm font-bold text-accent-1-active dark:text-accent-1-hover uppercase mb-2">Recalculated Now</h4>
+                <h3 class="text-sm font-bold text-accent-1-active dark:text-accent-1-hover uppercase mb-2">Recalculated Now</h3>
                 <p id="recalculated-hash-val" class="font-mono text-xs break-all dark:text-accent-1-light"></p>
             </div>
         </div>
         <div>
-            <h4 class="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase mb-2">Hash Formula Components</h4>
+            <h3 class="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase mb-2">Hash Formula Components</h3>
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead class="bg-gray-50 dark:bg-gray-700">
@@ -377,7 +377,7 @@ $modalContent = '
             </div>
         </div>
         <div>
-            <h4 class="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase mb-2">Final Concatenated String (SHA-256 Input)</h4>
+            <h3 class="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase mb-2">Final Concatenated String (SHA-256 Input)</h3>
             <div class="p-4 bg-gray-100 dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700">
                 <p id="raw-data-string-val" class="font-mono text-xs break-all dark:text-gray-400"></p>
             </div>
@@ -404,7 +404,7 @@ function initSystemOverviewPage() {
                 window.SigningModal.show(msg, function(pin) {
                     pinInput.value = pin;
                     form.submit();
-                });
+                }, e.submitter);
             }
         });
     });

@@ -1,8 +1,8 @@
 <?php $title = 'Document — ' . ($document['tracking_code'] ?? 'Details'); ob_start(); ?>
 <div class="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center w-full">
-    <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
+    <h1 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
         Document Details: <?php echo htmlspecialchars($document['tracking_code']); ?>
-    </h2>
+    </h1>
     
     <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
         <div>
@@ -30,7 +30,7 @@
     <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'officer'): ?>
         <div>
             <a href="/documents/<?= urlencode($document['tracking_code']) ?>/print-tracking-form" target="_blank" class="bg-primary hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg transition duration-200 shadow-md inline-flex items-center text-sm">
-                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                <svg aria-hidden="true" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                 Print Tracking Form
             </a>
         </div>
@@ -46,16 +46,16 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <!-- Document Information -->
                     <div>
-                        <h3 class="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Document Information</h3>
+                        <h2 class="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Document Information</h2>
                         <div class="space-y-4">
                             <p class="flex items-center">
                                 <strong>Tracking Code:</strong> 
                                 <span class="ml-1"><?php echo htmlspecialchars($document['tracking_code']); ?></span>
-                                <button onclick="const btn=this; btn.querySelector('.copy-icon').style.display='none'; btn.querySelector('.check-icon').style.display='block'; navigator.clipboard.writeText('<?php echo htmlspecialchars(addslashes($document['tracking_code'])); ?>'); setTimeout(() => { btn.querySelector('.copy-icon').style.display='block'; btn.querySelector('.check-icon').style.display='none'; }, 2000);" class="text-gray-400 hover:text-accent-1 transition-colors focus:outline-none ml-2" title="Copy Tracking Code">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="copy-icon h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <button type="button" onclick="const btn=this; btn.querySelector('.copy-icon').style.display='none'; btn.querySelector('.check-icon').style.display='block'; navigator.clipboard.writeText('<?php echo htmlspecialchars(addslashes($document['tracking_code'])); ?>'); setTimeout(() => { btn.querySelector('.copy-icon').style.display='block'; btn.querySelector('.check-icon').style.display='none'; }, 2000);" class="text-gray-400 hover:text-accent-1 transition-colors rounded focus:outline-none focus:ring-2 focus:ring-accent-1 ml-2" aria-label="Copy Tracking Code" title="Copy Tracking Code">
+                                    <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="copy-icon h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                     </svg>
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="check-icon h-4 w-4 text-green-500" style="display: none;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="check-icon h-4 w-4 text-green-500" style="display: none;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                                     </svg>
                                 </button>
@@ -75,7 +75,7 @@
                     </div>
                     <!-- Routing Information -->
                     <div>
-                        <h3 class="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Routing</h3>
+                        <h2 class="text-lg font-bold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Routing</h2>
                         
                         <p class="mb-2"><strong>Status:</strong> 
                                 <?php $status = $document['status']; require BASE_PATH . '/src/Views/components/status-badge.php'; ?>
@@ -86,7 +86,7 @@
                         <?php elseif ($document['status'] == 'pending'): ?>
                             <p class="mt-2 text-gray-500 dark:text-gray-400">The route will be finalized upon intake.</p>
                         <?php else: ?>
-                            <h4 class="font-semibold text-md text-gray-700 dark:text-gray-300 mt-4">Document Path:</h4>
+                            <h3 class="font-semibold text-md text-gray-700 dark:text-gray-300 mt-4">Document Path:</h3>
                             <div class="mt-2">
                                 <?php 
                                 $route = $document['finalized_route'] ? json_decode($document['finalized_route'], true) : []; 
@@ -161,7 +161,7 @@
                 <!-- Document Logs -->
                 <div class="mt-8">
                     <div class="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center mb-4">
-                        <h3 class="text-2xl font-bold">Document History</h3>
+                        <h2 class="text-2xl font-bold">Document History</h2>
                         <div class="flex flex-wrap items-center gap-2">
                             <a href="/documents/<?php echo htmlspecialchars($document['tracking_code']); ?>/hash-chain" class="inline-flex items-center px-4 py-2 bg-accent-1 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-1-hover active:bg-accent-1-active focus:outline-none focus:ring-2 focus:ring-accent-1 transition ease-in-out duration-150">
                                 View Hash Chain
@@ -219,7 +219,7 @@ function initShowDocumentPage() {
                 window.SigningModal.show(msg, function(pin) {
                     pinInput.value = pin;
                     form.submit();
-                });
+                }, e.submitter);
             }
         });
     });

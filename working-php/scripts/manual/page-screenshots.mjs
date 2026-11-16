@@ -1,50 +1,13 @@
 // Drives headless Chromium through playwright-core: screenshots every main page at three widths and reports layout overflow.
 // Started by scripts/manual/page-screenshots.php (which builds the test database and the server); argument: context JSON file.
 // playwright-core is installed outside package.json: npm install --prefix working-php/.test/browser playwright-core
-import { createRequire } from 'node:module';
-import { readFileSync, mkdirSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-
-const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
-const projectRoot = path.resolve(scriptDirectory, '..', '..');
-const require = createRequire(path.join(projectRoot, '.test', 'browser', 'package.json'));
-const { chromium } = require('playwright-core');
-
-const context = JSON.parse(readFileSync(process.argv[2], 'utf8'));
-const executablePath = process.env.CHROMIUM_PATH
-    || path.join(homedir(), '.cache/ms-playwright/chromium_headless_shell-1248/chrome-headless-shell-linux64/chrome-headless-shell');
+import { context, createSessions, launchBrowser, pages } from './browser-common.mjs';
 
 // Widths to check: phone, a width just below Tailwind's xl breakpoint (the wide margin is off), and desktop
 const widths = [{ width: 360, height: 800 }, { width: 1024, height: 768 }, { width: 1280, height: 900 }];
 const PHONE_WIDTH = 360;
-
-// Pages: name, role (null = guest, no sign-in; 'keyless' = account without a signing key), path
-const pages = [
-    ['guest-welcome', null, '/'],
-    ['guest-track', null, `/track?codes=${context.trackingCode}`],
-    ['guest-success', null, `/success?tracking_code=${context.trackingCode}&document_id=${context.documentId}`],
-    ['login', null, '/login'],
-    ['error-404', null, '/this-page-does-not-exist'],
-    ['security-pin-prompt', 'keyless', '/tasks'],
-    ['intake', 'records.unit', '/intake'],
-    ['tasks-staff', 'cash.unit', '/tasks'],
-    ['tasks-completed', 'records.unit', '/tasks/completed'],
-    ['manage-documents', 'records.unit', `/documents/${context.documentId}/manage`],
-    ['releasing', 'records.unit', '/releasing'],
-    ['document-view', 'records.unit', `/documents/${context.documentCode}`],
-    ['hash-chain', 'records.unit', `/documents/${context.documentCode}/hash-chain`],
-    ['statistics', 'records.unit', '/statistics'],
-    ['account-password', 'records.unit', '/account/password'],
-    ['admin-dashboard', 'admin', '/admin-dashboard'],
-    ['system-overview', 'admin', '/system-overview'],
-    ['all-documents', 'admin', '/all-documents'],
-    ['users-index', 'admin', '/users'],
-    ['users-create', 'admin', '/users/create'],
-    ['users-edit', 'admin', `/users/${context.editUserId}/edit`],
-    ['backups', 'admin', '/system/backups'],
-];
 
 // Opened-state screenshots taken at the phone width only: name, role, path, action that opens the state
 const phoneStates = [
@@ -118,15 +81,7 @@ function summarize(measured, width) {
     return { ok: problems.length === 0, text: problems.length ? problems.join('; ') : 'OK' };
 }
 
-// Sign in through the real login form so the session cookie belongs to the browser context
-async function signIn(page, username) {
-    await page.goto(`${context.baseUrl}/login`, { waitUntil: 'networkidle' });
-    await page.fill('input[name="email"]', username);
-    await page.fill('input[name="password"]', context.password);
-    await Promise.all([page.waitForNavigation({ waitUntil: 'networkidle' }), page.click('button[type="submit"]')]);
-}
-
-const browser = await chromium.launch({ executablePath, args: ['--no-sandbox', '--disable-gpu'] });
+const browser = await launchBrowser();
 let failureCount = 0;
 
 // Print one result line and count failures
@@ -139,17 +94,9 @@ function report(width, name, summary, extra = '') {
 for (const viewport of widths) {
     const directory = path.join(context.screensDirectory, String(viewport.width));
     mkdirSync(directory, { recursive: true });
-    const sessions = new Map();
-
     // One signed-in browser context per role, created on first use
-    const sessionFor = async (role) => {
-        if (!sessions.has(role)) {
-            const page = await (await browser.newContext({ viewport })).newPage();
-            if (role) await signIn(page, role === 'keyless' ? context.keylessUser : role);
-            sessions.set(role, page);
-        }
-        return sessions.get(role);
-    };
+    const sessions = createSessions(browser, viewport);
+    const sessionFor = (role) => sessions.pageFor(role);
 
     for (const [name, role, route] of pages) {
         const page = await sessionFor(role);
@@ -189,7 +136,7 @@ for (const viewport of widths) {
 
     // Phone only: opened modals and a toast
     if (viewport.width !== PHONE_WIDTH) {
-        for (const page of sessions.values()) await page.context().close();
+        await sessions.closeAll();
         continue;
     }
     for (const [name, role, route, open] of phoneStates) {
@@ -225,7 +172,7 @@ for (const viewport of widths) {
     } catch (error) {
         report(viewport.width, 'menu-interactions', { ok: false, text: `ERROR ${String(error.message).split('\n')[0]}` });
     }
-    for (const openPage of sessions.values()) await openPage.context().close();
+    await sessions.closeAll();
 }
 
 await browser.close();

@@ -63,8 +63,8 @@ if (($_SESSION['role'] ?? null) === 'admin') {
 // Link classes: the desktop bar underlines the active link, the mobile menu marks it with a left border
 $activeClass = "inline-flex items-center px-1 pt-1 border-b-2 border-accent-1 text-sm font-medium leading-5 text-gray-900 dark:text-gray-100 focus:outline-none focus:border-accent-1-active transition duration-150 ease-in-out";
 $inactiveClass = "inline-flex items-center px-1 pt-1 border-b-2 border-transparent hover:border-accent-1-hover text-sm font-medium leading-5 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none focus:text-gray-700 dark:focus:text-gray-300 focus:border-gray-300 dark:focus:border-gray-600 transition duration-150 ease-in-out";
-$mobileActiveClass = "block pl-3 pr-4 py-2 border-l-4 border-accent-1 text-base font-medium text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700 focus:outline-none transition duration-150 ease-in-out";
-$mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 focus:outline-none transition duration-150 ease-in-out";
+$mobileActiveClass = "block pl-3 pr-4 py-2 border-l-4 border-accent-1 text-base font-medium text-gray-900 dark:text-gray-100 bg-gray-50 dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-accent-1-hover transition duration-150 ease-in-out";
+$mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-base font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700 hover:border-gray-300 dark:hover:border-gray-600 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-accent-1-hover transition duration-150 ease-in-out";
 ?>
 <!DOCTYPE html>
 <html lang="en" class="light overflow-y-scroll">
@@ -106,6 +106,9 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
         }
     </style>
     
+    <!-- Shared modal dialog behaviour (focus trap, Escape, inert page behind); loaded before any page script uses it -->
+    <script src="/js/modal-dialog.js"></script>
+
     <!-- Local Chart.js for Admin dashboard -->
     <script src="/js/chart.min.js"></script>
 </head>
@@ -118,7 +121,7 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
                 <div class="flex justify-between h-16">
                     <div class="flex">
                         <div class="shrink-0 flex items-center">
-                            <a href="/dashboard">
+                            <a href="/dashboard" class="rounded focus:outline-none focus:ring-2 focus:ring-accent-1-hover">
                                 <img src="/images/logoipsum-411.png" alt="DTS Logo" class="h-8 w-auto dark:brightness-200">
                             </a>
                         </div>
@@ -134,25 +137,26 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
                     <!-- User Dropdown (Simplified) -->
                     <div class="flex items-center sm:ml-6">
                         <div class="flex items-center">
-                            <button id="theme-toggle" class="mr-2 sm:mr-4 p-2 bg-gray-100 dark:bg-gray-700 rounded-full shadow-md text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-accent-1-hover transition-colors">
+                            <button type="button" id="theme-toggle" aria-label="Toggle dark mode" class="mr-2 sm:mr-4 p-2 bg-gray-100 dark:bg-gray-700 rounded-full shadow-md text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-accent-1-hover transition-colors">
                                 <!-- Sun icon for light mode -->
-                                <svg id="theme-toggle-light-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
+                                <svg id="theme-toggle-light-icon" aria-hidden="true" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
                                 <!-- Moon icon for dark mode -->
-                                <svg id="theme-toggle-dark-icon" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+                                <svg id="theme-toggle-dark-icon" aria-hidden="true" class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
                             </button>
 
                             <!-- Notification Dropdown -->
                             <div class="sm:relative mr-2 sm:mr-4">
-                                <button type="button" id="notification-menu-button" class="relative p-2 bg-gray-100 dark:bg-gray-700 rounded-full shadow-md text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-accent-1-hover transition-colors">
-                                    <span class="sr-only">Notifications</span>
-                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                                <button type="button" id="notification-menu-button" aria-expanded="false" aria-controls="notification-dropdown-menu" class="relative p-2 bg-gray-100 dark:bg-gray-700 rounded-full shadow-md text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-accent-1-hover transition-colors">
+                                    <!-- The unread count is part of the accessible name (there is no visual badge); updated when notifications are read -->
+                                    <span id="notification-button-text" class="sr-only"><?= count($unreadNotifications) > 0 ? 'Notifications, ' . count($unreadNotifications) . ' unread' : 'Notifications' ?></span>
+                                    <svg aria-hidden="true" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
                                 </button>
                                 <!-- On phones the panel spans the viewport under the nav bar; from sm up it drops down from the bell as before -->
                                 <div id="notification-dropdown-menu" class="hidden fixed inset-x-2 top-16 sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 z-50 mt-2 sm:w-96 rounded-md shadow-lg bg-white dark:bg-gray-800 ring-1 ring-black ring-opacity-5 focus:outline-none py-2 max-h-[80vh] overflow-y-auto">
                                     <div class="px-4 py-2 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                                        <h3 class="text-sm font-semibold text-gray-900 dark:text-gray-100">Notifications</h3>
+                                        <h2 class="text-sm font-semibold text-gray-900 dark:text-gray-100">Notifications</h2>
                                         <?php if (count($unreadNotifications) > 0): ?>
-                                        <button id="mark-all-read" class="text-xs text-accent-1 hover:text-accent-1-hover dark:text-accent-2 dark:hover:text-accent-2-hover font-medium">Clear Notifications</button>
+                                        <button type="button" id="mark-all-read" class="rounded focus:outline-none focus:ring-2 focus:ring-accent-1 text-xs text-accent-1 hover:text-accent-1-hover dark:text-accent-2 dark:hover:text-accent-2-hover font-medium">Clear Notifications</button>
                                         <?php endif; ?>
                                     </div>
                                     <div class="p-2" id="notification-list">
@@ -169,10 +173,10 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
 
                             <!-- Desktop user menu; below lg the account links live in the mobile menu -->
                             <div class="relative hidden lg:block">
-                                <button type="button" id="user-menu-button" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none transition ease-in-out duration-150">
+                                <button type="button" id="user-menu-button" aria-expanded="false" aria-controls="user-dropdown-menu" class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-accent-1-hover transition ease-in-out duration-150">
                                     <div><?= htmlspecialchars($_SESSION['user_name'] ?? 'Guest') ?> (<?= htmlspecialchars(ucfirst($_SESSION['role'] ?? '')) ?>)</div>
                                     <div class="ml-1">
-                                        <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                        <svg aria-hidden="true" class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
                                             <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
                                         </svg>
                                     </div>
@@ -247,7 +251,7 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
 
         <!-- PJAX top progress bar: a 3px gradient line that simulates loading
              progress. Driven entirely by pjax-router.js via inline style tweens. -->
-        <div id="pjax-progress-bar" style="
+        <div id="pjax-progress-bar" aria-hidden="true" style="
             position: fixed; top: 0; left: 0; z-index: 99999;
             height: 3px; width: 0%; opacity: 0;
             background: linear-gradient(90deg, #6366f1, #a855f7, #ec4899);
@@ -257,7 +261,7 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
 
         <main>
             <!-- Toast Notification Container -->
-            <div id="toast-container" class="flex flex-col gap-3 pointer-events-none fixed bottom-5 left-4 right-4 sm:left-auto sm:right-5 sm:max-w-md" style="z-index: 9999;">
+            <div id="toast-container" data-modal-live-region class="flex flex-col gap-3 pointer-events-none fixed bottom-5 left-4 right-4 sm:left-auto sm:right-5 sm:max-w-md" style="z-index: 9999;">
                 <?php
                 foreach ($sessionAlerts as $alert) {
                     $notification = $alert; // notification-alert.php uses $notification
@@ -346,18 +350,40 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
         var userMenuBtn = document.getElementById('user-menu-button');
         var userDropdownMenu = document.getElementById('user-dropdown-menu');
 
+        // Show or hide the user menu and mirror the state in aria-expanded
+        function setUserMenuOpen(isOpen) {
+            userDropdownMenu.classList.toggle('hidden', !isOpen);
+            userMenuBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        }
+
         if (userMenuBtn && userDropdownMenu) {
             userMenuBtn.addEventListener('click', function(e) {
                 e.stopPropagation();
-                userDropdownMenu.classList.toggle('hidden');
+                setUserMenuOpen(userDropdownMenu.classList.contains('hidden'));
             });
 
             document.addEventListener('click', function(e) {
                 if (!userMenuBtn.contains(e.target) && !userDropdownMenu.contains(e.target)) {
-                    userDropdownMenu.classList.add('hidden');
+                    setUserMenuOpen(false);
                 }
             });
         }
+
+        // Escape closes the open user menu or navigation menu and returns the focus to the button that opened it
+        document.addEventListener('keydown', function(event) {
+            if (event.key !== 'Escape') return;
+            // A modal dialog handles Escape itself (public/js/modal-dialog.js, which marks it defaultPrevented): one Escape closes one layer
+            if (event.defaultPrevented || (window.ModalDialog && window.ModalDialog.hasOpen())) return;
+            if (userDropdownMenu && !userDropdownMenu.classList.contains('hidden')) {
+                setUserMenuOpen(false);
+                userMenuBtn.focus();
+                return;
+            }
+            if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
+                window.closeMobileMenu();
+                mobileMenuBtn.focus();
+            }
+        });
     </script>
     <?php if (isset($_SESSION['console_error'])): ?>
         <script>
@@ -389,8 +415,15 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
     $modalTitle = 'Action Required: Setup Your Digital Signature';
     $modalSize = 4; // max-w-lg
     $hideCloseButton = true;
-    
+    $modalDismissible = false; // mandatory: Escape and clicks outside do nothing until the PIN is set or the user logs out
+
     $pinMinLength = \App\Modules\Auth\CredentialPolicy::MIN_LENGTH;
+
+    // A refusal of the previous PIN setup attempt (taken once): shown in the prompt as an alert linked to both fields
+    $pinSetupError = $_SESSION['pin_setup_error'] ?? null;
+    unset($_SESSION['pin_setup_error']);
+    $pinErrorAttributes = $pinSetupError === null ? '' : ' aria-invalid="true" aria-describedby="pin-setup-error"';
+    $pinErrorHtml = $pinSetupError === null ? '' : '<p id="pin-setup-error" role="alert" class="mb-4 text-sm font-medium text-red-600 dark:text-red-400">' . e($pinSetupError) . '</p>';
     $modalContent = '
         <p class="mb-2 text-gray-600 dark:text-gray-400">
             To interact with documents, you must generate a cryptographic Ed25519 digital signature.
@@ -400,17 +433,18 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
             <strong>Security PIN:</strong> ' . e(\App\Modules\Auth\CredentialPolicy::SECURITY_PIN_DEFINITION) . '
         </p>
         <p class="mb-4 text-gray-600 dark:text-gray-400">' . e(\App\Modules\Auth\CredentialPolicy::SHARED_NOTE) . '</p>
+        ' . $pinErrorHtml . '
         <form action="/security-key" method="POST" id="security-key-form">
             <input type="hidden" name="csrf_token" value="' . ($_SESSION['csrf_token'] ?? '') . '">
             <!-- Hidden submit to safely capture Enter key -->
             <button type="submit" class="hidden" aria-hidden="true"></button>
             <div class="mb-4">
                 <label for="pin" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Create a Security PIN (at least ' . $pinMinLength . ' characters)</label>
-                <input type="password" name="pin" id="pin" minlength="' . $pinMinLength . '" required class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-2 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1">
+                <input type="password" name="pin" id="pin"' . $pinErrorAttributes . ' autocomplete="new-password" data-1p-ignore data-lpignore="true" minlength="' . $pinMinLength . '" required class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-2 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1">
             </div>
             <div class="mb-4">
                 <label for="pin_confirm" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Confirm Security PIN</label>
-                <input type="password" name="pin_confirm" id="pin_confirm" minlength="' . $pinMinLength . '" required class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-2 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1">
+                <input type="password" name="pin_confirm" id="pin_confirm"' . $pinErrorAttributes . ' autocomplete="new-password" data-1p-ignore data-lpignore="true" minlength="' . $pinMinLength . '" required class="mt-1 block w-full border-gray-300 dark:border-gray-600 rounded-md shadow-sm sm:text-sm p-2 border bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-accent-1 focus:border-accent-1">
                 <p class="mt-2 text-sm text-gray-500">This PIN will be used to encrypt your private key. You will need it every time you approve or process a document.</p>
             </div>
         </form>
@@ -419,7 +453,7 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
     $modalFooter = '
         <form action="/logout" method="POST" class="inline-block m-0">
             <input type="hidden" name="csrf_token" value="' . ($_SESSION['csrf_token'] ?? '') . '">
-            <button type="submit" class="inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 border border-transparent rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest hover:bg-gray-300 dark:hover:bg-gray-600 focus:outline-none transition">
+            <button type="submit" class="inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 border border-transparent rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest hover:bg-gray-300 dark:hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-accent-1 transition">
                 Log Out
             </button>
         </form>
@@ -431,16 +465,12 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
     require BASE_PATH . '/src/Views/components/modal.php';
     ?>
     <script>
+        // Show the mandatory prompt: it takes the focus and keeps it (focus trap); the shared module ignores Escape and clicks outside because it is not dismissible
         document.addEventListener("DOMContentLoaded", () => {
             const secModal = document.getElementById("security-key-modal");
-            if (secModal) {
-                secModal.classList.remove("hidden");
-                document.body.style.overflow = "hidden";
-                
-                // Prevent closing on backdrop click by removing the triggering class
-                const backdrop = secModal.querySelector(".close-modal-backdrop");
-                if (backdrop) backdrop.classList.remove("close-modal-backdrop");
-            }
+            if (!secModal) return;
+            ModalDialog.open(secModal, { dismissible: false });
+            document.body.style.overflow = "hidden";
         });
     </script>
     <?php endif; ?>
@@ -453,8 +483,8 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
     $hideCloseButton = false;
     $modalContent = '<p id="global-confirmation-message" class="text-sm text-gray-600 dark:text-gray-400"></p>';
     $modalFooter = '
-        <button type="button" class="close-modal-btn inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 border border-transparent rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest hover:bg-gray-300 dark:hover:bg-accent-2 focus:outline-none transition" data-modal="global-confirmation-modal">Cancel</button>
-        <button id="global-confirm-btn" class="inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-500 active:bg-red-700 focus:outline-none focus:border-red-700 focus:ring focus:ring-red-200 transition">Yes, Proceed</button>
+        <button type="button" class="close-modal-btn inline-flex items-center px-4 py-2 bg-gray-200 dark:bg-gray-700 border border-transparent rounded-md font-semibold text-xs text-gray-700 dark:text-gray-300 uppercase tracking-widest hover:bg-gray-300 dark:hover:bg-accent-2 focus:outline-none focus:ring-2 focus:ring-accent-1 transition" data-modal="global-confirmation-modal" data-modal-initial-focus>Cancel</button>
+        <button type="button" id="global-confirm-btn" class="inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-500 active:bg-red-700 focus:outline-none focus:border-red-700 focus:ring focus:ring-red-200 transition">Yes, Proceed</button>
     ';
     require BASE_PATH . '/src/Views/components/modal.php';
     ?>
@@ -465,78 +495,44 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
             const globalConfirmMessage = document.getElementById('global-confirmation-message');
             const globalConfirmBtn = document.getElementById('global-confirm-btn');
 
-            document.querySelectorAll('.confirm-action').forEach(form => {
-                form.addEventListener('submit', (e) => {
-                    // Global confirmation interceptor. Pauses form submission, displays a customizable modal, 
-                    // and safely resumes the native submit flow if the user approves.
-                    if (form.dataset.confirmed === "true") {
-                        // It was confirmed by the modal, let it pass through to other listeners or native submit
-                        delete form.dataset.confirmed;
-                        return;
-                    }
-                    e.preventDefault();
-                    activeConfirmForm = form;
-                    globalConfirmMessage.textContent = form.dataset.message || 'Are you sure you want to proceed?';
-                    
-                    // Show modal logic
-                    globalConfirmModal.classList.remove('hidden');
-                    
-                    // Allow animation frame
-                    requestAnimationFrame(() => {
-                        globalConfirmModal.querySelector('.fixed.inset-0.bg-gray-900').classList.add('opacity-100');
-                        globalConfirmModal.querySelector('.relative.w-full').classList.add('scale-100', 'opacity-100');
-                    });
-                });
+            // Global confirmation interceptor: ONE delegated listener on document (bound once by this layout), so forms that
+            // arrive with an in-app navigation (pjax swaps #pjax-content) are covered too. It pauses the submission,
+            // shows the modal and resumes the native submit flow if the user approves.
+            document.addEventListener('submit', (e) => {
+                const form = e.target;
+                if (!(form instanceof HTMLFormElement) || !form.classList.contains('confirm-action')) return;
+                if (form.dataset.confirmed === "true") {
+                    // It was confirmed by the modal, let it pass through to other listeners or native submit
+                    delete form.dataset.confirmed;
+                    return;
+                }
+                e.preventDefault();
+                activeConfirmForm = form;
+                globalConfirmMessage.textContent = form.dataset.message || 'Are you sure you want to proceed?';
+
+                // Open through the shared module: the button that submitted the form gets the focus back when the modal closes
+                ModalDialog.open(globalConfirmModal, { opener: e.submitter || document.activeElement });
             });
 
             if (globalConfirmBtn) {
                 globalConfirmBtn.addEventListener('click', () => {
-                    if (activeConfirmForm) {
-                        globalConfirmModal.classList.add('hidden');
-                        activeConfirmForm.dataset.confirmed = "true";
-                        // Dispatch submit event so other JS listeners can intercept it, or it will submit natively
-                        const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-                        const cancelled = !activeConfirmForm.dispatchEvent(submitEvent);
-                        if (!cancelled) {
-                            activeConfirmForm.submit(); // Fallback if no listener prevented default
-                        }
+                    const formToSubmit = activeConfirmForm;
+                    if (!formToSubmit) return;
+                    // The page is about to leave or re-handle the form, so the focus is not returned to the opener
+                    ModalDialog.close(globalConfirmModal, { restoreFocus: false });
+                    formToSubmit.dataset.confirmed = "true";
+                    // Dispatch submit event so other JS listeners can intercept it, or it will submit natively
+                    const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
+                    const cancelled = !formToSubmit.dispatchEvent(submitEvent);
+                    if (!cancelled) {
+                        formToSubmit.submit(); // Fallback if no listener prevented default
                     }
                 });
             }
 
-            // Close modal logic for global confirmation is handled by close-modal-btn logic which we also need to include or assume exists.
-            // Let's add a generic close modal listener since it might not be defined globally yet.
-            document.querySelectorAll('.close-modal-btn, .close-modal-backdrop').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const modalId = btn.dataset.modal;
-                    if (!modalId) return;
-                    
-                    // If the click is on the backdrop, ensure we clicked the backdrop itself and not children
-                    if (btn.classList.contains('close-modal-backdrop') && e.target !== btn) {
-                        return;
-                    }
-
-                    const targetModal = document.getElementById(modalId);
-                    if (targetModal) {
-                        targetModal.classList.add('hidden');
-                        if (modalId === 'global-confirmation-modal') {
-                            activeConfirmForm = null;
-                        }
-                    }
-                });
-            });
-
-            // Generic open modal listener
-            document.querySelectorAll('.open-modal-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const modalId = btn.dataset.modal;
-                    if (!modalId) return;
-                    const targetModal = document.getElementById(modalId);
-                    if (targetModal) {
-                        targetModal.classList.remove('hidden');
-                    }
-                });
+            // Cancel, the X button, Escape and a click outside all close through the shared module; forget the form it was for
+            globalConfirmModal.addEventListener('modaldialog:close', () => {
+                activeConfirmForm = null;
             });
         });
 
@@ -578,6 +574,10 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
                         window.__shownNotifIds.add(String(btn.dataset.id));
                     }
                 });
+                // The list rendered by the server is the truth for this page: rebuild the unread set and the bell's name from it
+                unreadNotificationIds.clear();
+                items.forEach(btn => { if (btn.dataset.id) unreadNotificationIds.add(String(btn.dataset.id)); });
+                refreshNotificationButtonText();
                 console.log(`[DTS Notif System] Synced ${items.length} unread notification IDs into memory set.`);
             }
 
@@ -600,6 +600,11 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
                     console.log('[DTS Notif System] Poll response received:', data);
 
                     if (!data.success || !Array.isArray(data.notifications)) return;
+
+                    // The poll lists every unread notification: it is the truth for the bell's name
+                    unreadNotificationIds.clear();
+                    data.notifications.forEach(notif => unreadNotificationIds.add(String(notif.id)));
+                    refreshNotificationButtonText();
 
                     // Check for newly arrived notifications that haven't been alerted as toasts
                     const toastContainer = document.getElementById('toast-container');
@@ -624,7 +629,7 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
                                 }
 
                                 const toastHtml = `
-                                    <div role="alert" class="rounded-md border ${borderColor} ${bgColor} p-4 shadow-sm mb-3 relative toast-message pointer-events-auto animate-slide-in-right">
+                                    <div role="${notif.type === 'error' || notif.type === 'warning' ? 'alert' : 'status'}" data-notification-item class="rounded-md border ${borderColor} ${bgColor} p-4 shadow-sm mb-3 relative toast-message pointer-events-auto animate-slide-in-right">
                                         <div class="flex items-start gap-4">
                                             <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="-mt-0.5 w-6 h-6 ${iconColor}">
                                                 ${iconSvg}
@@ -634,8 +639,8 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
                                                 <p class="toast-text mt-0.5 text-sm ${textColor}"></p>
                                                 <a class="toast-link notification-link mt-2 inline-block text-sm font-medium underline ${textColor}"></a>
                                             </div>
-                                            <button class="mark-notification-read absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition" title="Dismiss">
-                                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                                            <button type="button" class="mark-notification-read absolute top-4 right-4 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-accent-1 transition" title="Dismiss" aria-label="Dismiss notification">
+                                                <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                                             </button>
                                         </div>
                                     </div>
@@ -667,11 +672,41 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
                 }
             }
 
+            // Show or hide the notification list and mirror the state in the bell's aria-expanded
+            function setNotificationDropdownOpen(isOpen) {
+                const dropdown = document.getElementById('notification-dropdown-menu');
+                const bell = document.getElementById('notification-menu-button');
+                if (!dropdown) return;
+                dropdown.classList.toggle('hidden', !isOpen);
+                if (bell) bell.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            }
+
             // Hide the notification list (also called by the navigation menu button)
             window.closeNotificationDropdown = function() {
-                const dropdown = document.getElementById('notification-dropdown-menu');
-                if (dropdown) dropdown.classList.add('hidden');
+                setNotificationDropdownOpen(false);
             };
+
+            // The bell's accessible name carries the unread count (there is no visual badge), so keep it in step with the list
+            // The ids of the unread notifications (seeded from the list on each page, replaced by every poll, shrunk when read)
+            const unreadNotificationIds = new Set();
+
+            // The ONE place that updates the bell's name from the unread count
+            function refreshNotificationButtonText() {
+                const text = document.getElementById('notification-button-text');
+                if (!text) return;
+                const unreadCount = unreadNotificationIds.size;
+                text.textContent = unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications';
+            }
+
+            // Escape closes the open list and returns the focus to the bell (a modal dialog handles Escape itself)
+            document.addEventListener('keydown', (e) => {
+                // One Escape closes one layer: ignore the one a dialog already handled (it set defaultPrevented)
+                if (e.key !== 'Escape' || e.defaultPrevented || (window.ModalDialog && window.ModalDialog.hasOpen())) return;
+                const dropdown = document.getElementById('notification-dropdown-menu');
+                if (!dropdown || dropdown.classList.contains('hidden')) return;
+                setNotificationDropdownOpen(false);
+                document.getElementById('notification-menu-button')?.focus();
+            });
 
             // Global event delegation for notification dropdown, dismiss, and mark as read buttons
             document.addEventListener('click', async (e) => {
@@ -682,7 +717,7 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
                     if (typeof window.closeMobileMenu === 'function') window.closeMobileMenu();
                     const dropdown = document.getElementById('notification-dropdown-menu');
                     if (dropdown) {
-                        dropdown.classList.toggle('hidden');
+                        setNotificationDropdownOpen(dropdown.classList.contains('hidden'));
                         console.log('[DTS Notif System] Toggled dropdown menu. Hidden:', dropdown.classList.contains('hidden'));
                     }
                     return;
@@ -716,7 +751,9 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
                         const data = await res.json();
                         if (data.success) {
                             console.log(`[DTS Notif System] Notification ID ${notifId} marked read successfully.`);
-                            markReadBtn.closest('[role="alert"]')?.remove();
+                            markReadBtn.closest('[data-notification-item]')?.remove();
+                            unreadNotificationIds.delete(String(notifId));
+                            refreshNotificationButtonText();
                         }
                     } catch (err) {
                         console.error('[DTS Notif System] Error marking notification read:', err);
@@ -728,7 +765,7 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
                 if (dismissBtn) {
                     e.stopPropagation();
                     console.log('[DTS Notif System] Dismissing alert manually.');
-                    dismissBtn.closest('[role="alert"]')?.remove();
+                    dismissBtn.closest('[data-notification-item]')?.remove();
                     return;
                 }
 
@@ -754,6 +791,8 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
                                 list.innerHTML = '<p class="text-sm text-gray-500 dark:text-gray-400 p-4 text-center">No new notifications.</p>';
                             }
                             markAllBtn.remove();
+                            unreadNotificationIds.clear();
+                            refreshNotificationButtonText();
                         }
                     } catch (err) {
                         console.error('[DTS Notif System] Error marking all notifications read:', err);

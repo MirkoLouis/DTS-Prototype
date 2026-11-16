@@ -176,6 +176,15 @@
                 }
             }
 
+            // Close every open modal dialog (focus is not returned: its opener is about to be replaced) so the
+            // page behind is not left inert and no stale modal stays in the focus trap's stack
+            if (window.ModalDialog) {
+                window.ModalDialog.closeAll();
+            }
+
+            // Tell the current page's scripts to stop their timers and pending work (report and integrity polling)
+            document.dispatchEvent(new CustomEvent('dts:before-swap'));
+
             currentContent.innerHTML = newContent.innerHTML;
 
             // Swap the page heading (the <header id="pjax-header"> above <main>).
