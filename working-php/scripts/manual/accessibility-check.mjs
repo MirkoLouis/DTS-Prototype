@@ -14,7 +14,11 @@
 // On every page: exactly one h1, no skipped heading level, every button and link has an accessible name with at least one
 // letter or digit, every form control has a label, no duplicate ids, every role="dialog" is complete. One line per
 // page/modal; exit 1 on a failure.
-import { context, createSessions, launchBrowser, pages } from './browser-common.mjs';
+import { allowConsoleError, context, createSessions, launchBrowser, pages, takeDiagnostics } from './browser-common.mjs';
+
+// The 404 page is loaded on purpose, and the refused-PIN check provokes one refused request: the browser logs both
+allowConsoleError(/status of 404/, 'the 404 page is a page of this check');
+allowConsoleError(/status of (401|403|422|429)/, 'the refused PIN check');
 
 const viewports = [{ width: 1280, height: 900 }, { width: 360, height: 800 }];
 
@@ -445,9 +449,9 @@ const dialogSpecs = [
         { opener: '.reset-credentials-trigger', modal: '#reset-credentials-modal' },
         { opener: '#reset-credentials-form button[type="submit"]', modal: '#signing-modal', prepare: (page) => page.check('#reset-credentials-form input[value="password"]') },
     ] },
-    { name: 'dialog-backups-restore', role: 'admin', route: '/system/backups', steps: [{ opener: 'button[onclick^="openRestoreModal"]', modal: '#restore-modal' }] },
+    { name: 'dialog-backups-restore', role: 'admin', route: '/system/backups', steps: [{ opener: '.restore-backup-trigger', modal: '#restore-modal' }] },
     { name: 'dialog-backups-restore+signing', role: 'admin', route: '/system/backups', steps: [
-        { opener: 'button[onclick^="openRestoreModal"]', modal: '#restore-modal' },
+        { opener: '.restore-backup-trigger', modal: '#restore-modal' },
         { opener: '#restore-form button[type="submit"]', modal: '#signing-modal' },
     ] },
     { name: 'dialog-scan-qr-intake', role: 'records.unit', route: '/intake', steps: [{ opener: '#scan-qr-btn', modal: '#qr-modal' }] },
@@ -490,8 +494,10 @@ let failureCount = 0;
 
 // Print one result line and count failures
 function report(width, name, failures) {
-    if (failures.length > 0) failureCount++;
-    console.log(`${String(width).padStart(4)} ${name.padEnd(34)} ${failures.length === 0 ? 'OK' : 'FAIL ' + failures.join('; ')}`);
+    // Policy violations, console errors and uncaught exceptions since the last line fail this one
+    const problems = [...failures, ...takeDiagnostics()];
+    if (problems.length > 0) failureCount++;
+    console.log(`${String(width).padStart(4)} ${name.padEnd(34)} ${problems.length === 0 ? 'OK' : 'FAIL ' + problems.join('; ')}`);
 }
 
 // Run one check and turn an exception into a failure line

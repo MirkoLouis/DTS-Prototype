@@ -1,18 +1,16 @@
 /**
  * Admin Dashboard — Chart initialization and data fetching.
  *
- * Listens to both `DOMContentLoaded` (initial page load) and `dts:page-loaded`
- * (PJAX navigation swap) so charts re-initialize after every navigation without
- * requiring a full browser reload.
+ * Registered with DtsPage (core/page-registry.js): runs on the first load and after
+ * every in-app navigation to the dashboard, so charts are drawn again without a full
+ * browser reload. The root element is src/Views/admin/dashboard.php's
+ * [data-page="admin-dashboard"], which carries the data URLs.
  *
  * All fetch() calls are wired to window.__pjaxController.signal so they are
  * automatically cancelled when the user navigates away, preventing orphaned
  * TCP connections and session lock contention.
  */
-function initAdminDashboard() {
-    const chartContainer = document.querySelector('[data-current-load-url]');
-    if (!chartContainer) return;
-
+DtsPage.onLoad('[data-page="admin-dashboard"]', function initAdminDashboard(chartContainer) {
     // URLs from the main data attribute container
     const { declineTrendsUrl, peakIntakeHoursUrl, statusDistributionUrl, processingHotspotsUrl, avgStepTimeUrl, throughputUrl, loadVsTimeUrl, submissionDistrictsUrl } = chartContainer.dataset;
 
@@ -313,18 +311,13 @@ function initAdminDashboard() {
     updateAllCharts();
 
     // Polling: Update all charts every 60 seconds.
-    // Store the interval ID on the controller so it can be cleared if needed.
     const pollInterval = setInterval(updateAllCharts, 60000);
 
-    // Clear the polling interval when the user navigates away (PJAX or otherwise)
-    // to prevent ghost polling from a page that no longer exists in the DOM.
-    window.__pjaxController?.signal.addEventListener('abort', () => {
+    // Leaving the page (the registry runs this before the content is swapped): stop the poll, release the charts.
+    // The abort signal of the router still cancels requests that are in flight.
+    return function teardownAdminDashboard() {
         clearInterval(pollInterval);
-    });
-}
-
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initAdminDashboard);
-} else {
-    initAdminDashboard();
-}
+        [statusDistributionChart, returnDeclineChart, peakIntakeHoursChart, avgStepTimeChart, throughputChart,
+            processingHotspotsChart, loadVsTimeChart, submissionDistrictsChart, allAvgTatChartInstance].forEach((chart) => chart?.destroy());
+    };
+});

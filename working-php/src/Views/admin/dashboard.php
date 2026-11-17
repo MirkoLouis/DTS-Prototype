@@ -21,6 +21,7 @@
                         </form>
                     </div>
                     <div class="space-y-6"
+                         data-page="admin-dashboard"
                          data-current-load-url="/api/admin-dashboard/current-load"
                          data-throughput-url="/api/admin-dashboard/throughput"
                          data-decline-trends-url="/api/admin-dashboard/decline-trends"
@@ -197,7 +198,5 @@
             </div>
         </div>
 
-        <script src="/js/admin-dashboard.js"></script>
-        
     <?php $content = ob_get_clean(); require BASE_PATH . '/src/Views/layouts/app.php'; ?>
     

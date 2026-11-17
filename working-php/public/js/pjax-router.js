@@ -6,8 +6,11 @@
  * API requests (chart fetches, etc.) from the previous page on every
  * navigation to prevent orphaned TCP connections and session lock contention.
  *
- * Dispatches `dts:page-loaded` after every successful swap so page-specific
- * JS files can re-initialize their Chart.js instances, event listeners, etc.
+ * Dispatches `dts:before-swap` before the content is replaced and `dts:page-loaded`
+ * after every successful swap. Page scripts do not listen to them directly: they
+ * register with DtsPage.onLoad() (core/page-registry.js), which runs their initializer
+ * for the new content and their teardown before it is replaced. Scripts are never
+ * re-executed: the layout loads every script file once.
  */
 (function () {
     'use strict';
@@ -50,26 +53,6 @@
         }, 200);
     }
 
-    // Re-executes <script src="..."> tags found inside the swapped container.
-    // innerHTML assignment does not run scripts; we must clone and re-append them.
-    // Inline <script> blocks (not src-based) are also re-executed this way.
-    function reExecuteScripts(container) {
-        container.querySelectorAll('script').forEach(oldScript => {
-            const newScript = document.createElement('script');
-
-            if (oldScript.src) {
-                // Cache-bust with timestamp to force re-evaluation by the browser
-                newScript.src = oldScript.src.split('?')[0] + '?_pjax=' + Date.now();
-                newScript.defer = oldScript.defer;
-                newScript.async = oldScript.async;
-            } else {
-                newScript.textContent = oldScript.textContent;
-            }
-
-            oldScript.replaceWith(newScript);
-        });
-    }
-
     // Resolve a redirect target announced by the server: its path, query and hash when it points to this origin,
     // otherwise null (a value with whitespace or control characters, one that does not parse, or another origin)
     function sameOriginTarget(value) {
@@ -88,7 +71,7 @@
     }
 
     // Core navigation function — fetches target URL, parses full HTML,
-    // swaps #pjax-content, re-runs scripts, fires lifecycle event.
+    // swaps #pjax-content, fires the lifecycle events.
     async function navigateTo(url, pushHistory = true) {
         // Track origin URL before entering a document page from a non-document page
         const currentPath = window.location.pathname;
@@ -213,10 +196,8 @@
                 }
             });
 
-            // Close the mobile menu after in-app navigation
-            if (typeof window.closeMobileMenu === 'function') {
-                window.closeMobileMenu();
-            }
+            // Close the mobile menu after in-app navigation (the notification list keeps its state)
+            document.dispatchEvent(new CustomEvent('dts:close-overlays', { detail: { keep: 'notification-dropdown' } }));
 
             // Synchronize notification bell badge and dropdown list across PJAX swaps
             const newNotifBtn = newDoc.getElementById('notification-menu-button');
@@ -245,8 +226,8 @@
             }
             console.log('[DTS PJAX Router] Notification bell & toasts synchronized.');
 
-            // Re-run any <script> tags embedded in the new content (e.g. page-specific JS)
-            reExecuteScripts(currentContent);
+            // No script is run here: every script file is loaded once by the layout, and the page's own initializers
+            // (DtsPage.onLoad, public/js/core/page-registry.js) run on this event for the new content
 
             // Notify all page-specific JS initializers that a new page is live
             document.dispatchEvent(new CustomEvent('dts:page-loaded', {
@@ -278,19 +259,15 @@
         if (!href) return;
 
         // Bail out for all link types that must not be PJAX-intercepted:
-        // external URLs, new tabs, mailto/tel/javascript, anchor fragments,
+        // external URLs, links with any scheme (http:, mailto:, tel: ...), new tabs, anchor fragments,
         // explicit opt-outs (data-pjax="false"), and file downloads.
         if (
             link.target === '_blank' ||
             link.target === '_self' ||
             link.dataset.pjax === 'false' ||
-            href.startsWith('http://') ||
-            href.startsWith('https://') ||
+            /^[a-z][a-z0-9+.-]*:/i.test(href) ||
             href.startsWith('//') ||
-            href.startsWith('mailto:') ||
-            href.startsWith('tel:') ||
             href.startsWith('#') ||
-            href.startsWith('javascript:') ||
             link.hasAttribute('download')
         ) {
             return;

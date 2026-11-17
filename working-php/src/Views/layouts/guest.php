@@ -11,19 +11,20 @@
     <link rel="apple-touch-icon" href="/images/logoipsum-411.png">
 
     <link href="/css/tailwind.css" rel="stylesheet">
-    <script>
-        (function() {
-            const theme = localStorage.getItem('theme');
-            const isDark = theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
-            if (isDark) {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
-        })();
-    </script>
+    <!-- Applies the saved theme before the first paint (a blocking script file: no flash of the wrong theme) -->
+    <script src="/js/layout/theme-init.js"></script>
     <!-- Shared modal dialog behaviour (focus trap, Escape, inert page behind); loaded before any page script uses it -->
     <script src="/js/modal-dialog.js"></script>
+    <!-- Page registry and JSON data reader, then the guest scripts (deferred: they run in this order once the page is parsed) -->
+    <script src="/js/core/page-registry.js" defer></script>
+    <script src="/js/core/json-data.js" defer></script>
+    <script src="/js/core/pin-token.js" defer></script>
+    <script src="/js/layout/theme-toggle.js" defer></script>
+    <script src="/js/layout/server-handoff.js" defer></script>
+    <script src="/js/html5-qrcode.min.js" defer></script>
+    <script src="/js/components/guest-qr-scanner.js" defer></script>
+    <script src="/js/pages/welcome.js" defer></script>
+    <script src="/js/pages/track.js" defer></script>
     <style>
         /* Shown unless the `hidden` class is set: the shared ModalDialog module toggles that class */
         .qr-modal:not(.hidden) {
@@ -102,45 +103,9 @@
         <?= $content ?? '' ?>
     </div>
 
-    <script>
-        var themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
-        var themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
-
-        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            themeToggleLightIcon.classList.remove('hidden');
-        } else {
-            themeToggleDarkIcon.classList.remove('hidden');
-        }
-
-        var themeToggleBtn = document.getElementById('theme-toggle');
-
-        themeToggleBtn.addEventListener('click', function() {
-            themeToggleDarkIcon.classList.toggle('hidden');
-            themeToggleLightIcon.classList.toggle('hidden');
-
-            if (localStorage.getItem('theme')) {
-                if (localStorage.getItem('theme') === 'light') {
-                    document.documentElement.classList.add('dark');
-                    localStorage.setItem('theme', 'dark');
-                } else {
-                    document.documentElement.classList.remove('dark');
-                    localStorage.setItem('theme', 'light');
-                }
-            } else {
-                if (document.documentElement.classList.contains('dark')) {
-                    document.documentElement.classList.remove('dark');
-                    localStorage.setItem('theme', 'light');
-                } else {
-                    document.documentElement.classList.add('dark');
-                    localStorage.setItem('theme', 'dark');
-                }
-            }
-        });
-    </script>
+    <?php // Session data for public/js/layout/server-handoff.js (a message for the browser console), as an inert JSON block ?>
     <?php if (isset($_SESSION['console_error'])): ?>
-        <script>
-            console.error(<?= json_encode($_SESSION['console_error']) ?>);
-        </script>
+        <?= \App\Common\Utils\JsonDataBlock::render('dts-console-error', $_SESSION['console_error']) ?>
         <?php unset($_SESSION['console_error']); ?>
     <?php endif; ?>
 </body>

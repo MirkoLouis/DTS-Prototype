@@ -254,16 +254,63 @@ class BackupPinTest extends TestCase
         $this->assertStringContainsString('sign-pin-input', $body);
     }
 
-    // The PIN prompt and its wiring are part of the page content, so in-app navigation (which swaps only
-    // the content) brings them along; anything after the closing html tag would be dropped
+    // A backup whose name has a space and a "+": Download, Restore and Delete are addressed with the same encoded name
+    // (built by PHP, urlencode) and each reaches that file
+    public function test_backup_name_with_space_and_plus_is_addressed_the_same_by_all_three_actions(): void
+    {
+        $directory = BackupService::directory();
+        $odd = 'odd name+1.sql.zip';
+        file_put_contents("{$directory}/odd.sql", "SELECT 1;\n");
+        BackupService::archive("{$directory}/odd.sql", "{$directory}/{$odd}");
+        unlink("{$directory}/odd.sql");
+
+        $client = $this->admin();
+        $body = $client->get('/system/backups')['body'];
+        $encoded = urlencode($odd);
+
+        // The three addresses of the row all end with the same encoded name
+        $this->assertSame(1, preg_match('#data-restore-file-name="' . preg_quote(htmlspecialchars($odd, ENT_QUOTES), '#') . '" data-restore-url="([^"]+)"#', $body, $restore));
+        $this->assertSame('/system/backups/restore/' . $encoded, $restore[1]);
+        $this->assertStringContainsString('action="/system/backups/download/' . $encoded . '"', $body);
+        $this->assertStringContainsString('action="/system/backups/delete/' . $encoded . '"', $body);
+
+        // Each address reaches the file: restore queues a job for it, download serves it, delete removes it
+        $client->post($restore[1], ['pin' => TestDatabase::PIN]);
+        $this->assertStringContainsString(json_encode($odd), implode(' ', $this->queuedJobs()));
+        // (a page between the requests gives the client a current CSRF token to send)
+        $client->get('/system/backups');
+        $this->assertSame('application/zip', $client->post('/system/backups/download/' . $encoded, ['pin' => TestDatabase::PIN])['headers']['content-type'] ?? '');
+        $client->get('/system/backups');
+        $client->post('/system/backups/delete/' . $encoded, ['pin' => TestDatabase::PIN]);
+        $this->assertFileDoesNotExist("{$directory}/{$odd}");
+    }
+
+    // The PIN prompt and the elements its behaviour attaches to are part of the page content, so in-app navigation
+    // (which swaps only #pjax-content) brings them along; the behaviour itself is in script files that the layout
+    // loads once (components/sign-actions.js for the PIN prompt of the forms, pages/backups.js for the Restore button)
     public function test_pin_prompt_is_inside_the_page_content(): void
     {
         $body = $this->admin()->get('/system/backups')['body'];
-        $end = strpos($body, '</html>');
 
+        // The container the router swaps ends where <main> ends
+        $start = strpos($body, '<div id="pjax-content">');
+        $end = strpos($body, '</main>', (int) $start);
+        $this->assertNotFalse($start);
         $this->assertNotFalse($end);
-        $this->assertNotFalse(strpos($body, 'initBackupsPage'));
-        $this->assertLessThan($end, strpos($body, 'initBackupsPage'));
-        $this->assertFalse(strpos($body, 'SigningModal', $end), 'the signing modal is emitted after the page');
+
+        // The prompt, the restore dialog, its trigger and the PIN-asking forms are all inside the swapped content
+        foreach (['id="signing-modal"', 'id="signing-modal-confirm"', 'id="restore-modal"', 'class="restore-backup-trigger', 'id="restore-form"', 'class="sign-action', 'class="sign-pin-input"'] as $needle) {
+            $position = strpos($body, $needle);
+            $this->assertNotFalse($position, $needle);
+            $this->assertGreaterThan($start, $position, $needle);
+            $this->assertLessThan($end, $position, $needle);
+        }
+        $this->assertMatchesRegularExpression('/class="restore-backup-trigger[^"]*"[^>]*data-restore-file-name="' . preg_quote(self::FILE, '/') . '"/', $body);
+
+        // Nothing after the closing html tag, and the behaviour comes from script files in the head
+        $this->assertFalse(strpos($body, 'SigningModal', (int) strpos($body, '</html>')), 'the signing modal is emitted after the page');
+        foreach (['/js/components/signing-modal.js', '/js/components/sign-actions.js', '/js/pages/backups.js'] as $script) {
+            $this->assertLessThan(strpos($body, '</head>'), strpos($body, '<script src="' . $script . '" defer></script>'), $script);
+        }
     }
 }

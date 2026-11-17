@@ -9,11 +9,16 @@
  * @var string $finderFormId      (Optional) Form ID, defaults to 'find-form'
  * @var string $finderButtonText  (Optional) Button text, defaults to 'Find'
  * @var string $finderInputName   (Optional) Input name, defaults to 'tracking_code'
+ * @var string $finderPinPrompt   (Optional) Message start of the Security PIN prompt shown before the form is sent
+ *                                (the tracking code is appended); without it the form is sent directly
+ *
+ * Behaviour (trimming the code, the PIN prompt, the QR scan dialog): public/js/components/qr-scanner.js
  */
 
 $finderFormId = $finderFormId ?? 'find-form';
 $finderButtonText = $finderButtonText ?? 'Find';
 $finderInputName = $finderInputName ?? 'tracking_code';
+$finderPinPrompt = $finderPinPrompt ?? null;
 ?>
 
 <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
@@ -21,7 +26,7 @@ $finderInputName = $finderInputName ?? 'tracking_code';
         <h2 class="text-2xl font-bold mb-4"><?= htmlspecialchars($finderTitle) ?></h2>
         <p class="mb-6 text-gray-600 dark:text-gray-400"><?= htmlspecialchars($finderDescription) ?></p>
 
-        <form id="<?= htmlspecialchars($finderFormId) ?>" action="<?= htmlspecialchars($finderActionUrl) ?>" method="POST" onsubmit="this.elements['<?= htmlspecialchars($finderInputName) ?>'].value = this.elements['<?= htmlspecialchars($finderInputName) ?>'].value.trim()">
+        <form id="<?= htmlspecialchars($finderFormId) ?>" action="<?= htmlspecialchars($finderActionUrl) ?>" method="POST" data-tracking-finder data-code-field="<?= htmlspecialchars($finderInputName) ?>"<?= $finderPinPrompt !== null ? ' data-pin-prompt="' . htmlspecialchars($finderPinPrompt) . '"' : '' ?>>
             <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
             <div>
                 <label for="<?= htmlspecialchars($finderInputName) ?>" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Tracking Code</label>
@@ -34,7 +39,7 @@ $finderInputName = $finderInputName ?? 'tracking_code';
             </div>
         </form>
         
-        <button type="button" id="scan-qr-btn" class="mt-4 inline-flex items-center px-4 py-2 bg-accent-1 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-1-hover active:bg-accent-1-active focus:outline-none focus:border-accent-1-border-active focus:ring focus:ring-accent-1-light disabled:opacity-25 transition">
+        <button type="button" id="scan-qr-btn" data-qr-modal="qr-modal" class="mt-4 inline-flex items-center px-4 py-2 bg-accent-1 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-1-hover active:bg-accent-1-active focus:outline-none focus:border-accent-1-border-active focus:ring focus:ring-accent-1-light disabled:opacity-25 transition">
             Scan QR Code
         </button>
     </div>

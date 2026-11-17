@@ -1,13 +1,12 @@
 /**
  * Statistics Page — Chart initialization and report generation.
  *
- * Listens to both `DOMContentLoaded` and `dts:page-loaded` (PJAX swap)
- * so charts re-initialize correctly after client-side navigation.
+ * Registered with DtsPage (core/page-registry.js): runs on the first load and after
+ * every in-app navigation to a statistics page, so charts are drawn again without a
+ * full browser reload. The root element is [data-page="statistics"] of
+ * src/Views/components/department-analytics.php, which carries the data URLs.
  */
-function initStatistics() {
-    const chartContainer = document.querySelector('.grid');
-    if (!chartContainer) return;
-
+DtsPage.onLoad('[data-page="statistics"]', function initStatistics(chartContainer) {
     // URLs from the data attributes
     const currentLoadUrl = chartContainer.dataset.currentLoadUrl;
     const throughputUrl = chartContainer.dataset.throughputUrl;
@@ -26,6 +25,9 @@ function initStatistics() {
     if (!currentLoadCtx || !throughputCtx || !avgProcessingTimeCtx) {
         return;
     }
+
+    // Everything that must stop when the page is left: polls, timers, pending work (run by the DtsPage teardown)
+    const cleanups = [];
 
     let currentLoadChart, throughputChart, avgProcessingTimeChart;
     window.dtsCharts = { currentLoadChart, throughputChart, avgProcessingTimeChart };
@@ -126,10 +128,7 @@ function initStatistics() {
 
         // Polling: Update all statistics charts every 60 seconds
         const pollInterval = setInterval(updateAllStatisticsCharts, 60000);
-        
-        window.__pjaxController?.signal.addEventListener('abort', () => {
-            clearInterval(pollInterval);
-        });
+        cleanups.push(() => clearInterval(pollInterval));
 
         // Add event listeners
         currentLoadPeriodEl?.addEventListener('change', (e) => fetchChartData(currentLoadChart, currentLoadUrl, e.target.value, 'documents received'));
@@ -139,14 +138,6 @@ function initStatistics() {
         initializeReportGeneration();
     }
     
-    function formatTime(seconds) {
-        if (seconds < 1) return "Soon...";
-        if (seconds < 60) return `${Math.round(seconds)}s`;
-        const minutes = Math.floor(seconds / 60);
-        const remainingSeconds = Math.round(seconds % 60);
-        return `${minutes}m ${remainingSeconds}s`;
-    }
-
     function initializeReportGeneration() {
         const generateReportBtn = document.getElementById('generate-report-btn');
         const reportForm = document.getElementById('report-generation-form');
@@ -167,11 +158,11 @@ function initStatistics() {
         let reportJobRunning = false;
         // Set when the router is about to replace the page; late poll answers must then do nothing (no download, no redirect)
         let pageLeft = false;
-        document.addEventListener('dts:before-swap', () => {
+        cleanups.push(() => {
             pageLeft = true;
             reportJobRunning = false;
             clearInterval(pollingInterval);
-        }, { once: true });
+        });
 
         generateReportBtn.addEventListener('click', async function(e) {
             e.preventDefault();
@@ -200,7 +191,7 @@ function initStatistics() {
                 generateReportBtn.textContent = 'Preparing...';
 
                 const formData = new FormData(reportForm);
-                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                const csrfToken = DtsUtil.csrfToken();
                 const response = await fetch(reportForm.action, {
                     method: 'POST',
                     body: formData,
@@ -256,7 +247,7 @@ function initStatistics() {
                 if (currentJobId) {
                     const fd = new FormData();
                     fd.append('job_id', currentJobId);
-                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                    const csrfToken = DtsUtil.csrfToken();
                     await fetch('/statistics/report/cancel', { 
                         method: 'POST', 
                         body: fd,
@@ -290,7 +281,7 @@ function initStatistics() {
                     const elapsed = (Date.now() - startTime) / 1000;
                     const estimatedTotal = elapsed / (job.progress / 100);
                     const remaining = Math.max(0, estimatedTotal - elapsed);
-                    progressTime.textContent = `Est. time remaining: ${formatTime(remaining)}`;
+                    progressTime.textContent = `Est. time remaining: ${DtsUtil.formatRemainingTime(remaining)}`;
                 }
 
                 if (job.status === 'completed') {
@@ -327,27 +318,33 @@ function initStatistics() {
                     return;
                 }
 
-                tbody.innerHTML = reports.map(r => {
+                // Rows are built from a constant shell; the values from the server are inserted as text and as an encoded path segment
+                tbody.replaceChildren(...reports.map(r => {
                     const dateObj = new Date(r.created_at);
                     const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' });
                     const timeStr = dateObj.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-                    return `
-                        <tr class="hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150">
-                            <td class="px-4 py-4 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                                <div class="flex flex-col text-gray-500 dark:text-gray-400">
-                                    <span>${dateStr}</span>
-                                    <span class="text-xs mt-0.5">${timeStr}</span>
-                                </div>
-                            </td>
-                            <td class="px-4 py-4 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                                <span class="text-gray-500 dark:text-gray-400">${r.total_documents}</span>
-                            </td>
-                            <td class="px-4 py-4 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
-                                <a href="/statistics/report/download/${r.id}" class="text-accent-1 hover:underline font-semibold">Download Spreadsheet</a>
-                            </td>
-                        </tr>
+                    const row = document.createElement('tr');
+                    row.className = 'hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-150';
+                    row.innerHTML = `
+                        <td class="px-4 py-4 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                            <div class="flex flex-col text-gray-500 dark:text-gray-400">
+                                <span class="report-date"></span>
+                                <span class="report-time text-xs mt-0.5"></span>
+                            </div>
+                        </td>
+                        <td class="px-4 py-4 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                            <span class="report-total text-gray-500 dark:text-gray-400"></span>
+                        </td>
+                        <td class="px-4 py-4 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap">
+                            <a class="report-download text-accent-1 hover:underline font-semibold">Download Spreadsheet</a>
+                        </td>
                     `;
-                }).join('');
+                    row.querySelector('.report-date').textContent = dateStr;
+                    row.querySelector('.report-time').textContent = timeStr;
+                    row.querySelector('.report-total').textContent = String(r.total_documents);
+                    row.querySelector('.report-download').setAttribute('href', `/statistics/report/download/${encodeURIComponent(r.id)}`);
+                    return row;
+                }));
             } catch (e) {
                 console.error('Failed to refresh past reports:', e);
             }
@@ -373,13 +370,15 @@ function initStatistics() {
                 progressText.textContent = 'Report generated successfully!';
                 progressTime.textContent = 'Ready for download.';
                 
+                // Constant shell; the job id (from the server) is set as an encoded path segment, never parsed as HTML
                 downloadBtnContainer.innerHTML = `
                     <div class="mt-4 flex justify-center">
-                        <a href="/statistics/report/download/${jobId}" class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition">
+                        <a class="report-download-again inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 transition">
                             Download Spreadsheet Again
                         </a>
                     </div>
                 `;
+                downloadBtnContainer.querySelector('.report-download-again').setAttribute('href', `/statistics/report/download/${encodeURIComponent(jobId)}`);
                 refreshPastReports();
                 window.location.href = `/statistics/report/download/${jobId}`;
             } else {
@@ -392,10 +391,10 @@ function initStatistics() {
     }
 
     initialize();
-}
 
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initStatistics);
-} else {
-    initStatistics();
-}
+    // Leaving the page: stop the poll and the report polling, and release the charts
+    return function teardownStatistics() {
+        cleanups.forEach((cleanup) => cleanup());
+        [currentLoadChart, throughputChart, avgProcessingTimeChart].forEach((chart) => chart?.destroy());
+    };
+});

@@ -58,14 +58,14 @@
                                     <input type="hidden" name="pin" class="sign-pin-input">
                                     <button type="submit" class="text-accent-1 hover:text-accent-1-active">Download</button>
                                 </form>
-                                <button type="button" class="text-gray-500 hover:text-gray-700" onclick="openRestoreModal(\'%s\', this)">Restore</button>
+                                <button type="button" class="restore-backup-trigger text-gray-500 hover:text-gray-700" data-restore-file-name="%s" data-restore-url="/system/backups/restore/%s">Restore</button>
                                 <form action="/system/backups/delete/%s" method="POST" class="sign-action" data-message="Enter your Security PIN to delete this backup.">
                                     <input type="hidden" name="csrf_token" value="' . ($_SESSION['csrf_token'] ?? '') . '">
                                     <input type="hidden" name="pin" class="sign-pin-input">
                                     <button type="submit" class="text-red-600 hover:text-red-900">Delete</button>
                                 </form>
                             </div>
-                        ', urlencode($backup['file_name']), htmlspecialchars($backup['file_name'], ENT_QUOTES), urlencode($backup['file_name']));
+                        ', urlencode($backup['file_name']), htmlspecialchars($backup['file_name'], ENT_QUOTES), urlencode($backup['file_name']), urlencode($backup['file_name']));
                     }
                     unset($backup);
 
@@ -98,51 +98,13 @@
                 Restore <strong id="restore-file-name"></strong>?
             </p>
             <div class="mt-6 flex justify-end space-x-2">
-                <button type="button" onclick="ModalDialog.close(document.getElementById('restore-modal'))" class="px-4 py-2 bg-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-accent-1">Cancel</button>
+                <button type="button" class="close-modal-btn px-4 py-2 bg-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-accent-1">Cancel</button>
                 <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-red-500">Restore Now</button>
             </div>
         </form>
     </div>
 </div>
 
-<script>
-    // opener: the Restore button, passed explicitly (Safari and Firefox on macOS do not focus a clicked button)
-    function openRestoreModal(fileName, opener) {
-        document.getElementById('restore-file-name').textContent = fileName;
-        document.getElementById('restore-form').action = `/system/backups/restore/${fileName}`;
-        // The shared modal module focuses the first control and returns the focus to the Restore button on close
-        ModalDialog.open(document.getElementById('restore-modal'), { opener: opener });
-    }
-
-</script>
-<script>
-    // Deleting, restoring and downloading ask for the Security PIN before the form is sent
-    function initBackupsPage() {
-        document.querySelectorAll('form.sign-action').forEach(form => {
-            form.addEventListener('submit', function (e) {
-                const pinInput = this.querySelector('.sign-pin-input');
-                if (pinInput && !pinInput.value) {
-                    e.preventDefault();
-                    const message = this.dataset.message || 'Enter your Security PIN to sign this action.';
-                    window.SigningModal.show(message, function (pin) {
-                        pinInput.value = pin;
-                        form.submit();
-
-                        // A download leaves the page open, so the PIN must not stay in the form for the next use
-                        if (form.dataset.keepsPage === 'true') {
-                            pinInput.value = '';
-                        }
-                    }, e.submitter);
-                }
-            });
-        });
-    }
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initBackupsPage);
-    } else {
-        initBackupsPage();
-    }
-</script>
 <?php require BASE_PATH . '/src/Views/partials/signing-modal.php'; ?>
 
 <?php $content = ob_get_clean(); ?>

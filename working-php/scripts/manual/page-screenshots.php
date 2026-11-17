@@ -3,7 +3,9 @@
 /**
  * Manual browser checks: (1) responsive layout: screenshots every main page at 360, 1024 and 1280 px and reports horizontal
  * overflow (page-screenshots.mjs); (2) accessibility: keyboard pass of every modal dialog plus a markup audit of every
- * page at 1280 and 360 px (accessibility-check.mjs). One launcher runs both.
+ * page at 1280 and 360 px (accessibility-check.mjs); (3) script policy and behaviour: every page by hard load and by in-app
+ * navigation with the report-only Content Security Policy violations, console errors and uncaught exceptions, and the moved
+ * features (behavior-check.mjs). One launcher runs all three.
  *
  * Usage (from working-php/):
  *   composer manual:page-screenshots            or            php scripts/manual/page-screenshots.php
@@ -71,6 +73,12 @@ foreach ([CacheMiddleware::cacheDir(), ChainCheckpointJob::directory(), Config::
 // Fresh schema, baseline users, then documents in several states so the lists are not empty
 TestDatabase::reset();
 $fixture = TestDatabase::seedBaseline();
+
+// More documents than one list page holds (15), created first so they are the oldest and sit on the second list page: the
+// lists have pagination links and the documents below stay on the first page
+for ($filler = 1; $filler <= 12; $filler++) {
+    Fixtures::submit(['title' => "Pagination filler document {$filler}"]);
+}
 $pending = Fixtures::submit(['title' => 'Request for certified true copy of a long document title to test wrapping']);
 $inTransit = Fixtures::submit(['title' => 'Application documents in transit']);
 Fixtures::advanceTo($inTransit['id'], 'in_transit');
@@ -82,6 +90,7 @@ $completed = Fixtures::submit(['title' => 'Completed document']);
 Fixtures::advanceTo($completed['id'], 'completed');
 $declined = Fixtures::submit(['title' => 'Declined document']);
 Fixtures::advanceTo($declined['id'], 'declined');
+
 
 // A spare fixture user without a signing key, to show the mandatory Security PIN prompt (same columns as UserCredentialService)
 $keylessUser = 'personnel.unit';
@@ -182,6 +191,7 @@ try {
 $context = [
     'baseUrl' => "http://127.0.0.1:{$port}",
     'password' => TestDatabase::PASSWORD,
+    'pin' => TestDatabase::PIN,
     'trackingCode' => $pending['tracking_code'],
     'documentCode' => $inTransit['tracking_code'],
     'documentId' => $pending['id'],
@@ -193,9 +203,9 @@ $contextFile = Config::testPath('screens/context.json');
 file_put_contents($contextFile, json_encode($context, JSON_PRETTY_PRINT));
 
 // Run the Node scripts one after the other in the foreground (layout check first, then the accessibility check,
-// which also creates report and integrity jobs) and pass on the worst exit code
+// which also creates report and integrity jobs, then the policy and behaviour check) and pass on the worst exit code
 $exitCode = 0;
-foreach (['page-screenshots.mjs', 'accessibility-check.mjs'] as $script) {
+foreach (['page-screenshots.mjs', 'accessibility-check.mjs', 'behavior-check.mjs'] as $script) {
     // The output (stderr merged into stdout) is relayed through a pipe: children that inherit a redirected STDOUT/STDERR
     // file reset its offset, so the second script would overwrite the lines of the first
     $node = proc_open(['node', __DIR__ . '/' . $script, $contextFile], [0 => ['file', '/dev/null', 'r'], 1 => ['pipe', 'w'], 2 => ['redirect', 1]], $nodePipes, BASE_PATH);

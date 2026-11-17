@@ -11,16 +11,8 @@ $escape = fn($value) => htmlspecialchars((string) $value, ENT_QUOTES | ENT_SUBST
     <title><?= $escape($status . ' ' . $title) ?> — DepEd DTS</title>
     <link rel="icon" type="image/png" href="/images/logoipsum-411.png">
     <link href="/css/tailwind.css" rel="stylesheet">
-    <script>
-        // Same theme choice as the rest of the app (light, dark, or the device setting)
-        (function () {
-            let theme = null;
-            try { theme = localStorage.getItem('theme'); } catch (e) {}
-            if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                document.documentElement.classList.add('dark');
-            }
-        })();
-    </script>
+    <!-- Same theme choice as the rest of the app (light, dark, or the device setting) -->
+    <script src="/js/layout/theme-init.js"></script>
 </head>
 <body class="min-h-screen flex items-center justify-center bg-gray-100 dark:bg-gray-900 px-4">
     <main class="max-w-md w-full mx-auto bg-white dark:bg-gray-800 shadow-md rounded-lg p-8 text-center">
