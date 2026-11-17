@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-11-17
+
+**Version:** 2.7.11
+
+### Added
+- `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff` and `Referrer-Policy: same-origin` on every PHP response, next to the policy, from the same single place (`App\Common\Http\SecurityHeaders::HEADERS`, sent once from `public/index.php`). `X-Powered-By` is removed with `header_remove()` (on PHP's built-in server `ini_set('expose_php', '0')` at runtime does not remove it; `header_remove()` does).
+- The same four headers on everything NGINX answers itself (static files under `public/`, the gateway error page for 502/503/504, and NGINX's own error responses, with `always`), plus `server_tokens off;`. The `add_header` lines are generated from the PHP constants (`SecurityHeaders::nginxAddHeaderDirectives()`) and filled into `nginx/site.conf` by `scripts/server-lib.php` (new `renderNginxConfig()`), so the policy text exists once. PHP-FPM's own copy of these headers and `X-Powered-By` are dropped (`fastcgi_hide_header`, generated the same way), so a proxied response carries each header once. `installNginxConfig` refuses to install a config with an unfilled placeholder.
+- `Strict-Transport-Security` is deliberately not sent (self-signed LAN certificate: browsers ignore it, and one that honoured it would remove the certificate-warning bypass); tests assert it is absent.
+- Tests: `composer test:security-headers` (replaces `test:content-security-policy`: the exact headers, once each, on a page, JSON, redirect, 404, 419, PJAX 204, the PDF, a backup and a report download, and none of `X-Powered-By`, report-only policy or HSTS), `composer test:content-type` (every route of `public/index.php`, as four roles, plain and as a script request: the `Content-Type` matches the body; downloads have their type and a `Content-Disposition`) and `composer test:nginx-security-headers` (text checks of the rendered template, `nginx -t` and a temporary non-root NGINX instance on a free port that answers a static file, the gateway page and its own 403/404 with the headers; skipped when the `nginx` binary is missing). `test:nginx-error-page` also checks that the gateway page satisfies the policy.
+- Browser check (`behavior-check.mjs`): the response headers as the browser receives them; an inline script, an inline event handler, a `javascript:` URL and code from a string (the `eval` path, via `setTimeout`) injected into a page do not run and are reported as enforced violations (only these deliberate violations are excluded from the failure count); a page of the app in an `iframe` of another origin is refused.
+- Admin manual FAQ: what to check when a feature silently does nothing after an update (blocked script in the browser console).
+
+### Changed
+- The Content Security Policy is enforced: `Content-Security-Policy` replaces `Content-Security-Policy-Report-Only` with the same policy string. Any new inline script, inline event handler or `javascript:` URL is blocked; behaviour goes in `public/js/`.
+- `NotificationController::getUnread()` and `markAsRead()` set `Content-Type: application/json` before every answer; their 401 and 500 answers were JSON sent as `text/html`, which `nosniff` makes a real mismatch.
+- The database metrics CSV export passes the `fputcsv` escape argument explicitly (PHP 8.4+ deprecates leaving it out; with errors displayed the notice was written into the CSV). The output is unchanged.
+- `App\Research\HttpSession` responses also carry `all_headers` (every value of a repeated header), used to assert that a header is sent exactly once.
+
+### Fixed
+- `/all-documents` answered 500 to a script (XHR) request: its branch required `src/Views/general/partials/document-list-table.php`, which does not exist (the file came from the Laravel port and no script calls the branch). The dead branch is removed; the route answers the normal page.
+- `/statistics` answered 500 to a script request from the admin role (the table fragment needs the released-documents list, which only officers and staff have). The fragment is served only when that list exists; otherwise the normal page.
+- `renderNginxConfig()` / `readNginxTemplate()`: a missing, unreadable or empty `nginx/site.conf` is an error before anything is installed (it would otherwise have been installed as an empty config); any leftover `__NAME__` token, digits included, is refused. `SecurityHeaders::nginxDirectiveFor()` also refuses a line break in a header value.
+- `ContentTypeTest` extracts every route of `public/index.php` (both quote styles, compared with the number of registration calls) and asserts no route answers 5xx for any role, plain or as a script request.
+
+### Not verified
+- The display of the tracking-slip PDF in a real browser's built-in viewer under the enforced policy (`object-src 'none'`, `X-Frame-Options: DENY`) was not tested: headless Chromium has no PDF viewer. The policy is unchanged for the PDF response. Manual check: open a slip from a document page and from the guest success page in each office browser; report a blank or blocked page with the browser and version.
+
+### Upgrade note
+- A running server picks up the new `nginx/site.conf` on its next `composer run prod` / `composer run dev` start: both install the site file and run `sudo service nginx restart`. A site file installed some other way must be regenerated from the template.
+
 ## 2026-11-16
 
 **Version:** 2.7.10

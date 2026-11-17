@@ -105,11 +105,6 @@ class IntegrityMonitorController
         $purposes = $db->query("SELECT * FROM purposes ORDER BY name ASC")->fetchAll();
         $statuses = ['pending', 'in_transit', 'processing', 'ready_for_release', 'completed', 'frozen', 'declined'];
 
-        if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
-            require BASE_PATH . '/src/Views/general/partials/document-list-table.php';
-            exit;
-        }
-
         require BASE_PATH . '/src/Views/admin/integrity-monitor.php';
     }
 }

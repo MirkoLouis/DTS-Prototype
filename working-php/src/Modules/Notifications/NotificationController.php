@@ -18,6 +18,9 @@ class NotificationController
      */
     public function getUnread()
     {
+        // Every answer below (success and error) is JSON; X-Content-Type-Options: nosniff needs the type to be right
+        header('Content-Type: application/json');
+
         if (!isset($_SESSION['user_id'])) {
             http_response_code(401);
             echo json_encode(['success' => false, 'message' => 'Unauthorized']);
@@ -27,7 +30,6 @@ class NotificationController
         try {
             $unread = $this->notificationService->getUnreadForCurrentUser();
 
-            header('Content-Type: application/json');
             echo json_encode([
                 'success' => true,
                 'notifications' => array_values($unread),
@@ -44,6 +46,9 @@ class NotificationController
      */
     public function markAsRead()
     {
+        // Every answer below (success and error) is JSON; X-Content-Type-Options: nosniff needs the type to be right
+        header('Content-Type: application/json');
+
         if (!isset($_SESSION['user_id'])) {
             http_response_code(401);
             echo json_encode(['success' => false, 'message' => 'Unauthorized']);
@@ -62,7 +67,6 @@ class NotificationController
                 $this->notificationService->markAsRead();
             }
 
-            header('Content-Type: application/json');
             echo json_encode(['success' => true]);
         } catch (\Throwable $e) {
             http_response_code(500);

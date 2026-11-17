@@ -4,8 +4,9 @@
  * Manual browser checks: (1) responsive layout: screenshots every main page at 360, 1024 and 1280 px and reports horizontal
  * overflow (page-screenshots.mjs); (2) accessibility: keyboard pass of every modal dialog plus a markup audit of every
  * page at 1280 and 360 px (accessibility-check.mjs); (3) script policy and behaviour: every page by hard load and by in-app
- * navigation with the report-only Content Security Policy violations, console errors and uncaught exceptions, and the moved
- * features (behavior-check.mjs). One launcher runs all three.
+ * navigation with the Content Security Policy violations (the policy is enforced), console errors and uncaught exceptions, the
+ * moved features, and proof that the policy and the security headers are really in force (behavior-check.mjs). One launcher
+ * runs all three.
  *
  * Usage (from working-php/):
  *   composer manual:page-screenshots            or            php scripts/manual/page-screenshots.php

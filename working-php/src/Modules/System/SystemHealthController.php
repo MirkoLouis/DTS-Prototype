@@ -260,7 +260,9 @@ class SystemHealthController
         header('Content-Disposition: attachment; filename="database-performance-metrics-' . date('Y-m-d-His') . '.csv"');
 
         $out = fopen('php://output', 'w');
-        fputcsv($out, ['id', 'connections', 'avg_query_time_ms', 'slow_queries', 'created_at']);
+        // The escape character is passed explicitly (empty = RFC 4180 quoting): PHP 8.4+ deprecates leaving it out,
+        // and with errors displayed the notice would be written into the middle of the CSV
+        fputcsv($out, ['id', 'connections', 'avg_query_time_ms', 'slow_queries', 'created_at'], ',', '"', '');
 
         $db = Database::getInstance();
         $stmt = $db->query("SELECT * FROM database_metrics ORDER BY id ASC");
@@ -272,7 +274,7 @@ class SystemHealthController
                 $row['avg_query_time_ms'],
                 $row['slow_queries'],
                 $row['created_at'],
-            ]);
+            ], ',', '"', '');
         }
         fclose($out);
         exit;
