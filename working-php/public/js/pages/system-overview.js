@@ -1,11 +1,15 @@
 /**
- * System Health Page — integrity checks, DB performance charts, modal logic.
+ * System Overview page (src/Views/admin/system-overview.php) — integrity checks, DB performance charts, modal logic.
  *
- * Listens to both `DOMContentLoaded` and `dts:page-loaded` (PJAX swap)
- * so all elements re-bind correctly after client-side navigation.
+ * Registered with DtsPage (core/page-registry.js): runs on the first load and after every in-app navigation to the
+ * page, so all elements are bound again for the new content. The Security PIN prompts of its forms (Freeze All,
+ * Auto-resolve) are handled by components/sign-actions.js.
  */
-function initSystemHealth() {
+DtsPage.onLoad('[data-page="system-overview"]', function initSystemOverview() {
     // Modal open/close (Escape, focus trap, close buttons) is handled by the shared module public/js/modal-dialog.js
+
+    // The chart is released by the teardown below
+    let dbPerformanceChart;
 
     // Database Performance Chart
     const dbPerformanceContainer = document.getElementById('db-performance-chart-container');
@@ -13,7 +17,6 @@ function initSystemHealth() {
         const dbPerformanceCtx = document.getElementById('dbPerformanceChart').getContext('2d');
         const dbPerformancePeriodSelect = document.getElementById('db-performance-period');
         const dbPerformanceUrl = dbPerformanceContainer.dataset.url;
-        let dbPerformanceChart;
 
         const fetchAndRenderDbPerformanceChart = (period) => {
             // Wire to PJAX controller so this request is cancelled on navigation
@@ -80,12 +83,12 @@ function initSystemHealth() {
     let pageLeft = false;
 
     // In-app navigation: stop polling and cancel the pending reload, so a check that finishes later does not reload an unrelated page
-    document.addEventListener('dts:before-swap', () => {
+    function stopPendingWork() {
         pageLeft = true;
         integrityJobRunning = false;
         clearInterval(pollingInterval);
         clearTimeout(reloadTimer);
-    }, { once: true });
+    }
 
     // Escape or a click outside hides the progress while the check keeps running: the button works again (so the focus can
     // return to it) and a click on it shows the progress again instead of starting a second check
@@ -104,7 +107,7 @@ function initSystemHealth() {
             try {
                 runCheckButton.disabled = true;
                 
-                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                const csrfToken = DtsUtil.csrfToken();
                 const response = await fetch(runCheckButton.dataset.url, {
                     method: 'POST',
                     headers: { 
@@ -171,7 +174,7 @@ function initSystemHealth() {
                 const elapsed = (Date.now() - startTime) / 1000;
                 const estimatedTotal = elapsed / (job.progress / 100);
                 const remaining = Math.max(0, estimatedTotal - elapsed);
-                integrityProgressTime.textContent = `Est. time remaining: ${formatTime(remaining)}`;
+                integrityProgressTime.textContent = `Est. time remaining: ${DtsUtil.formatRemainingTime(remaining)}`;
             }
 
             if (job.status === 'completed') {
@@ -211,19 +214,11 @@ function initSystemHealth() {
         }
     }
 
-    function formatTime(seconds) {
-        if (seconds < 1) return "Soon...";
-        if (seconds < 60) return `${Math.round(seconds)}s`;
-        const minutes = Math.floor(seconds / 60);
-        const remainingSeconds = Math.round(seconds % 60);
-        return `${minutes}m ${remainingSeconds}s`;
-    }
-
     if (closeIntegrityModalBtn) {
         closeIntegrityModalBtn.addEventListener('click', async () => {
             if (closeIntegrityModalBtn.textContent === 'Cancel Verification' && currentJobId) {
                 if (confirm('Are you sure you want to stop the integrity check?')) {
-                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+                    const csrfToken = DtsUtil.csrfToken();
                     await fetch(`/api/system-health/integrity-cancel/${currentJobId}`, {
                         method: 'POST',
                         headers: { 
@@ -311,12 +306,11 @@ function initSystemHealth() {
         });
     });
 
-}
-
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initSystemHealth);
-} else {
-    initSystemHealth();
-}
+    // Leaving the page: stop the integrity polling and pending reload, and release the chart
+    return function teardownSystemOverview() {
+        stopPendingWork();
+        dbPerformanceChart?.destroy();
+    };
+});
 
 

@@ -3,7 +3,10 @@
 // playwright-core is installed outside package.json: npm install --prefix working-php/.test/browser playwright-core
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
-import { context, createSessions, launchBrowser, pages } from './browser-common.mjs';
+import { allowConsoleError, context, createSessions, launchBrowser, pages, takeDiagnostics } from './browser-common.mjs';
+
+// The 404 page is loaded on purpose: the browser logs the failed document request
+allowConsoleError(/status of 404/, 'the 404 page is a page of this check');
 
 // Widths to check: phone, a width just below Tailwind's xl breakpoint (the wide margin is off), and desktop
 const widths = [{ width: 360, height: 800 }, { width: 1024, height: 768 }, { width: 1280, height: 900 }];
@@ -14,7 +17,7 @@ const phoneStates = [
     ['modal-global-confirm', 'admin', '/admin-dashboard', async (page) => { await page.locator('form.confirm-action button[type="submit"]').first().click(); }],
     ['modal-signing-pin', 'admin', `/documents/${context.documentCode}`, async (page) => { await page.locator('form.sign-action button[type="submit"]').first().click(); }],
     ['modal-users-reset', 'admin', '/users', async (page) => { await page.locator('.reset-credentials-trigger').first().click(); }],
-    ['modal-backups-restore', 'admin', '/system/backups', async (page) => { await page.evaluate(() => openRestoreModal('example-backup.sql')); }],
+    ['modal-backups-restore', 'admin', '/system/backups', async (page) => { await page.locator('.restore-backup-trigger').first().click(); }],
     ['toast', 'admin', '/admin-dashboard', async (page) => {
         // Clearing the cache confirms in the global modal, then the redirect shows a flash toast
         await page.locator('form.confirm-action button[type="submit"]').first().click();
@@ -86,8 +89,12 @@ let failureCount = 0;
 
 // Print one result line and count failures
 function report(width, name, summary, extra = '') {
-    if (!summary.ok) failureCount++;
-    console.log(`${String(width).padStart(4)} ${name.padEnd(22)} ${summary.text}${extra}`);
+    // Policy violations, console errors and uncaught exceptions since the last line fail this one
+    const diagnostics = takeDiagnostics();
+    const ok = summary.ok && diagnostics.length === 0;
+    const text = diagnostics.length ? `${summary.ok ? '' : summary.text + '; '}${diagnostics.join('; ')}` : summary.text;
+    if (!ok) failureCount++;
+    console.log(`${String(width).padStart(4)} ${name.padEnd(22)} ${text}${extra}`);
 }
 
 // One pass per viewport width

@@ -139,9 +139,10 @@ class PinTokenTest extends TestCase
 
         // The token is handed to the browser on the next app-layout render
         $body = $client->get('/tasks')['body'];
+        // (a JSON data block, applied to sessionStorage by public/js/layout/server-handoff.js)
         $token = '';
-        if (preg_match("/dts_pin_token',\\s*\"([^\"]+)\"/", $body, $m)) {
-            $token = $m[1];
+        if (preg_match('#<script type="application/json" id="dts-pin-token">(.*?)</script>#s', $body, $m)) {
+            $token = (string) (json_decode($m[1], true)['issued'] ?? '');
         }
 
         return [$client, $token];
@@ -167,7 +168,9 @@ class PinTokenTest extends TestCase
      */
     private function rejectionOutcome(string $page, int $documentId, int $logsBefore): array
     {
-        $cleared = str_contains($page, "removeItem('dts_pin_token')");
+        // The page tells the browser to drop it through the "dts-pin-token" JSON block ({"clear":true,...})
+        $cleared = preg_match('#<script type="application/json" id="dts-pin-token">(.*?)</script>#s', $page, $block) === 1
+            && (json_decode($block[1], true)['clear'] ?? false) === true;
         $pinDemanded = str_contains($page, 'Security PIN is required');
         $logsAfter = $this->logCount($documentId);
         $status = Database::getInstance()->query('SELECT status FROM documents WHERE id = :id', [':id' => $documentId])->fetch()['status'];

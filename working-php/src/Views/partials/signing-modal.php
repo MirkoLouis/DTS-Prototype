@@ -1,4 +1,4 @@
-<!-- Digital Signature Modal -->
+<!-- Digital Signature Modal (behaviour: public/js/components/signing-modal.js) -->
 <?php
 
 $modalId = 'signing-modal';
@@ -35,82 +35,3 @@ $modalFooter = '
 ';
 
 require BASE_PATH . '/src/Views/components/modal.php';
-?>
-
-<script>
-    // Remove the plaintext PIN left behind by earlier builds
-    try { sessionStorage.removeItem('dts_security_pin'); } catch (e) {}
-
-    window.SigningModal = {
-        callback: null,
-        // opener: the control that asked (the submit event's submitter or the click's button); passed explicitly because
-        // Safari and Firefox on macOS do not focus a button when it is clicked, so document.activeElement cannot be trusted
-        show: function(message, callback, opener) {
-            // Reuse the server-issued encrypted token instead of prompting; the PIN itself is never stored
-            let cachedToken = null;
-            try { cachedToken = sessionStorage.getItem('dts_pin_token'); } catch (e) {}
-            if (cachedToken) {
-                callback(cachedToken);
-                return;
-            }
-            this.callback = callback;
-            document.getElementById('signing-modal-message').innerText = message;
-            const pinInput = document.getElementById('signing-modal-pin');
-            pinInput.value = '';
-            // The shared module shows it on top of any modal that is already open, focuses the PIN field and returns the focus to the control that asked
-            ModalDialog.open(document.getElementById('signing-modal'), { opener: opener, initialFocus: pinInput });
-        },
-        hide: function() {
-            ModalDialog.close(document.getElementById('signing-modal'));
-            this.callback = null;
-        }
-    };
-
-    // Named so both DOMContentLoaded (hard load) and dts:page-loaded (PJAX swap)
-    // can trigger re-binding of confirm/cancel buttons inside the modal DOM.
-    function initSigningModal() {
-        const confirmBtn = document.getElementById('signing-modal-confirm');
-        const cancelBtn = document.getElementById('signing-modal-cancel');
-        const pinInput = document.getElementById('signing-modal-pin');
-
-        if (!confirmBtn) return;
-
-        // Escape and a click outside close the modal through the shared module: drop the pending action
-        document.getElementById('signing-modal').addEventListener('modaldialog:close', function() {
-            window.SigningModal.callback = null;
-            pinInput.value = '';
-        });
-
-        confirmBtn.addEventListener('click', function() {
-            const pin = pinInput.value;
-            if (!pin) {
-                alert('Please enter your Security PIN.');
-                pinInput.focus();
-                return;
-            }
-
-            // Send the typed PIN once; the server answers with an encrypted cache token on the next page
-            if (window.SigningModal.callback) {
-                const cb = window.SigningModal.callback;
-                window.SigningModal.hide();
-                cb(pin);
-            }
-        });
-
-        cancelBtn.addEventListener('click', function() {
-            window.SigningModal.hide();
-        });
-
-        pinInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                confirmBtn.click();
-            }
-        });
-    }
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initSigningModal);
-    } else {
-        initSigningModal();
-    }
-</script>

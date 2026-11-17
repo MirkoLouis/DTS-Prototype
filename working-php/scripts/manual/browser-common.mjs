@@ -49,6 +49,79 @@ export const pages = [
     ['backups', 'admin', '/system/backups'],
 ];
 
+// What the pages reported since the last call: Content Security Policy violations (the report-only policy of S9a), console
+// errors and uncaught exceptions. Every browser page created by createSessions() feeds this list; each check drains it
+// with takeDiagnostics() and fails when it is not empty.
+const diagnostics = [];
+
+// Console messages that are expected and therefore not a failure: [pattern, reason]. Add a pattern with allowConsoleError().
+const allowedConsoleErrors = [];
+
+// How many messages each allowed pattern swallowed (reason => count), so nothing is ignored silently
+const ignoredMessageCounts = new Map();
+
+// One line naming what was ignored and why
+export function ignoredSummary() {
+    return [...ignoredMessageCounts].map(([reason, count]) => `${count} x ${reason}`).join('; ') || 'nothing';
+}
+
+// Allow one more kind of console message (used by a check that provokes it on purpose, e.g. a 404 page)
+export function allowConsoleError(pattern, reason) {
+    allowedConsoleErrors.push([pattern, reason]);
+}
+
+// Drain the recorded diagnostics (one string each)
+export function takeDiagnostics() {
+    return diagnostics.splice(0);
+}
+
+// Shorten a source URL to its path for the report lines
+function shortSource(source) {
+    if (!source) return 'inline/unknown';
+    try {
+        return new URL(source).pathname;
+    } catch (error) {
+        return String(source).slice(0, 60);
+    }
+}
+
+// Record policy violations, console errors and uncaught exceptions of one browser page
+function watchPage(page) {
+    // Console errors, and the messages Chromium prints about the policy (in report-only mode: "[Report Only] Refused to ...")
+    page.on('console', (message) => {
+        const text = message.text();
+        const isPolicyMessage = /Content Security Policy|Content-Security-Policy|\[Report Only\]/i.test(text);
+        if (!isPolicyMessage && message.type() !== 'error') return;
+        const allowed = allowedConsoleErrors.find(([pattern]) => pattern.test(text));
+        if (allowed) {
+            ignoredMessageCounts.set(allowed[1], (ignoredMessageCounts.get(allowed[1]) ?? 0) + 1);
+            return;
+        }
+        const location = message.location();
+        diagnostics.push(`${isPolicyMessage ? 'policy message' : 'console error'}: ${text.replace(/\s+/g, ' ').slice(0, 220)} (${shortSource(location.url)}:${location.lineNumber ?? '?'})`);
+    });
+    page.on('pageerror', (error) => diagnostics.push(`uncaught exception: ${String(error.message).split('\n')[0].slice(0, 220)}`));
+}
+
+// Report securitypolicyviolation events from the document itself (survives hard navigations: it is an init script)
+async function watchContext(browserContext) {
+    await browserContext.exposeFunction('__dtsReportViolation', (violation) => {
+        diagnostics.push(`policy violation (${violation.disposition}): ${violation.directive} blocked ${shortSource(violation.blocked) === 'inline/unknown' ? violation.blocked || 'inline' : shortSource(violation.blocked)} from ${shortSource(violation.source)}:${violation.line} "${String(violation.sample || '').slice(0, 40)}"`);
+    });
+    await browserContext.addInitScript(() => {
+        document.addEventListener('securitypolicyviolation', (event) => {
+            window.__dtsReportViolation({
+                disposition: event.disposition,
+                directive: event.violatedDirective,
+                blocked: event.blockedURI,
+                source: event.sourceFile,
+                line: event.lineNumber,
+                sample: event.sample,
+            });
+        });
+    });
+}
+
 // Sign in through the real login form so the session cookie belongs to the browser context
 export async function signIn(page, username) {
     await page.goto(`${context.baseUrl}/login`, { waitUntil: 'networkidle' });
@@ -63,8 +136,15 @@ export function createSessions(browser, viewport) {
     return {
         async pageFor(role) {
             if (!sessions.has(role)) {
-                const page = await (await browser.newContext({ viewport })).newPage();
+                const browserContext = await browser.newContext({ viewport });
+                await watchContext(browserContext);
+                const page = await browserContext.newPage();
+                // BROWSER_ACTION_TIMEOUT_MS shortens the wait for an element (default 30 s), e.g. to run against an older build
+                if (Number(process.env.BROWSER_ACTION_TIMEOUT_MS) > 0) page.setDefaultTimeout(Number(process.env.BROWSER_ACTION_TIMEOUT_MS));
+                watchPage(page);
                 if (role) await signIn(page, role === 'keyless' ? context.keylessUser : role);
+                // The sign-in itself is not part of any check
+                takeDiagnostics();
                 sessions.set(role, page);
             }
             return sessions.get(role);

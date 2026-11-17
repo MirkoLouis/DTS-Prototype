@@ -341,7 +341,8 @@ class CredentialResetTest extends TestCase
         $this->assertSame($before, $this->user('cash.unit'));
     }
 
-    // The reset modal, the PIN prompt and their script are part of the page content (in-app navigation swaps only the content)
+    // The reset modal, the PIN prompt and the Reset buttons their script attaches to are part of the page content
+    // (in-app navigation swaps only the content); the script files themselves are loaded once by the layout
     public function test_modal_and_script_are_inside_the_page_content(): void
     {
         $body = $this->admin()->get('/users')['body'];
@@ -351,12 +352,18 @@ class CredentialResetTest extends TestCase
         $end = strpos($body, '</main>', (int) $start);
         $this->assertNotFalse($start);
         $this->assertNotFalse($end);
-        foreach (['id="reset-credentials-modal"', 'initResetCredentialsModal', 'id="signing-modal"'] as $needle) {
+        foreach (['id="reset-credentials-modal"', 'class="reset-credentials-trigger', 'data-reset-user-id=', 'id="signing-modal"'] as $needle) {
             $position = strpos($body, $needle);
             $this->assertNotFalse($position, $needle);
             $this->assertGreaterThan($start, $position, $needle);
             $this->assertLessThan($end, $position, $needle);
         }
+
+        // The behaviour comes from script files in the head (the reset dialog and the PIN prompt), none inline
+        foreach (['/js/pages/users.js', '/js/components/sign-actions.js', '/js/components/signing-modal.js'] as $script) {
+            $this->assertLessThan(strpos($body, '</head>'), strpos($body, '<script src="' . $script . '" defer></script>'), $script);
+        }
+        $this->assertFalse(strpos($body, 'initResetCredentialsModal'));
 
         // Three choices and a PIN-prompting form
         foreach (['value="password"', 'value="pin"', 'value="both"'] as $choice) {

@@ -15,7 +15,7 @@
 
 <?php ob_start(); ?>
 
-<div class="py-10">
+<div class="py-10" data-page="manage-documents">
     <div class="px-4 sm:px-6 lg:px-8 xl:mx-[20vh] space-y-6">
         
         <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
@@ -45,7 +45,7 @@
                             <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
                                 Drag and drop the boxes to re-order them, or add a new step from the dropdown below.
                             </p>
-                            <form id="route-form" action="/documents/<?php echo $document['id']; ?>/finalize" method="POST">
+                            <form id="route-form" action="/documents/<?php echo $document['id']; ?>/finalize" method="POST" data-sign-message="<?= e('Enter your Security PIN to finalize the route for: ' . $document['tracking_code']) ?>">
                                 <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
                                 <input type="hidden" name="final_route" id="final_route">
                                 
@@ -93,7 +93,7 @@
                                     <button type="submit" class="inline-flex items-center px-4 py-2 bg-accent-1 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-accent-1-hover active:bg-accent-1-active focus:outline-none focus:border-accent-1-border-active focus:ring focus:ring-accent-1-light disabled:opacity-25 transition">
                                         Accept & Finalize Route
                                     </button>
-                                    <button type="button" onclick="openDeclineModal(this)" class="inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-500 active:bg-red-700 focus:outline-none focus:border-red-700 focus:ring focus:ring-red-200 disabled:opacity-25 transition">
+                                    <button type="button" data-modal="declineModal" class="open-modal-btn inline-flex items-center px-4 py-2 bg-red-600 border border-transparent rounded-md font-semibold text-xs text-white uppercase tracking-widest hover:bg-red-500 active:bg-red-700 focus:outline-none focus:border-red-700 focus:ring focus:ring-red-200 disabled:opacity-25 transition">
                                         Decline Document
                                     </button>
                                 </div>
@@ -139,8 +139,8 @@
         <div class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75 close-modal-backdrop" aria-hidden="true"></div>
         <span class="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
         <div class="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl dark:bg-gray-800 sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
-            <form action="/documents/decline" method="POST" id="decline-form">
-                <input type="hidden" name="pin" id="decline-pin-input">
+            <form action="/documents/decline" method="POST" id="decline-form" class="sign-action" data-message="Enter your Security PIN to cryptographically sign declining this document.">
+                <input type="hidden" name="pin" id="decline-pin-input" class="sign-pin-input">
     <input type="hidden" name="csrf_token" value="<?= $_SESSION['csrf_token'] ?? '' ?>">
                 <div class="px-4 pt-5 pb-4 bg-white dark:bg-gray-800 sm:p-6 sm:pb-4">
                     <div class="sm:flex sm:items-start">
@@ -163,7 +163,7 @@
                     <button type="submit" class="inline-flex justify-center w-full px-4 py-2 text-base font-medium text-white bg-red-600 border border-transparent rounded-md shadow-sm hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 sm:ml-3 sm:w-auto sm:text-sm">
                         Decline Document
                     </button>
-                    <button type="button" onclick="closeDeclineModal()" class="inline-flex justify-center w-full px-4 py-2 mt-3 text-base font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent-1 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
+                    <button type="button" class="close-modal-btn inline-flex justify-center w-full px-4 py-2 mt-3 text-base font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm dark:bg-gray-800 dark:text-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-accent-1 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm">
                         Cancel
                     </button>
                 </div>
@@ -171,113 +171,6 @@
         </div>
     </div>
 </div>
-
-<script src="/js/sortable.min.js"></script>
-<script>
-    // Open and close through the shared modal module (focus moves to the reason field and returns to the Decline button)
-    // opener: the Decline button, passed explicitly (Safari and Firefox on macOS do not focus a clicked button)
-    function openDeclineModal(opener) {
-        ModalDialog.open(document.getElementById('declineModal'), { opener: opener });
-    }
-    function closeDeclineModal() {
-        ModalDialog.close(document.getElementById('declineModal'));
-    }
-
-    // Named so both DOMContentLoaded (hard load) and dts:page-loaded (PJAX swap)
-    // can trigger re-binding of Sortable and form submit handlers.
-    function initManageDocumentsPage() {
-        const routeList = document.getElementById('route-list');
-        const routeForm = document.getElementById('route-form');
-        const hiddenInput = document.getElementById('final_route');
-        const addStepBtn = document.getElementById('add-step-btn');
-        const departmentSelect = document.getElementById('department-select');
-
-        if (routeList) {
-            new window.Sortable(routeList, {
-                animation: 150,
-                ghostClass: 'sortable-ghost',
-                chosenClass: 'sortable-chosen',
-                onUpdate: updateStepNumbers
-            });
-
-            function updateStepNumbers() {
-                const steps = routeList.querySelectorAll('.route-step');
-                steps.forEach((step, index) => {
-                    step.querySelector('.step-number').textContent = index + 1;
-                });
-            }
-
-            function createStepElement(departmentName) {
-                const newStep = document.createElement('div');
-                newStep.className = 'route-step flex-shrink-0 w-40 p-4 bg-white dark:bg-gray-700 rounded-lg shadow-md cursor-move text-center relative mr-4 last:mr-0 select-none';
-                newStep.innerHTML = `
-                    <button type="button" class="delete-step-btn w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xl absolute -top-1 -right-1 hover:bg-red-600">&times;</button>
-                    <div class="font-bold text-lg text-accent-1 dark:text-accent-1-hover step-number"></div>
-                    <div class="step-name text-sm mt-1">${departmentName}</div>
-                `;
-                // The × button names the step it removes (set as an attribute, so the unit name is never parsed as HTML)
-                newStep.querySelector('.delete-step-btn').setAttribute('aria-label', 'Remove step: ' + departmentName);
-                return newStep;
-            }
-
-            addStepBtn.addEventListener('click', function() {
-                const selectedDepartment = departmentSelect.value;
-                if (!selectedDepartment || departmentSelect.selectedIndex === 0) {
-                    return;
-                }
-                const newStep = createStepElement(selectedDepartment);
-                routeList.appendChild(newStep);
-                updateStepNumbers();
-                departmentSelect.selectedIndex = 0;
-            });
-
-            // Event delegation for delete buttons (avoids re-binding on dynamically created items)
-            routeList.addEventListener('click', function(e) {
-                if (e.target && e.target.classList.contains('delete-step-btn')) {
-                    e.target.closest('.route-step').remove();
-                    updateStepNumbers();
-                }
-            });
-
-            routeForm.addEventListener('submit', function(e) {
-                if (document.getElementById('finalize-pin-input').value !== '') {
-                    return true;
-                }
-                e.preventDefault();
-                const finalRouteOrder = Array.from(routeList.querySelectorAll('.step-name')).map(el => el.textContent.trim());
-                if (finalRouteOrder.length === 0) {
-                    alert("Please add at least one step to the route.");
-                    return;
-                }
-                hiddenInput.value = JSON.stringify(finalRouteOrder);
-                window.SigningModal.show(`Enter your Security PIN to finalize the route for: <?php echo htmlspecialchars($document['tracking_code']); ?>`, function(pin) {
-                    document.getElementById('finalize-pin-input').value = pin;
-                    routeForm.submit();
-                }, e.submitter);
-            });
-        }
-
-        const declineForm = document.getElementById('decline-form');
-        if (declineForm) {
-            declineForm.addEventListener('submit', function(e) {
-                if (document.getElementById('decline-pin-input').value !== '') {
-                    return true;
-                }
-                e.preventDefault();
-                window.SigningModal.show(`Enter your Security PIN to cryptographically sign declining this document.`, function(pin) {
-                    document.getElementById('decline-pin-input').value = pin;
-                    declineForm.submit();
-                }, e.submitter);
-            });
-        }
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initManageDocumentsPage);
-    } else {
-        initManageDocumentsPage();
-    }
-</script>
 
 <?php require BASE_PATH . '/src/Views/partials/signing-modal.php'; ?>
 

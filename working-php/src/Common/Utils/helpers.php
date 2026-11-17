@@ -232,3 +232,27 @@ if (!function_exists('validation_error_message')) {
         return implode(' ', $errors);
     }
 }
+
+if (!function_exists('copy_button')) {
+    /**
+     * A button that copies a text to the clipboard (behaviour: public/js/components/copy-button.js, found by data-copy-text).
+     *
+     * The text travels as an escaped data attribute, so it never becomes script code.
+     *
+     * @param string $textToCopy   the text placed on the clipboard
+     * @param string $label        accessible name and tooltip, e.g. "Copy Email"
+     * @param string $iconSize     Tailwind size classes of the two icons
+     * @param string $extraClasses colors and spacing of the button
+     * @return string
+     */
+    function copy_button(string $textToCopy, string $label, string $iconSize = 'h-4 w-4', string $extraClasses = 'text-gray-400 hover:text-accent-1 focus:ring-accent-1'): string
+    {
+        // Copy icon (shown) and check icon (shown for two seconds after a copy)
+        return '<button type="button" data-copy-text="' . e($textToCopy) . '" class="transition-colors rounded focus:outline-none focus:ring-2 ' . e($extraClasses) . '" aria-label="' . e($label) . '" title="' . e($label) . '">'
+            . '<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="copy-icon ' . e($iconSize) . '" fill="none" viewBox="0 0 24 24" stroke="currentColor">'
+            . '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>'
+            . '<svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="check-icon ' . e($iconSize) . ' text-green-500" style="display: none;" fill="none" viewBox="0 0 24 24" stroke="currentColor">'
+            . '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>'
+            . '</button>';
+    }
+}

@@ -11,6 +11,9 @@ define('BASE_PATH', dirname(__DIR__));
 // Require Composer Autoloader & Custom Helpers
 require BASE_PATH . '/vendor/autoload.php';
 
+// Response headers for every PHP response (errors, redirects, JSON and downloads included): sent once, before routing
+\App\Common\Http\SecurityHeaders::send();
+
 // Front Controller & Session Hardening: sessions live in the app's own folder (needs the autoloader and BASE_PATH)
 \App\Common\Http\SessionService::start();
 

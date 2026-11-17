@@ -101,8 +101,6 @@
     </div>
 </div>
 
-<script src="/js/statistics.js"></script>
-
 <?php $content = ob_get_clean(); ?>
 
 <?php require BASE_PATH . '/src/Views/layouts/app.php'; ?>

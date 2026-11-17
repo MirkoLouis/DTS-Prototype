@@ -1,4 +1,12 @@
-<div class="bg-white dark:bg-gray-800 shadow-lg rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+<?php
+// Requirements of every purpose, by purpose id, for the form script (public/js/pages/welcome.js)
+$requirementsByPurposeId = [];
+foreach ($purposes as $purpose) {
+    $requirementsByPurposeId[$purpose['id']] = $purpose['requirements'];
+}
+?>
+<div data-page="guest-welcome" class="bg-white dark:bg-gray-800 shadow-lg rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+    <?= \App\Common\Utils\JsonDataBlock::render('purpose-requirements', $requirementsByPurposeId) ?>
     <div class="bg-primary text-white p-4 font-semibold text-lg">
         Start a New Document Request
     </div>
@@ -67,7 +75,7 @@
                 <select class="w-full px-4 py-2 border <?= field_error_class('purpose_id') ?> rounded-md focus:outline-none focus:ring-2 focus:ring-primary dark:bg-gray-700 dark:text-white" id="purpose-select" name="purpose_id" <?= field_error_attributes('purpose_id') ?> required>
                     <option <?= !old('purpose_id') ? 'selected' : '' ?> disabled value="">Choose an option...</option>
                     <?php foreach ($purposes as $purpose): ?>
-                        <option value="<?= $purpose['id'] ?>" <?= old('purpose_id') == $purpose['id'] ? 'selected' : '' ?> data-requirements="<?= htmlspecialchars(json_encode($purpose['requirements'])) ?>">
+                        <option value="<?= $purpose['id'] ?>" <?= old('purpose_id') == $purpose['id'] ? 'selected' : '' ?>>
                             <?= htmlspecialchars($purpose['name']) ?>
                         </option>
                     <?php endforeach; ?>
@@ -117,7 +125,7 @@
                 <div id="track-error-message" role="alert" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4 text-sm text-left"></div>
 
                 <div class="mb-4">
-                    <button type="button" id="scan-qr-button" class="w-full border border-primary text-primary hover:bg-primary hover:text-white font-medium py-2 px-4 rounded transition duration-200 flex items-center justify-center dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-600 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-primary">
+                    <button type="button" id="scan-qr-button" data-qr-camera-modal="qr-scanner-modal" class="w-full border border-primary text-primary hover:bg-primary hover:text-white font-medium py-2 px-4 rounded transition duration-200 flex items-center justify-center dark:border-blue-400 dark:text-blue-400 dark:hover:bg-blue-600 dark:hover:text-white focus:outline-none focus:ring-2 focus:ring-primary">
                         <svg aria-hidden="true" class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm14 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"></path></svg>
                         Scan QR Code
                     </button>
@@ -141,190 +149,12 @@
     <div class="qr-modal-content">
         <div class="flex justify-between items-center mb-4">
             <h2 id="qr-scanner-modal-title" class="text-lg font-medium">Scan QR Code</h2>
-            <button type="button" id="close-qr-modal" aria-label="Close" class="rounded text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary">
+            <button type="button" id="close-qr-modal" data-modal="qr-scanner-modal" aria-label="Close" class="close-modal-btn rounded text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 focus:outline-none focus:ring-2 focus:ring-primary">
                 <svg aria-hidden="true" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
         </div>
-        <div id="qr-reader" style="width: 100%;"></div>
+        <div id="qr-reader" data-qr-reader style="width: 100%;"></div>
     </div>
 </div>
 
-<script src="/js/html5-qrcode.min.js"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const purposeSelect = document.getElementById('purpose-select');
-        const otherPurposeInput = document.getElementById('other-purpose-input');
-        const otherPurposeTextField = document.getElementById('other_purpose_text');
-        const requirementsSection = document.getElementById('requirements-section');
-        const requirementsList = document.getElementById('requirements-list');
-
-        // Dynamically reveal or hide the "Requirements" section based on the user's selected purpose dropdown.
-        function updatePurposeFields() {
-            const selectedOptionValue = purposeSelect.value;
-            const selectedOption = purposeSelect.options[purposeSelect.selectedIndex];
-
-            if (selectedOptionValue === '0') {
-                otherPurposeInput.classList.remove('hidden');
-                otherPurposeTextField.setAttribute('required', 'required');
-                requirementsSection.classList.add('hidden');
-                requirementsList.innerHTML = '';
-            } else if (selectedOptionValue) {
-                otherPurposeInput.classList.add('hidden');
-                otherPurposeTextField.removeAttribute('required');
-                otherPurposeTextField.value = '';
-
-                const requirements = selectedOption.dataset.requirements ? JSON.parse(selectedOption.dataset.requirements) : [];
-                requirementsList.innerHTML = '';
-
-                if (requirements.length > 0) {
-                    requirements.forEach(req => {
-                        const li = document.createElement('li');
-                        li.textContent = req;
-                        li.className = 'bg-gray-100 dark:bg-gray-700 px-4 py-2 rounded-md text-sm';
-                        requirementsList.appendChild(li);
-                    });
-                    requirementsSection.classList.remove('hidden');
-                } else {
-                    requirementsSection.classList.add('hidden');
-                }
-            } else {
-                otherPurposeInput.classList.add('hidden');
-                requirementsSection.classList.add('hidden');
-            }
-        }
-
-        if (purposeSelect) {
-            updatePurposeFields();
-            purposeSelect.addEventListener('change', updatePurposeFields);
-        }
-
-        // Numeric-only restriction for Phone Number
-        const phoneInput = document.getElementById('guest_phone');
-        if (phoneInput) {
-            phoneInput.addEventListener('input', function () {
-                this.value = this.value.replace(/[^0-9]/g, '');
-            });
-        }
-
-        // Track Logic
-        const trackForm = document.getElementById('track-document-form');
-        const trackingCodeInput = document.getElementById('tracking_code_input');
-        const trackErrorMessage = document.getElementById('track-error-message');
-
-        // Show the error in the live region and mark the field invalid (the field already points at the message with aria-describedby)
-        function displayError(message) {
-            if(trackErrorMessage) {
-                trackErrorMessage.textContent = message;
-                trackErrorMessage.classList.remove('hidden');
-                trackingCodeInput.setAttribute('aria-invalid', 'true');
-            }
-        }
-
-        function clearError() {
-            if(trackErrorMessage) {
-                trackErrorMessage.classList.add('hidden');
-                trackErrorMessage.textContent = '';
-                trackingCodeInput.removeAttribute('aria-invalid');
-            }
-        }
-
-        if(trackingCodeInput) {
-            trackingCodeInput.addEventListener('input', clearError);
-        }
-
-        function trackAndRedirect(trackingCode) {
-            clearError();
-            if (!trackingCode) {
-                displayError('Please enter a tracking code.');
-                return;
-            }
-            window.location.href = `/track?codes=${encodeURIComponent(trackingCode)}`;
-        }
-
-        if (trackForm) {
-            trackForm.addEventListener('submit', function (e) {
-                e.preventDefault();
-                const trackingCode = trackingCodeInput.value.trim();
-                trackAndRedirect(trackingCode);
-            });
-        }
-
-        // QR Scanner Logic
-        const scanQrButton = document.getElementById('scan-qr-button');
-        const qrScannerModal = document.getElementById('qr-scanner-modal');
-        const closeQrModal = document.getElementById('close-qr-modal');
-        const trackModal = document.getElementById('track-modal');
-        let html5QrCode = null;
-
-        function onScanSuccess(decodedText, decodedResult) {
-            stopQrCodeScanner();
-            trackAndRedirect(decodedText);
-        }
-
-        function onScanError(errorMessage) {
-            // Ignore minor errors while scanning
-        }
-
-        // scannerClosed: the dialog was closed (a pending start must stop as soon as it resolves); cameraStarting: start() is pending
-        let scannerClosed = true;
-        let cameraStarting = false;
-
-        function startQrCodeScanner() {
-            // The tracking modal makes room for the scanner (as before); the scanner takes over its opener, so Escape or Close returns the focus to the button that opened the tracking modal
-            const trackModalOpener = ModalDialog.close(trackModal, { restoreFocus: false });
-            ModalDialog.open(qrScannerModal, { opener: trackModalOpener });
-
-            scannerClosed = false;
-            if (!window.Html5Qrcode) {
-                alert("QR Scanner library not loaded.");
-                return;
-            }
-            if (!html5QrCode) html5QrCode = new window.Html5Qrcode("qr-reader");
-            // A start that is still pending, or a scanner that already runs, is not started twice
-            if (cameraStarting || html5QrCode.isScanning) return;
-            cameraStarting = true;
-            html5QrCode.start(
-                { facingMode: "environment" },
-                { fps: 10, qrbox: { width: 250, height: 250 } },
-                onScanSuccess,
-                onScanError
-            ).then(() => {
-                cameraStarting = false;
-                // The dialog was closed while the camera was still starting: stop it now
-                if (scannerClosed) releaseCamera();
-            }).catch(err => {
-                cameraStarting = false;
-                if (scannerClosed) return;
-                console.error("Could not start QR scanner.", err);
-                alert("Could not start QR scanner. Please ensure you are using HTTPS and grant camera permissions.");
-                stopQrCodeScanner();
-            });
-        }
-
-        // Release the camera (also when the dialog closes before start() has resolved: the then() above stops it)
-        function releaseCamera() {
-            scannerClosed = true;
-            if (html5QrCode && html5QrCode.isScanning) {
-                html5QrCode.stop().catch(err => {
-                    console.error("Error stopping the QR scanner.", err);
-                });
-            }
-        }
-
-        // Close the scanner modal; the close event below releases the camera, whichever way the modal closes
-        function stopQrCodeScanner() {
-            ModalDialog.close(qrScannerModal);
-        }
-
-        if (qrScannerModal) {
-            qrScannerModal.addEventListener('modaldialog:close', releaseCamera);
-        }
-        if (scanQrButton) {
-            scanQrButton.addEventListener('click', startQrCodeScanner);
-        }
-        if (closeQrModal) {
-            closeQrModal.addEventListener('click', stopQrCodeScanner);
-        }
-    });
-</script>
 <?php clear_form_flash(); ?>

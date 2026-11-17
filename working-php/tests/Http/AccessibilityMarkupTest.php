@@ -7,8 +7,8 @@ use DOMDocument;
 use DOMElement;
 use DOMNode;
 use DOMXPath;
-use Tests\Support\Fixtures;
 use Tests\Support\HttpClient;
+use Tests\Support\RenderedPages;
 use Tests\TestCase;
 
 /**
@@ -18,66 +18,10 @@ use Tests\TestCase;
  */
 class AccessibilityMarkupTest extends TestCase
 {
-    // Rendered HTML of the main pages, built once per run: [page name => html]
-    private static ?array $pages = null;
-
-    // Fetch the main pages of every role and the guest pages
+    // Fetch the main pages of every role and the guest pages (built once per run, shared with NoInlineScriptTest)
     private function renderedPages(): array
     {
-        if (self::$pages !== null) {
-            return self::$pages;
-        }
-
-        // Documents in two states so the document pages have content
-        $pending = Fixtures::submit(['title' => 'Pending document']);
-        $inTransit = Fixtures::submit(['title' => 'In transit document']);
-        Fixtures::advanceTo($inTransit['id'], 'in_transit');
-
-        $pages = [];
-        $guest = HttpClient::start();
-        foreach ([
-            'guest-welcome' => '/',
-            'guest-track' => '/track?codes=' . $pending['tracking_code'],
-            'guest-track-unknown-code' => '/track?codes=DEPED-0000000000',
-            'guest-success' => '/success?tracking_code=' . $pending['tracking_code'] . '&document_id=' . $pending['id'],
-            'login' => '/login',
-            'error-404' => '/this-page-does-not-exist',
-        ] as $name => $path) {
-            $response = $guest->get($path);
-            $this->assertNotSame('', $response['body'], "{$path} rendered an empty body (status {$response['status']})");
-            $pages[$name] = $response['body'];
-        }
-
-        // Role => pages, rendered through the app layout
-        foreach ([
-            'admin' => [
-                'admin-dashboard' => '/admin-dashboard', 'system-overview' => '/system-overview', 'all-documents' => '/all-documents',
-                'users-index' => '/users', 'users-create' => '/users/create', 'users-edit' => '/users/' . $this->fx['users']['cash.unit'] . '/edit',
-                'backups' => '/system/backups', 'admin-document' => '/documents/' . $inTransit['tracking_code'],
-            ],
-            'records.unit' => [
-                'intake' => '/intake', 'tasks-completed' => '/tasks/completed', 'releasing' => '/releasing', 'statistics' => '/statistics',
-                'manage-documents' => '/documents/' . $pending['id'] . '/manage', 'account-password' => '/account/password',
-                'hash-chain' => '/documents/' . $inTransit['tracking_code'] . '/hash-chain',
-            ],
-            'cash.unit' => ['tasks-staff' => '/tasks', 'statistics-staff' => '/statistics'],
-        ] as $username => $rolePages) {
-            $client = HttpClient::start();
-            $client->loginAs($username);
-            foreach ($rolePages as $name => $path) {
-                $response = $client->get($path);
-                $this->assertSame(200, $response['status'], "{$path} did not render for {$username}");
-                $pages[$name] = $response['body'];
-            }
-        }
-
-        // An account without a signing key sees the mandatory Security PIN prompt
-        Database::getInstance()->query('UPDATE users SET public_key = NULL, private_key = NULL, security_key_set_at = NULL WHERE email = :e', [':e' => 'personnel.unit']);
-        $keyless = HttpClient::start();
-        $keyless->loginAs('personnel.unit');
-        $pages['security-pin-prompt'] = $keyless->get('/tasks')['body'];
-
-        return self::$pages = $pages;
+        return RenderedPages::all($this->fx);
     }
 
     // Parse a page body into a DOM document
@@ -434,7 +378,7 @@ class AccessibilityMarkupTest extends TestCase
         $this->assertSame([], $failures);
     }
 
-    // The shared dialog module is loaded once by each layout, before any inline page script
+    // The shared dialog module is loaded once by each layout, before the deferred page scripts that use it
     public function test_both_layouts_load_the_shared_modal_module_in_the_head(): void
     {
         $pages = $this->renderedPages();
@@ -452,7 +396,7 @@ class AccessibilityMarkupTest extends TestCase
         $offenders = [];
         $files = array_merge(
             iterator_to_array(new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(BASE_PATH . '/src/Views', \FilesystemIterator::SKIP_DOTS))),
-            glob(BASE_PATH . '/public/js/*.js')
+            self::ownScriptFiles()
         );
         foreach ($files as $file) {
             $path = is_string($file) ? $file : $file->getPathname();
@@ -472,23 +416,45 @@ class AccessibilityMarkupTest extends TestCase
         $this->assertSame([], $offenders, 'Open and close modals with ModalDialog.open() / ModalDialog.close().');
     }
 
-    // The confirmation is ONE delegated submit listener: per-form binding at load missed forms that arrive with in-app navigation
-    public function test_confirm_action_forms_are_handled_by_one_delegated_listener(): void
+    // Our script files (public/js and its folders), libraries excluded by the callers
+    private static function ownScriptFiles(): array
     {
-        $layout = (string) file_get_contents(BASE_PATH . '/src/Views/layouts/app.php');
-        $this->assertStringNotContainsString("querySelectorAll('.confirm-action')", $layout);
-        $this->assertStringContainsString("document.addEventListener('submit'", $layout);
-        $this->assertSame(1, substr_count($layout, "classList.contains('confirm-action')"));
+        return glob(BASE_PATH . '/public/js/{,*/}*.js', GLOB_BRACE);
     }
 
-    // Polling pages stop their timers when the router is about to replace them, and the layout's Escape handlers ignore an Escape a dialog handled
+    // The confirmation is ONE delegated submit listener: per-form binding at load missed forms that arrive with in-app navigation
+    // (the listener moved from the layout's inline script to public/js/layout/global-confirm.js)
+    public function test_confirm_action_forms_are_handled_by_one_delegated_listener(): void
+    {
+        $script = (string) file_get_contents(BASE_PATH . '/public/js/layout/global-confirm.js');
+        $this->assertStringNotContainsString("querySelectorAll('.confirm-action')", $script);
+        $this->assertStringContainsString("document.addEventListener('submit'", $script);
+        $this->assertSame(1, substr_count($script, "classList.contains('confirm-action')"));
+
+        // The layout loads that file once, and nothing else binds to the forms
+        $layout = (string) file_get_contents(BASE_PATH . '/src/Views/layouts/app.php');
+        $this->assertSame(1, substr_count($layout, '<script src="/js/layout/global-confirm.js" defer></script>'));
+        $this->assertStringNotContainsString('confirm-action', $layout);
+    }
+
+    // Polling pages stop their timers when the router is about to replace them (their own handler or the teardown the
+    // page registry runs on that event), and the layout's Escape handlers ignore an Escape a dialog handled
     public function test_navigation_cleanup_and_escape_guard_are_wired(): void
     {
         $this->assertStringContainsString("'dts:before-swap'", (string) file_get_contents(BASE_PATH . '/public/js/pjax-router.js'));
-        foreach (['statistics.js', 'system-health.js'] as $script) {
-            $this->assertStringContainsString("'dts:before-swap'", (string) file_get_contents(BASE_PATH . '/public/js/' . $script), "{$script} must stop polling before a swap");
+        $this->assertStringContainsString("'dts:before-swap'", (string) file_get_contents(BASE_PATH . '/public/js/core/page-registry.js'), 'the registry runs the teardowns before a swap');
+        // Page scripts do not listen to the event themselves (the registry is the only mechanism); that polling really stops
+        // after in-app navigation is proved in a browser by scripts/manual/behavior-check.mjs
+        foreach (glob(BASE_PATH . '/public/js/pages/*.js') as $script) {
+            $this->assertStringNotContainsString('dts:before-swap', (string) file_get_contents($script), basename($script) . ' must return a teardown to DtsPage.onLoad instead');
         }
-        $this->assertGreaterThanOrEqual(2, substr_count((string) file_get_contents(BASE_PATH . '/src/Views/layouts/app.php'), 'event.defaultPrevented') + substr_count((string) file_get_contents(BASE_PATH . '/src/Views/layouts/app.php'), 'e.defaultPrevented'));
+
+        $escapeGuards = 0;
+        foreach (['navigation-menus.js', 'notifications.js'] as $script) {
+            $source = (string) file_get_contents(BASE_PATH . '/public/js/layout/' . $script);
+            $escapeGuards += substr_count($source, 'event.defaultPrevented') + substr_count($source, 'e.defaultPrevented');
+        }
+        $this->assertGreaterThanOrEqual(2, $escapeGuards);
     }
 
     // No interactive element removes the outline without a replacement focus style
@@ -497,7 +463,7 @@ class AccessibilityMarkupTest extends TestCase
         $offenders = [];
         $files = array_merge(
             iterator_to_array(new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator(BASE_PATH . '/src/Views', \FilesystemIterator::SKIP_DOTS))),
-            glob(BASE_PATH . '/public/js/*.js')
+            self::ownScriptFiles()
         );
         foreach ($files as $file) {
             $path = is_string($file) ? $file : $file->getPathname();
@@ -601,7 +567,7 @@ class AccessibilityMarkupTest extends TestCase
             $this->assertMatchesRegularExpression('/^Remove step: \S/', $button->getAttribute('aria-label'));
         }
         // The script that adds steps names its × buttons the same way
-        $this->assertStringContainsString("'Remove step: ' + departmentName", (string) file_get_contents(BASE_PATH . '/src/Views/officer/manage-documents.php'));
+        $this->assertStringContainsString("'Remove step: ' + departmentName", (string) file_get_contents(BASE_PATH . '/public/js/pages/manage-documents.js'));
     }
 
     // A field that failed validation is marked invalid and points at its message; the message is in the page

@@ -68,9 +68,19 @@ class BackupManagerController
         exit;
     }
 
+    /**
+     * The backup file name of a request address: the views write it with urlencode() (a space becomes "+", "+" becomes
+     * "%2B"), so it is decoded the same way, and only the last path segment is used.
+     */
+    private function safeFileName(string $fileName): string
+    {
+        // A decoded NUL byte would end the name early in file functions: such a name matches no backup
+        return basename(str_replace("\0", '', urldecode($fileName)));
+    }
+
     public function download($fileName)
     {
-        $safeFileName = basename($fileName);
+        $safeFileName = $this->safeFileName($fileName);
 
         // A backup holds the whole database, so the admin proves who they are before it leaves the server
         if (!$this->confirmedWithPin('Download backup', $safeFileName)) {
@@ -94,7 +104,7 @@ class BackupManagerController
 
     public function delete($fileName)
     {
-        $safeFileName = basename($fileName);
+        $safeFileName = $this->safeFileName($fileName);
 
         // Deleting a backup can destroy the only copy of past data, so the admin proves who they are
         if (!$this->confirmedWithPin('Delete backup', $safeFileName)) {
@@ -117,7 +127,7 @@ class BackupManagerController
 
     public function restore($fileName)
     {
-        $safeFileName = basename($fileName);
+        $safeFileName = $this->safeFileName($fileName);
 
         // A restore replaces the whole database, so the admin proves who they are
         if (!$this->confirmedWithPin('Restore backup', $safeFileName)) {

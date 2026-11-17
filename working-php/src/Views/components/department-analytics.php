@@ -18,6 +18,7 @@
         </div>
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6"
+             data-page="statistics"
              data-current-load-url="/api/statistics/current-load"
              data-throughput-url="/api/statistics/throughput"
              data-avg-processing-time-url="/api/statistics/avg-processing-time">

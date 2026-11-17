@@ -7,7 +7,7 @@
 <?php ob_start(); ?>
 <div class="py-10">
     <div class="px-4 sm:px-6 lg:px-8 xl:mx-[20vh] space-y-6">
-        
+
         <?php if (isset($_SESSION['success'])): ?>
             <div class="bg-success-light border border-green-400 text-green-700 px-4 py-3 rounded relative" role="status">
                 <span class="block sm:inline"><?= htmlspecialchars($_SESSION['success']) ?></span>
@@ -68,20 +68,13 @@
                             
                             $user['account_html'] = sprintf('
                                 <div class="flex items-center space-x-3">
-                                    <button type="button" onclick="const btn=this; btn.querySelector(\'.copy-icon\').style.display=\'none\'; btn.querySelector(\'.check-icon\').style.display=\'block\'; navigator.clipboard.writeText(\'%s\'); setTimeout(() => { btn.querySelector(\'.copy-icon\').style.display=\'block\'; btn.querySelector(\'.check-icon\').style.display=\'none\'; }, 2000);" class="text-gray-400 hover:text-accent-1 transition-colors rounded focus:outline-none focus:ring-2 focus:ring-accent-1" aria-label="Copy Email" title="Copy Email">
-                                        <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="copy-icon h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                        </svg>
-                                        <svg xmlns="http://www.w3.org/2000/svg" aria-hidden="true" class="check-icon h-4 w-4 text-green-500" style="display: none;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                                        </svg>
-                                    </button>
+                                    %s
                                     <div class="flex flex-col">
                                         <span class="font-medium text-gray-900 dark:text-gray-100">%s</span>
                                         <span class="text-xs text-gray-500 dark:text-gray-400 break-all">%s</span>
                                     </div>
                                 </div>
-                            ', htmlspecialchars(addslashes($user['email'])), htmlspecialchars($user['name']), htmlspecialchars($user['email']));
+                            ', copy_button($user['email'], 'Copy Email'), htmlspecialchars($user['name']), htmlspecialchars($user['email']));
                             
                             if (!empty($user['public_key'])) {
                                 $user['signature_html'] = '
@@ -148,7 +141,7 @@
 <!-- Reset credentials modal: choose what to reset, then the admin's Security PIN is asked for (SigningModal) -->
 <div id="reset-credentials-modal" role="dialog" aria-modal="true" aria-labelledby="reset-credentials-title" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-gray-900 bg-opacity-75">
     <div class="bg-white dark:bg-gray-800 p-6 mx-4 rounded-lg shadow-xl max-w-md w-full text-gray-900 dark:text-gray-100">
-        <form id="reset-credentials-form" method="POST" class="sign-action" data-message="Enter your own Security PIN to confirm this reset.">
+        <form id="reset-credentials-form" method="POST" class="sign-action" data-message="Enter your own Security PIN to confirm this reset." data-keeps-page="true">
             <input type="hidden" name="csrf_token" value="<?= e($_SESSION['csrf_token'] ?? '') ?>">
             <input type="hidden" name="pin" class="sign-pin-input">
             <h2 id="reset-credentials-title" class="text-lg font-medium">Reset credentials</h2>
@@ -169,56 +162,13 @@
                 </label>
             </fieldset>
             <div class="mt-6 flex justify-end space-x-2">
-                <button type="button" id="reset-credentials-cancel" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-accent-1">Cancel</button>
+                <button type="button" id="reset-credentials-cancel" class="close-modal-btn px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-accent-1">Cancel</button>
                 <button type="submit" class="px-4 py-2 bg-red-600 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-red-500">Confirm reset</button>
             </div>
         </form>
     </div>
 </div>
 
-<script>
-    // Opening the reset modal for a row, and asking for the admin's Security PIN before the form is sent
-    function initResetCredentialsModal() {
-        const modal = document.getElementById('reset-credentials-modal');
-        const form = document.getElementById('reset-credentials-form');
-        if (!modal || !form) return;
-        const pinInput = form.querySelector('.sign-pin-input');
-
-        // The Reset button of a row fills in the user and opens the modal
-        document.querySelectorAll('.reset-credentials-trigger').forEach(button => {
-            button.addEventListener('click', function () {
-                form.action = '/users/' + encodeURIComponent(this.dataset.resetUserId) + '/reset-credentials';
-                document.getElementById('reset-credentials-user-name').textContent = this.dataset.resetUserName;
-                form.reset();
-                pinInput.value = '';
-                // The shared modal module focuses the first option and returns the focus to this Reset button on close
-                ModalDialog.open(modal, { opener: this });
-            });
-        });
-
-        document.getElementById('reset-credentials-cancel').addEventListener('click', function () {
-            ModalDialog.close(modal);
-        });
-
-        // Ask for the admin's Security PIN, then send the form
-        form.addEventListener('submit', function (e) {
-            if (pinInput.value) return;
-            e.preventDefault();
-            window.SigningModal.show(this.dataset.message, function (pin) {
-                pinInput.value = pin;
-                form.submit();
-
-                // The PIN must not stay in the form for the next use
-                pinInput.value = '';
-            }, e.submitter);
-        });
-    }
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initResetCredentialsModal);
-    } else {
-        initResetCredentialsModal();
-    }
-</script>
 <?php require BASE_PATH . '/src/Views/partials/signing-modal.php'; ?>
 <?php $content = ob_get_clean(); ?>
 

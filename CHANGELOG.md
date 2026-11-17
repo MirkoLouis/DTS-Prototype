@@ -4,6 +4,40 @@ All notable changes to this project will be documented in this file.
 
 ## 2026-11-16
 
+**Version:** 2.7.10
+
+### Added
+- Content Security Policy in report-only mode: `App\Common\Http\SecurityHeaders::send()` (called once in `public/index.php`, before routing) puts `Content-Security-Policy-Report-Only` on every PHP response: `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`. The policy string and the header name are constants, so enforcing it later only switches the name. Nothing is blocked in this version, no other security header is added and NGINX is unchanged (next slice).
+- `App\Common\Utils\JsonDataBlock::render()` and `DtsData.read()` (`public/js/core/json-data.js`): the one way server data reaches a script besides `data-*` attributes, an inert `<script type="application/json" id="...">` block written with `JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT`, so `</script>` or `<!--` in data cannot break out. Used for the signed-in user, the console message and the PIN cache token of the layouts, and the requirements of every purpose on the guest welcome page.
+- `DtsPage.onLoad(selector, init)` (`public/js/core/page-registry.js`): the one registration mechanism for page scripts. The initializer runs on the first load and after every in-app navigation when the page's root element (`data-page="..."`) is present, never twice for the same element; the teardown it returns runs on `dts:before-swap`.
+- `copy_button()` helper (`src/Common/Utils/helpers.php`): the copy button markup that was written six times; the text travels as an escaped `data-copy-text` attribute.
+- Tests: `composer test:no-inline-script` (no executable inline script, event handler attribute or `javascript:` URL in any rendered page of any role, the guest, login and error pages; no script or stylesheet from another origin and every script file exists; the sources contain nothing that creates inline script at runtime; hostile text in a JSON block stays data), `composer test:content-security-policy` (the exact policy on a page, a JSON response, a redirect, a 404 page and a file download, and no enforcing header) and `composer test:json-data-block`.
+- `scripts/manual/behavior-check.mjs` (run by the same `composer manual:page-screenshots` launcher): one line per page, loaded by hard load and reached by in-app navigation, with the policy violations (directive, blocked resource, file and line), console errors and uncaught exceptions; the same recorder fails the layout and accessibility lines; interaction checks prove the moved features still work after in-app navigation and that one click causes exactly one change or request.
+
+### Changed
+- Every inline `<script>` block (25 blocks in 17 view files, about 480 lines in `layouts/app.php`) and every inline event handler attribute (12) moved into files under `public/js/`: `core/` (page registry, JSON reader), `layout/` (theme, navigation menus, notifications and toasts, global confirm, PIN setup prompt, server hand-over), `components/` (signing PIN prompt, sign actions, copy buttons, staff QR scanner, guest QR scanner shared by the welcome and track pages instead of two copies) and `pages/` (backups, users, show-document, manage-documents, welcome, track, login, admin-dashboard, statistics, system-overview). `admin-dashboard.js`, `statistics.js` and `system-health.js` moved into `pages/` (the last one is now `pages/system-overview.js`). The layouts load every script file once, deferred; the theme script stays a blocking file in the head so there is no flash of the wrong theme.
+- `pjax-router.js` no longer re-executes scripts after a swap (it cloned every inline script and re-fetched every script file with a cache-busting query); page setup is registered with `DtsPage.onLoad`. After in-app navigation it asks the overlays to close with the `dts:close-overlays` event instead of calling `window.closeMobileMenu()`; its link filter skips every link with a URL scheme. The globals `openRestoreModal`, `openDeclineModal`, `closeDeclineModal`, `closeMobileMenu` and `closeNotificationDropdown` are gone: buttons use `data-` attributes (`data-restore-file-name`, `data-modal`, `data-qr-modal`, `data-qr-camera-modal`, `data-message`, `data-copy-text`) and delegated listeners. `SigningModal.show` keeps its name and signature.
+- The `.sign-action` PIN prompt was written four times (backups, system overview, document page, Users reset) and is now one delegated listener (`components/sign-actions.js`); task completion and release buttons (`.complete-btn`) are handled there too, and the decline form is a `.sign-action`. The flow itself (pause the submit, ask for the PIN, fill the hidden PIN field, submit, optionally clear the field) is ONE function, `SigningModal.submitWithPin()` (`components/signing-modal.js`), which `sign-actions.js`, the scan forms (`components/qr-scanner.js`) and the route finalize form (`pages/manage-documents.js`) all call.
+- Shared helpers in `public/js/core/`: `DtsUtil.csrfToken()` and `DtsUtil.formatRemainingTime()` (`utils.js`), and `DtsPinToken` (`pin-token.js`), the only place that knows the `dts_pin_token` storage key.
+- Every page script stops its timers, polls and Chart instances through the teardown it returns to `DtsPage.onLoad` (statistics, admin dashboard, system overview, tracking page, route builder); none listens to `dts:before-swap` or depends on the router's abort signal to stop a poll (the signal still cancels requests in flight).
+- The tracking code finder form (`components/qr-scanner.php`) carries `data-tracking-finder`, `data-code-field` and an optional `data-pin-prompt` instead of an `onsubmit` attribute.
+- Security PIN cache token and console messages from the session reach the browser as JSON blocks (`dts-pin-token`, `dts-console-error`, `dts-user-config`) instead of generated script text.
+- The error page and the guest and login layouts load `layout/theme-init.js`, `layout/theme-toggle.js` instead of three copies of the theme code.
+
+### Fixed
+- Backup Restore, Download and Delete address the file the same way: PHP writes the restore address (`data-restore-url`, `urlencode`) like the other two, and the controller decodes the name with `urldecode` before `basename`. A backup name with a space or a "+" was unreachable by all three actions before (the encoded name was never decoded); a test covers it.
+- Guest QR scanner, as a result of sharing one component: the camera failure message now carries the HTTPS hint on both pages (the track page's old text was shorter), and a failed `stop()` of the camera is logged as a warning only. When the QR library is missing the welcome page alerts as before and the track page stays silent as before (`data-qr-missing-library="ignore"`).
+- `JsonDataBlock` writes `null` (and an `error_log` line) for a value that cannot be encoded instead of throwing in the middle of a layout.
+- A route step added in the route builder inserted the unit name as HTML (a unit named with markup would have been parsed); it is now text.
+- The Restore button of a backup put the file name into an `onclick` string, the copy buttons put the text into one (a stack trace with a line break did not copy at all). Both now carry the value in an escaped `data-` attribute.
+- The past-reports list and the "Download Spreadsheet Again" link of the statistics page built HTML from job ids and counts of the server answer; they use DOM methods and `encodeURIComponent` now.
+- `chart.min.js` was loaded a second time (and re-executed) on System Overview; the guest tracking page now URL-encodes the tracking code in its requests and finds a card by comparing its `data-tracking-code` instead of building a selector from the server answer.
+
+### Removed
+- `src/Views/admin/system-health.php`: an unused leftover view (no route renders it) whose button used an inline handler and sent a request without the CSRF token.
+
+## 2026-11-16
+
 **Version:** 2.7.9
 
 ### Added

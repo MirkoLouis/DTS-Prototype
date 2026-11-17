@@ -80,22 +80,10 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
 
     <!-- Local Tailwind CSS -->
     <link href="/css/tailwind.css" rel="stylesheet">
-    <script>
-        (function() {
-            const theme = localStorage.getItem('theme');
-            const isDark = theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches);
-            if (isDark) {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
-        })();
-    </script>
-    <script>
-        window.UserConfig = {
-            id: <?= json_encode($_SESSION['user_id'] ?? null) ?>
-        };
-    </script>
+    <!-- Applies the saved theme before the first paint (a blocking script file: no flash of the wrong theme) -->
+    <script src="/js/layout/theme-init.js"></script>
+    <!-- Server data for the layout scripts (public/js/layout/server-handoff.js): inert JSON, never executed -->
+    <?= \App\Common\Utils\JsonDataBlock::render('dts-user-config', ['id' => $_SESSION['user_id'] ?? null]) ?>
     <style>
         @keyframes slideInRight {
             from { transform: translateX(100%); opacity: 0; }
@@ -111,6 +99,36 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
 
     <!-- Local Chart.js for Admin dashboard -->
     <script src="/js/chart.min.js"></script>
+
+    <!-- Every script is a file of this origin. They are loaded ONCE per full page load (never again after in-app navigation)
+         and deferred, so they run in this order after the page is parsed and before DOMContentLoaded.
+         Page and component scripts register their initializers with DtsPage.onLoad() (public/js/core/page-registry.js),
+         which runs them on the first load and after every in-app navigation when the page's root element is present. -->
+    <script src="/js/core/page-registry.js" defer></script>
+    <script src="/js/core/json-data.js" defer></script>
+    <script src="/js/core/utils.js" defer></script>
+    <script src="/js/core/pin-token.js" defer></script>
+    <script src="/js/html5-qrcode.min.js" defer></script>
+    <script src="/js/sortable.min.js" defer></script>
+    <script src="/js/layout/theme-toggle.js" defer></script>
+    <script src="/js/layout/server-handoff.js" defer></script>
+    <script src="/js/layout/navigation-menus.js" defer></script>
+    <script src="/js/layout/global-confirm.js" defer></script>
+    <script src="/js/layout/pin-setup-prompt.js" defer></script>
+    <script src="/js/layout/notifications.js" defer></script>
+    <script src="/js/components/copy-button.js" defer></script>
+    <script src="/js/components/signing-modal.js" defer></script>
+    <script src="/js/components/sign-actions.js" defer></script>
+    <script src="/js/components/qr-scanner.js" defer></script>
+    <script src="/js/pages/backups.js" defer></script>
+    <script src="/js/pages/users.js" defer></script>
+    <script src="/js/pages/show-document.js" defer></script>
+    <script src="/js/pages/manage-documents.js" defer></script>
+    <script src="/js/pages/admin-dashboard.js" defer></script>
+    <script src="/js/pages/statistics.js" defer></script>
+    <script src="/js/pages/system-overview.js" defer></script>
+    <!-- The in-app navigation router comes last: it needs everything above and swaps #pjax-content -->
+    <script src="/js/pjax-router.js" defer></script>
 </head>
 <body class="font-sans antialiased bg-gray-100 dark:bg-darkBg text-gray-900 dark:text-gray-100">
 
@@ -278,134 +296,18 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
         </main>
     </div>
 
-    <script>
-        var themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
-        var themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
-
-        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-            themeToggleLightIcon.classList.remove('hidden');
-        } else {
-            themeToggleDarkIcon.classList.remove('hidden');
-        }
-
-        var themeToggleBtn = document.getElementById('theme-toggle');
-
-        if (themeToggleBtn) {
-            themeToggleBtn.addEventListener('click', function() {
-                themeToggleDarkIcon.classList.toggle('hidden');
-                themeToggleLightIcon.classList.toggle('hidden');
-
-                if (localStorage.getItem('theme')) {
-                    if (localStorage.getItem('theme') === 'light') {
-                        document.documentElement.classList.add('dark');
-                        localStorage.setItem('theme', 'dark');
-                    } else {
-                        document.documentElement.classList.remove('dark');
-                        localStorage.setItem('theme', 'light');
-                    }
-                } else {
-                    if (document.documentElement.classList.contains('dark')) {
-                        document.documentElement.classList.remove('dark');
-                        localStorage.setItem('theme', 'light');
-                    } else {
-                        document.documentElement.classList.add('dark');
-                        localStorage.setItem('theme', 'dark');
-                    }
-                }
-            });
-        }
-        // Navigation menu (below lg): closeMobileMenu is also called by pjax-router.js after in-app navigation
-        var mobileMenuBtn = document.getElementById('mobile-menu-button');
-        var mobileMenu = document.getElementById('mobile-menu');
-
-        // Hide the menu and reset the button state and icons
-        window.closeMobileMenu = function() {
-            if (!mobileMenu) return;
-            mobileMenu.classList.add('hidden');
-            mobileMenuBtn.setAttribute('aria-expanded', 'false');
-            document.getElementById('mobile-menu-open-icon').classList.remove('hidden');
-            document.getElementById('mobile-menu-close-icon').classList.add('hidden');
-        };
-
-        // Tailwind's lg breakpoint (1024px): from here up the desktop bar replaces the menu
-        var DESKTOP_NAV_MEDIA_QUERY = '(min-width: 1024px)';
-
-        // Crossing into desktop width closes the menu so aria-expanded and the icon never go stale
-        window.matchMedia(DESKTOP_NAV_MEDIA_QUERY).addEventListener('change', function(event) {
-            if (event.matches) window.closeMobileMenu();
-        });
-
-        // The button toggles the menu and mirrors the state in aria-expanded
-        if (mobileMenuBtn && mobileMenu) {
-            mobileMenuBtn.addEventListener('click', function() {
-                // Only one overlay at a time: opening the menu closes the notification list
-                if (typeof window.closeNotificationDropdown === 'function') window.closeNotificationDropdown();
-                var isOpen = !mobileMenu.classList.toggle('hidden');
-                mobileMenuBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-                document.getElementById('mobile-menu-open-icon').classList.toggle('hidden', isOpen);
-                document.getElementById('mobile-menu-close-icon').classList.toggle('hidden', !isOpen);
-            });
-        }
-
-        var userMenuBtn = document.getElementById('user-menu-button');
-        var userDropdownMenu = document.getElementById('user-dropdown-menu');
-
-        // Show or hide the user menu and mirror the state in aria-expanded
-        function setUserMenuOpen(isOpen) {
-            userDropdownMenu.classList.toggle('hidden', !isOpen);
-            userMenuBtn.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-        }
-
-        if (userMenuBtn && userDropdownMenu) {
-            userMenuBtn.addEventListener('click', function(e) {
-                e.stopPropagation();
-                setUserMenuOpen(userDropdownMenu.classList.contains('hidden'));
-            });
-
-            document.addEventListener('click', function(e) {
-                if (!userMenuBtn.contains(e.target) && !userDropdownMenu.contains(e.target)) {
-                    setUserMenuOpen(false);
-                }
-            });
-        }
-
-        // Escape closes the open user menu or navigation menu and returns the focus to the button that opened it
-        document.addEventListener('keydown', function(event) {
-            if (event.key !== 'Escape') return;
-            // A modal dialog handles Escape itself (public/js/modal-dialog.js, which marks it defaultPrevented): one Escape closes one layer
-            if (event.defaultPrevented || (window.ModalDialog && window.ModalDialog.hasOpen())) return;
-            if (userDropdownMenu && !userDropdownMenu.classList.contains('hidden')) {
-                setUserMenuOpen(false);
-                userMenuBtn.focus();
-                return;
-            }
-            if (mobileMenu && !mobileMenu.classList.contains('hidden')) {
-                window.closeMobileMenu();
-                mobileMenuBtn.focus();
-            }
-        });
-    </script>
+    <?php // Session data for public/js/layout/server-handoff.js (a message for the browser console), as an inert JSON block ?>
     <?php if (isset($_SESSION['console_error'])): ?>
-        <script>
-            console.error(<?= json_encode($_SESSION['console_error']) ?>);
-        </script>
+        <?= \App\Common\Utils\JsonDataBlock::render('dts-console-error', $_SESSION['console_error']) ?>
         <?php unset($_SESSION['console_error']); ?>
     <?php endif; ?>
 
-    <?php // Hand the encrypted PIN-cache token to the browser, or tell it to discard a stale one ?>
+    <?php // Hand the encrypted PIN-cache token to the browser, or tell it to discard a stale one (applied by server-handoff.js) ?>
     <?php if (isset($_SESSION[\App\Modules\Users\SecurityPinCacheService::SESSION_ISSUED]) || isset($_SESSION[\App\Modules\Users\SecurityPinCacheService::SESSION_CLEAR])): ?>
-        <script>
-            (function() {
-                try {
-                    <?php if (isset($_SESSION[\App\Modules\Users\SecurityPinCacheService::SESSION_CLEAR])): ?>
-                    sessionStorage.removeItem('dts_pin_token');
-                    <?php endif; ?>
-                    <?php if (isset($_SESSION[\App\Modules\Users\SecurityPinCacheService::SESSION_ISSUED])): ?>
-                    sessionStorage.setItem('dts_pin_token', <?= json_encode($_SESSION[\App\Modules\Users\SecurityPinCacheService::SESSION_ISSUED]) ?>);
-                    <?php endif; ?>
-                } catch (e) {}
-            })();
-        </script>
+        <?= \App\Common\Utils\JsonDataBlock::render('dts-pin-token', [
+            'clear' => isset($_SESSION[\App\Modules\Users\SecurityPinCacheService::SESSION_CLEAR]),
+            'issued' => $_SESSION[\App\Modules\Users\SecurityPinCacheService::SESSION_ISSUED] ?? null,
+        ]) ?>
         <?php unset($_SESSION[\App\Modules\Users\SecurityPinCacheService::SESSION_ISSUED], $_SESSION[\App\Modules\Users\SecurityPinCacheService::SESSION_CLEAR]); ?>
     <?php endif; ?>
 
@@ -464,15 +366,7 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
     
     require BASE_PATH . '/src/Views/components/modal.php';
     ?>
-    <script>
-        // Show the mandatory prompt: it takes the focus and keeps it (focus trap); the shared module ignores Escape and clicks outside because it is not dismissible
-        document.addEventListener("DOMContentLoaded", () => {
-            const secModal = document.getElementById("security-key-modal");
-            if (!secModal) return;
-            ModalDialog.open(secModal, { dismissible: false });
-            document.body.style.overflow = "hidden";
-        });
-    </script>
+    <?php // The mandatory prompt is opened by public/js/layout/pin-setup-prompt.js ?>
     <?php endif; ?>
 
     <!-- Global Confirmation Modal -->
@@ -488,339 +382,6 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
     ';
     require BASE_PATH . '/src/Views/components/modal.php';
     ?>
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            let activeConfirmForm = null;
-            const globalConfirmModal = document.getElementById('global-confirmation-modal');
-            const globalConfirmMessage = document.getElementById('global-confirmation-message');
-            const globalConfirmBtn = document.getElementById('global-confirm-btn');
-
-            // Global confirmation interceptor: ONE delegated listener on document (bound once by this layout), so forms that
-            // arrive with an in-app navigation (pjax swaps #pjax-content) are covered too. It pauses the submission,
-            // shows the modal and resumes the native submit flow if the user approves.
-            document.addEventListener('submit', (e) => {
-                const form = e.target;
-                if (!(form instanceof HTMLFormElement) || !form.classList.contains('confirm-action')) return;
-                if (form.dataset.confirmed === "true") {
-                    // It was confirmed by the modal, let it pass through to other listeners or native submit
-                    delete form.dataset.confirmed;
-                    return;
-                }
-                e.preventDefault();
-                activeConfirmForm = form;
-                globalConfirmMessage.textContent = form.dataset.message || 'Are you sure you want to proceed?';
-
-                // Open through the shared module: the button that submitted the form gets the focus back when the modal closes
-                ModalDialog.open(globalConfirmModal, { opener: e.submitter || document.activeElement });
-            });
-
-            if (globalConfirmBtn) {
-                globalConfirmBtn.addEventListener('click', () => {
-                    const formToSubmit = activeConfirmForm;
-                    if (!formToSubmit) return;
-                    // The page is about to leave or re-handle the form, so the focus is not returned to the opener
-                    ModalDialog.close(globalConfirmModal, { restoreFocus: false });
-                    formToSubmit.dataset.confirmed = "true";
-                    // Dispatch submit event so other JS listeners can intercept it, or it will submit natively
-                    const submitEvent = new Event('submit', { bubbles: true, cancelable: true });
-                    const cancelled = !formToSubmit.dispatchEvent(submitEvent);
-                    if (!cancelled) {
-                        formToSubmit.submit(); // Fallback if no listener prevented default
-                    }
-                });
-            }
-
-            // Cancel, the X button, Escape and a click outside all close through the shared module; forget the form it was for
-            globalConfirmModal.addEventListener('modaldialog:close', () => {
-                activeConfirmForm = null;
-            });
-        });
-
-        // Notification & Toast System Logic
-        (function() {
-            window.__shownNotifIds = window.__shownNotifIds || new Set();
-
-            console.log('[DTS Notif System] Initialized. Existing known notifications count:', window.__shownNotifIds.size);
-
-            // Auto-dismiss toast messages after 5 seconds
-            function setupToastAutoDismiss() {
-                const toasts = document.querySelectorAll('#toast-container .toast-message');
-                console.log(`[DTS Notif System] setupToastAutoDismiss running. Found ${toasts.length} toast message(s).`);
-
-                toasts.forEach((toast, idx) => {
-                    if (toast.dataset.dismissScheduled) return;
-                    toast.dataset.dismissScheduled = "true";
-                    console.log(`[DTS Notif System] Toast #${idx + 1} scheduled for auto-dismiss in 5s.`);
-
-                    setTimeout(() => {
-                        if (toast.parentNode) {
-                            console.log(`[DTS Notif System] Fading out Toast #${idx + 1}.`);
-                            toast.style.transition = 'opacity 0.5s ease-out';
-                            toast.style.opacity = '0';
-                            setTimeout(() => {
-                                toast.remove();
-                                console.log(`[DTS Notif System] Removed Toast #${idx + 1} from DOM.`);
-                            }, 500);
-                        }
-                    }, 5000);
-                });
-            }
-
-            // Seed known unread notification IDs from DOM on load
-            function syncShownNotificationIds() {
-                const items = document.querySelectorAll('#notification-list .mark-notification-read');
-                items.forEach(btn => {
-                    if (btn.dataset.id) {
-                        window.__shownNotifIds.add(String(btn.dataset.id));
-                    }
-                });
-                // The list rendered by the server is the truth for this page: rebuild the unread set and the bell's name from it
-                unreadNotificationIds.clear();
-                items.forEach(btn => { if (btn.dataset.id) unreadNotificationIds.add(String(btn.dataset.id)); });
-                refreshNotificationButtonText();
-                console.log(`[DTS Notif System] Synced ${items.length} unread notification IDs into memory set.`);
-            }
-
-            // Fetch unread notifications from API to capture background job updates
-            async function pollUnreadNotifications() {
-                console.log('[DTS Notif System] Polling /api/notifications/unread...');
-                try {
-                    const res = await fetch('/api/notifications/unread');
-                    // The session ended (signed out or account deactivated): show the login page and its message
-                    if (res.status === 401) {
-                        window.location.href = '/login';
-                        return;
-                    }
-                    if (!res.ok) {
-                        console.warn('[DTS Notif System] Poll response non-OK status:', res.status);
-                        return;
-                    }
-
-                    const data = await res.json();
-                    console.log('[DTS Notif System] Poll response received:', data);
-
-                    if (!data.success || !Array.isArray(data.notifications)) return;
-
-                    // The poll lists every unread notification: it is the truth for the bell's name
-                    unreadNotificationIds.clear();
-                    data.notifications.forEach(notif => unreadNotificationIds.add(String(notif.id)));
-                    refreshNotificationButtonText();
-
-                    // Check for newly arrived notifications that haven't been alerted as toasts
-                    const toastContainer = document.getElementById('toast-container');
-                    data.notifications.forEach(notif => {
-                        const notifIdStr = String(notif.id);
-                        if (!window.__shownNotifIds.has(notifIdStr)) {
-                            window.__shownNotifIds.add(notifIdStr);
-                            console.log(`[DTS Notif System] New unread notification detected (ID ${notif.id}): "${notif.title}" - popping toast modal.`);
-
-                            if (toastContainer) {
-                                let iconSvg = '<path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />';
-                                let borderColor = 'border-blue-500', bgColor = 'bg-blue-50 dark:bg-blue-900', iconColor = 'text-blue-700 dark:text-blue-400', titleColor = 'text-blue-800 dark:text-blue-300', textColor = 'text-blue-700 dark:text-blue-400';
-                                
-                                if (notif.type === 'success') {
-                                    borderColor = 'border-green-500'; bgColor = 'bg-green-50 dark:bg-green-900'; iconColor = 'text-green-700 dark:text-green-400'; titleColor = 'text-green-800 dark:text-green-300'; textColor = 'text-green-700 dark:text-green-400';
-                                    iconSvg = '<path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />';
-                                } else if (notif.type === 'error') {
-                                    borderColor = 'border-red-500'; bgColor = 'bg-red-50 dark:bg-red-900'; iconColor = 'text-red-700 dark:text-red-400'; titleColor = 'text-red-800 dark:text-red-300'; textColor = 'text-red-700 dark:text-red-400';
-                                    iconSvg = '<path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />';
-                                } else if (notif.type === 'warning') {
-                                    borderColor = 'border-yellow-500'; bgColor = 'bg-yellow-50 dark:bg-yellow-900'; iconColor = 'text-yellow-700 dark:text-yellow-400'; titleColor = 'text-yellow-800 dark:text-yellow-300'; textColor = 'text-yellow-700 dark:text-yellow-400';
-                                }
-
-                                const toastHtml = `
-                                    <div role="${notif.type === 'error' || notif.type === 'warning' ? 'alert' : 'status'}" data-notification-item class="rounded-md border ${borderColor} ${bgColor} p-4 shadow-sm mb-3 relative toast-message pointer-events-auto animate-slide-in-right">
-                                        <div class="flex items-start gap-4">
-                                            <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="-mt-0.5 w-6 h-6 ${iconColor}">
-                                                ${iconSvg}
-                                            </svg>
-                                            <div class="flex-1 pr-6">
-                                                <strong class="toast-title block leading-tight font-medium ${titleColor}"></strong>
-                                                <p class="toast-text mt-0.5 text-sm ${textColor}"></p>
-                                                <a class="toast-link notification-link mt-2 inline-block text-sm font-medium underline ${textColor}"></a>
-                                            </div>
-                                            <button type="button" class="mark-notification-read absolute top-4 right-4 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 focus:outline-none focus:ring-2 focus:ring-accent-1 transition" title="Dismiss" aria-label="Dismiss notification">
-                                                <svg aria-hidden="true" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                                            </button>
-                                        </div>
-                                    </div>
-                                `;
-                                // Build the static shell, then insert server text with textContent so notification text never parses as HTML (I1)
-                                const holder = document.createElement('div');
-                                holder.innerHTML = toastHtml;
-                                const toastEl = holder.firstElementChild;
-                                toastEl.querySelector('.toast-title').textContent = String(notif.title ?? '');
-                                toastEl.querySelector('.toast-text').textContent = String(notif.message ?? '');
-
-                                // Show the optional link only for an internal path ("/x": no "//host", whitespace, control characters or backslashes)
-                                const toastLink = toastEl.querySelector('.toast-link');
-                                const linkPath = typeof notif.link === 'string' ? notif.link : '';
-                                if (/^\/(?!\/)[^\x00-\x20\x7f\\]*$/.test(linkPath)) {
-                                    toastLink.setAttribute('href', linkPath);
-                                    toastLink.textContent = String(notif.link_label || 'Open');
-                                } else {
-                                    toastLink.remove();
-                                }
-                                toastEl.querySelector('.mark-notification-read').dataset.id = notifIdStr;
-                                toastContainer.appendChild(toastEl);
-                                setupToastAutoDismiss();
-                            }
-                        }
-                    });
-                } catch (err) {
-                    console.error('[DTS Notif System] Error polling unread notifications:', err);
-                }
-            }
-
-            // Show or hide the notification list and mirror the state in the bell's aria-expanded
-            function setNotificationDropdownOpen(isOpen) {
-                const dropdown = document.getElementById('notification-dropdown-menu');
-                const bell = document.getElementById('notification-menu-button');
-                if (!dropdown) return;
-                dropdown.classList.toggle('hidden', !isOpen);
-                if (bell) bell.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-            }
-
-            // Hide the notification list (also called by the navigation menu button)
-            window.closeNotificationDropdown = function() {
-                setNotificationDropdownOpen(false);
-            };
-
-            // The bell's accessible name carries the unread count (there is no visual badge), so keep it in step with the list
-            // The ids of the unread notifications (seeded from the list on each page, replaced by every poll, shrunk when read)
-            const unreadNotificationIds = new Set();
-
-            // The ONE place that updates the bell's name from the unread count
-            function refreshNotificationButtonText() {
-                const text = document.getElementById('notification-button-text');
-                if (!text) return;
-                const unreadCount = unreadNotificationIds.size;
-                text.textContent = unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications';
-            }
-
-            // Escape closes the open list and returns the focus to the bell (a modal dialog handles Escape itself)
-            document.addEventListener('keydown', (e) => {
-                // One Escape closes one layer: ignore the one a dialog already handled (it set defaultPrevented)
-                if (e.key !== 'Escape' || e.defaultPrevented || (window.ModalDialog && window.ModalDialog.hasOpen())) return;
-                const dropdown = document.getElementById('notification-dropdown-menu');
-                if (!dropdown || dropdown.classList.contains('hidden')) return;
-                setNotificationDropdownOpen(false);
-                document.getElementById('notification-menu-button')?.focus();
-            });
-
-            // Global event delegation for notification dropdown, dismiss, and mark as read buttons
-            document.addEventListener('click', async (e) => {
-                const notifBtn = e.target.closest('#notification-menu-button');
-                if (notifBtn) {
-                    e.stopPropagation();
-                    // Only one overlay at a time: opening the list closes the navigation menu
-                    if (typeof window.closeMobileMenu === 'function') window.closeMobileMenu();
-                    const dropdown = document.getElementById('notification-dropdown-menu');
-                    if (dropdown) {
-                        setNotificationDropdownOpen(dropdown.classList.contains('hidden'));
-                        console.log('[DTS Notif System] Toggled dropdown menu. Hidden:', dropdown.classList.contains('hidden'));
-                    }
-                    return;
-                }
-
-                const notifDropdown = document.getElementById('notification-dropdown-menu');
-                if (notifDropdown && !notifDropdown.contains(e.target) && !e.target.closest('#notification-menu-button')) {
-                    if (!notifDropdown.classList.contains('hidden')) {
-                        window.closeNotificationDropdown();
-                        console.log('[DTS Notif System] Closed dropdown menu on outside click.');
-                    }
-                }
-
-                const markReadBtn = e.target.closest('.mark-notification-read');
-                if (markReadBtn) {
-                    e.stopPropagation();
-                    const notifId = markReadBtn.dataset.id;
-                    if (!notifId) return;
-
-                    console.log(`[DTS Notif System] Marking notification ID ${notifId} as read.`);
-                    try {
-                        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-                        const res = await fetch('/api/notifications/mark-read', {
-                            method: 'POST',
-                            headers: { 
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': csrfToken
-                            },
-                            body: JSON.stringify({ id: notifId })
-                        });
-                        const data = await res.json();
-                        if (data.success) {
-                            console.log(`[DTS Notif System] Notification ID ${notifId} marked read successfully.`);
-                            markReadBtn.closest('[data-notification-item]')?.remove();
-                            unreadNotificationIds.delete(String(notifId));
-                            refreshNotificationButtonText();
-                        }
-                    } catch (err) {
-                        console.error('[DTS Notif System] Error marking notification read:', err);
-                    }
-                    return;
-                }
-
-                const dismissBtn = e.target.closest('.dismiss-alert');
-                if (dismissBtn) {
-                    e.stopPropagation();
-                    console.log('[DTS Notif System] Dismissing alert manually.');
-                    dismissBtn.closest('[data-notification-item]')?.remove();
-                    return;
-                }
-
-                const markAllBtn = e.target.closest('#mark-all-read');
-                if (markAllBtn) {
-                    e.stopPropagation();
-                    console.log('[DTS Notif System] Marking ALL notifications as read.');
-                    try {
-                        const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
-                        const res = await fetch('/api/notifications/mark-read', {
-                            method: 'POST',
-                            headers: { 
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': csrfToken
-                            },
-                            body: JSON.stringify({})
-                        });
-                        const data = await res.json();
-                        if (data.success) {
-                            console.log('[DTS Notif System] All notifications marked read successfully.');
-                            const list = document.getElementById('notification-list');
-                            if (list) {
-                                list.innerHTML = '<p class="text-sm text-gray-500 dark:text-gray-400 p-4 text-center">No new notifications.</p>';
-                            }
-                            markAllBtn.remove();
-                            unreadNotificationIds.clear();
-                            refreshNotificationButtonText();
-                        }
-                    } catch (err) {
-                        console.error('[DTS Notif System] Error marking all notifications read:', err);
-                    }
-                    return;
-                }
-            });
-
-            // Lifecycle hooks
-            document.addEventListener('DOMContentLoaded', () => {
-                console.log('[DTS Notif System] Lifecycle: DOMContentLoaded');
-                setupToastAutoDismiss();
-                syncShownNotificationIds();
-            });
-
-            document.addEventListener('dts:page-loaded', () => {
-                console.log('[DTS Notif System] Lifecycle: dts:page-loaded');
-                setupToastAutoDismiss();
-                syncShownNotificationIds();
-                pollUnreadNotifications();
-            });
-
-            // Periodically poll for background notifications every 30s
-            setInterval(pollUnreadNotifications, 30000);
-        })();
-    </script>
-
-    <!-- PJAX Router: must be loaded last so all layout-level DOM is available -->
-    <script src="/js/pjax-router.js"></script>
+<?php // Behaviour of the confirmation modal: public/js/layout/global-confirm.js; notifications and toasts: public/js/layout/notifications.js ?>
 </body>
 </html>
