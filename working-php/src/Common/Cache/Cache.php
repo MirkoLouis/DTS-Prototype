@@ -6,6 +6,9 @@ use App\Common\Database\Database;
 
 class Cache
 {
+    // Prefix of every key whose value is computed from daily_department_metrics; the backfill clears exactly these keys
+    public const METRICS_PREFIX = 'metrics:';
+
     /**
      * Get a value from the cache.
      */
@@ -67,6 +70,30 @@ class Cache
         $value = $callback();
         self::put($key, $value, $ttlSeconds);
         return $value;
+    }
+
+    /**
+     * Delete every entry that has expired at $now. Returns the number of rows deleted.
+     *
+     * get() already ignores an expired entry, so this only bounds the table's size; it reads the
+     * cache(expiration) index and so touches only the expired range.
+     */
+    public static function purgeExpired(int $now): int
+    {
+        // Same boundary as get(): an entry is expired once the clock is past its expiration
+        return Database::getInstance()->query("DELETE FROM cache WHERE expiration < :now", [':now' => $now])->rowCount();
+    }
+
+    /**
+     * Remove every entry whose key starts with $prefix. Returns the number of rows deleted.
+     */
+    public static function forgetPrefix(string $prefix): int
+    {
+        // LIKE wildcards in the prefix are escaped so they match literally
+        $escaped = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $prefix);
+        $stmt = Database::getInstance()->query('DELETE FROM cache WHERE `key` LIKE :prefix ESCAPE \'\\\\\'', [':prefix' => $escaped . '%']);
+
+        return $stmt->rowCount();
     }
 
     /**

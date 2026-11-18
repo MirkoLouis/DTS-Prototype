@@ -95,10 +95,13 @@ class TestDatabase
 
     /**
      * Run a SQL script (database.sql, a migration) statement by statement on the guarded test connection.
+     * Returns the notices the script raised.
+     *
+     * @return string[]
      */
-    public static function runSqlFile(string $path): void
+    public static function runSqlFile(string $path): array
     {
-        SqlScriptRunner::runFile(self::guardedDb()->getConnection(), $path);
+        return SqlScriptRunner::runFile(self::guardedDb()->getConnection(), $path);
     }
 
     /**

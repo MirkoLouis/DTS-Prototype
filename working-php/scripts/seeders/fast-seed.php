@@ -786,7 +786,7 @@ $conn->exec("UPDATE users SET public_key = NULL, private_key = NULL, security_ke
 $conn->exec('SET FOREIGN_KEY_CHECKS = 1');
 
 echo "\n📈 Backfilling daily departmental metrics...\n";
-passthru('php ' . escapeshellarg(BASE_PATH . '/scripts/backfill-metrics.php'));
+passthru('php ' . escapeshellarg(BASE_PATH . '/scripts/backfill-metrics.php') . ' --full');
 
 $elapsed = round(microtime(true) - $startTime, 2);
 echo "🎉 Done! Seeded " . number_format($docsToCreate) . " documents in {$elapsed}s.\n";

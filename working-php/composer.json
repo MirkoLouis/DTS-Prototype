@@ -133,6 +133,11 @@
         "test:chain-seal": "phpunit tests/Workflow/ChainSealTest.php",
         "test:seal-chains-script": "phpunit tests/Workflow/SealChainsScriptTest.php",
         "test:missing-integrity-key": "phpunit tests/Workflow/MissingIntegrityKeyTest.php",
+        "test:sql-script-runner": "phpunit tests/Unit/SqlScriptRunnerTest.php",
+        "test:index-usage": "phpunit tests/Workflow/IndexUsageTest.php",
+        "test:metrics-backfill": "phpunit tests/Workflow/MetricsBackfillTest.php",
+        "test:cache-purge": "phpunit tests/Workflow/CachePurgeTest.php",
+        "test:tracking-slip-pdf": "phpunit tests/Http/TrackingSlipPdfTest.php",
         "bench": "phpunit --testsuite benchmark --group benchmark",
         "replay": "php scripts/route-replay.php",
         "manual:live-concurrency": "php scripts/manual/live-concurrency.php",
@@ -208,7 +213,7 @@
         "test:verify-hash-label": "System Overview uses the \"Verify Hash\" label.",
         "test:ict-unit": "The production seeder includes the ICT Unit, and intake can route to it.",
         "test:debug-logging": "Requests do not write the temporary router log; the navigation log still records them.",
-        "test:master-migration": "The master migration upgrades a pre-deactivation schema and is idempotent.",
+        "test:master-migration": "The master migration upgrades a pre-deactivation schema and the schema before S11 (adds the indexes, drops the unused tables, reports duplicate department names instead of failing), is idempotent, and ends with the same schema as a fresh database.sql.",
         "test:restore-backup-migration": "Restoring an older backup re-applies the migration, so the schema stays current.",
         "test:worker-schedule": "Scheduled worker tasks run on time; restarts never postpone them.",
         "test:queue-service": "One worker claims a job; a job whose health ping stopped is recorded under failed jobs and not retried.",
@@ -238,7 +243,7 @@
         "test:results-extension": "The PHPUnit results extension writes test-outcomes.csv, summary.csv and run.json.",
         "test:result-writer": "Result folders: DTS_RESULTS_DIR containment, run-id validation, no overwriting.",
         "test:test-artifact-paths": "Every file a test creates is under working-php/.test/; no test uses the system temp directory.",
-        "test:seed-guard": "The production seeder's guard refuses a database that holds documents or users unless --force is passed, and the API seeder stops with a clear message on HTTP 429.",
+        "test:seed-guard": "The production seeder's guard refuses a database that holds documents or users unless --force is passed (it checks DB_DATABASE only; database.sql names no database), the seeder creates and selects DB_DATABASE, and the API seeder stops with a clear message on HTTP 429.",
         "test:session-storage": "Sessions are stored in the app's own folder, cleaned up by the app, with a 12-hour idle limit and hardened cookies.",
         "test:test-guard": "Tests refuse to run outside APP_ENV=testing or against a non-_test database.",
         "test:test-lifecycle": "The per-run test database and artifact lifecycle.",
@@ -252,6 +257,11 @@
         "test:integrity-key": "The shared integrity-key helper accepts only base64 of exactly 32 bytes; the test override is ignored outside the testing environment.",
         "test:chain-seal": "Entry seals and chain seals: the sealed fields and their normalization, every workflow action leaves valid seals, the automatic freeze keeps the mismatch, unfreeze and auto-resolve re-seal, unfreeze refuses changed content, recovery never rolls back (it refuses when the newest entry fails), unsealed documents are refused and not frozen.",
         "test:seal-chains-script": "scripts/seal-chains.php seals existing data once after verifying each chain (refusing chains that do not verify), never seals a missing seal on an already sealed database or overwrites a seal without an explicit flag and the database name, and refuses without a key or against another database.",
-        "test:missing-integrity-key": "Without APP_INTEGRITY_KEY the worker does not start, the integrity check reports \"seal not configured\", and the pre-action check refuses the action without freezing."
+        "test:missing-integrity-key": "Without APP_INTEGRITY_KEY the worker does not start, the integrity check reports \"seal not configured\", and the pre-action check refuses the action without freezing.",
+        "test:sql-script-runner": "The SQL script runner returns the notices a script raises (the migration's duplicate-department notice), drops other result rows, and still stops on a failing statement.",
+        "test:index-usage": "EXPLAIN proves the S11 indexes are used by the notification poll, the job claim, the cache purge and the department and purpose name lookups (on tables of 20,000 rows), the poll and the claim return the right rows, and the legacy import merges department names that differ only in case and logs it.",
+        "test:metrics-backfill": "Department metrics backfill: the 2-day window rebuilds only recent days (Asia/Manila day boundaries), --full rebuilds everything, repeated runs give identical rows, and a failed rebuild keeps the previous rows; only the metrics cache entries are cleared, and only when rows changed; the scheduler runs it every 5 minutes.",
+        "test:cache-purge": "The hourly worker task that deletes expired rows of the cache table (driven through the scheduler with a fake clock), and Cache::forgetPrefix.",
+        "test:tracking-slip-pdf": "The tracking slip embeds the 375 px print copy of the DepEd seal (300 dpi at the printed size) and the PDF stays under 150 KB."
     }
 }

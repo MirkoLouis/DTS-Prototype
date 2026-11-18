@@ -115,8 +115,9 @@
         $host = $_SERVER['HTTP_HOST'];
         $trackingUrl = $protocol . $host . '/track?codes=' . urlencode($document['tracking_code']);
         
-        // Base64 encode the logo for reliable DomPDF rendering
-        $logoPath = BASE_PATH . '/public/images/DepEd Seal.png';
+        // Base64 encode the logo for reliable DomPDF rendering. The slip prints the seal 120 CSS px (1.25 in at Dompdf's 96 dpi)
+        // wide, so it embeds the 375 px wide print copy (300 dpi) instead of the 1280 px original, which only bloats the PDF.
+        $logoPath = BASE_PATH . '/public/images/DepEd Seal (print).png';
         $logoData = '';
         if (file_exists($logoPath)) {
             $logoData = 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath));

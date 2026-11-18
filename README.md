@@ -134,7 +134,7 @@ Checked by `composer test:accessibility-markup` (HTML level) and by the keyboard
 
 ## 🌱 Database Seeding Commands (`working-php/scripts/seeders`)
 
-- **Production Setup (`composer run seed:prod` / `node scripts/seeders/setup-production-db.js`):** Builds database tables from `database.sql` and seeds 15 DepEd departments (including the ICT Unit), baseline document purposes, and initial user accounts.
+- **Production Setup (`composer run seed:prod` / `node scripts/seeders/setup-production-db.js`):** Creates the database named by `DB_DATABASE` in `.env` (utf8mb4) if it is missing, builds the tables from `database.sql` in it (the file names no database), and seeds 15 DepEd departments (including the ICT Unit), baseline document purposes, and initial user accounts.
 - **High-Speed Direct Database Seeder (`composer run seed:fast [docs]` / `php scripts/seeders/fast-seed.php`):** Generates up to 50,000+ document logs directly in MySQL in seconds by pre-decrypting Ed25519 keys into RAM.
 - **Slow-Speed API Seeder (`composer run seed:dev [docs] [chunk] [concurrency]` / `node scripts/seeders/seed.js`):** Dispatches live HTTP requests against the web server to simulate multi-user traffic and session handling, also functions as a concurrency test. **Set `RATE_LIMIT_ENABLED=false` in the server's `.env` (and restart PHP-FPM) while it runs, and back to `true` afterwards:** it submits thousands of documents from one IP, and the public routes allow only 10 submissions per IP per minute. Without the switch the seeder stops at the first HTTP 429 with a message saying so. `seed:prod` and `seed:fast` write to the database directly and are not limited.
 
@@ -166,13 +166,13 @@ The DTS is meant to run without stopping. Everything that grows over time falls 
 
 | Group | What | Who keeps it bounded |
 | :--- | :--- | :--- |
-| Handled by the app | Page cache (purged hourly), `database_metrics` (rolled up to hourly after 24 h), notifications (newest 10 per user/department), `navigation.log` (renamed at 50 MB), session files in `storage/sessions` (a session idle longer than `SESSION_LIFETIME`, 12 hours by default, is ended on its next request and its file removed by PHP's cleanup), backups older than `BACKUP_KEEP_DAYS`, jobs whose process died (recorded under Failed Jobs) | The worker's scheduler (`console.php`) |
+| Handled by the app | Page cache (purged hourly), expired `cache` table rows (purged hourly), `database_metrics` (rolled up to hourly after 24 h), notifications (newest 10 per user/department), `navigation.log` (renamed at 50 MB), session files in `storage/sessions` (a session idle longer than `SESSION_LIFETIME`, 12 hours by default, is ended on its next request and its file removed by PHP's cleanup), backups older than `BACKUP_KEEP_DAYS`, jobs whose process died (recorded under Failed Jobs) | The worker's scheduler (`console.php`) |
 | Handled by the operating system | nginx logs (`/var/log/nginx/dts_*.log`), PHP-FPM log (`/var/log/php<version>-fpm.log`), `storage/logs/worker.log` | logrotate, which must actually run (below) |
 | Kept forever | `documents`, `document_logs`, `user_public_key_histories` (the audit trail) and the signed checkpoints in `storage/checkpoints/` | Nobody: plan disk capacity instead (below) |
 
 ### 1. Keep the queue worker running
 
-The worker runs the scheduler (daily checkpoint, metrics, cache cleanup, stale-document cleanup, hourly purge of expired rate-limit counters) and the background jobs. Its last-run times are stored in the `worker_schedule` table, so a restart never postpones a daily task. It still has to be restarted when it exits. `composer run dev` does this itself (a watchdog relaunches it within about 5 seconds). On a server, run it as a systemd service, which also starts it at boot:
+The worker runs the scheduler (daily checkpoint, metrics, cache cleanup, stale-document cleanup, hourly purge of expired rate-limit counters and expired `cache` rows) and the background jobs. The department metrics behind the dashboard charts are rebuilt every 5 minutes for the last two days only (yesterday and today, Asia/Manila); `php scripts/backfill-metrics.php --full` rebuilds every day and is what the seeders run. The rebuild deletes and re-inserts those days in one transaction, so the charts never show an empty table. Its last-run times are stored in the `worker_schedule` table, so a restart never postpones a daily task. It still has to be restarted when it exits. `composer run dev` does this itself (a watchdog relaunches it within about 5 seconds). On a server, run it as a systemd service, which also starts it at boot:
 
 ```bash
 cd /opt/dts/working-php                       # your project path (preferably without spaces)
@@ -246,13 +246,13 @@ sudo systemctl stop dts-worker.service      # once the jobs table is empty: queu
 git pull
 composer install --no-dev                   # regenerates vendor/autoload (required after files move)
 npm install && npm run build                # only if CSS or Tailwind changed
-mysql -u <user> -p deped_dts < scripts/migrations/master-migration.sql   # safe to run every time; adds what is missing
+mysql -u <user> -p <your DB_DATABASE> < scripts/migrations/master-migration.sql   # safe to run every time; adds what is missing
 # stop the running `composer run prod` (Ctrl+C), then start it again so PHP-FPM reloads the new code
 composer run prod
 sudo systemctl start dts-worker.service
 ```
 
-Check the CHANGELOG's "Upgrade note" for the version you are installing. An update does not clear `cache/`, so the last integrity result and the signed checkpoints are kept. Run an integrity check from System Overview afterwards. Updating to 2.7.12 or later from an older version also needs the sealing steps in [Chain Seal](#-chain-seal-working-php) (migrate, check, `php scripts/seal-chains.php`, restart).
+Check the CHANGELOG's "Upgrade note" for the version you are installing. An update does not clear `cache/`, so the last integrity result and the signed checkpoints are kept. Run an integrity check from System Overview afterwards. Updating to 2.7.13 or later: take a backup first, then run the master migration. It adds indexes (`notifications (department_id, is_read, created_at)` for the unread poll, `jobs (reserved_at, available_at)` for the job claim, `cache (expiration)` for the hourly purge, `purposes (name)`, and a UNIQUE index on `departments (name)`) and **drops the unused tables `job_batches`, `password_reset_tokens`, `sessions` and `prediction_keywords`** (`cache_locks` stays). If two departments share a name, the migration does not fail: it adds a plain index, prints the duplicated names, and adds the UNIQUE index when you run it again after renaming one of them. A manual setup from `database.sql` names the database on the command line: `mysql -u <user> -p <database> < database.sql` (the database must exist: `CREATE DATABASE <database> CHARACTER SET utf8mb4;`). Updating to 2.7.12 or later from an older version also needs the sealing steps in [Chain Seal](#-chain-seal-working-php) (migrate, check, `php scripts/seal-chains.php`, restart).
 
 ## 🔏 Chain Seal (`working-php`)
 
@@ -516,7 +516,7 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 
 | Command | What it checks |
 | :--- | :--- |
-| `test:master-migration` | The master migration upgrades a pre-deactivation schema and is idempotent. |
+| `test:master-migration` | The master migration upgrades a pre-deactivation schema and the schema before S11 (adds the indexes, drops the unused tables, reports duplicate department names instead of failing), is idempotent, and ends with the same schema as a fresh database.sql. |
 | `test:restore-backup-migration` | Restoring an older backup re-applies the migration, so the schema stays current. |
 | `test:worker-schedule` | Scheduled worker tasks run on time; restarts never postpone them. |
 | `test:queue-service` | One worker claims a job; a job whose health ping stopped is recorded under failed jobs and not retried. |
@@ -557,7 +557,7 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `test:results-extension` | The PHPUnit results extension writes test-outcomes.csv, summary.csv and run.json. |
 | `test:result-writer` | Result folders: DTS_RESULTS_DIR containment, run-id validation, no overwriting. |
 | `test:test-artifact-paths` | Every file a test creates is under `working-php/.test/`; no test uses the system temp directory. |
-| `test:seed-guard` | The production seeder's guard refuses a database that holds documents or users unless --force is passed, and the API seeder stops with a clear message on HTTP 429. |
+| `test:seed-guard` | The production seeder's guard refuses a database that holds documents or users unless --force is passed (it checks DB_DATABASE only; database.sql names no database), the seeder creates and selects DB_DATABASE, and the API seeder stops with a clear message on HTTP 429. |
 | `test:session-storage` | Sessions are stored in the app's own folder, cleaned up by the app, with a 12-hour idle limit and hardened cookies. |
 | `test:test-guard` | Tests refuse to run outside APP_ENV=testing or against a non-_test database. |
 | `test:test-lifecycle` | The per-run test database and artifact lifecycle. |
@@ -568,6 +568,11 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `test:rate-limit-middleware` | The rate-limit middleware: the RATE_LIMIT_ENABLED switch, the client taken from REMOTE_ADDR only, and the five route limits defined once with the limiter first. |
 | `test:rate-limit-http` | Per-IP limits on guest submission, tracking, the tracking API and the tracking-form print: 429 page or JSON with Retry-After, independent buckets, recovery after the window, fail open without the table. |
 | `test:rate-limit-purge-task` | The hourly worker task that deletes expired rate_limits rows. |
+| `test:sql-script-runner` | The SQL script runner returns the notices a script raises (the migration's duplicate-department notice), drops other result rows, and still stops on a failing statement. |
+| `test:index-usage` | EXPLAIN proves the S11 indexes are used by the notification poll, the job claim, the cache purge and the department and purpose name lookups (on tables of 20,000 rows), the poll and the claim return the right rows, and the legacy import merges department names that differ only in case and logs it. |
+| `test:metrics-backfill` | Department metrics backfill: the 2-day window rebuilds only recent days (Asia/Manila day boundaries), --full rebuilds everything, repeated runs give identical rows, and a failed rebuild keeps the previous rows; only the metrics cache entries are cleared, and only when rows changed; the scheduler runs it every 5 minutes. |
+| `test:cache-purge` | The hourly worker task that deletes expired rows of the cache table (driven through the scheduler with a fake clock), and Cache::forgetPrefix. |
+| `test:tracking-slip-pdf` | The tracking slip embeds the 375 px print copy of the DepEd seal (300 dpi at the printed size) and the PDF stays under 150 KB. |
 
 **External server (`TEST_BASE_URL`).** Before attaching, the suite calls `GET /__test/env` and refuses to run unless the server reports `env` `testing` and a database name ending in `_test`. That route is registered only when the app runs with `APP_ENV=testing`; in production it returns 404 like any unknown route. An nginx/FPM run therefore needs a separate PHP-FPM pool (or vhost) for the tests with `env[APP_ENV]=testing`, so it loads `.env.testing`; never point `TEST_BASE_URL` at the production pool.
 

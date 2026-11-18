@@ -46,7 +46,7 @@ class AdminDashboardController
     {
         $period = $_GET['period'] ?? 'daily';
         $departmentId = $_GET['department_id'] ?? 'all';
-        $cacheKey = "throughput_data_v2_{$period}_{$departmentId}";
+        $cacheKey = Cache::METRICS_PREFIX . "throughput_data_v2_{$period}_{$departmentId}";
 
         $data = Cache::remember($cacheKey, 600, function() use ($period, $departmentId) {
             $service = new AdminAnalyticsService();
@@ -59,7 +59,7 @@ class AdminDashboardController
     public function getAvgStepTimeByDepartmentData()
     {
         $isFull = isset($_GET['full']) ? 'full' : 'limited';
-        $cacheKey = "avg_step_time_v2_{$isFull}";
+        $cacheKey = Cache::METRICS_PREFIX . "avg_step_time_v2_{$isFull}";
 
         $data = Cache::remember($cacheKey, 600, function() use ($isFull) {
             $service = new AdminAnalyticsService();
@@ -73,7 +73,7 @@ class AdminDashboardController
     {
         $period = $_GET['period'] ?? 'daily';
         $departmentId = $_GET['department_id'] ?? 'all';
-        $cacheKey = "dept_load_time_v2_{$period}_{$departmentId}";
+        $cacheKey = Cache::METRICS_PREFIX . "dept_load_time_v2_{$period}_{$departmentId}";
 
         $data = Cache::remember($cacheKey, 600, function() use ($period, $departmentId) {
             $service = new AdminAnalyticsService();

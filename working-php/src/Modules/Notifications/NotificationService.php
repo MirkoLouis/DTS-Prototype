@@ -7,6 +7,9 @@ use App\Common\Database\Database;
 
 class NotificationService
 {
+    // Newest unread notifications shown to a user
+    private const UNREAD_LIMIT = 10;
+
     private PDO $db;
 
     public function __construct()
@@ -142,6 +145,37 @@ class NotificationService
     }
 
     /**
+     * SQL of the unread poll: the newest unread notifications addressed to the user, or to the user's department.
+     *
+     * One branch per owner instead of "user_id = ? OR department_id = ?", so each branch reads its newest rows
+     * straight from an index (the department branch from notifications(department_id, is_read, created_at)) and
+     * the sort only merges at most two short lists. A notification never has both owners, UNION also drops a repeat.
+     */
+    public static function unreadSql(bool $withDepartment): string
+    {
+        $userBranch = self::unreadBranchSql(false);
+
+        // Without a department there is a single branch
+        if (!$withDepartment) {
+            return $userBranch;
+        }
+
+        $limit = self::UNREAD_LIMIT;
+        return "SELECT * FROM (({$userBranch}) UNION (" . self::unreadBranchSql(true) . ")) AS unread ORDER BY created_at DESC LIMIT {$limit}";
+    }
+
+    /**
+     * One branch of the unread poll: the newest unread notifications of the user (:user_id) or of the department (:dept_id).
+     */
+    public static function unreadBranchSql(bool $forDepartment): string
+    {
+        $limit = self::UNREAD_LIMIT;
+        $owner = $forDepartment ? 'department_id = :dept_id' : 'user_id = :user_id';
+
+        return "SELECT * FROM notifications WHERE {$owner} AND is_read = 0 ORDER BY created_at DESC LIMIT {$limit}";
+    }
+
+    /**
      * Get unread notifications for the currently logged-in user
      */
     public function getUnreadForCurrentUser(): array
@@ -153,15 +187,8 @@ class NotificationService
         $userId = $_SESSION['user_id'];
         $departmentId = $_SESSION['department_id'] ?? null;
 
-        $query = "
-            SELECT * FROM notifications 
-            WHERE is_read = 0 
-            AND (user_id = :user_id " . ($departmentId ? "OR department_id = :dept_id" : "") . ")
-            ORDER BY created_at DESC
-            LIMIT 10
-        ";
-
-        $stmt = $this->db->prepare($query);
+        // A user without a department sees only personal notifications
+        $stmt = $this->db->prepare(self::unreadSql((bool) $departmentId));
         $params = ['user_id' => $userId];
         if ($departmentId) {
             $params['dept_id'] = $departmentId;

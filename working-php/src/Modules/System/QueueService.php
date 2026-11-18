@@ -12,11 +12,25 @@ use App\Common\Database\Database;
  */
 class QueueService
 {
+    // The next due, unreserved job. Oldest availability first, then id; the order matches the index
+    // jobs(reserved_at, available_at), whose entries end in the id, so MySQL reads one row and does not sort
+    public const NEXT_PENDING_SQL = "SELECT * FROM jobs WHERE reserved_at IS NULL AND available_at <= UNIX_TIMESTAMP() ORDER BY available_at ASC, id ASC LIMIT 1";
+
     private Database $db;
 
     public function __construct()
     {
         $this->db = Database::getInstance();
+    }
+
+    /**
+     * The next job a worker should try to claim, or null when none is due.
+     */
+    public function nextPending(): ?array
+    {
+        // Read-only lookup; claim() decides which worker actually gets the job
+        $job = $this->db->query(self::NEXT_PENDING_SQL)->fetch();
+        return $job === false ? null : $job;
     }
 
     /**

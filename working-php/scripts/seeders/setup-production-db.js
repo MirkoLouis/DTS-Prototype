@@ -1,7 +1,8 @@
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
-const { refusalMessage, countRows, databaseNamedIn } = require('./seed-guard');
+const { refusalMessage, countRows } = require('./seed-guard');
 const { removeFilesIn } = require('./seed-files');
+const { rebuildSchema } = require('./seed-database');
 
 const mysql = require('mysql2/promise');
 const fs = require('fs');
@@ -43,14 +44,9 @@ async function setupDatabase() {
         const sqlContent = fs.readFileSync(sqlFilePath, 'utf8');
 
         // Never rebuild a database that already holds documents or accounts unless the operator passed --force.
-        // Both the database in .env and the one the schema file itself names are checked, since either may be rebuilt.
-        const databases = [...new Set([process.env.DB_DATABASE, databaseNamedIn(sqlContent)].filter(Boolean))];
-        let existingDocuments = 0;
-        let existingUsers = 0;
-        for (const database of databases) {
-            existingDocuments += await countRows(connection, database, 'documents');
-            existingUsers += await countRows(connection, database, 'users');
-        }
+        // database.sql names no database, so DB_DATABASE (from .env) is the only one that gets rebuilt and the only one checked.
+        const existingDocuments = await countRows(connection, process.env.DB_DATABASE, 'documents');
+        const existingUsers = await countRows(connection, process.env.DB_DATABASE, 'users');
         const refusal = refusalMessage(existingDocuments, existingUsers, process.argv);
         if (refusal !== null) {
             console.error('🛑 ' + refusal);
@@ -69,10 +65,9 @@ async function setupDatabase() {
         require('child_process').execFileSync('php', [path.join(__dirname, '../generate-keys.php'), '--integrity'], { stdio: 'inherit' });
 
         console.log('🧹 Dropping existing tables and rebuilding schema (including document_snapshot)...');
-        await connection.query(sqlContent);
-        
-        // Make sure we are using the new DB
-        await connection.query(`USE ${process.env.DB_DATABASE}`);
+
+        // database.sql names no database: create and select DB_DATABASE, then build the schema in it
+        await rebuildSchema(connection, process.env.DB_DATABASE, sqlContent);
 
         console.log('🌱 Seeding foundational data...');
 
