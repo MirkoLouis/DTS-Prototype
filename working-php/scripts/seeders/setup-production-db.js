@@ -2,7 +2,7 @@ const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 const { refusalMessage, countRows } = require('./seed-guard');
 const { removeFilesIn } = require('./seed-files');
-const { rebuildSchema } = require('./seed-database');
+const { rebuildSchema, rebuildRefusal, listTables } = require('./seed-database');
 
 const mysql = require('mysql2/promise');
 const fs = require('fs');
@@ -54,6 +54,14 @@ async function setupDatabase() {
             process.exit(1);
         }
 
+        // Refuse a system schema always, and a database with tables of other applications unless --force (nothing is changed yet)
+        const rebuildRefused = rebuildRefusal(process.env.DB_DATABASE, await listTables(connection, process.env.DB_DATABASE), sqlContent, process.argv.includes('--force'));
+        if (rebuildRefused !== null) {
+            console.error('🛑 ' + rebuildRefused);
+            await connection.end();
+            process.exit(1);
+        }
+
         // From here on the rebuild goes ahead: clear this app's sessions and cached pages
         clearSessionsAndCache();
 
@@ -64,10 +72,10 @@ async function setupDatabase() {
         console.log('🔐 Ensuring integrity key exists...');
         require('child_process').execFileSync('php', [path.join(__dirname, '../generate-keys.php'), '--integrity'], { stdio: 'inherit' });
 
-        console.log('🧹 Dropping existing tables and rebuilding schema (including document_snapshot)...');
+        console.log('🧹 Dropping this app's tables, then building the schema (including document_snapshot)...');
 
-        // database.sql names no database: create and select DB_DATABASE, then build the schema in it
-        await rebuildSchema(connection, process.env.DB_DATABASE, sqlContent);
+        // database.sql names no database and drops nothing: drop the app's tables in DB_DATABASE (the checks above allowed it), select it, build the schema
+        await rebuildSchema(connection, process.env.DB_DATABASE, sqlContent, process.argv.includes('--force'));
 
         console.log('🌱 Seeding foundational data...');
 

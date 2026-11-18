@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## 2026-11-18
 
+**Version:** 2.7.14
+
+### Fixed
+- `database.sql` no longer starts with `SET FOREIGN_KEY_CHECKS = 0;` and `DROP TABLE IF EXISTS <every table>;`. Running it by accident against a database that holds data wiped every table. It now only creates tables (`CREATE TABLE` without `IF NOT EXISTS`, `departments` first), so on a database that already has them it stops with "Table 'departments' already exists" before changing anything. It builds a new, empty database only; existing databases use `scripts/migrations/master-migration.sql`.
+
+### Changed
+- `seed-database.js` `rebuildSchema()` (used by `setup-production-db.js`, only after the seed guard allowed it, i.e. an empty database or `--force`) drops the app's own tables before it builds the schema, instead of relying on the file's `DROP`. It never drops the database: the table list is read from the `CREATE TABLE` statements of `database.sql` plus the legacy names (`job_batches`, `password_reset_tokens`, `sessions`, `prediction_keywords`), foreign key checks are off only for that one `DROP TABLE` in the session, and `CREATE DATABASE IF NOT EXISTS` still creates a missing database. Before anything changes it refuses a system schema (`mysql`, `sys`, `information_schema`, `performance_schema`) always, and a database that holds a table that is not in the list unless `--force` is passed (the message names the tables; with `--force` those tables are kept).
+- README: setup and update text say that `database.sql` is for a new empty database only.
+
+### Tests
+- `DatabaseSchemaFileTest` (`composer test:database-schema-file`): `database.sql` contains no `DROP`, `TRUNCATE` or `DELETE`; running it again on a populated database (through the `mysql` client and through `SqlScriptRunner`) fails with "already exists" and leaves every row and table unchanged. `SeedGuardTest` checks `rebuildSchema()` on throwaway `_test` databases: leftover tables with the app's names are replaced, a foreign table is refused without `--force` and kept with it, system schemas are refused even with `--force`, and the table list follows `database.sql`.
+
+## 2026-11-18
+
 **Version:** 2.7.13
 
 ### Added
