@@ -4,6 +4,35 @@ All notable changes to this project will be documented in this file.
 
 ## 2026-11-18
 
+**Version:** 2.7.13
+
+### Added
+- Indexes (in `database.sql` and idempotently in `scripts/migrations/master-migration.sql`), each added because a query in the code uses it (EXPLAIN on the test database, see `IndexUsageTest`): `notifications (department_id, is_read, created_at)` (`idx_notifications_dept_unread`, the unread poll), `jobs (reserved_at, available_at)` (`idx_jobs_claim`, the job claim), `cache (expiration)` (`idx_cache_expiration`, the purge), `purposes (name)` (`idx_purposes_name`, lookups and name-ordered lists) and `departments (name)` UNIQUE (`uq_departments_name`, lookups by name). `documents.updated_at` was not added: the only query that filters on it (the report job) uses `updated_at <= job creation time`, which is not selective, and MySQL does not choose the index for it.
+- Hourly purge of expired `cache` rows: `Cache::purgeExpired()` and the scheduled worker task `CachePurgeTask` (persisted in `worker_schedule` as `cache_purge`).
+- `App\Modules\Analytics\MetricsBackfillService`: rebuilds `daily_department_metrics`. `MetricsBackfillTask` and `CachePurgeTask` are run, with the rate-limit purge, by `App\Modules\System\PeriodicTasks::runDue()`, which `console.php` calls every loop (testable with a fake clock).
+- `Cache::forgetPrefix()` and `Cache::METRICS_PREFIX`: the dashboard payloads computed from `daily_department_metrics` (throughput, average step time, load versus time) are cached under the `metrics:` prefix.
+- `SqlScriptRunner::runFile()` returns the notices a script raises (result rows with a `migration_notice` column, constant `SqlScriptRunner::NOTICE_COLUMN`). `RestoreBackupJob` writes them to `error_log`, to the audit record (`migration_notices`) and to the admin's "Backup restored" notification (warning), so the duplicate-department notice is visible when a backup is restored.
+- `App\Modules\Users\DepartmentResolver`: the legacy import's find-or-create of a department. `QueueService::nextPending()` and `NotificationService::unreadSql()` hold the claim and poll queries the indexes serve.
+- `public/images/DepEd Seal (print).png`: the seal at 375 x 211 px (300 dpi at the 1.25 in the slip prints it), for the tracking slip. The original `DepEd Seal.png` is unchanged.
+- Tests: `composer test:index-usage`, `test:sql-script-runner`, `test:metrics-backfill`, `test:cache-purge`, `test:tracking-slip-pdf`; `MasterMigrationTest` builds the previous schema (`tests/Fixtures/database-before-s11.sql`), migrates it twice and compares it with a fresh `database.sql`; `SeedGuardTest` covers the new database handling.
+
+### Changed
+- `database.sql` no longer contains `CREATE DATABASE` / `USE`: whoever runs it selects the database. `setup-production-db.js` creates and selects `DB_DATABASE` (utf8mb4) through `seed-database.js`; the seeder guard checks `DB_DATABASE` only (`databaseNamedIn` is removed; the refusal logic is unchanged). Manual setup: `mysql -u <user> -p <database> < database.sql`.
+- Metrics backfill: the worker rebuilds only yesterday and today (Asia/Manila calendar days) every 5 minutes instead of truncating and rebuilding everything every 30 minutes. `scripts/backfill-metrics.php --full` rebuilds everything and is what `seed.js` and `fast-seed.php` run. After a rebuild only the metrics cache entries (`metrics:` prefix) are dropped, and only when a row changed (fingerprint of the rebuilt rows before and after, inside the transaction); other cache entries keep their TTL (the old backfill cleared the whole cache). Rows are deleted and re-inserted in one transaction (no empty table for the dashboard, and a failed rebuild keeps the old rows). The estimate for days with completed documents but no measurable step duration is now derived from the department and the day instead of `RAND()`, so repeated rebuilds give identical rows (same 30 to 90 minute range).
+- Job claim: `ORDER BY available_at, id` instead of `ORDER BY id`, so the claim reads one row from `idx_jobs_claim` without sorting (jobs are always queued with `available_at` = now, so the order is the same). The worker calls `QueueService::nextPending()`.
+- Notification poll: one indexed branch per owner (user, department) joined by `UNION`, instead of `user_id = ? OR department_id = ?`, which MySQL answers with an index merge and a sort. Same rows, same order, same limit of 10.
+- The tracking slip embeds the print copy of the seal: the PDF shrinks from about 568 KB to about 76 KB and generates in about 80 ms instead of about 530 ms (mean of 3 x 10 requests each on the test server).
+- `SqlScriptRunner` reads and discards the rows of a statement that returns any (a migration notice) before running the next one.
+- `import-legacy.php` merges a department name that differs from an existing one only in letter case into that department (the UNIQUE index would refuse the insert) and logs each merge to stderr (`DepartmentResolver`).
+
+### Removed
+- Unused Laravel tables `job_batches`, `password_reset_tokens`, `sessions` (PHP sessions are files in `storage/sessions`) and `prediction_keywords`: no SQL in `src/`, `scripts/`, `public/`, `console.php` or `tests/` reads or writes them. The master migration drops them (`DROP TABLE IF EXISTS`); `database.sql` no longer creates them. `cache_locks` is kept: it is unused by code too, but it was not on the approved list and `BackupService::EXCLUDED_TABLES` and the seeders still name it.
+
+### Upgrade note
+- Existing databases: back up; run `scripts/migrations/master-migration.sql` against your `DB_DATABASE` (it drops the four unused tables listed above and adds the indexes). If two departments have the same name the migration reports them and keeps a plain index; rename one and run it again. Restart the worker to pick up the 5-minute backfill. No new `.env` settings.
+
+## 2026-11-18
+
 **Version:** 2.7.12
 
 ### Added

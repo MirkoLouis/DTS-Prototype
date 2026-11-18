@@ -53,13 +53,18 @@ class RestoreBackupJob
 
         $before = $this->counts();
         try {
-            $this->import($zipPath);
+            $notices = $this->import($zipPath);
         } catch (\Throwable $e) {
             $this->recordFailure($e->getMessage(), $safetyBackup);
             $this->notify('Backup restore failed', "Restoring {$this->fileName} failed: {$e->getMessage()} The state before the restore was saved as {$safetyBackup}.", 'error');
             throw $e;
         }
         $after = $this->counts();
+
+        // Messages from the migration (for example duplicate department names) go to the error log too
+        foreach ($notices as $notice) {
+            error_log("Restore of {$this->fileName}: migration notice: {$notice}");
+        }
 
         // A backup from before the chain seal restores documents without seals; their actions are refused until the sealing step is run
         $unsealed = ChainSealService::countUnsealedDocuments();
@@ -76,7 +81,7 @@ class RestoreBackupJob
             'documents_after' => $after['documents'],
             'logs_before' => $before['logs'],
             'logs_after' => $after['logs'],
-        ] + ($unsealed > 0 ? ['unsealed_documents' => $unsealed, 'sealing_required' => true, 'seal_command' => $sealCommand] : []));
+        ] + ($notices !== [] ? ['migration_notices' => $notices] : []) + ($unsealed > 0 ? ['unsealed_documents' => $unsealed, 'sealing_required' => true, 'seal_command' => $sealCommand] : []));
 
         $lost = max(0, $before['documents'] - $after['documents']);
         $this->notify(
@@ -84,8 +89,9 @@ class RestoreBackupJob
             "Restored {$this->fileName}. Documents: {$before['documents']} before, {$after['documents']} after"
                 . ($lost > 0 ? " ({$lost} newer document(s) are no longer in the database)" : '')
                 . ". The previous state was saved as {$safetyBackup}."
+                . ($notices !== [] ? ' Migration notice: ' . implode(' ', $notices) : '')
                 . ($unsealed > 0 ? " {$unsealed} restored document(s) are not sealed: actions on them are refused until an administrator runs the sealing step (run the Integrity Check first, then {$sealCommand})." : ''),
-            $lost > 0 || $unsealed > 0 ? 'warning' : 'success'
+            $lost > 0 || $unsealed > 0 || $notices !== [] ? 'warning' : 'success'
         );
     }
 
@@ -101,8 +107,10 @@ class RestoreBackupJob
 
     /**
      * Load the backup's dump into the database, then bring the schema up to date.
+     *
+     * @return string[] the notices the migration raised
      */
-    private function import(string $zipPath): void
+    private function import(string $zipPath): array
     {
         // Take the dump out of the archive into a working folder, feed it to the mysql client, and never leave the plain SQL file behind
         $workingDir = BackupService::workingDirectory();
@@ -114,7 +122,7 @@ class RestoreBackupJob
         }
 
         // A backup taken before a schema change restores the old tables; bring them back up to date
-        SqlScriptRunner::runFile(Database::getInstance()->getConnection(), BASE_PATH . '/scripts/migrations/master-migration.sql');
+        return SqlScriptRunner::runFile(Database::getInstance()->getConnection(), BASE_PATH . '/scripts/migrations/master-migration.sql');
     }
 
     /**

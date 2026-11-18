@@ -52,9 +52,14 @@ class RateLimitPurgeTaskTest extends TestCase
         $this->assertSame(0, $this->rowCount());
     }
 
-    // The worker script calls the task from its scheduler
-    public function test_console_registers_the_task(): void
+    // The worker's scheduler (PeriodicTasks, which console.php calls every loop) runs the task hourly
+    public function test_scheduler_runs_the_task(): void
     {
-        $this->assertStringContainsString('RateLimitPurgeTask::runIfDue', file_get_contents(BASE_PATH . '/console.php'));
+        $schedule = new WorkerScheduleService();
+        (new RateLimitService())->hit('submit', '203.0.113.7', 10, 60, self::T0);
+
+        $this->assertSame(1, \App\Modules\System\PeriodicTasks::runDue($schedule, self::T0 + 3600)['rate_limit_purge']);
+        $this->assertSame(0, $this->rowCount());
+        $this->assertNull(\App\Modules\System\PeriodicTasks::runDue($schedule, self::T0 + 3601)['rate_limit_purge']);
     }
 }

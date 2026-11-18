@@ -271,12 +271,8 @@ function getOrCreatePurpose($conn, $name, &$purposeCache) {
 $deptCache = [];
 foreach ($departments as $d) $deptCache[$d['name']] = $d['id'];
 function getOrCreateDepartment($conn, $name, &$deptCache) {
-    if (empty($name)) $name = 'Unknown Department';
-    if (isset($deptCache[$name])) return $deptCache[$name];
-    $conn->prepare("INSERT INTO departments (name) VALUES (?)")->execute([$name]);
-    $id = $conn->lastInsertId();
-    $deptCache[$name] = $id;
-    return $id;
+    // A name that differs from an existing department only in case is merged into it, and the merge is logged to stderr
+    return \App\Modules\Users\DepartmentResolver::getOrCreate($conn, (string) $name, $deptCache, fn(string $message) => fwrite(STDERR, $message . "\n"));
 }
 
 function getPurposeRoute($purposeName, $purposesCache) {

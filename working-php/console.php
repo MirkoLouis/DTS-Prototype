@@ -90,16 +90,6 @@ function runScheduledTasks(\App\Modules\System\WorkerScheduleService $schedule, 
         }
     }
 
-    // 2. Departmental TAT & Volume Metrics Backfill every 30 minutes (1800s)
-    if ($schedule->isDue('metrics_backfill', 1800, $now)) {
-        $schedule->markRun('metrics_backfill', $now);
-        $scriptPath = BASE_PATH . '/scripts/backfill-metrics.php';
-        if (file_exists($scriptPath)) {
-            echo "⏰ [Worker Scheduler] Running departmental metrics backfill...\n";
-            passthru(PHP_BINARY . ' ' . escapeshellarg($scriptPath));
-        }
-    }
-
     // 3. Roll up old database metrics (>24h) into hourly aggregates every 24 hours (86400s)
     if ($schedule->isDue('metrics_rollup', 86400, $now)) {
         $schedule->markRun('metrics_rollup', $now);
@@ -137,10 +127,21 @@ function runScheduledTasks(\App\Modules\System\WorkerScheduleService $schedule, 
         }
     }
 
-    // 5. Delete expired rate-limit counters every hour (3600s)
-    $purgedCounters = \App\Common\RateLimit\RateLimitPurgeTask::runIfDue($schedule, new \App\Common\RateLimit\RateLimitService(), $now);
-    if ($purgedCounters !== null) {
-        echo "⏰ [Worker Scheduler] Rate limit purge: removed {$purgedCounters} expired counter(s).\n";
+    // 2, 5. Database maintenance: department metrics (last two days, every 5 minutes), and hourly purges of expired rate-limit counters and cache rows
+    // A failing task is reported and never stops the worker; its run time is already recorded, so it is not retried every loop
+    try {
+        $results = \App\Modules\System\PeriodicTasks::runDue($schedule, $now);
+        if ($results['metrics_backfill'] !== null) {
+            echo "⏰ [Worker Scheduler] Departmental metrics rebuilt for the last two days" . ($results['metrics_backfill'] ? " (rows changed, metrics cache cleared)" : " (no change)") . ".\n";
+        }
+        if ($results['rate_limit_purge'] !== null) {
+            echo "⏰ [Worker Scheduler] Rate limit purge: removed {$results['rate_limit_purge']} expired counter(s).\n";
+        }
+        if ($results['cache_purge'] !== null) {
+            echo "⏰ [Worker Scheduler] Cache purge: removed {$results['cache_purge']} expired row(s).\n";
+        }
+    } catch (\Throwable $e) {
+        echo "⏰ [Worker Scheduler] Database maintenance task failed: " . $e->getMessage() . "\n";
     }
 
     // 6. Cleanup stale pending documents (>3 days without intake) every 24 hours (86400s)
@@ -222,9 +223,7 @@ while (!$stopWorker) {
     }
 
     // Look for a pending job
-    $sql = "SELECT * FROM jobs WHERE reserved_at IS NULL AND available_at <= UNIX_TIMESTAMP() ORDER BY id ASC LIMIT 1";
-    $stmt = $db->query($sql);
-    $job = $stmt->fetch();
+    $job = $queue->nextPending();
 
     if ($job) {
         $jobId = $job['id'];

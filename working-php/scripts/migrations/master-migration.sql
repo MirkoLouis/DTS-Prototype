@@ -1,6 +1,6 @@
 -- Master migration: brings an existing deped_dts up to the current schema without touching its data.
 -- Every statement is idempotent, so the whole file can be run again safely. New schema changes are appended below.
--- Run: mysql -u <user> -p deped_dts < scripts/migrations/master-migration.sql
+-- Run: mysql -u <user> -p <database> < scripts/migrations/master-migration.sql   (the database name is your DB_DATABASE)
 -- Fresh databases built from database.sql already include everything here.
 
 -- 2026-10-27: failed-attempt limiting for login and Security PIN entry
@@ -103,3 +103,69 @@ SET @sql = IF(@missing, 'ALTER TABLE documents ADD COLUMN chain_seal CHAR(64) NU
 PREPARE stmt FROM @sql;
 EXECUTE stmt;
 DEALLOCATE PREPARE stmt;
+
+-- 2026-11-18: operations and performance (S11). Indexes for the queries that need them, unused tables dropped.
+-- Index on the notification poll: the newest unread notifications of one department (NotificationService::unreadSql)
+SET @missing = (SELECT COUNT(*) = 0 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'notifications' AND INDEX_NAME = 'idx_notifications_dept_unread');
+SET @sql = IF(@missing, 'ALTER TABLE notifications ADD INDEX idx_notifications_dept_unread (department_id, is_read, created_at)', 'DO 0');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Index on the job claim: the next due, unreserved job (QueueService::NEXT_PENDING_SQL)
+SET @missing = (SELECT COUNT(*) = 0 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'jobs' AND INDEX_NAME = 'idx_jobs_claim');
+SET @sql = IF(@missing, 'ALTER TABLE jobs ADD INDEX idx_jobs_claim (reserved_at, available_at)', 'DO 0');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Index on the cache purge: expired rows are deleted by expiration (CachePurgeTask)
+SET @missing = (SELECT COUNT(*) = 0 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'cache' AND INDEX_NAME = 'idx_cache_expiration');
+SET @sql = IF(@missing, 'ALTER TABLE cache ADD INDEX idx_cache_expiration (expiration)', 'DO 0');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Index on purposes.name: lookups by name and the name-ordered lists
+SET @missing = (SELECT COUNT(*) = 0 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'purposes' AND INDEX_NAME = 'idx_purposes_name');
+SET @sql = IF(@missing, 'ALTER TABLE purposes ADD INDEX idx_purposes_name (name)', 'DO 0');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- departments.name becomes UNIQUE (lookups by name assume one department per name). A database that already holds two
+-- departments with the same name cannot take a UNIQUE index, so the migration does not fail: it adds a plain index
+-- idx_departments_name instead and returns the duplicated names as a result set. Rename or merge those departments, then run
+-- this file again: with no duplicates left it replaces the plain index by the UNIQUE index uq_departments_name.
+SET @duplicates = (SELECT COUNT(*) FROM (SELECT name FROM departments GROUP BY name HAVING COUNT(*) > 1) AS duplicated);
+SET @has_unique = (SELECT COUNT(*) > 0 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'departments' AND INDEX_NAME = 'uq_departments_name');
+SET @has_plain = (SELECT COUNT(*) > 0 FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'departments' AND INDEX_NAME = 'idx_departments_name');
+
+-- No duplicates and no UNIQUE index yet: drop the plain stand-in from an earlier run, then add the UNIQUE index
+SET @sql = IF(@duplicates = 0 AND NOT @has_unique AND @has_plain, 'ALTER TABLE departments DROP INDEX idx_departments_name', 'DO 0');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(@duplicates = 0 AND NOT @has_unique, 'ALTER TABLE departments ADD UNIQUE INDEX uq_departments_name (name)', 'DO 0');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Duplicates: keep lookups fast with a plain index, and report which names are duplicated
+SET @sql = IF(@duplicates > 0 AND NOT @has_plain AND NOT @has_unique, 'ALTER TABLE departments ADD INDEX idx_departments_name (name)', 'DO 0');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @sql = IF(@duplicates > 0, 'SELECT ''NOT APPLIED: departments.name has duplicates, rename or merge them and run this migration again'' AS migration_notice, name AS duplicated_department_name, COUNT(*) AS department_rows FROM departments GROUP BY name HAVING COUNT(*) > 1', 'DO 0');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+-- Unused Laravel tables: nothing in the application reads or writes them (PHP sessions are files, queued jobs use jobs,
+-- there are no password-reset tokens or batches), and prediction_keywords belongs to a removed feature. Take a backup first.
+DROP TABLE IF EXISTS job_batches;
+DROP TABLE IF EXISTS password_reset_tokens;
+DROP TABLE IF EXISTS sessions;
+DROP TABLE IF EXISTS prediction_keywords;

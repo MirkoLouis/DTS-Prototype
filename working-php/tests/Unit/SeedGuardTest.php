@@ -83,20 +83,65 @@ class SeedGuardTest extends TestCase
         $this->assertFileExists("{$dir}/sub/sess_c");
     }
 
-    // The guard reads which database the schema file itself rebuilds, so that one is checked too
-    public function test_database_named_in_the_schema_file_is_found(): void
+    // database.sql names no database, so whoever runs it selects one; the guard therefore checks DB_DATABASE only
+    public function test_schema_file_names_no_database_and_guard_has_no_schema_lookup(): void
     {
-        $script = 'const g = require(process.argv[1]);'
-            . 'process.stdout.write(JSON.stringify(JSON.parse(process.argv[2]).map(sql => g.databaseNamedIn(sql))));';
-        $cases = ["CREATE DATABASE IF NOT EXISTS deped_dts;\nUSE deped_dts;\n", "USE `other_db`;", "CREATE TABLE x (id INT);"];
-        $process = proc_open(['node', '-e', $script, BASE_PATH . '/scripts/seeders/seed-guard.js', json_encode($cases)], [['file', '/dev/null', 'r'], ['pipe', 'w'], ['pipe', 'w']], $pipes);
-        $output = stream_get_contents($pipes[1]);
-        $errors = stream_get_contents($pipes[2]);
-        fclose($pipes[1]);
-        fclose($pipes[2]);
-        $this->assertSame(0, proc_close($process), "node failed: {$errors}");
+        $schema = file_get_contents(BASE_PATH . '/database.sql');
+        $this->assertDoesNotMatchRegularExpression('/^\s*(CREATE\s+DATABASE|USE)\b/im', $schema);
 
-        $this->assertSame(['deped_dts', 'other_db', null], json_decode($output, true));
+        // The guard module no longer exports a lookup of the database named in the schema file
+        $guard = file_get_contents(BASE_PATH . '/scripts/seeders/seed-guard.js');
+        $this->assertStringNotContainsString('databaseNamedIn', $guard);
+
+        // The seeder counts rows in DB_DATABASE (documents and users), nothing else
+        $seeder = file_get_contents(BASE_PATH . '/scripts/seeders/setup-production-db.js');
+        $this->assertStringNotContainsString('databaseNamedIn', $seeder);
+        $this->assertSame(2, substr_count($seeder, 'countRows(connection, process.env.DB_DATABASE'));
+    }
+
+    // The seeder builds the schema through rebuildSchema(), which creates and selects DB_DATABASE.
+    // Run here against a throwaway database ending in _test; the seeder script itself is never started,
+    // because it also deletes this app's session and cache files and writes keys.
+    public function test_rebuild_schema_creates_and_selects_the_database(): void
+    {
+        $database = 'deped_dts_seed_schema_test';
+        $this->assertStringEndsWith('_test', $database);
+        $config = (require BASE_PATH . '/src/Common/Config/app.config.php')['database'];
+        $server = new \PDO("mysql:host={$config['host']};port={$config['port']};charset=utf8mb4", $config['user'], $config['password'], [\PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION]);
+        $server->exec("DROP DATABASE IF EXISTS `{$database}`");
+
+        try {
+            // Node builds the real database.sql in the database that does not exist yet
+            $script = 'const mysql = require("mysql2/promise"); const fs = require("fs");'
+                . '(async () => {'
+                . 'const c = await mysql.createConnection({ host: process.env.H, port: process.env.P, user: process.env.U, password: process.env.W, multipleStatements: true });'
+                . 'await require(process.argv[1]).rebuildSchema(c, process.env.D, fs.readFileSync(process.argv[2], "utf8"));'
+                . 'const [rows] = await c.query("SELECT DATABASE() AS db"); process.stdout.write(rows[0].db); await c.end();'
+                . '})().catch(e => { console.error(e.message); process.exit(1); });';
+            $process = proc_open(
+                ['node', '-e', $script, BASE_PATH . '/scripts/seeders/seed-database.js', BASE_PATH . '/database.sql'],
+                [['file', '/dev/null', 'r'], ['pipe', 'w'], ['pipe', 'w']],
+                $pipes,
+                BASE_PATH,
+                ['PATH' => (string) getenv('PATH'), 'H' => (string) $config['host'], 'P' => (string) $config['port'], 'U' => (string) $config['user'], 'W' => (string) $config['password'], 'D' => $database]
+            );
+            $output = stream_get_contents($pipes[1]);
+            $errors = stream_get_contents($pipes[2]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            $this->assertSame(0, proc_close($process), "node failed: {$errors}");
+
+            // The database was created, selected, and holds the schema; the dropped Laravel tables are absent
+            $this->assertSame($database, $output);
+            $tables = $server->query("SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = '{$database}'")->fetchAll(\PDO::FETCH_COLUMN);
+            $this->assertContains('documents', $tables);
+            $this->assertContains('departments', $tables);
+            $this->assertSame([], array_values(array_intersect($tables, ['job_batches', 'password_reset_tokens', 'sessions', 'prediction_keywords'])));
+            $charset = $server->query("SELECT DEFAULT_CHARACTER_SET_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = '{$database}'")->fetchColumn();
+            $this->assertSame('utf8mb4', $charset);
+        } finally {
+            $server->exec("DROP DATABASE IF EXISTS `{$database}`");
+        }
     }
 
     // A 429 from the server gives the API seeder a clear message that names RATE_LIMIT_ENABLED; other statuses give none
@@ -136,7 +181,7 @@ class SeedGuardTest extends TestCase
         $this->assertNotFalse($guard);
 
         // Each state-changing step comes after the guard's decision
-        foreach (['clearSessionsAndCache();', "'--system']", "'--integrity']", 'connection.query(sqlContent)'] as $step) {
+        foreach (['clearSessionsAndCache();', "'--system']", "'--integrity']", 'rebuildSchema('] as $step) {
             $position = strpos($source, $step);
             $this->assertNotFalse($position, "{$step} not found in the seeder");
             $this->assertGreaterThan($guard, $position, "{$step} runs before the guard");

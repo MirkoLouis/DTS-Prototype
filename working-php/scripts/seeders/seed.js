@@ -785,7 +785,7 @@ async function seed() {
         console.log('\n'); // newline after progress
 
         console.log('📈 Backfilling daily departmental metrics...');
-        execSync(`php "${path.join(__dirname, '../backfill-metrics.php')}"`, { stdio: 'inherit' });
+        execSync(`php "${path.join(__dirname, '../backfill-metrics.php')}" --full`, { stdio: 'inherit' });
 
         console.log('🔒 Resetting all digital signatures for first-time login...');
         await connection.query("UPDATE user_public_key_histories SET activated_at = '2020-01-01 00:00:00', deactivated_at = NOW(), updated_at = NOW() WHERE deactivated_at IS NULL");
