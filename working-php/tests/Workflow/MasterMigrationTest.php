@@ -111,6 +111,27 @@ class MasterMigrationTest extends TestCase
         $this->assertTrue($this->columnExists('rate_limits', 'expires_at'));
     }
 
+    // A database from before the chain seal gets document_logs.seal and documents.chain_seal (both NULL, existing rows kept), and a second run changes nothing
+    public function test_migration_adds_the_chain_seal_columns(): void
+    {
+        $document = \Tests\Support\Fixtures::submit();
+        $connection = Database::getInstance()->getConnection();
+        $connection->exec('ALTER TABLE document_logs DROP COLUMN seal');
+        $connection->exec('ALTER TABLE documents DROP COLUMN chain_seal');
+        $this->assertFalse($this->columnExists('document_logs', 'seal'));
+        $this->assertFalse($this->columnExists('documents', 'chain_seal'));
+
+        TestDatabase::runSqlFile(BASE_PATH . self::MIGRATION);
+        TestDatabase::runSqlFile(BASE_PATH . self::MIGRATION);
+
+        // Both columns exist, hold NULL for the data that existed before, and the rows are still there
+        $this->assertTrue($this->columnExists('document_logs', 'seal'));
+        $this->assertTrue($this->columnExists('documents', 'chain_seal'));
+        $db = Database::getInstance();
+        $this->assertSame(1, (int) $db->query('SELECT COUNT(*) c FROM documents WHERE id = :id AND chain_seal IS NULL', [':id' => $document['id']])->fetch()['c']);
+        $this->assertSame(1, (int) $db->query('SELECT COUNT(*) c FROM document_logs WHERE document_id = :id AND seal IS NULL', [':id' => $document['id']])->fetch()['c']);
+    }
+
     // Whether a table exists in the connected database
     private function tableExists(string $table): bool
     {

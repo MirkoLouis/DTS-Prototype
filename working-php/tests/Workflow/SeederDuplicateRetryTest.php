@@ -48,6 +48,17 @@ class SeederDuplicateRetryTest extends TestCase
         $this->assertEquals(100, $results['verified_percentage'], json_encode($results));
         $this->assertSame(0, (int) $results['live_state_errors_count']);
         $this->assertSame(0, (int) $results['invalid_signatures']);
+
+        // The seeder sealed what it wrote; the sealing script's verification also accepts seeded chains (after removing the seals)
+        $this->assertSame(0, $results['invalid_entry_seals']);
+        $this->assertSame(0, $results['invalid_chain_seals']);
+        Database::getInstance()->query('UPDATE document_logs SET seal = NULL');
+        Database::getInstance()->query('UPDATE documents SET chain_seal = NULL');
+        // The seeder recorded the database as sealed; forget that, as on a database that was never sealed
+        @unlink(\App\Modules\System\SystemAuditService::path());
+        $stats = \App\Modules\Integrity\ChainSealService::sealExisting();
+        $this->assertSame([], $stats['refused']);
+        $this->assertSame(20, $stats['documents_sealed']);
     }
 
     // Outside app.env=testing neither the env var nor an explicitly set override may change generate()

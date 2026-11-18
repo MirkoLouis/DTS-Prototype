@@ -23,6 +23,9 @@ foreach ([SIGINT, SIGTERM] as $sig) {
 }
 
 try {
+    // The chain seal needs APP_INTEGRITY_KEY: refuse to start without it
+    assertIntegrityKeyConfigured();
+
     $os   = PHP_OS_FAMILY;
     $port = 8000;
 

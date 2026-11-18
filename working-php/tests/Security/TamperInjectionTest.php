@@ -56,20 +56,35 @@ class TamperInjectionTest extends TestCase
             ['edit_guest_email', 'documents', true, true, true],
             ['edit_finalized_route_skip_department', 'documents', true, true, true],
             ['corrupt_script', 'documents', true, true, true],
-            ['edit_status_only', 'documents', false, false, true],
-            ['edit_current_step', 'documents', false, false, true],
+            // The chain seal covers the fields the state hash does not (S10): both layers catch these now
+            ['edit_status_only', 'documents', true, true, true],
+            ['edit_current_step', 'documents', true, true, true],
+            ['edit_current_department_id', 'documents', true, true, true],
+            ['edit_decline_reason', 'documents', true, true, true],
+            // The entry seal covers the stored snapshot, and the sealing script never re-seals an entry whose seal was removed
+            ['edit_newest_snapshot_field', 'document_logs', true, true, true],
+            ['null_newest_entry_seal_then_run_sealing_script', 'document_logs', true, true, true],
             ['edit_log_remarks', 'document_logs', false, true, true],
             ['edit_log_action', 'document_logs', false, true, true],
             ['edit_log_created_at', 'document_logs', false, true, true],
             ['edit_log_user_id', 'document_logs', false, true, true],
             ['edit_newest_log_state_hash', 'document_logs', true, true, true],
-            ['delete_middle_log', 'document_logs', null, true, true],
+            ['delete_middle_log', 'document_logs', true, true, true],
             ['swap_two_log_payloads', 'document_logs', null, true, true],
-            ['delete_tail_log_after_checkpoint', 'document_logs', null, true, true],
-            ['delete_tail_log_without_checkpoint', 'document_logs', null, false, false],
-            ['append_forged_log_recomputed_hash_bad_signature', 'documents+document_logs', null, true, true],
-            ['append_log_signed_with_injected_attacker_key', 'documents+document_logs+user_public_key_histories', null, null, true],
-            ['rewrite_whole_chain_with_attacker_keys', 'documents+document_logs+user_public_key_histories', null, null, true],
+            // Deleting the newest entry changes the chain head and the entry count, which the chain seal binds (S10),
+            // so it is caught even when no checkpoint was written first
+            ['delete_tail_log_after_checkpoint', 'document_logs', true, true, true],
+            ['delete_tail_log_without_checkpoint', 'document_logs', true, true, false],
+            ['append_forged_log_recomputed_hash_bad_signature', 'documents+document_logs', true, true, true],
+            // Entries written without the integrity key carry no valid entry seal (S10): caught although hash, state hash and signature are valid
+            ['append_log_signed_with_injected_attacker_key', 'documents+document_logs+user_public_key_histories', true, true, true],
+            ['append_log_without_key_null_seal', 'documents+document_logs+user_public_key_histories', true, true, true],
+            ['append_log_without_key_wrong_seal', 'documents+document_logs+user_public_key_histories', true, true, true],
+            ['rewrite_whole_chain_with_attacker_keys', 'documents+document_logs+user_public_key_histories', true, true, true],
+            // Privileged insider who HAS the integrity key and recomputes the seals: the seals cannot detect this.
+            // Only a checkpoint held off the machine remembers a deleted entry (see the dedicated tests below).
+            ['insider_with_key_edit_status_and_reseal', 'documents', false, false, true],
+            ['insider_with_key_delete_tail_log_and_reseal', 'document_logs', false, true, true],
         ];
 
         // Key each data set by its tactic name for readable PHPUnit output
@@ -142,16 +157,71 @@ class TamperInjectionTest extends TestCase
         $this->assertSame(0, $results['invalid_logs']);
         $this->assertSame(0, $results['invalid_signatures']);
         $this->assertSame(0, $results['live_state_errors_count']);
+
+        // Every entry seal and every chain seal verifies
+        $this->assertTrue($results['seal_configured']);
+        $this->assertSame(0, $results['invalid_entry_seals']);
+        $this->assertSame([], $results['invalid_entry_seal_ids']);
+        $this->assertSame(0, $results['invalid_chain_seals']);
+        $this->assertSame([], $results['invalid_chain_seal_tracking_codes']);
+        $this->assertSame(0, $results['unsealed_entries']);
+        $this->assertSame(0, $results['unsealed_documents']);
         $this->assertTrue($results['checkpoint']['file_intact']);
         $this->assertSame(0, $results['checkpoint']['missing_heads']);
         $this->assertSame(0, $flagged);
+    }
+
+    // Each seal tactic is caught by the named audit channel(s): the chain seal for document fields and the chain head, the entry seal for unsealed entries
+    #[DataProvider('sealChannels')]
+    public function test_seal_tactic_is_reported_on_the_expected_channels(string $tactic, array $expectedChannels, bool $writeCheckpoint): void
+    {
+        $document = Fixtures::submit();
+        Fixtures::advanceTo($document['id'], 'completed', self::ROUTE);
+        if ($writeCheckpoint) {
+            (new ChainCheckpointJob())->create();
+        }
+
+        Tamper::{self::method($tactic)}(Database::getInstance()->getConnection(), $document['id']);
+
+        // Sort so the comparison does not depend on the order the channels are found in
+        [, $channels] = $this->auditDetects($document['id'], $document['tracking_code']);
+        sort($channels);
+        sort($expectedChannels);
+        $this->assertSame($expectedChannels, $channels, "[{$tactic}] channels");
+    }
+
+    /**
+     * tactic => [tactic, expected audit channels, whether a checkpoint is written first]
+     */
+    public static function sealChannels(): array
+    {
+        $rows = [
+            ['edit_status_only', ['chain_seal'], false],
+            ['edit_current_step', ['chain_seal'], false],
+            ['edit_current_department_id', ['chain_seal'], false],
+            ['edit_decline_reason', ['chain_seal'], false],
+            ['edit_newest_snapshot_field', ['entry_seal'], false],
+            ['null_newest_entry_seal_then_run_sealing_script', ['entry_seal'], false],
+            ['delete_tail_log_without_checkpoint', ['chain_seal'], false],
+            ['append_log_without_key_null_seal', ['entry_seal', 'chain_seal'], false],
+            ['append_log_without_key_wrong_seal', ['entry_seal', 'chain_seal'], false],
+            // The privileged insider with the key: nothing on the seal channels; only the off-machine checkpoint notices a deleted entry
+            ['insider_with_key_edit_status_and_reseal', [], true],
+            ['insider_with_key_delete_tail_log_and_reseal', ['checkpoint_head'], true],
+        ];
+
+        return array_combine(array_column($rows, 0), $rows);
     }
 
     // Guard detected = process() refuses the admin AND the document is now frozen
     private function guardDetects(int $documentId): bool
     {
         $row = $this->documentRow($documentId);
+        // The policy writes its freeze entry inside a transaction, as the workflow service runs it
+        $connection = Database::getInstance()->getConnection();
+        $connection->beginTransaction();
         $allowed = (new DocumentPolicy())->process(UserModel::findById($this->fx['users']['admin']), $row);
+        $connection->commit();
 
         return !$allowed && $this->documentRow($documentId)['status'] === 'frozen';
     }
@@ -176,6 +246,16 @@ class TamperInjectionTest extends TestCase
         $badIds = array_map('intval', $results['mismatched_ids']);
         if (array_intersect(array_map('intval', $logIds), $badIds)) {
             $channels[] = 'log_entry';
+        }
+
+        // The document's chain seal fails (status, step, holder, decline reason or chain head changed)
+        if (in_array($trackingCode, $results['invalid_chain_seal_tracking_codes'], true)) {
+            $channels[] = 'chain_seal';
+        }
+
+        // A surviving entry of this document has an invalid entry seal
+        if (array_intersect(array_map('intval', $logIds), array_map('intval', $results['invalid_entry_seal_ids']))) {
+            $channels[] = 'entry_seal';
         }
 
         // The checkpoint file is altered or a recorded chain head of this document is gone

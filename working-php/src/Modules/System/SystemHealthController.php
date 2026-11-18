@@ -24,26 +24,14 @@ class SystemHealthController
 
         $issues = [];
 
-        // Simplified for raw PHP port
-        if (!empty($integrityCheckResult['mismatched_ids'])) {
-            // Prevent memory exhaustion on massive failures by limiting to first 100
-            $limitedIds = array_slice($integrityCheckResult['mismatched_ids'], 0, 100);
-            $ids = implode(',', array_map('intval', $limitedIds));
-            $stmt = $db->query("SELECT dl.*, d.tracking_code, d.title as document_title, u.name as user_name FROM document_logs dl LEFT JOIN documents d ON dl.document_id = d.id LEFT JOIN users u ON dl.user_id = u.id WHERE dl.id IN ($ids)");
-            $mismatchedLogs = $stmt->fetchAll();
-            
-            foreach ($mismatchedLogs as $log) {
-                $issues[] = [
-                    'type' => 'Log Chain Corruption',
-                    'tracking_code' => $log['tracking_code'],
-                    'title' => $log['document_title'] ?? 'Unknown',
-                    'description' => "Action: {$log['action']}",
-                    'log_id' => $log['id'],
-                    'hash' => $log['hash'],
-                    'user_name' => $log['user_name']
-                ];
-            }
-        }
+        // Log entries whose hash link or signature fails, and entries whose entry seal fails
+        $issues = array_merge(
+            $this->logIssues($integrityCheckResult['mismatched_ids'] ?? [], 'Log Chain Corruption'),
+            $this->logIssues($integrityCheckResult['invalid_entry_seal_ids'] ?? [], 'Invalid Entry Seal')
+        );
+
+        // Documents whose chain seal fails (status, step, holder, decline reason, released-by or chain head changed)
+        $issues = array_merge($issues, $this->chainSealIssues($integrityCheckResult['invalid_chain_seal_tracking_codes'] ?? []));
 
         if (!empty($integrityCheckResult['mismatched_document_tracking_codes'])) {
             $limitedCodes = array_slice($integrityCheckResult['mismatched_document_tracking_codes'], 0, 100);
@@ -75,6 +63,68 @@ class SystemHealthController
         $appHealthMetrics = $this->getApplicationHealthMetrics($fjPage);
 
         require BASE_PATH . '/src/Views/admin/system-overview.php';
+    }
+
+    /**
+     * Issue rows for log entries named by an integrity check (at most the first 100, to bound memory on massive failures).
+     */
+    private function logIssues(array $logIds, string $type): array
+    {
+        if ($logIds === []) {
+            return [];
+        }
+
+        // Look the entries up with placeholders
+        $limitedIds = array_map('intval', array_slice($logIds, 0, 100));
+        $placeholders = implode(',', array_fill(0, count($limitedIds), '?'));
+        $stmt = Database::getInstance()->query("SELECT dl.*, d.tracking_code, d.title as document_title, u.name as user_name FROM document_logs dl LEFT JOIN documents d ON dl.document_id = d.id LEFT JOIN users u ON dl.user_id = u.id WHERE dl.id IN ($placeholders)", $limitedIds);
+
+        // One row per entry
+        $issues = [];
+        foreach ($stmt->fetchAll() as $log) {
+            $issues[] = [
+                'type' => $type,
+                'tracking_code' => $log['tracking_code'],
+                'title' => $log['document_title'] ?? 'Unknown',
+                'description' => "Action: {$log['action']}",
+                'log_id' => $log['id'],
+                'hash' => $log['hash'],
+                'user_name' => $log['user_name']
+            ];
+        }
+
+        return $issues;
+    }
+
+    /**
+     * Issue rows for documents whose chain seal failed (at most the first 100).
+     */
+    private function chainSealIssues(array $trackingCodes): array
+    {
+        if ($trackingCodes === []) {
+            return [];
+        }
+
+        // Look the documents up with placeholders
+        $limitedCodes = array_slice($trackingCodes, 0, 100);
+        $placeholders = implode(',', array_fill(0, count($limitedCodes), '?'));
+        $stmt = Database::getInstance()->query("SELECT tracking_code, title, status FROM documents WHERE tracking_code IN ($placeholders)", array_values($limitedCodes));
+
+        // One row per document
+        $issues = [];
+        foreach ($stmt->fetchAll() as $doc) {
+            $issues[] = [
+                'type' => 'Chain Seal Mismatch',
+                'tracking_code' => $doc['tracking_code'],
+                'title' => $doc['title'],
+                'description' => "Status: {$doc['status']}",
+                'log_id' => null,
+                'hash' => null,
+                'user_name' => null
+            ];
+        }
+
+        return $issues;
     }
 
     private function getApplicationHealthMetrics($fjPage = 1)
@@ -369,9 +419,15 @@ class SystemHealthController
             }
         }
 
-        // Collect documents from hash chain corruption
-        if (!empty($integrityCheckResult['mismatched_ids'])) {
-            $limitedIds = array_slice($integrityCheckResult['mismatched_ids'], 0, 100);
+        // Collect documents whose chain seal failed
+        foreach ($integrityCheckResult['invalid_chain_seal_tracking_codes'] ?? [] as $code) {
+            $trackingCodesToFreeze[$code] = true;
+        }
+
+        // Collect documents from hash chain corruption and from entries with an invalid seal
+        $corruptLogIds = array_merge($integrityCheckResult['mismatched_ids'] ?? [], $integrityCheckResult['invalid_entry_seal_ids'] ?? []);
+        if (!empty($corruptLogIds)) {
+            $limitedIds = array_slice($corruptLogIds, 0, 100);
             $ids = implode(',', array_map('intval', $limitedIds));
             if ($ids) {
                 $stmt = $db->query("SELECT d.tracking_code FROM document_logs dl JOIN documents d ON dl.document_id = d.id WHERE dl.id IN ($ids)");

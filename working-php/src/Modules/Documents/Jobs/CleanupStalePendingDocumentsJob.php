@@ -3,7 +3,9 @@
 namespace App\Modules\Documents\Jobs;
 
 use App\Common\Database\Database;
+use App\Modules\Integrity\DocumentNotSealedException;
 use App\Modules\Integrity\HashChainService;
+use App\Modules\Integrity\PreActionIntegrityService;
 use Throwable;
 
 class CleanupStalePendingDocumentsJob
@@ -41,6 +43,21 @@ class CleanupStalePendingDocumentsJob
         foreach ($staleDocuments as $document) {
             try {
                 $conn->beginTransaction();
+
+                // Verify the live row against its chain first, so declining never re-seals a tampered document
+                $liveDocument = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
+                // A document that is not sealed yet is left as it is (neither declined nor frozen) until the sealing step has been run
+                try {
+                    $passes = !$liveDocument || PreActionIntegrityService::passes($liveDocument);
+                } catch (DocumentNotSealedException $e) {
+                    $conn->rollBack();
+                    continue;
+                }
+                if (!$passes) {
+                    PreActionIntegrityService::freezeTampered($liveDocument, 'Stale Document Cleanup Verification');
+                    $conn->commit();
+                    continue;
+                }
 
                 $declineReason = "System Auto-Cleanup: Pending document expired after lingering for over {$expirationDays} days without Records Office intake.";
 

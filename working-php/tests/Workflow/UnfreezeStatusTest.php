@@ -156,8 +156,16 @@ class UnfreezeStatusTest extends TestCase
         } catch (\PHPUnit\Framework\AssertionFailedError $e) {
             throw $e;
         } catch (\Exception $e) {
-            $this->assertSame('The stored snapshot does not match its recorded hash and cannot be trusted for recovery.', $e->getMessage());
+            $this->assertStringContainsString('cannot be trusted for recovery', $e->getMessage());
+            $this->assertStringContainsString('restoring a backup', $e->getMessage());
         }
+
+        // The specific reason is in the system audit log: the snapshot was edited, which the entry seal (it covers the snapshot) catches first
+        $lines = file(\App\Modules\System\SystemAuditService::path(), FILE_IGNORE_NEW_LINES);
+        $record = json_decode((string) end($lines), true);
+        $this->assertSame('recovery_refused', $record['event']);
+        $this->assertSame($code, $record['data']['tracking_code']);
+        $this->assertStringContainsString('has an invalid seal', $record['data']['reason']);
 
         // Nothing may have been written
         $this->assertEquals($before, $this->doc($id));

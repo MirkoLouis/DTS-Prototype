@@ -4,6 +4,25 @@
  * Shared server setup helpers used by dev.php and prod.php.
  */
 
+/**
+ * Refuse to start the server (and its worker) when APP_INTEGRITY_KEY is missing or invalid.
+ *
+ * Without the key no log entry can be sealed or verified, so nothing that depends on it may run.
+ *
+ * @throws RuntimeException with the operator-facing message
+ */
+function assertIntegrityKeyConfigured(): void {
+    // Load the application's autoloader and base path the same way console.php does
+    if (!defined('BASE_PATH')) {
+        define('BASE_PATH', dirname(__DIR__));
+    }
+    require_once BASE_PATH . '/vendor/autoload.php';
+
+    if (!\App\Common\Security\IntegrityKey::isConfigured()) {
+        throw new RuntimeException("Not started. " . \App\Common\Security\IntegrityKey::missingMessage());
+    }
+}
+
 function executeCommand(string $command): void {
     passthru($command, $status);
     if ($status !== 0) {

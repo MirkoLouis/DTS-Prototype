@@ -25,6 +25,9 @@ pcntl_signal(SIGINT, function() {
 });
 
 try {
+    // The chain seal needs APP_INTEGRITY_KEY: refuse to start without it (the worker would exit and be restarted in a loop)
+    assertIntegrityKeyConfigured();
+
     $os   = PHP_OS_FAMILY;
     $port = 8000;
 

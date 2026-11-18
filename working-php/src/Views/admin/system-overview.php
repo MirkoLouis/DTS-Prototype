@@ -140,7 +140,16 @@ ob_start(); ?>
                                         $cp = $integrityCheckResult['checkpoint'] ?? null;
                                         // Results written before the audit log was checked have no entry for it
                                         $auditLog = $integrityCheckResult['audit_log'] ?? null;
+                                        // Results written before the chain seal existed have no seal entries; a missing key is never green
+                                        $sealsChecked = isset($integrityCheckResult['seal_configured']);
+                                        $sealsConfigured = $sealsChecked && $integrityCheckResult['seal_configured'];
+                                        $sealsClean = !$sealsChecked || ($sealsConfigured
+                                            && ($integrityCheckResult['invalid_entry_seals'] ?? 0) == 0
+                                            && ($integrityCheckResult['invalid_chain_seals'] ?? 0) == 0
+                                            && ($integrityCheckResult['unsealed_entries'] ?? 0) == 0
+                                            && ($integrityCheckResult['unsealed_documents'] ?? 0) == 0);
                                         $allVerified = $integrityCheckResult['verified_percentage'] == 100
+                                            && $sealsClean
                                             && ($integrityCheckResult['live_state_errors_count'] ?? 0) == 0
                                             && ($cp === null || ($cp['missing_heads'] == 0 && $cp['file_intact']))
                                             && ($auditLog === null || $auditLog['bad_lines'] === []);
@@ -161,6 +170,23 @@ ob_start(); ?>
                                             <dd class="text-right font-mono <?= ($integrityCheckResult['invalid_signatures'] ?? 0) > 0 ? 'text-red-500 font-bold' : '' ?>"><?= number_format((int) ($integrityCheckResult['invalid_signatures'] ?? 0)) ?></dd>
                                             <dt class="text-gray-500 dark:text-gray-400">Live-state mismatches</dt>
                                             <dd class="text-right font-mono <?= ($integrityCheckResult['live_state_errors_count'] ?? 0) > 0 ? 'text-red-500 font-bold' : '' ?>"><?= number_format((int) ($integrityCheckResult['live_state_errors_count'] ?? 0)) ?></dd>
+                                            <?php // Keyed seals: entry seals per log entry, chain seals per document (status, step, holder, chain head) ?>
+                                            <dt class="text-gray-500 dark:text-gray-400">Invalid entry seals</dt>
+                                            <?php if (!$sealsChecked): ?>
+                                                <dd class="text-right text-gray-400 italic">not checked yet</dd>
+                                            <?php elseif (!$sealsConfigured): ?>
+                                                <dd class="text-right font-mono text-red-500 font-bold">seal not configured</dd>
+                                            <?php else: ?>
+                                                <dd class="text-right font-mono <?= ($integrityCheckResult['invalid_entry_seals'] ?? 0) > 0 ? 'text-red-500 font-bold' : '' ?>"><?= number_format((int) ($integrityCheckResult['invalid_entry_seals'] ?? 0)) ?><?= ($integrityCheckResult['unsealed_entries'] ?? 0) > 0 ? ' (' . number_format((int) $integrityCheckResult['unsealed_entries']) . ' unsealed)' : '' ?></dd>
+                                            <?php endif; ?>
+                                            <dt class="text-gray-500 dark:text-gray-400">Chain seal mismatches</dt>
+                                            <?php if (!$sealsChecked): ?>
+                                                <dd class="text-right text-gray-400 italic">not checked yet</dd>
+                                            <?php elseif (!$sealsConfigured): ?>
+                                                <dd class="text-right font-mono text-red-500 font-bold">seal not configured</dd>
+                                            <?php else: ?>
+                                                <dd class="text-right font-mono <?= ($integrityCheckResult['invalid_chain_seals'] ?? 0) > 0 ? 'text-red-500 font-bold' : '' ?>"><?= number_format((int) ($integrityCheckResult['invalid_chain_seals'] ?? 0)) ?><?= ($integrityCheckResult['unsealed_documents'] ?? 0) > 0 ? ' (' . number_format((int) $integrityCheckResult['unsealed_documents']) . ' unsealed)' : '' ?></dd>
+                                            <?php endif; ?>
                                             <?php $checkpoint = $integrityCheckResult['checkpoint'] ?? null; ?>
                                             <dt class="text-gray-500 dark:text-gray-400">Checkpoint heads missing</dt>
                                             <?php if ($checkpoint === null): ?>
@@ -220,6 +246,7 @@ ob_start(); ?>
                                     <li><strong>Active State Comparison:</strong> The system compares the current live database state of every document against the state recorded in its last cryptographic log. Any unauthorized modification to document details (title, submitter, route) is immediately detected.</li>
                                     <li><strong>Verification Process:</strong> Clicking "Run Verification" triggers a system-wide check of both the historical log chain and the current live states.</li>
                                     <li><strong>Signature Verification:</strong> Every log's Ed25519 signature is checked against the signer's key that was active at that time (or the server key for system actions). Signatures cover the action, time, parent hash, document state and remarks.</li>
+                                    <li><strong>Seals:</strong> Every log entry carries a keyed seal (HMAC of its hash), and every document a chain seal over its status, current step, holder, decline reason, released-by user and the newest log entry. A seal can only be made with the server's integrity key, so a changed status or step, or a log entry written straight into the database, fails here.</li>
                                     <li><strong>Checkpoint Comparison:</strong> Every chain head recorded in the newest signed checkpoint must still exist, so deleting a chain's newest entries is detected.</li>
                                     <li><strong>Status Indication:</strong> The system is 100% verified only when every count on the left is zero. The audit only reports; freezing affected documents stays an administrator decision ("Freeze All").</li>
                                 </ol>
@@ -243,13 +270,14 @@ ob_start(); ?>
                             </p>
                             <?php
                                 foreach ($paginatedIssues as &$issue) {
-                                    $issue['type_html'] = sprintf('<span class="font-bold %s">%s</span>', $issue['type'] === 'Live State Tampering' ? 'text-orange-600 dark:text-orange-400' : 'text-red-600 dark:text-red-400', htmlspecialchars($issue['type']));
+                                    $issue['type_html'] = sprintf('<span class="font-bold %s">%s</span>', in_array($issue['type'], ['Live State Tampering', 'Chain Seal Mismatch'], true) ? 'text-orange-600 dark:text-orange-400' : 'text-red-600 dark:text-red-400', htmlspecialchars($issue['type']));
                                     
                                     $issue['doc_html'] = sprintf('%s<br><span class="text-xs text-gray-500 dark:text-gray-400">%s</span>', htmlspecialchars($issue['tracking_code']), htmlspecialchars($issue['title']));
                                     
                                     $actions = sprintf('<a href="/documents/%s?back_to=system-overview" class="text-accent-1 hover:text-accent-1-active dark:text-accent-1-hover">View</a>', htmlspecialchars($issue['tracking_code']));
                                     
-                                    if ($issue['type'] === 'Live State Tampering') {
+                                    // Documents whose fields or chain seal changed can be recovered from their last verified entry
+                                    if (in_array($issue['type'], ['Live State Tampering', 'Chain Seal Mismatch'], true)) {
                                         $actions .= sprintf('
                                             <form action="/documents/%s/autoresolve" method="POST" class="autoresolve-form sign-action inline-block ml-3" data-message="Enter your Security PIN to digitally sign the Auto-resolve action for this document.">
                                                 <input type="hidden" name="csrf_token" value="' . ($_SESSION['csrf_token'] ?? '') . '">

@@ -148,6 +148,7 @@ Checked by `composer test:accessibility-markup` (HTML level) and by the keyboard
 | `composer run dev` | Runs [scripts/dev.php](working-php/scripts/dev.php) to start local dev server & Tailwind watcher, plus the queue worker with a watchdog that restarts it if it exits (Ctrl+C stops it too). |
 | `composer run prod` | Runs [scripts/prod.php](working-php/scripts/prod.php) for a server: restarts PHP-FPM (flushes OPcache) and nginx, then keeps running until Ctrl+C. It does **not** clear `cache/` and does **not** start the queue worker; run the worker as a service (see [Running Continuously on Linux](#-running-continuously-on-linux-working-php)). |
 | `composer run corrupt` | Runs [scripts/corrupt.php](working-php/scripts/corrupt.php) to simulate database tampering and test the JIT pre-action integrity check and automatic freezing. |
+| `php scripts/seal-chains.php` (`composer run seal-chains`) | Seals existing data once (entry seals and chain seals) after the master migration; trusts what the database holds at that moment, so run the integrity check first. Idempotent, never overwrites an existing seal (see [Chain Seal](#-chain-seal-working-php)). |
 | `php scripts/tune-database.php` | Analyzes system memory and outputs optimal MySQL `my.cnf` buffer pool configurations. |
 | `php scripts/generate-keys.php` | CLI tool for generating missing Ed25519 digital signature keypairs. `--system` creates the server key used to sign system actions (`SYSTEM_SIGNING_SECRET` / `SYSTEM_SIGNING_PUBLIC` in `.env`). |
 | `php scripts/create-checkpoint.php` | Writes a signed chain-head checkpoint to `storage/checkpoints/` (the worker also does this daily). Copy checkpoints off the server. |
@@ -251,7 +252,55 @@ composer run prod
 sudo systemctl start dts-worker.service
 ```
 
-Check the CHANGELOG's "Upgrade note" for the version you are installing. An update does not clear `cache/`, so the last integrity result and the signed checkpoints are kept. Run an integrity check from System Overview afterwards.
+Check the CHANGELOG's "Upgrade note" for the version you are installing. An update does not clear `cache/`, so the last integrity result and the signed checkpoints are kept. Run an integrity check from System Overview afterwards. Updating to 2.7.12 or later from an older version also needs the sealing steps in [Chain Seal](#-chain-seal-working-php) (migrate, check, `php scripts/seal-chains.php`, restart).
+
+## 🔏 Chain Seal (`working-php`)
+
+The hash chain and the state hash do not cover everything a document row holds. The state hash covers the tracking code, title, submitter, district, department, purpose and finalized route; it does **not** cover `status`, `current_step`, `current_department_id`, `decline_reason` or `released_by_user_id`. Before version 2.7.12 someone with database access could reopen a completed document or move it to another step and neither the pre-action check nor the integrity check noticed. Two keyed seals (HMAC-SHA256 under `APP_INTEGRITY_KEY`, hex) close that gap without changing the log format: they live in new columns and are never part of any block hash, state hash or signature.
+
+| Seal | Stored in | Covers |
+| :--- | :--- | :--- |
+| **Entry seal** | `document_logs.seal` | `HMAC(key, JSON[block hash, SHA-256 of the stored document_snapshot text])`. A log entry written straight into the database, without the key, has no valid seal even if its block hash, state hash and signature are correct, and an edit to any byte of the snapshot (which recovery restores from) invalidates it. The snapshot text is the text as the JSON column stores it. |
+| **Chain seal** | `documents.chain_seal` | `HMAC(key, JSON[document id, status, current_step, current_department_id, decline_reason, released_by_user_id, newest log id, newest block hash, log count])`. Integers stay integers, text stays text, `NULL` stays `null` (so `NULL` and an empty text differ). Binding the newest entry and the count also detects a deleted or appended entry. |
+
+`HashChainService::createLog` writes the entry seal and refreshes the chain seal in the same transaction as the log insert, so every workflow action keeps both valid. The pre-action check additionally requires a valid seal on the newest entry and a matching chain seal, and a document with no log entries passes only while it has no chain seal. A document that has log entries but **no chain seal yet**, while the database is **not yet recorded as sealed** (after the migration and before the sealing step, or after restoring an old backup), is not tampered: the action is **refused** with "This document has not been sealed yet; an administrator must run the sealing step." and logged, and the document is **not frozen**. Once the database is recorded as sealed, the same missing chain seal is tampering: the check fails, the document is frozen like any mismatch, the Integrity Check counts it under chain seal mismatches and System Overview lists it. The pre-action check also runs for every intake, decline and release, so deleting all log rows of a document does not let those through. The automatic freeze (for real mismatches) writes a sealed entry but deliberately leaves the chain seal alone, so the mismatch stays flagged until an administrator acts. **Unfreeze** works only while the document's content (the fields the state hash covers) still matches the newest verified entry; otherwise it refuses and says to use Auto-resolve. **Auto-resolve** copies the stored snapshot back after proving it matches its state hash, block hash, signature and seal (nothing is decoded or interpreted). Both use only the NEWEST regular entry: if its seal, block hash, link, signature or snapshot fails, they refuse, change nothing, record the refusal in the system audit log and say the document can only be fixed by restoring a backup. They never fall back to an older entry (that would silently roll the workflow back). Both re-seal after a successful recovery. Without a configured key the worker and `composer run dev`/`prod` refuse to start, the integrity check reports "seal not configured" and is never green, and the pre-action check refuses the action with a message (and logs it) without freezing the document.
+
+### Upgrading an existing database
+
+Do these in order, outside office hours if you can. Nothing in this list is run by the update itself. **Between the migration (step 2) and the sealing step (step 4), every existing document is "not sealed yet": actions on it (receive, complete, release, decline, intake) are refused with a message, and nothing is frozen.** Plan the window accordingly; nothing is damaged by it, and new documents submitted meanwhile are sealed from the start.
+
+1. **Back up** the database (Backups page, or `mysqldump`) and keep a copy of `.env`.
+2. **Run the master migration** (`working-php/scripts/migrations/master-migration.sql`): it adds `document_logs.seal` and `documents.chain_seal`, both `NULL`, and is safe to run twice.
+3. **Run the full Integrity Check** on System Overview and confirm **100 %** with 0 live-state mismatches and 0 checkpoint heads missing. Entry and chain seal counts show "unsealed" until step 4; that is expected.
+4. **Seal the existing data once:** `cd working-php && php scripts/seal-chains.php --database=<your database name>` (or `composer run seal-chains`). It verifies every chain first and seals only those that verify completely; its first successful run also records "database sealed" in the system audit log (see below); anything it refuses is listed with the reason and the exit code is 2. Fix or investigate those documents (restore from a backup if needed), then run it again.
+5. **Restart the worker** (`composer run prod`/`dev`, or `systemctl restart dts-worker.service`), then run the Integrity Check again: 100 % and 0 invalid entry seals and chain seals.
+
+**Trust on first use.** Sealing existing data trusts whatever the database holds at that moment: a document tampered with before step 4 is sealed as it is. That is why step 3 must report 100 % first, and why the script is for the first run only. To limit that, `seal-chains.php` verifies each document's whole chain before sealing it (every block hash, the link from genesis, every signature against the signer's key valid at that time, each entry's snapshot against its state hash, and the live row against the newest state hash) and refuses the ones that fail. Edits that leave the chain consistent, such as a changed status or step, cannot be seen by these checks: that is what trust on first use means. It seals only entries and documents that have no seal and never changes an existing seal. **"This database has been sealed" is recorded outside the database.** The first successful run of `seal-chains.php` (and the seeders, when they seal) writes a `database_sealed` event with the database name into the system audit log, the HMAC-chained file under `storage/logs/` (`SystemAuditService`). The answer is never derived from the data an attacker could edit, and a log that fails verification counts as "sealed" (fail closed). Before that record exists, the default run seals every document that has no chain seal and whose chain verifies, whatever was submitted since the migration (new submissions are sealed from the start and are left alone). After it exists, the default run seals **nothing that is missing a seal**: such documents are listed as "seal missing on a sealed database: review" (exit code 2), and a document with a chain seal but an entry without a seal is always listed for review. The reviewed-exception flags are then the only way through. A backup taken before this version, restored on a database recorded as sealed, therefore needs `php scripts/seal-chains.php --seal-missing-on-sealed-database --database=<name>` (the restore notification and audit record say so). On a database not recorded as sealed, a restored old backup is sealed by the plain command.
+
+**Limit of that record:** it is tamper evidence, not tamper proof. Someone who can also delete or replace the system audit log file (or who holds the integrity key and can forge a log) could pass a database off as never sealed. Copy the log off the server with the checkpoints (Vendor-Recommended Security Baselines, section 5). Reviewed exceptions need `--database=<name>`, print a warning and are recorded in the system audit log: `--seal-documents=<code>[,<code>]` seals only the named documents, `--seal-missing-on-sealed-database` seals every document with a missing seal. The script also refuses to run without a valid key or when `--database=<name>` differs from the database configured in `.env`. `--overwrite-existing-seals` recomputes the seals of documents whose chain verifies (for a key rotation); it needs `--database=<name>` too and is recorded in the system audit log.
+
+### Tamper matrix rows added by the chain seal
+
+All run in `TamperInjectionTest` against a completed document; "guard" is the pre-action check (the document is frozen on the next action), "audit" the integrity check.
+
+| Tactic | Guard | Audit | Detected by |
+| :--- | :--- | :--- | :--- |
+| `edit_status_only` | yes (was no) | yes (was no) | chain seal |
+| `edit_current_step` | yes (was no) | yes (was no) | chain seal |
+| `edit_current_department_id` | yes | yes | chain seal |
+| `edit_decline_reason` | yes | yes | chain seal |
+| `delete_tail_log_after_checkpoint` / `delete_tail_log_without_checkpoint` | yes | yes | chain seal (without a checkpoint it was undetected before) |
+| `delete_middle_log` | yes | yes | chain seal and the hash chain |
+| `edit_newest_snapshot_field` | yes | yes | entry seal (the seal covers the snapshot; recovery then refuses) |
+| `null_newest_entry_seal_then_run_sealing_script` | yes | yes | entry seal; the sealing script lists the document for review and does not re-seal it |
+| Every chain seal and entry seal set to `NULL` on a database recorded as sealed, then the sealing script (`SealChainsScriptTest`) | yes (frozen as a mismatch) | yes (chain seal mismatches) | the audit-log record: the default run seals nothing and lists every document for review |
+| All log rows of a sealed document deleted, then an intake, decline or release (`ChainSealTest`) | yes (document frozen) | yes | the pre-action check, which now runs for those actions unconditionally |
+| `append_log_signed_with_injected_attacker_key`, `append_log_without_key_null_seal`, `append_log_without_key_wrong_seal` | yes | yes | entry seal and chain seal (valid hash, state hash and signature, no key) |
+| `append_forged_log_recomputed_hash_bad_signature`, `rewrite_whole_chain_with_attacker_keys` | yes | yes | entry seal and chain seal, as well as the signature or hash |
+| `insider_with_key_edit_status_and_reseal` | no | no | nothing (the insider recomputes the seal) |
+| `insider_with_key_delete_tail_log_and_reseal` | no | yes | only the off-machine checkpoint (missing chain head) |
+
+**Limitation, unchanged: the privileged insider.** The seals are tamper evidence, not tamper proof. A person with database access **and** `APP_INTEGRITY_KEY` can recompute seals for edited data, exactly as the last two rows show; only a checkpoint copied off the machine (Vendor-Recommended Security Baselines, section 5) reveals a deleted entry, and an edit that leaves the chain head unchanged is not detectable at all.
 
 ## 🔒 Vendor-Recommended Security Baselines (`working-php`)
 
@@ -262,12 +311,13 @@ The settings and habits the developers recommend for any server that holds real 
 | Key | What it protects | How it is created |
 | :--- | :--- | :--- |
 | `SYSTEM_SIGNING_SECRET` / `SYSTEM_SIGNING_PUBLIC` | Signs system log entries and the daily checkpoints | `php scripts/generate-keys.php --system` (`composer run seed:prod` runs it) |
-| `APP_INTEGRITY_KEY` | Keys the system audit log, `storage/logs/system-audit.log` | `php scripts/generate-keys.php --integrity` (`composer run seed:prod` runs it) |
+| `APP_INTEGRITY_KEY` | Keys the system audit log, `storage/logs/system-audit.log`, and the entry and chain seals of every document ([Chain Seal](#-chain-seal-working-php)) | `php scripts/generate-keys.php --integrity` (`composer run seed:prod` runs it) |
 | `BACKUP_PASSWORD` | Encrypts backup archives with AES-256 | You choose it and type it into `.env` |
 | `DB_PASSWORD` | The database account | You set it in MySQL and in `.env` |
 
 - **Set `BACKUP_PASSWORD` before the first backup.** Without it backups are still made, unencrypted, and the Backups page shows a warning. A backup holds password hashes, wrapped signing keys and clients' contact details.
 - **Keep a copy of all of them away from the server** (a sealed envelope or a password manager). A backup cannot be restored without the password it was made with. Replacing `SYSTEM_SIGNING_SECRET` or `APP_INTEGRITY_KEY` makes existing log entries, checkpoints or audit lines fail verification, so the scripts refuse to overwrite a key unless you pass `--force`.
+- **`APP_INTEGRITY_KEY` now also protects the document chains.** If it is lost, the existing entry and chain seals can no longer be verified and every document fails the pre-action check, so keep the backup copy of `.env` (or at least this key) away from the server. Rotating the key means re-sealing everything: `php scripts/seal-chains.php --overwrite-existing-seals --database=<name>` after an Integrity Check that reports 100 %, and the system audit log (also keyed) then fails verification for its existing lines. Without a valid key the worker and `composer run dev`/`prod` do not start.
 - **Only the account that runs the app may read `.env`:** `chmod 600 working-php/.env`. NGINX serves `working-php/public/` only and refuses dot-files, so `.env` is never reachable from a browser.
 - Keep `APP_DEBUG=false`. With `true`, PHP errors (file paths, query text) are printed to the page.
 
@@ -315,7 +365,7 @@ The audit trail is tamper-evident, not tamper-proof (see the known limitation un
 
 ### 6. Routine checks
 
-- **Run Integrity Check** on System Overview at least weekly, and after any restore or update. Expect 100 % chain integrity, 0 broken links, 0 invalid signatures, 0 live-state mismatches, 0 checkpoint heads missing, and "System audit log: intact".
+- **Run Integrity Check** on System Overview at least weekly, and after any restore or update. Expect 100 % chain integrity, 0 broken links, 0 invalid signatures, 0 invalid entry seals, 0 chain seal mismatches, 0 live-state mismatches, 0 checkpoint heads missing, and "System audit log: intact".
 - **Look at Failed Jobs** on the same page. A job that "stopped sending its health ping" was cut short by a crash or a restart; start it again if it is still needed.
 - **Frozen documents** mean a document's data no longer matches its signed log. Do not unfreeze one until you know why (admin manual, 4.3).
 
@@ -329,7 +379,7 @@ Security depends on the worker: it writes the daily checkpoint and runs integrit
 2. `BACKUP_PASSWORD` is set: open **Backups**; no "stored unencrypted" warning is shown.
 3. Restart `composer run prod` (or `composer run dev` on a development machine). Everyone signs in again once after an update that moved the sessions.
 4. Open **Backups** through the menu, without reloading the page, and delete a backup you no longer need: it asks for your PIN.
-5. Run **Integrity Check**: 100 %, and "System audit log: intact".
+5. Run **Integrity Check**: 100 %, 0 invalid entry seals, 0 chain seal mismatches, and "System audit log: intact".
 6. Sign in as each seeded account with the password `password`: it must fail on a live server.
 
 ### 9. Content Security Policy and page scripts
@@ -408,6 +458,10 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `test:user-lifecycle-integrity` | Users who signed log entries or have key history cannot be deleted, even with raw SQL; chains stay at 100 %. |
 | `test:key-cache-invalidation` | Entries signed after a key reset verify within the same long-lived process. |
 | `test:core-module-structure` | Module structure guard: old classes removed, log format v2 byte-identical, tampered documents frozen. |
+| `test:integrity-key` | The shared integrity-key helper accepts only base64 of exactly 32 bytes; the test override is ignored outside the testing environment. |
+| `test:chain-seal` | Entry seals and chain seals: the sealed fields and their normalization, every workflow action leaves valid seals, the automatic freeze keeps the mismatch, unfreeze and auto-resolve re-seal, unfreeze refuses changed content, recovery never rolls back (it refuses when the newest entry fails), unsealed documents are refused and not frozen. |
+| `test:seal-chains-script` | scripts/seal-chains.php seals existing data once after verifying each chain (refusing chains that do not verify), never seals a missing seal on an already sealed database or overwrites a seal without an explicit flag and the database name, and refuses without a key or against another database. |
+| `test:missing-integrity-key` | Without APP_INTEGRITY_KEY the worker does not start, the integrity check reports "seal not configured", and the pre-action check refuses the action without freezing. |
 
 *Accounts and authentication*
 
@@ -553,7 +607,7 @@ Each subfolder is an ordinary run folder (the runner sets `DTS_RESULTS_DIR` for 
 
 Not applicable on an offline LAN (`ThreatActor::NOT_APPLICABLE`): botnet DDoS, internet credential stuffing, cloud metadata SSRF.
 
-**Known limitation: the fully privileged insider.** The audit trail is tamper-evident, not tamper-proof. Anyone without the users' PINs and the server signing key cannot alter, delete or reorder log entries undetected. However, the tamper matrix shows that someone with database access can register their own key pair in `user_public_key_histories` and append a properly signed entry, and nothing detects it, because public keys are trusted from the same database. Someone who also controls the server holds the server signing key and can re-sign entries and checkpoints. No mechanism stored on the same machine can detect such an insider. The defence is organizational and is set out in [Vendor-Recommended Security Baselines](#-vendor-recommended-security-baselines-working-php), section 5. Certifying user public keys with an offline key is future work.
+**Known limitation: the fully privileged insider.** The audit trail is tamper-evident, not tamper-proof. Anyone without the users' PINs and the server signing key cannot alter, delete or reorder log entries undetected. However, the tamper matrix shows that someone with database access can register their own key pair in `user_public_key_histories` and append a properly signed entry; public keys are trusted from the same database, so the signature alone cannot tell. Since version 2.7.12 such an entry is still caught, because it lacks a valid entry seal unless the insider also holds `APP_INTEGRITY_KEY`. Someone who also controls the server holds the server signing key and can re-sign entries and checkpoints. No mechanism stored on the same machine can detect such an insider; this includes the entry and chain seals ([Chain Seal](#-chain-seal-working-php)), which someone holding `APP_INTEGRITY_KEY` can recompute. The defence is organizational and is set out in [Vendor-Recommended Security Baselines](#-vendor-recommended-security-baselines-working-php), section 5. Certifying user public keys with an offline key is future work.
 
 **Migration notice.** Existing databases must run `working-php/scripts/migrations/master-migration.sql`; what it enables is listed in [Vendor-Recommended Security Baselines](#-vendor-recommended-security-baselines-working-php), section 2. Fresh databases built from `database.sql` already include everything in it.
 

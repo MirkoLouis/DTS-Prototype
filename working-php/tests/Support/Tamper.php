@@ -2,6 +2,7 @@
 
 namespace Tests\Support;
 
+use App\Modules\Integrity\ChainSealService;
 use App\Modules\Integrity\HashChainService;
 use PDO;
 use RuntimeException;
@@ -77,17 +78,71 @@ final class Tamper
         }
     }
 
-    // Reopen the completed document by changing only its status (outside the state hash, M8)
+    // Reopen the completed document by changing only its status (outside the state hash; caught by the chain seal)
     public static function editStatusOnly(PDO $pdo, int $documentId): void
     {
         $pdo->prepare("UPDATE documents SET status = 'processing' WHERE id = ?")->execute([$documentId]);
     }
 
-    // Move the document to a different route step (outside the state hash, M8)
+    // Move the document to a different route step (outside the state hash; caught by the chain seal)
     public static function editCurrentStep(PDO $pdo, int $documentId): void
     {
         $current = (int) self::document($pdo, $documentId)['current_step'];
         $pdo->prepare('UPDATE documents SET current_step = ? WHERE id = ?')->execute([$current === 1 ? 2 : 1, $documentId]);
+    }
+
+    // Hand the document to a different department as its current holder (outside the state hash; caught by the chain seal)
+    public static function editCurrentDepartmentId(PDO $pdo, int $documentId): void
+    {
+        $current = self::document($pdo, $documentId)['current_department_id'];
+        $other = $pdo->prepare('SELECT id FROM departments WHERE id <> ? ORDER BY id LIMIT 1');
+        $other->execute([(int) $current]);
+        $pdo->prepare('UPDATE documents SET current_department_id = ? WHERE id = ?')->execute([$other->fetchColumn(), $documentId]);
+    }
+
+    // Write a decline reason onto the document (outside the state hash; caught by the chain seal)
+    public static function editDeclineReason(PDO $pdo, int $documentId): void
+    {
+        $pdo->prepare("UPDATE documents SET decline_reason = 'Declined by attacker.' WHERE id = ?")->execute([$documentId]);
+    }
+
+    // Change one field inside the newest entry's stored snapshot (the block hash does not cover it; the entry seal does)
+    public static function editNewestSnapshotField(PDO $pdo, int $documentId): void
+    {
+        $logs = self::logs($pdo, $documentId);
+        $pdo->prepare("UPDATE document_logs SET document_snapshot = JSON_SET(document_snapshot, '$.current_step', 9) WHERE id = ?")->execute([end($logs)['id']]);
+    }
+
+    // NULL the newest entry's seal on a sealed database, then run the sealing script as an administrator might. The script must not re-seal it.
+    public static function nullNewestEntrySealThenRunSealingScript(PDO $pdo, int $documentId): void
+    {
+        $logs = self::logs($pdo, $documentId);
+        $pdo->prepare('UPDATE document_logs SET seal = NULL WHERE id = ?')->execute([end($logs)['id']]);
+
+        // Subprocess with APP_ENV=testing so the script reads .env.testing; its non-zero exit is expected here
+        $process = proc_open([PHP_BINARY, BASE_PATH . '/scripts/seal-chains.php'], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes, BASE_PATH, array_merge(getenv(), ['APP_ENV' => 'testing']));
+        if (!is_resource($process)) {
+            throw new RuntimeException('Could not start scripts/seal-chains.php');
+        }
+        stream_get_contents($pipes[1]);
+        stream_get_contents($pipes[2]);
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        proc_close($process);
+    }
+
+    // Insider WITH the integrity key: edit the status and recompute the chain seal. The seals cannot tell.
+    public static function insiderWithKeyEditStatusAndReseal(PDO $pdo, int $documentId): void
+    {
+        self::editStatusOnly($pdo, $documentId);
+        ChainSealService::refresh($documentId);
+    }
+
+    // Insider WITH the integrity key: delete the newest entry and recompute the chain seal. Only an off-machine checkpoint remembers it.
+    public static function insiderWithKeyDeleteTailLogAndReseal(PDO $pdo, int $documentId): void
+    {
+        self::deleteTailLog($pdo, $documentId);
+        ChainSealService::refresh($documentId);
     }
 
     // ---------------------------------------------------------------
@@ -149,7 +204,7 @@ final class Tamper
         [$a, $b] = [$logs[$index - 1], $logs[$index]];
 
         // Each row receives the other row's columns; action_category is generated and follows action
-        $columns = ['user_id', 'action', 'remarks', 'hash', 'previous_hash', 'signature', 'document_state_hash', 'document_snapshot', 'created_at', 'updated_at'];
+        $columns = ['user_id', 'action', 'remarks', 'hash', 'previous_hash', 'seal', 'signature', 'document_state_hash', 'document_snapshot', 'created_at', 'updated_at'];
         $set = implode(', ', array_map(fn ($c) => "{$c} = ?", $columns));
         $update = $pdo->prepare("UPDATE document_logs SET {$set} WHERE id = ?");
         foreach ([[$a, $b], [$b, $a]] as [$target, $source]) {
@@ -176,7 +231,26 @@ final class Tamper
     }
 
     // Edit the title, register an attacker key as the Records Officer's current key, and append a properly signed entry
+    // (written without the integrity key, so its entry seal is NULL)
     public static function appendLogSignedWithInjectedAttackerKey(PDO $pdo, int $documentId): void
+    {
+        self::appendAttackerSignedLog($pdo, $documentId, null);
+    }
+
+    // The same forged entry with a NULL entry seal, as the seal matrix names it: valid block hash, state hash and signature, no key
+    public static function appendLogWithoutKeyNullSeal(PDO $pdo, int $documentId): void
+    {
+        self::appendAttackerSignedLog($pdo, $documentId, null);
+    }
+
+    // The same forged entry with a guessed entry seal (the right length, the wrong value)
+    public static function appendLogWithoutKeyWrongSeal(PDO $pdo, int $documentId): void
+    {
+        self::appendAttackerSignedLog($pdo, $documentId, bin2hex(random_bytes(32)));
+    }
+
+    // Edit the title and append an entry that is signed with an injected attacker key and carries the given entry seal
+    private static function appendAttackerSignedLog(PDO $pdo, int $documentId, ?string $seal): void
     {
         self::editTitle($pdo, $documentId);
 
@@ -186,7 +260,7 @@ final class Tamper
         self::injectKey($pdo, (int) self::userId($pdo, 'records.unit'), sodium_crypto_sign_publickey($keypair), $createdAt);
 
         $secret = sodium_crypto_sign_secretkey($keypair);
-        self::appendForgedLog($pdo, $documentId, fn (string $message) => base64_encode(sodium_crypto_sign_detached($message, $secret)), $createdAt);
+        self::appendForgedLog($pdo, $documentId, fn (string $message) => base64_encode(sodium_crypto_sign_detached($message, $secret)), $createdAt, $seal);
     }
 
     // Edit the title and rebuild the whole chain over the new state, re-signing user entries with attacker keys.
@@ -239,7 +313,7 @@ final class Tamper
     // ---------------------------------------------------------------
 
     // Append a Records Officer entry that seals the current live state, using the given signer callback
-    private static function appendForgedLog(PDO $pdo, int $documentId, callable $sign, ?string $createdAt = null): void
+    private static function appendForgedLog(PDO $pdo, int $documentId, callable $sign, ?string $createdAt = null, ?string $seal = null): void
     {
         $logs = self::logs($pdo, $documentId);
         $previousHash = end($logs)['hash'];
@@ -255,9 +329,9 @@ final class Tamper
         $hash = HashChainService::chainHash($documentId, $userId, self::FORGED_ACTION, $epoch, $previousHash, $stateHash, self::FORGED_REMARKS, $signature);
 
         $pdo->prepare(
-            'INSERT INTO document_logs (document_id, user_id, action, remarks, previous_hash, hash, signature, document_state_hash, document_snapshot, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        )->execute([$documentId, $userId, self::FORGED_ACTION, self::FORGED_REMARKS, $previousHash, $hash, $signature, $stateHash, json_encode($document), $createdAt]);
+            'INSERT INTO document_logs (document_id, user_id, action, remarks, previous_hash, hash, seal, signature, document_state_hash, document_snapshot, created_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        )->execute([$documentId, $userId, self::FORGED_ACTION, self::FORGED_REMARKS, $previousHash, $hash, $seal, $signature, $stateHash, json_encode($document), $createdAt]);
     }
 
     // Insert an attacker public key into a user's key history

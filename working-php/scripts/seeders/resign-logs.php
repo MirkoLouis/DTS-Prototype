@@ -105,3 +105,11 @@ try {
     fwrite(STDERR, "resign-logs failed: " . $e->getMessage() . "\n");
     exit(1);
 }
+
+// Re-chaining changed every block hash of these documents, so their seals are recomputed (seed data only)
+try {
+    \App\Modules\Integrity\ChainSealService::sealExisting(true, array_map('intval', array_keys($plan)), false); // this script has just re-chained them
+} catch (\Throwable $e) {
+    fwrite(STDERR, "resign-logs: re-sealing failed: " . $e->getMessage() . "\n");
+    exit(1);
+}

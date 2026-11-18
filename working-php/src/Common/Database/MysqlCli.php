@@ -28,6 +28,8 @@ class MysqlCli
             '--host=' . $db['host'],
             '--port=' . $db['port'],
             '--user=' . $db['user'],
+            // The client talks utf8mb4 in both directions, so accents and emoji survive a dump and a restore unchanged
+            '--default-character-set=utf8mb4',
             ...array_values($args),
             $db['dbname'],
         ];

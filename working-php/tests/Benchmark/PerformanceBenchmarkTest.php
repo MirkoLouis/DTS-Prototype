@@ -3,6 +3,7 @@
 namespace Tests\Benchmark;
 
 use App\Common\Database\Database;
+use App\Modules\Integrity\ChainSealService;
 use App\Modules\Integrity\DigitalSignatureService;
 use App\Modules\Integrity\HashChainService;
 use App\Modules\Integrity\PreActionIntegrityService;
@@ -176,6 +177,22 @@ class PerformanceBenchmarkTest extends TestCase
         }
         $results['chain_append'] = [$systemSigned, $cli];
 
+        // chain_seal_refresh: recompute and store one document's chain seal (head lookup, HMAC, UPDATE), always rolled back
+        $sealRefreshed = [];
+        for ($i = -5; $i < $iterations; $i++) {
+            $d = $documents[max(0, $i) % $docCount];
+            $conn->beginTransaction();
+            $start = hrtime(true);
+            ChainSealService::refresh((int) $d['id']);
+            $elapsed = (hrtime(true) - $start) / 1e6;
+            $conn->rollBack();
+            // The first five iterations are discarded warm-up
+            if ($i >= 0) {
+                $sealRefreshed[] = $elapsed;
+            }
+        }
+        $results['chain_seal_refresh'] = [$sealRefreshed, $cli];
+
         // log_read: one random document's full history
         $results['log_read'] = [self::measure($iterations, fn($i) => $db->query('SELECT * FROM document_logs WHERE document_id = :id ORDER BY id ASC', [':id' => $documents[random_int(0, $docCount - 1)]['id']])->fetchAll()), $cli];
 
@@ -214,7 +231,7 @@ class PerformanceBenchmarkTest extends TestCase
         }), $cli];
         $this->assertSame([], array_slice($verifyFailures, 0, 5), 'Seeded chains must verify');
 
-        // pre_action_integrity_check: live state against the last sealed state
+        // pre_action_integrity_check: live state against the last sealed state, then the newest entry seal and the chain seal
         $results['pre_action_integrity_check'] = [self::measure($iterations, fn($i) => PreActionIntegrityService::passes($documents[$i % $docCount])), $cli];
 
         // HTTP page loads through the multi-worker built-in server, one logged-in client per role

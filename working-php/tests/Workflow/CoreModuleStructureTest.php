@@ -192,7 +192,10 @@ class CoreModuleStructureTest extends TestCase
 
         // Detect the mismatch and freeze
         $this->assertFalse(PreActionIntegrityService::passes($doc));
+        // Log entries are written inside a transaction, as the policy does it
+        $db->getConnection()->beginTransaction();
         PreActionIntegrityService::freezeTampered($doc, 'Pre-Action Verification');
+        $db->getConnection()->commit();
 
         // The stored action string is unchanged; only the remark wording is new
         $log = $db->query('SELECT * FROM document_logs WHERE document_id = :id ORDER BY id DESC LIMIT 1', [':id' => $s['id']])->fetch();

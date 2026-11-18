@@ -130,6 +130,12 @@ if (!file_exists($csvPath)) {
     die("CSV not found at $csvPath\n");
 }
 
+// Imported data is sealed (entry seals and chain seals), so the integrity key must exist before anything is deleted
+if (!\App\Common\Security\IntegrityKey::isConfigured()) {
+    fwrite(STDERR, \App\Common\Security\IntegrityKey::missingMessage() . "\n");
+    exit(1);
+}
+
 $db = Database::getInstance();
 $conn = $db->getConnection();
 @$conn->exec("SET GLOBAL max_allowed_packet = 67108864");
@@ -651,6 +657,10 @@ if (!empty($docsToInsert)) {
 }
 
 $conn->commit();
+
+// Seal every imported entry and document (the tables were just truncated, so all are new)
+echo "🔏 Sealing entries and chains with the integrity key...\n";
+\App\Modules\Integrity\ChainSealService::sealExisting(false, null, false); // no verification pass: this process has just written every chain
 
 // Close the import keys' periods now and clear the keys, so every user sets a real PIN on first login
 echo "🔒 Resetting all digital signatures for first-time login...\n";

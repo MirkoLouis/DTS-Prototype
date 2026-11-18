@@ -22,6 +22,9 @@ abstract class TestCase extends BaseTestCase
             @unlink($cached);
         }
 
+        // The system audit log lives outside the database and holds the "database sealed" record: every test starts without it
+        @unlink(\App\Modules\System\SystemAuditService::path());
+
         // Rebuild the schema and seed the baseline rows
         TestDatabase::reset();
         $this->fx = TestDatabase::seedBaseline();

@@ -94,15 +94,11 @@ class DocumentPolicy
      */
     public function manage(UserModel $user, array $document): bool
     {
-        $db = Database::getInstance();
-        $stmt = $db->query("SELECT id FROM document_logs WHERE document_id = :id LIMIT 1", [':id' => $document['id']]);
-        
-        // Execute pre-action integrity check state hash verification if audit logs already exist for this document
-        if ($stmt->fetch()) {
-            if (!PreActionIntegrityService::passes($document)) {
-                PreActionIntegrityService::freezeTampered($document, 'Pre-Management Verification');
-                return false;
-            }
+        // Always run the pre-action integrity check: a document whose log rows were all deleted must not slip through
+        // (passes() lets a document with no logs and no chain seal pass, and fails one that still has a chain seal)
+        if (!PreActionIntegrityService::passes($document)) {
+            PreActionIntegrityService::freezeTampered($document, 'Pre-Management Verification');
+            return false;
         }
 
         // Restrict document finalization and routing decisions strictly to Officers and Administrators

@@ -120,6 +120,68 @@ class RestoreBackupJobTest extends TestCase
         $this->assertStringContainsString($this->safetyBackups()[0], $notification['message']);
     }
 
+    // Restoring data that is not sealed (a backup from before the chain seal) says in the audit record and the notification that the sealing step must be run
+    public function test_restoring_unsealed_data_says_the_sealing_step_must_be_run(): void
+    {
+        $first = Fixtures::submit();
+        Database::getInstance()->query('UPDATE document_logs SET seal = NULL');
+        Database::getInstance()->query('UPDATE documents SET chain_seal = NULL');
+        $backup = (new CreateBackupJob())->handle();
+        $adminId = $this->fx['users']['admin'];
+
+        (new RestoreBackupJob($backup, $adminId))->handle();
+
+        $entry = $this->lastAuditEntry();
+        $this->assertSame('backup_restored', $entry['event']);
+        $this->assertSame(1, $entry['data']['unsealed_documents']);
+        $this->assertTrue($entry['data']['sealing_required']);
+        $notification = Database::getInstance()->query('SELECT message, type FROM notifications WHERE user_id = :u ORDER BY id DESC LIMIT 1', [':u' => $adminId])->fetch();
+        $this->assertSame('warning', $notification['type']);
+        $this->assertStringContainsString('php scripts/seal-chains.php', $notification['message']);
+        $this->assertStringContainsString('refused until', $notification['message']);
+    }
+
+    // On a database recorded as sealed, the restore notification names the reviewed-exception flag the sealing step now needs
+    public function test_restoring_unsealed_data_on_a_sealed_database_names_the_flag(): void
+    {
+        Fixtures::submit();
+        Database::getInstance()->query('UPDATE document_logs SET seal = NULL');
+        Database::getInstance()->query('UPDATE documents SET chain_seal = NULL');
+        $backup = (new CreateBackupJob())->handle();
+        SystemAuditService::record(\App\Modules\Integrity\ChainSealService::SEALED_EVENT, ['database' => \App\Common\Config\Config::get('database', 'dbname')]);
+        $adminId = $this->fx['users']['admin'];
+
+        (new RestoreBackupJob($backup, $adminId))->handle();
+
+        $notification = Database::getInstance()->query('SELECT message FROM notifications WHERE user_id = :u ORDER BY id DESC LIMIT 1', [':u' => $adminId])->fetch();
+        $this->assertStringContainsString('--seal-missing-on-sealed-database --database=', $notification['message']);
+        $entry = $this->lastAuditEntry();
+        $this->assertStringContainsString('--seal-missing-on-sealed-database', $entry['data']['seal_command']);
+    }
+
+    // Seals survive a backup and a restore: accents, an emoji and a slash in the title and remarks are unchanged, so every seal still verifies
+    public function test_seals_survive_a_backup_round_trip_with_non_ascii_text(): void
+    {
+        $service = new \App\Modules\Documents\DocumentWorkflowService();
+        $pin = \Tests\Support\TestDatabase::PIN;
+        $document = Fixtures::submit(['title' => 'Café Ünïcode 📄 / Ωmega']);
+        $records = Fixtures::user('records.unit');
+        $cash = Fixtures::user('cash.unit');
+        $service->finalizeIntake($document['id'], ['Cash Unit'], $records, $pin);
+        $service->scanDocument($document['tracking_code'], $cash, $pin);
+        $service->completeTask($document['id'], 'Approved / forwarded 📎 señor', $cash, $pin);
+        $backup = (new CreateBackupJob())->handle();
+
+        (new RestoreBackupJob($backup, $this->fx['users']['admin']))->handle();
+
+        $results = \Tests\Support\IntegrityAudit::run($this->fx['users']['admin']);
+        $this->assertSame(0, $results['invalid_entry_seals']);
+        $this->assertSame(0, $results['invalid_chain_seals']);
+        $this->assertSame(0, $results['unsealed_documents']);
+        $this->assertEquals(100.0, $results['verified_percentage']);
+        $this->assertSame('Café Ünïcode 📄 / Ωmega', Database::getInstance()->query('SELECT title FROM documents WHERE id = :id', [':id' => $document['id']])->fetch()['title']);
+    }
+
     // A backup that does not exist is recorded as a failed restore, and nothing else happens
     public function test_missing_backup_is_recorded_and_restores_nothing(): void
     {
