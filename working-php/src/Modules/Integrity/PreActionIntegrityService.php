@@ -3,6 +3,8 @@
 namespace App\Modules\Integrity;
 
 use App\Common\Database\Database;
+use App\Common\Security\IntegrityKey;
+use App\Common\Security\IntegrityKeyMissingException;
 
 /**
  * Pre-action integrity check and automatic freezing of tampered documents: before a mutating action,
@@ -19,37 +21,50 @@ class PreActionIntegrityService
      */
     public static function passes(array $document): bool
     {
-        // Fetch the state hash sealed in this document's newest log entry
+        // Fetch the newest log entry: its sealed state hash, block hash and entry seal
         $db = Database::getInstance();
         $stmt = $db->query(
-            "SELECT document_state_hash FROM document_logs WHERE document_id = :document_id ORDER BY id DESC LIMIT 1",
+            "SELECT id, hash, seal, document_state_hash, document_snapshot FROM document_logs WHERE document_id = :document_id ORDER BY id DESC LIMIT 1",
             [':document_id' => $document['id']]
         );
         $lastLog = $stmt->fetch();
+        $hasChainSeal = ((string) ($document['chain_seal'] ?? '')) !== '';
 
-        // If no logs exist yet, it's a new document, nothing to verify against.
+        // No logs yet: a new document passes, but only while it has no chain seal (a sealed document whose logs were all deleted fails)
         if (!$lastLog) {
-            return true;
+            return !$hasChainSeal;
         }
 
-        $currentStateHash = HashChainService::calculateStateHash($document);
-
-        // Attempt a fallback JSON re-encoding to handle minor spacing differences between raw PDO and ORM outputs before declaring tampering
-        if ($currentStateHash !== $lastLog['document_state_hash']) {
-            if (isset($document['finalized_route']) && is_string($document['finalized_route'])) {
-                $decoded = json_decode($document['finalized_route'], true);
-                if ($decoded !== null) {
-                    $altDocument = $document;
-                    $altDocument['finalized_route'] = json_encode($decoded);
-                    if (HashChainService::calculateStateHash($altDocument) === $lastLog['document_state_hash']) {
-                        return true;
-                    }
-                }
-            }
-            return false; // Real tampering detected
+        // Without the key no seal can be verified: refuse the action (and do not freeze anything: the document is not known to be tampered)
+        if (!IntegrityKey::isConfigured()) {
+            error_log('Pre-action integrity check refused document ' . $document['id'] . ': ' . IntegrityKey::missingMessage());
+            throw new IntegrityKeyMissingException(IntegrityKey::USER_MESSAGE);
         }
 
-        return true;
+        // Logs but no chain seal. On a database recorded as sealed that is tampering (a removed seal): a mismatch, like any other.
+        // Otherwise the document is simply not sealed yet: refuse the action; the caller must not freeze the document.
+        if (!$hasChainSeal && ChainSealService::databaseIsSealed()) {
+            return false;
+        }
+        if (!$hasChainSeal) {
+            error_log('Pre-action integrity check refused document ' . $document['id'] . ': it has not been sealed yet (log entries but no chain seal); run php scripts/seal-chains.php');
+            throw new DocumentNotSealedException();
+        }
+
+        // The live fields covered by the state hash must match the newest entry
+        if (!ChainVerificationService::liveStateMatches($document, (string) $lastLog['document_state_hash'])) {
+            return false;
+        }
+
+        // The newest entry must carry a valid entry seal (an entry written without the key does not)
+        if (!ChainSealService::entrySealIsValid($lastLog)) {
+            return false;
+        }
+
+        // The chain seal must match the live workflow fields and the head of the chain
+        $logCount = (int) $db->query("SELECT COUNT(*) AS c FROM document_logs WHERE document_id = :id", [':id' => $document['id']])->fetch()['c'];
+
+        return ChainSealService::sealMatches($document, $lastLog, $logCount);
     }
 
     /**
@@ -64,6 +79,9 @@ class PreActionIntegrityService
         if (($document['status'] ?? '') === 'frozen') {
             return;
         }
+
+        // The freeze entry must be sealed, so refuse before changing anything when there is no key
+        IntegrityKey::require();
 
         $db = Database::getInstance();
 
@@ -88,7 +106,8 @@ class PreActionIntegrityService
             "Document automatically frozen by the pre-action integrity check due to an integrity mismatch detected during {$reason}.",
             $document,
             '', // No PIN
-            $validStateHash
+            $validStateHash,
+            false // The chain seal is NOT refreshed: the mismatch stays flagged until an admin unfreezes or auto-resolves
         );
     }
 }

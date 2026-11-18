@@ -15,6 +15,12 @@ use App\Common\Database\Database;
 
 define('BASE_PATH', __DIR__);
 
+// Its jobs write sealed log entries (stale cleanup) and verify seals (integrity check): refuse to start without APP_INTEGRITY_KEY
+if (!\App\Common\Security\IntegrityKey::isConfigured()) {
+    fwrite(STDERR, "Worker not started. " . \App\Common\Security\IntegrityKey::missingMessage() . "\n");
+    exit(1);
+}
+
 echo "Starting async queue worker...\n";
 
 $db = Database::getInstance();

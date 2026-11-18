@@ -4,7 +4,12 @@ namespace App\Modules\Documents;
 
 use App\Common\Database\Database;
 use App\Modules\Integrity\DigitalSignatureService;
+use App\Modules\Integrity\ChainSealService;
+use App\Modules\Integrity\ChainVerificationService;
+use App\Modules\Integrity\DocumentNotSealedException;
+use App\Modules\System\SystemAuditService;
 use App\Modules\Integrity\HashChainService;
+use App\Modules\Integrity\PreActionIntegrityService;
 use App\Modules\Routing\HeuristicRoutingService;
 use App\Modules\Documents\TrackingCodeUtil;
 use App\Modules\Documents\DocumentPolicy;
@@ -442,10 +447,18 @@ class DocumentWorkflowService
     public function freezeDocument(string $trackingCode, UserModel $admin, string $pin): void
     {
         $this->executeInTransaction('tracking_code', $trackingCode, $admin, 'freeze', function ($document, $db) use ($admin, $pin) {
+            // A document that already fails the integrity check keeps its mismatch: freezing it must not re-seal the tampered state
+            // (an unsealed document is not intact either: the admin may freeze it, but its seal is not created here)
+            try {
+                $wasIntact = PreActionIntegrityService::passes($document);
+            } catch (DocumentNotSealedException $e) {
+                $wasIntact = false;
+            }
+
             $stmt = $db->query("UPDATE documents SET status = 'frozen', updated_at = NOW(), version = version + 1 WHERE id = :id AND version = :version", [':id' => $document['id'], ':version' => $document['version']]);
             if ($stmt->rowCount() === 0) throw new Exception("This document was just modified by another user. Please refresh.");
             $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
-            HashChainService::createLog($document['id'], $admin->id, 'ADMIN: Document frozen.', 'An administrator has frozen this document, likely pending an integrity investigation.', $updatedDoc, $pin);
+            HashChainService::createLog($document['id'], $admin->id, 'ADMIN: Document frozen.', 'An administrator has frozen this document, likely pending an integrity investigation.', $updatedDoc, $pin, null, $wasIntact);
         });
     }
 
@@ -455,17 +468,35 @@ class DocumentWorkflowService
     public function unfreezeDocument(string $trackingCode, UserModel $admin, string $pin): string
     {
         return $this->executeInTransaction('tracking_code', $trackingCode, $admin, 'unfreeze', function ($document, $db) use ($admin, $pin) {
-            // Find the newest real workflow log and map its action to the status to restore
-            $lastValidLog = $this->lastRestorableLog((int) $document['id'], false);
-            $previousStatus = self::statusForAction($lastValidLog['action']);
+            // Find the newest real workflow log whose seal, block hash and signature verify; refuse (nothing written) when there is none
+            ['log' => $verifiedLog, 'snapshot' => $snapshot] = $this->verifiedRestorePoint($document);
 
-            $stmt = $db->query("UPDATE documents SET status = :status, updated_at = NOW(), version = version + 1 WHERE id = :id AND version = :version", [
-                ':status' => $previousStatus,
+            // Unfreeze restores only workflow fields: it refuses when the content (the fields the state hash covers) was changed
+            if (!ChainVerificationService::liveStateMatches($document, (string) $verifiedLog['document_state_hash'])) {
+                SystemAuditService::record('recovery_refused', [
+                    'document_id' => (int) $document['id'],
+                    'tracking_code' => $document['tracking_code'],
+                    'entry_id' => (int) $verifiedLog['id'],
+                    'reason' => "the document's content was changed (unfreeze refused; auto-resolve is the way to restore it)",
+                ]);
+                throw new Exception("The document's content was changed. Use Auto-resolve to restore it from the last verified entry.");
+            }
+            $fields = $this->workflowFieldsFromEntry($verifiedLog['action'], $snapshot);
+            $previousStatus = $fields['status'];
+
+            // Restore status, step, holder, decline reason and released-by from the verified entry (the fields the chain seal covers)
+            $stmt = $db->query("UPDATE documents SET status = :status, current_step = :step, current_department_id = :dept, decline_reason = :reason, released_by_user_id = :released_by, updated_at = NOW(), version = version + 1 WHERE id = :id AND version = :version", [
+                ':status' => $fields['status'],
+                ':step' => $fields['current_step'],
+                ':dept' => $fields['current_department_id'],
+                ':reason' => $fields['decline_reason'],
+                ':released_by' => $fields['released_by_user_id'],
                 ':id' => $document['id'],
                 ':version' => $document['version']
             ]);
             if ($stmt->rowCount() === 0) throw new Exception("This document was just modified by another user. Please refresh.");
 
+            // The log entry re-seals the chain (createLog refreshes the chain seal)
             $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
             HashChainService::createLog($document['id'], $admin->id, 'ADMIN: Document unfrozen.', "An administrator has unfrozen this document, restoring its status to " . ucfirst($previousStatus) . ".", $updatedDoc, $pin);
             return $previousStatus;
@@ -481,40 +512,31 @@ class DocumentWorkflowService
             // Tampered documents might not be in 'frozen' status if they were just flagged by verification
             // and haven't triggered the pre-action integrity check yet.
 
-            // Find the most recent real workflow log entry that contains a full data snapshot
-            try {
-                $lastValidLog = $this->lastRestorableLog((int) $document['id'], true);
-            } catch (Exception $e) {
-                throw new Exception("No valid document snapshot found to recover from.");
-            }
-
-            $snapshot = json_decode($lastValidLog['document_snapshot'], true);
-            if (!$snapshot) {
-                throw new Exception("Document snapshot is corrupted or invalid.");
-            }
-
-            // Prove the snapshot is genuine: it must belong to this document, match its recorded state hash,
-            // and that log row's chain hash and Ed25519 signature must both verify
-            if (($snapshot['tracking_code'] ?? null) !== $document['tracking_code']
-                || !$this->snapshotMatchesRecordedHash($snapshot, $lastValidLog['document_state_hash'])
-                || !$this->logRowIsAuthentic($lastValidLog)) {
-                throw new Exception("The stored snapshot does not match its recorded hash and cannot be trusted for recovery.");
-            }
-
-            $previousStatus = self::statusForAction($lastValidLog['action']);
+            // Find the newest real workflow entry with a valid seal whose snapshot, state hash, block hash and signature verify
+            ['log' => $verifiedLog, 'snapshot' => $snapshot] = $this->verifiedRestorePoint($document);
+            $fields = $this->workflowFieldsFromEntry($verifiedLog['action'], $snapshot);
+            $previousStatus = $fields['status'];
 
             // Overwrite the tampered row with the safe snapshot data, incrementing version to lock the recovery
-            $stmt = $db->query("UPDATE documents SET 
-                title = :title, 
-                guest_info = :guest_info, 
-                district = :district, 
-                department = :department, 
-                purpose_id = :purpose_id, 
-                finalized_route = :finalized_route, 
-                status = :status, 
+            $stmt = $db->query("UPDATE documents SET
+                title = :title,
+                guest_info = :guest_info,
+                district = :district,
+                department = :department,
+                purpose_id = :purpose_id,
+                finalized_route = :finalized_route,
+                status = :status,
+                current_step = :step,
+                current_department_id = :dept,
+                decline_reason = :reason,
+                released_by_user_id = :released_by,
                 updated_at = NOW(),
                 version = version + 1
                 WHERE id = :id AND version = :version", [
+                ':step' => $fields['current_step'],
+                ':dept' => $fields['current_department_id'],
+                ':reason' => $fields['decline_reason'],
+                ':released_by' => $fields['released_by_user_id'],
                 ':title' => $snapshot['title'] ?? null,
                 ':guest_info' => empty($snapshot['guest_info']) ? null : (is_array($snapshot['guest_info']) ? json_encode($snapshot['guest_info']) : $snapshot['guest_info']),
                 ':district' => $snapshot['district'] ?? null,
@@ -529,28 +551,93 @@ class DocumentWorkflowService
 
             $updatedDoc = $db->query("SELECT * FROM documents WHERE id = :id", [':id' => $document['id']])->fetch();
             HashChainService::createLog($document['id'], $admin->id, 'ADMIN: Document Unfrozen & Restored', "An administrator has executed Auto-resolve, restoring the document from its last valid snapshot and returning status to " . ucfirst($previousStatus) . ".", $updatedDoc, $pin);
-            
+
             return $previousStatus;
         });
     }
 
     /**
-     * Returns the newest log row that represents a real workflow step (not an admin or system freeze action).
+     * Finds the log entry a recovery (unfreeze or auto-resolve) may restore from.
+     *
+     * Uses the NEWEST real workflow entry (not an ADMIN action or the automatic freeze) and never an older one, because
+     * restoring from an older entry would silently roll the workflow back. The entry must verify completely: entry seal
+     * (which covers the snapshot), block hash, link to the entry before it, signature, and snapshot against its state
+     * hash for the right document. Otherwise recovery is refused, the refusal is recorded in the system audit log, and
+     * nothing is changed: the document can only be fixed by restoring a backup.
+     *
+     * @return array{log: array, snapshot: array} the entry and its decoded snapshot
+     * @throws Exception when the newest entry cannot be trusted; nothing has been written at that point
      */
-    private function lastRestorableLog(int $documentId, bool $requireSnapshot): array
+    private function verifiedRestorePoint(array $document): array
     {
         $db = Database::getInstance();
 
-        // Skip every ADMIN action (freeze, unfreeze, restore) and the system automatic freezing
-        $sql = "SELECT * FROM document_logs WHERE document_id = :id AND action NOT LIKE 'ADMIN:%' AND action <> 'System Auto-Freeze'"
-            . ($requireSnapshot ? " AND document_snapshot IS NOT NULL" : "")
-            . " ORDER BY id DESC LIMIT 1";
-        $log = $db->query($sql, [':id' => $documentId])->fetch();
-
-        if (!$log) {
-            throw new Exception("No log entry found to restore this document's status from.");
+        // A document that is merely not sealed yet is not "untrustworthy": the administrator must seal it first (no refusal record)
+        if (ChainSealService::isNotSealedYet($document)) {
+            throw new DocumentNotSealedException();
         }
-        return $log;
+
+        // The newest regular entry: ADMIN actions and the automatic freeze are not workflow steps
+        $log = $db->query(
+            "SELECT * FROM document_logs WHERE document_id = :id AND action NOT LIKE 'ADMIN:%' AND action <> 'System Auto-Freeze' ORDER BY id DESC LIMIT 1",
+            [':id' => $document['id']]
+        )->fetch();
+
+        $problem = $log ? $this->restorePointProblem($document, $log) : 'the document has no regular log entry';
+        if ($problem !== null) {
+            SystemAuditService::record('recovery_refused', [
+                'document_id' => (int) $document['id'],
+                'tracking_code' => $document['tracking_code'],
+                'entry_id' => $log ? (int) $log['id'] : null,
+                'reason' => $problem,
+            ]);
+            throw new Exception("The newest log entry of this document cannot be trusted for recovery ({$problem}). The document can only be fixed by restoring a backup. Nothing was changed.");
+        }
+
+        return ['log' => $log, 'snapshot' => json_decode($log['document_snapshot'], true)];
+    }
+
+    /**
+     * What is wrong with the entry a recovery would restore from, or null when it verifies completely.
+     */
+    private function restorePointProblem(array $document, array $log): ?string
+    {
+        // The entry seal covers the block hash and the snapshot text
+        if (!ChainSealService::entrySealIsValid($log)) {
+            return "entry {$log['id']} has an invalid seal";
+        }
+
+        // Block hash, link to the entry before it (genesis when it is the first) and signature
+        $previous = Database::getInstance()->query("SELECT hash FROM document_logs WHERE document_id = :id AND id < :log ORDER BY id DESC LIMIT 1", [':id' => $document['id'], ':log' => $log['id']])->fetch();
+        $checks = ChainVerificationService::checkEntry($log, $previous ? (string) $previous['hash'] : HashChainService::GENESIS_HASH);
+        if (!$checks['hash'] || !$checks['link'] || !$checks['signature']) {
+            return "entry {$log['id']} fails its block hash, link or signature check";
+        }
+
+        // The snapshot must belong to this document and match the entry's state hash
+        $snapshot = $log['document_snapshot'] === null ? null : json_decode($log['document_snapshot'], true);
+        if (!is_array($snapshot) || ($snapshot['tracking_code'] ?? null) !== $document['tracking_code']
+            || !ChainVerificationService::snapshotMatchesStateHash($log['document_snapshot'], $log['document_state_hash'])) {
+            return "the snapshot of entry {$log['id']} does not match its state hash";
+        }
+
+        return null;
+    }
+
+    /**
+     * The sealed workflow fields a verified entry leaves behind: status from its action, the rest from its snapshot.
+     *
+     * A snapshot written at submission has no step or holder yet: step 0 and no holder, as the document was inserted.
+     */
+    private function workflowFieldsFromEntry(string $action, array $snapshot): array
+    {
+        return [
+            'status' => self::statusForAction($action),
+            'current_step' => (int) ($snapshot['current_step'] ?? 0),
+            'current_department_id' => isset($snapshot['current_department_id']) ? (int) $snapshot['current_department_id'] : null,
+            'decline_reason' => isset($snapshot['decline_reason']) ? (string) $snapshot['decline_reason'] : null,
+            'released_by_user_id' => isset($snapshot['released_by_user_id']) ? (int) $snapshot['released_by_user_id'] : null,
+        ];
     }
 
     /**
@@ -570,59 +657,4 @@ class DocumentWorkflowService
         };
     }
 
-    /**
-     * Re-derives a log row's chain hash and verifies its Ed25519 signature, exactly as IntegrityCheckJob does
-     * (using the row's stored previous_hash as its parent).
-     */
-    private function logRowIsAuthentic(array $log): bool
-    {
-        $userId = $log['user_id'] !== null ? (int) $log['user_id'] : null;
-        $epoch = HashChainService::logTimestamp($log['created_at']);
-        $remarks = (string) ($log['remarks'] ?? '');
-        $previousHash = (string) $log['previous_hash'];
-        $stateHash = (string) $log['document_state_hash'];
-
-        // Step 1: the stored chain hash must equal the recomputed one
-        $recalculated = HashChainService::chainHash(
-            (int) $log['document_id'],
-            $userId,
-            $log['action'],
-            $epoch,
-            $previousHash,
-            $stateHash,
-            $remarks,
-            (string) $log['signature']
-        );
-        if (!hash_equals((string) $log['hash'], $recalculated)) {
-            return false;
-        }
-
-        // Step 2: the signature over the rebuilt message must verify against the signer's key
-        $message = HashChainService::signedMessage((int) $log['document_id'], $log['action'], $epoch, $previousHash, $stateHash, $remarks);
-        return DigitalSignatureService::verifySignature($userId, $log['created_at'], $message, $log['signature'])['valid'];
-    }
-
-    /**
-     * Checks a decoded snapshot against the recorded state hash, with the same finalized_route re-encoding fallback as PreActionIntegrityService::passes().
-     */
-    private function snapshotMatchesRecordedHash(array $snapshot, ?string $recordedHash): bool
-    {
-        if ($recordedHash === null) {
-            return false;
-        }
-        if (hash_equals($recordedHash, HashChainService::calculateStateHash($snapshot))) {
-            return true;
-        }
-
-        // Fallback: tolerate harmless JSON spacing differences in finalized_route
-        if (isset($snapshot['finalized_route']) && is_string($snapshot['finalized_route'])) {
-            $decoded = json_decode($snapshot['finalized_route'], true);
-            if ($decoded !== null) {
-                $alt = $snapshot;
-                $alt['finalized_route'] = json_encode($decoded);
-                return hash_equals($recordedHash, HashChainService::calculateStateHash($alt));
-            }
-        }
-        return false;
-    }
 }

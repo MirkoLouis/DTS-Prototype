@@ -117,11 +117,22 @@ class HashChainService
      * @param array $documentData The current state of the document (used for state hash)
      * @param string $pin The user's PIN (ignored for system actions)
      * @param string|null $overrideStateHash Optional state hash override for automatic freezing
+     * @param bool $refreshChainSeal False only for the automatic freeze: its entry is sealed, but the document's chain seal is
+     *        left alone, so the mismatch that triggered the freeze stays flagged until an administrator unfreezes or auto-resolves
      * @return int The ID of the newly created log entry
+     * @throws \App\Common\Security\IntegrityKeyMissingException when no integrity key is configured (nothing is written)
      */
-    public static function createLog(int $documentId, ?int $userId, string $action, string $remarks, array $documentData, string $pin = '', ?string $overrideStateHash = null): int
+    public static function createLog(int $documentId, ?int $userId, string $action, string $remarks, array $documentData, string $pin = '', ?string $overrideStateHash = null, bool $refreshChainSeal = true): int
     {
+        // Fail closed before anything is written: an entry that cannot be sealed would be unverifiable
+        \App\Common\Security\IntegrityKey::require();
+
         $db = Database::getInstance();
+
+        // The entry, its seal and the chain seal are written together: they must be one transaction
+        if (!$db->getConnection()->inTransaction()) {
+            throw new \LogicException('HashChainService::createLog must run inside a transaction.');
+        }
         $createdAt = (new \DateTimeImmutable('now', new \DateTimeZone(self::APP_TIMEZONE)))->format('Y-m-d H:i:s');
         $epoch = self::logTimestamp($createdAt);
 
@@ -142,7 +153,7 @@ class HashChainService
         // 4. Seal the block with its chain hash
         $hash = self::chainHash($documentId, $userId, $action, $epoch, $previousHash, $documentStateHash, $remarks, $signature);
 
-        // 5. Insert the log entry
+        // 5. Insert the log entry (its keyed entry seal follows below; the seal is stored beside the block, never hashed into it)
         $db->query(
             "INSERT INTO document_logs
             (document_id, user_id, action, remarks, previous_hash, hash, signature, document_state_hash, document_snapshot, created_at)
@@ -161,7 +172,16 @@ class HashChainService
                 ':created_at' => $createdAt
             ]
         );
+        $logId = (int) $db->getConnection()->lastInsertId();
 
-        return (int) $db->getConnection()->lastInsertId();
+        // 6. Seal the entry: block hash plus the snapshot text as the database stored it, in the same transaction
+        ChainSealService::sealInsertedEntry($logId);
+
+        // 7. Refresh the document's chain seal over its row and the new chain head, in the same transaction
+        if ($refreshChainSeal) {
+            ChainSealService::refresh($documentId);
+        }
+
+        return $logId;
     }
 }

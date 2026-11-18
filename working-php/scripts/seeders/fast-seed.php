@@ -260,6 +260,12 @@ $chunkSize = 2500; // Safe for MySQL max_allowed_packet to prevent locking
 echo "🚀 Starting High-Speed Direct Database Seeder (Hybrid)...\n";
 echo "Target: " . number_format($docsToCreate) . " documents.\n";
 
+// Seeded data is sealed (entry seals and chain seals), so the integrity key must exist before anything is deleted
+if (!\App\Common\Security\IntegrityKey::isConfigured()) {
+    fwrite(STDERR, \App\Common\Security\IntegrityKey::missingMessage() . "\n");
+    exit(1);
+}
+
 $db = Database::getInstance();
 $conn = $db->getConnection();
 @$conn->exec("SET GLOBAL max_allowed_packet = 67108864");
@@ -762,6 +768,12 @@ while ($totalProcessed < $docsToCreate) {
     $mem = round(memory_get_usage() / 1024 / 1024);
     echo "\r   ⏳ Progress: " . number_format($totalProcessed) . " / " . number_format($docsToCreate) . " documents. | 🧠 RAM: {$mem} MB   ";
 }
+
+// Seal every seeded entry and document exactly as HashChainService::createLog would have (the tables were just truncated, so all are new)
+echo "\n🔏 Sealing entries and chains with the integrity key...\n";
+// (no verification pass: this process has just written every chain itself)
+$sealStats = \App\Modules\Integrity\ChainSealService::sealExisting(false, null, false);
+echo "   Sealed " . number_format($sealStats['documents_sealed']) . " documents and " . number_format($sealStats['entries_sealed']) . " entries.\n";
 
 echo "\n🔒 Resetting all digital signatures for first-time login...\n";
 // End every seeded key period now, so a key the user sets later never overlaps the seeded one.

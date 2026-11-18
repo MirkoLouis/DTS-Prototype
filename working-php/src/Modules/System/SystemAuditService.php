@@ -3,6 +3,7 @@
 namespace App\Modules\System;
 
 use App\Common\Config\Config;
+use App\Common\Security\IntegrityKey;
 
 /**
  * Append-only audit log for system-level events the database cannot record about itself, such as a
@@ -119,6 +120,41 @@ class SystemAuditService
     }
 
     /**
+     * Look for an event whose data contains the given values, after verifying the whole log.
+     *
+     * @param array $dataMatch key => value pairs that must all appear in the event's data
+     * @return array{verified: bool, found: bool} `verified` is false when any line fails verification; callers that
+     *         use the answer as a safety anchor must then fail closed (the answer cannot be trusted)
+     */
+    public static function lookup(string $event, array $dataMatch): array
+    {
+        $verified = self::verify()['bad_lines'] === [];
+        if (!is_file(self::path())) {
+            return ['verified' => $verified, 'found' => false];
+        }
+
+        // Read under a shared lock, then look at each line
+        $handle = fopen(self::path(), 'r');
+        flock($handle, LOCK_SH);
+        $contents = (string) stream_get_contents($handle);
+        flock($handle, LOCK_UN);
+        fclose($handle);
+
+        foreach (array_filter(explode("\n", $contents), 'strlen') as $line) {
+            $entry = json_decode($line, true);
+            if (!is_array($entry) || ($entry['event'] ?? null) !== $event) {
+                continue;
+            }
+            // Every requested value must match
+            if (array_diff_assoc($dataMatch, (array) ($entry['data'] ?? [])) === []) {
+                return ['verified' => $verified, 'found' => true];
+            }
+        }
+
+        return ['verified' => $verified, 'found' => false];
+    }
+
+    /**
      * The mac of an entry: keyed with APP_INTEGRITY_KEY, or a plain SHA-256 when no key is set.
      */
     private static function macFor(array $entry): string
@@ -135,9 +171,7 @@ class SystemAuditService
      */
     private static function key(): string
     {
-        $decoded = base64_decode((string) Config::get('app', 'integrity_key', ''), true);
-
-        return $decoded === false ? '' : $decoded;
+        return IntegrityKey::raw() ?? '';
     }
 
     /**

@@ -8,6 +8,7 @@ use App\Common\Database\MysqlCli;
 use App\Common\Database\SqlScriptRunner;
 use App\Modules\Notifications\NotificationService;
 use App\Modules\System\BackupService;
+use App\Modules\Integrity\ChainSealService;
 use App\Modules\System\SystemAuditService;
 
 class RestoreBackupJob
@@ -60,6 +61,13 @@ class RestoreBackupJob
         }
         $after = $this->counts();
 
+        // A backup from before the chain seal restores documents without seals; their actions are refused until the sealing step is run
+        $unsealed = ChainSealService::countUnsealedDocuments();
+        // On a database recorded as sealed, a missing seal counts as tampering: sealing the restored data needs the reviewed-exception flag
+        $sealedDatabase = $unsealed > 0 && ChainSealService::databaseIsSealed();
+        $sealCommand = $sealedDatabase
+            ? 'php scripts/seal-chains.php --seal-missing-on-sealed-database --database=' . (string) Config::get('database', 'dbname', '')
+            : 'php scripts/seal-chains.php';
         SystemAuditService::record('backup_restored', [
             'file' => $this->fileName,
             'user_id' => $this->userId,
@@ -68,15 +76,16 @@ class RestoreBackupJob
             'documents_after' => $after['documents'],
             'logs_before' => $before['logs'],
             'logs_after' => $after['logs'],
-        ]);
+        ] + ($unsealed > 0 ? ['unsealed_documents' => $unsealed, 'sealing_required' => true, 'seal_command' => $sealCommand] : []));
 
         $lost = max(0, $before['documents'] - $after['documents']);
         $this->notify(
             'Backup restored',
             "Restored {$this->fileName}. Documents: {$before['documents']} before, {$after['documents']} after"
                 . ($lost > 0 ? " ({$lost} newer document(s) are no longer in the database)" : '')
-                . ". The previous state was saved as {$safetyBackup}.",
-            $lost > 0 ? 'warning' : 'success'
+                . ". The previous state was saved as {$safetyBackup}."
+                . ($unsealed > 0 ? " {$unsealed} restored document(s) are not sealed: actions on them are refused until an administrator runs the sealing step (run the Integrity Check first, then {$sealCommand})." : ''),
+            $lost > 0 || $unsealed > 0 ? 'warning' : 'success'
         );
     }
 

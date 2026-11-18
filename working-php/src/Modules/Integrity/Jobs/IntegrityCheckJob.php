@@ -3,6 +3,9 @@
 namespace App\Modules\Integrity\Jobs;
 
 use App\Common\Database\Database;
+use App\Common\Security\IntegrityKey;
+use App\Modules\Integrity\ChainSealService;
+use App\Modules\Integrity\ChainVerificationService;
 use App\Modules\Integrity\DigitalSignatureService;
 use App\Modules\Integrity\HashChainService;
 use App\Modules\Integrity\Events\IntegrityCheckFailedEvent;
@@ -57,6 +60,17 @@ class IntegrityCheckJob
             $liveStateErrorsCount = 0;
             $mismatchedDocumentTrackingCodes = [];
             
+            // Keyed seals (entry seals and chain seals). Without the key nothing is verified and the result says so.
+            $sealConfigured = IntegrityKey::isConfigured();
+            // Whether the database is recorded as sealed (system audit log): only then is a missing seal tampering, not "unsealed"
+            $databaseSealed = $sealConfigured && ChainSealService::databaseIsSealed();
+            $invalidEntrySealsCount = 0;
+            $invalidEntrySealIds = [];
+            $unsealedEntriesCount = 0;
+            $invalidChainSealsCount = 0;
+            $invalidChainSealTrackingCodes = [];
+            $unsealedDocumentsCount = 0;
+
             $processedDocs = 0;
             $processedLogs = 0;
 
@@ -100,39 +114,19 @@ class IntegrityCheckJob
                         $expectedPreviousHash = HashChainService::GENESIS_HASH;
                         $latestStateHash = null;
 
+                        // A document with log entries but no chain seal is "unsealed" (not yet sealed), not tampered
+                        $documentUnsealed = $sealConfigured && !$databaseSealed && $docLogs !== [] && ((string) ($documentData['chain_seal'] ?? '')) === '';
+
                         foreach ($docLogs as $log) {
-                            $logUserId = $log['user_id'] !== null ? (int) $log['user_id'] : null;
-                            $epoch = HashChainService::logTimestamp($log['created_at']);
-                            $remarks = (string) ($log['remarks'] ?? '');
                             $isBadLog = false;
 
-                            // Step 1: Re-derive the chain hash from the expected parent, not the stored previous_hash
-                            $recalculatedHash = HashChainService::chainHash(
-                                (int) $log['document_id'],
-                                $logUserId,
-                                $log['action'],
-                                $epoch,
-                                $expectedPreviousHash,
-                                (string) $log['document_state_hash'],
-                                $remarks,
-                                (string) $log['signature']
-                            );
-                            if ($recalculatedHash !== $log['hash']) {
+                            // Steps 1 and 2: block hash re-derived from the expected parent (not the stored previous_hash), the link, and the Ed25519 signature
+                            $checks = ChainVerificationService::checkEntry($log, $expectedPreviousHash);
+                            if (!$checks['hash'] || !$checks['link']) {
                                 $invalidLogsCount++;
                                 $isBadLog = true;
                             }
-
-                            // Step 2: Verify the Ed25519 signature over the full signed message
-                            $message = HashChainService::signedMessage(
-                                (int) $log['document_id'],
-                                $log['action'],
-                                $epoch,
-                                $expectedPreviousHash,
-                                (string) $log['document_state_hash'],
-                                $remarks
-                            );
-                            $verification = DigitalSignatureService::verifySignature($logUserId, $log['created_at'], $message, $log['signature']);
-                            if (!$verification['valid']) {
+                            if (!$checks['signature']) {
                                 $invalidSignaturesCount++;
                                 $isBadLog = true;
                             }
@@ -146,9 +140,37 @@ class IntegrityCheckJob
                                 }
                             }
 
+                            // Step 2b: the entry seal (HMAC of block hash and snapshot), counted apart from the hash and signature results;
+                            // an entry without a seal in a document that is not sealed at all is merely "unsealed"
+                            if ($sealConfigured && !ChainSealService::entrySealIsValid($log)) {
+                                if ($documentUnsealed && ((string) ($log['seal'] ?? '')) === '') {
+                                    $unsealedEntriesCount++;
+                                } else {
+                                    $invalidEntrySealsCount++;
+                                    if ($invalidEntrySealsCount <= self::MAX_TRACKED_MISMATCHES) {
+                                        $invalidEntrySealIds[] = $log['id'];
+                                    }
+                                }
+                            }
+
                             $expectedPreviousHash = $log['hash'];
                             $latestStateHash = $log['document_state_hash'];
                             $processedLogs++;
+                        }
+
+                        // Step 2c: the chain seal over status, step, holder, decline reason, released-by and the chain head
+                        $chainSealFailed = false;
+                        if ($documentUnsealed) {
+                            $unsealedDocumentsCount++;
+                        } elseif ($sealConfigured) {
+                            $newestLog = $docLogs === [] ? null : ['id' => end($docLogs)['id'], 'hash' => end($docLogs)['hash']];
+                            $chainSealFailed = !ChainSealService::sealMatches($documentData, $newestLog, count($docLogs));
+                        }
+                        if ($chainSealFailed) {
+                            $invalidChainSealsCount++;
+                            if (count($invalidChainSealTrackingCodes) < self::MAX_TRACKED_MISMATCHES) {
+                                $invalidChainSealTrackingCodes[] = $documentData['tracking_code'];
+                            }
                         }
 
                         // Step 3: Compare the current live state against its last cryptographically sealed state
@@ -213,6 +235,15 @@ class IntegrityCheckJob
                 'live_state_errors_count' => $liveStateErrorsCount,
                 'mismatched_document_tracking_codes' => $mismatchedDocumentTrackingCodes,
                 'checkpoint' => $checkpoint,
+                // Keyed seals, reported next to (not mixed into) the hash and signature results; false means nothing was verified
+                'seal_configured' => $sealConfigured,
+                'database_sealed' => $databaseSealed,
+                'invalid_entry_seals' => $invalidEntrySealsCount,
+                'invalid_entry_seal_ids' => $invalidEntrySealIds,
+                'unsealed_entries' => $unsealedEntriesCount,
+                'invalid_chain_seals' => $invalidChainSealsCount,
+                'invalid_chain_seal_tracking_codes' => $invalidChainSealTrackingCodes,
+                'unsealed_documents' => $unsealedDocumentsCount,
                 // The system audit log lives outside the database, so the audit checks it too
                 'audit_log' => \App\Modules\System\SystemAuditService::verify(),
             ];

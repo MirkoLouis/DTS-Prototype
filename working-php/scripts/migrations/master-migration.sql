@@ -88,3 +88,18 @@ DEALLOCATE PREPARE stmt;
 -- 2026-11-16: per-IP rate limiting of the public guest routes (fixed window; the key is SHA-256 of bucket|client IP,
 -- expires_at is the Unix time the window ends)
 CREATE TABLE IF NOT EXISTS rate_limits ( rate_key CHAR(64) PRIMARY KEY, hits INT UNSIGNED NOT NULL, expires_at INT UNSIGNED NOT NULL, INDEX idx_rate_limits_expires_at (expires_at) );
+
+-- 2026-11-18: chain seal (S10). document_logs.seal is the HMAC-SHA256 of the entry's block hash under APP_INTEGRITY_KEY;
+-- documents.chain_seal is the HMAC of the document's status, step, holder, decline reason, released-by user and the head of
+-- its chain. Both stay NULL until scripts/seal-chains.php seals existing data (run it once after this migration).
+SET @missing = (SELECT COUNT(*) = 0 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'document_logs' AND COLUMN_NAME = 'seal');
+SET @sql = IF(@missing, 'ALTER TABLE document_logs ADD COLUMN seal CHAR(64) NULL AFTER signature', 'DO 0');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+
+SET @missing = (SELECT COUNT(*) = 0 FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'documents' AND COLUMN_NAME = 'chain_seal');
+SET @sql = IF(@missing, 'ALTER TABLE documents ADD COLUMN chain_seal CHAR(64) NULL AFTER released_by_user_id', 'DO 0');
+PREPARE stmt FROM @sql;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
