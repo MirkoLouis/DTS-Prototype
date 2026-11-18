@@ -122,6 +122,8 @@ Checked by `composer test:accessibility-markup` (HTML level) and by the keyboard
    #   composer run seed:prod -- --force
    ```
 
+   `database.sql` is only for a new, empty database. It contains no `DROP`: on a database that already has the tables it stops at the first statement ("Table 'departments' already exists") and changes nothing. An existing database is upgraded with `scripts/migrations/master-migration.sql`, never by piping `database.sql` into it. A client that continues after errors (some editor extensions run statements one by one) is still harmless: every statement is a `CREATE TABLE` of a table that already exists, so at most a table missing from an old database is created; nothing is dropped or changed. `seed:prod -- --force` is the one command that rebuilds: it drops this app's tables in `DB_DATABASE` itself (never the database, never a system schema, other applications' tables are kept).
+
 5. **Launch Local Server & Background Worker:**
    ```bash
    # Starts the Web Server, PostCSS Watcher, and Async Queue Worker seamlessly
@@ -134,7 +136,7 @@ Checked by `composer test:accessibility-markup` (HTML level) and by the keyboard
 
 ## 🌱 Database Seeding Commands (`working-php/scripts/seeders`)
 
-- **Production Setup (`composer run seed:prod` / `node scripts/seeders/setup-production-db.js`):** Creates the database named by `DB_DATABASE` in `.env` (utf8mb4) if it is missing, builds the tables from `database.sql` in it (the file names no database), and seeds 15 DepEd departments (including the ICT Unit), baseline document purposes, and initial user accounts.
+- **Production Setup (`composer run seed:prod` / `node scripts/seeders/setup-production-db.js`):** Creates the database named by `DB_DATABASE` in `.env` (utf8mb4) if it is missing, builds the tables from `database.sql` in it (the file names no database and drops nothing; with `--force` the seeder first drops only this app's tables, never the database, and refuses a system schema, or a database with other tables unless `--force`), and seeds 15 DepEd departments (including the ICT Unit), baseline document purposes, and initial user accounts.
 - **High-Speed Direct Database Seeder (`composer run seed:fast [docs]` / `php scripts/seeders/fast-seed.php`):** Generates up to 50,000+ document logs directly in MySQL in seconds by pre-decrypting Ed25519 keys into RAM.
 - **Slow-Speed API Seeder (`composer run seed:dev [docs] [chunk] [concurrency]` / `node scripts/seeders/seed.js`):** Dispatches live HTTP requests against the web server to simulate multi-user traffic and session handling, also functions as a concurrency test. **Set `RATE_LIMIT_ENABLED=false` in the server's `.env` (and restart PHP-FPM) while it runs, and back to `true` afterwards:** it submits thousands of documents from one IP, and the public routes allow only 10 submissions per IP per minute. Without the switch the seeder stops at the first HTTP 429 with a message saying so. `seed:prod` and `seed:fast` write to the database directly and are not limited.
 
@@ -247,6 +249,7 @@ git pull
 composer install --no-dev                   # regenerates vendor/autoload (required after files move)
 npm install && npm run build                # only if CSS or Tailwind changed
 mysql -u <user> -p <your DB_DATABASE> < scripts/migrations/master-migration.sql   # safe to run every time; adds what is missing
+# never run database.sql here: it builds a new empty database only
 # stop the running `composer run prod` (Ctrl+C), then start it again so PHP-FPM reloads the new code
 composer run prod
 sudo systemctl start dts-worker.service
@@ -558,6 +561,7 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `test:result-writer` | Result folders: DTS_RESULTS_DIR containment, run-id validation, no overwriting. |
 | `test:test-artifact-paths` | Every file a test creates is under `working-php/.test/`; no test uses the system temp directory. |
 | `test:seed-guard` | The production seeder's guard refuses a database that holds documents or users unless --force is passed (it checks DB_DATABASE only; database.sql names no database), the seeder creates and selects DB_DATABASE, and the API seeder stops with a clear message on HTTP 429. |
+| `test:database-schema-file` | `database.sql` holds no DROP, TRUNCATE or DELETE; run again on a database with data (mysql client and SqlScriptRunner) it fails with "already exists" and changes no row or table. |
 | `test:session-storage` | Sessions are stored in the app's own folder, cleaned up by the app, with a 12-hour idle limit and hardened cookies. |
 | `test:test-guard` | Tests refuse to run outside APP_ENV=testing or against a non-_test database. |
 | `test:test-lifecycle` | The per-run test database and artifact lifecycle. |

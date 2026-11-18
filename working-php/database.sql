@@ -1,10 +1,13 @@
--- Builds the schema in the database the caller has selected; it names no database itself.
--- Run: mysql -u <user> -p <database> < database.sql   (create the database first; setup-production-db.js does that from DB_DATABASE)
 
-SET FOREIGN_KEY_CHECKS = 0;
 
--- Drop all tables to be safe (job_batches, password_reset_tokens, sessions and prediction_keywords are no longer created; they are listed only so a rebuild also removes copies left by older versions)
-DROP TABLE IF EXISTS worker_schedule, rate_limits, attempt_throttles, notifications, cache, cache_locks, jobs, job_batches, failed_jobs, departments, users, user_public_key_histories, password_reset_tokens, sessions, purposes, documents, document_logs, prediction_keywords, daily_department_metrics, database_metrics, report_jobs, integrity_checks;
+
+-- Builds the schema in an EMPTY database. On a database that already has these tables it stops at the first statement and changes nothing.
+-- To upgrade an existing database run scripts/migrations/master-migration.sql instead.
+-- Run: mysql -u <user> -p <database> < database.sql   (create the database first; it names no database itself; setup-production-db.js does that from DB_DATABASE)
+-- The script removes nothing and does not switch off foreign key checks: every table is created after the tables its foreign keys point at.
+
+-- 0. First statement: departments exists in every real database, so a database with data stops here with "Table already exists" before anything changes
+CREATE TABLE departments ( id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255), created_at TIMESTAMP NULL, updated_at TIMESTAMP NULL, UNIQUE INDEX uq_departments_name (name) );
 
 -- 1. Core Laravel & Infrastructure Tables
 -- expiration index: the hourly purge of expired rows (CachePurgeTask) reads only the expired range
@@ -14,7 +17,6 @@ CREATE TABLE jobs ( id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, queue VARCHAR
 CREATE TABLE failed_jobs ( id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, uuid VARCHAR(255) UNIQUE, connection TEXT, queue TEXT, payload LONGTEXT, exception LONGTEXT, failed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP );
 
 -- 2. DTS Domain Tables
-CREATE TABLE departments ( id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255), created_at TIMESTAMP NULL, updated_at TIMESTAMP NULL, UNIQUE INDEX uq_departments_name (name) );
 CREATE TABLE users ( id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255), email VARCHAR(255) UNIQUE, email_verified_at TIMESTAMP NULL, password VARCHAR(255), public_key TEXT NULL, private_key TEXT NULL, security_key_set_at TIMESTAMP NULL, department_id BIGINT UNSIGNED NULL, role ENUM('officer', 'staff', 'admin') DEFAULT 'staff', remember_token VARCHAR(100) NULL, deactivated_at TIMESTAMP NULL, must_change_password TINYINT(1) NOT NULL DEFAULT 0, session_version INT UNSIGNED NOT NULL DEFAULT 0, created_at TIMESTAMP NULL, updated_at TIMESTAMP NULL, FOREIGN KEY (department_id) REFERENCES departments(id) ON DELETE SET NULL );
 CREATE TABLE user_public_key_histories ( id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, user_id BIGINT UNSIGNED, public_key TEXT, activated_at TIMESTAMP, deactivated_at TIMESTAMP, created_at TIMESTAMP NULL, updated_at TIMESTAMP NULL, CONSTRAINT fk_user_key_histories_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT, INDEX idx_user_key_period (user_id, activated_at, deactivated_at) );
 CREATE TABLE purposes ( id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255), is_official BOOLEAN DEFAULT FALSE, requirements JSON NULL, suggested_route JSON NULL, created_at TIMESTAMP NULL, updated_at TIMESTAMP NULL, INDEX idx_purposes_name (name) );
@@ -35,7 +37,6 @@ CREATE TABLE rate_limits ( rate_key CHAR(64) PRIMARY KEY, hits INT UNSIGNED NOT 
 -- Last run time (Unix epoch) of each scheduled worker task, so worker restarts do not postpone daily tasks
 CREATE TABLE worker_schedule ( task VARCHAR(64) PRIMARY KEY, last_run_at INT UNSIGNED NOT NULL );
 
-SET FOREIGN_KEY_CHECKS = 1;
 
 -- 5. Notifications
 CREATE TABLE notifications (
