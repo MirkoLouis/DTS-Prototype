@@ -39,6 +39,27 @@ class NginxErrorPageTest extends TestCase
         }
     }
 
+    // The page satisfies the enforced Content Security Policy (NGINX adds it to this page): the inline <style> block is
+    // allowed by style-src 'unsafe-inline', and there is no script, event handler, other-origin resource, frame or form
+    public function test_gateway_page_satisfies_the_content_security_policy(): void
+    {
+        $html = (string) file_get_contents(BASE_PATH . self::PAGE);
+        $this->assertStringContainsString("style-src 'self' 'unsafe-inline'", \App\Common\Http\SecurityHeaders::POLICY);
+
+        // No script of any kind, no event handler attribute, no javascript: URL
+        $this->assertStringNotContainsString('<script', $html);
+        $this->assertDoesNotMatchRegularExpression('/\son[a-z]+\s*=/i', $html);
+        $this->assertStringNotContainsString('javascript:', $html);
+
+        // Nothing frames, embeds or posts anywhere; every URL it loads or follows is on this origin
+        $this->assertDoesNotMatchRegularExpression('/<(iframe|embed|object|form|base)\b/i', $html);
+        preg_match_all('/\b(?:href|src)="([^"]*)"/', $html, $urls);
+        foreach ($urls[1] as $url) {
+            $this->assertDoesNotMatchRegularExpression('/^(?:[a-z][a-z0-9+.-]*:|\/\/)/i', $url, "URL {$url} leaves this origin");
+        }
+        $this->assertDoesNotMatchRegularExpression('/url\(\s*[\'"]?(?:https?:|\/\/)/i', $html, 'inline styles load nothing from another origin');
+    }
+
     // Every NGINX configuration routes 502, 503 and 504 to the page and keeps that location internal
     public function test_every_nginx_config_routes_gateway_errors_to_the_page(): void
     {

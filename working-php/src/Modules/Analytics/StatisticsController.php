@@ -29,7 +29,9 @@ class StatisticsController
             $viewData['pastReports'] = $pastReports;
         }
         
-        if (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') {
+        // The table fragment exists for officers and staff only (the admin has no released-documents list): others get the page
+        $isScriptRequest = isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest';
+        if ($isScriptRequest && isset($viewData['releasedDocuments'])) {
             extract($viewData);
             require BASE_PATH . '/src/Views/officer/partials/released-documents-table.php';
             exit;

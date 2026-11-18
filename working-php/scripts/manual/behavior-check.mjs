@@ -2,9 +2,12 @@
 // one launcher scripts/manual/page-screenshots.php after the layout and accessibility checks; argument: context JSON file.
 //
 // Part 1 (policy): every page is loaded (hard load) and every page of every role is also reached by in-app navigation
-// (a click on a link, the router swaps the content); the Content Security Policy is sent in report-only mode, so the browser
-// reports each violation (securitypolicyviolation event, console message) without blocking anything. One line per page:
+// (a click on a link, the router swaps the content); the Content Security Policy is ENFORCED (S9b): a blocked resource also
+// breaks behaviour, and any violation (securitypolicyviolation event, console message) fails the line. One line per page:
 // OK, or the violations (directive, blocked resource, file and line), console errors and uncaught exceptions.
+// Part 3 (enforcement): the response headers, and proof that the policy really blocks: an inline script, an inline event
+// handler, a javascript: URL and code from a string (eval) do not run and are reported (those deliberate violations are excluded from
+// the failure count), and a page of the app cannot be framed from another origin.
 // Part 2 (behaviour): the features that moved from inline scripts to script files still work, each on a page reached by in-app
 // navigation AND by hard load: theme toggle, notification list, global confirm, signing PIN prompt, Users reset, backups
 // restore, charts and their filters, route builder, tracking page (card, 429 back-off), copy buttons, QR dialogs (camera
@@ -795,6 +798,112 @@ await guarded('behaviour pin-setup prompt opens on load', async () => {
     const page = await sessions.pageFor('keyless');
     await hardLoad(page, '/tasks');
     return (await visible(page, '#security-key-modal')) ? [] : ['the mandatory prompt is not shown'];
+});
+
+// ---------------------------------------------------------------------------------------------------------------------------
+// Part 3: the policy is ENFORCED (S9b). The checks below provoke violations on purpose; those, and only those, are taken out of the
+// failure count (each check lists the messages it expects), so any other violation, console error or exception still fails a line.
+// ---------------------------------------------------------------------------------------------------------------------------
+
+// Drain the diagnostics and return those that are NOT one of the expected messages of the check
+function takeUnexpectedDiagnostics(expectedPatterns) {
+    return takeDiagnostics().filter((line) => !expectedPatterns.some((pattern) => pattern.test(line)));
+}
+
+// The security headers the server sends on a page, as the browser receives them
+await guarded('enforcement response headers on a page', async () => {
+    const page = await sessions.pageFor(null);
+    const headers = (await page.request.get(`${context.baseUrl}/login`)).headers();
+    const failures = [];
+    const expected = {
+        'content-security-policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'",
+        'x-frame-options': 'DENY',
+        'x-content-type-options': 'nosniff',
+        'referrer-policy': 'same-origin',
+    };
+    for (const [name, value] of Object.entries(expected)) {
+        if (headers[name] !== value) failures.push(`${name}: ${headers[name] ?? 'missing'}`);
+    }
+    for (const name of ['content-security-policy-report-only', 'strict-transport-security', 'x-powered-by']) {
+        if (name in headers) failures.push(`${name} must not be sent`);
+    }
+    return failures;
+});
+
+// An inline script, an inline event handler and eval are really blocked (and reported), not just reported
+await guarded('enforcement inline script, handler and eval blocked', async () => {
+    const page = await sessions.pageFor(null);
+    await hardLoad(page, '/login');
+    takeDiagnostics();
+    // Record the violation events of the page itself, so the check proves they are reported
+    await page.evaluate(() => {
+        window.__violations = [];
+        document.addEventListener('securitypolicyviolation', (event) => window.__violations.push(`${event.disposition}:${event.violatedDirective}`));
+    });
+    const outcome = await page.evaluate(async () => {
+        // An inline script element
+        const script = document.createElement('script');
+        script.textContent = 'window.__inlineScriptRan = true';
+        document.body.appendChild(script);
+        // An inline event handler on an element that is clicked
+        const holder = document.createElement('div');
+        holder.innerHTML = '<button id="enforcement-probe" onclick="window.__inlineHandlerRan = true">probe</button>';
+        document.body.appendChild(holder);
+        document.getElementById('enforcement-probe').click();
+        // A javascript: URL is followed by a click as well
+        const link = document.createElement('a');
+        link.href = 'javascript:window.__javascriptUrlRan = true';
+        document.body.appendChild(link);
+        link.click();
+        // Code from a string (what eval does): a string given to setTimeout is run by the page's own world and needs
+        // 'unsafe-eval'. (A direct eval() inside this function would not prove anything: the test driver's own evaluation
+        // context is exempt from the page's policy, as the first version of this check showed.)
+        window.setTimeout('window.__evalRan = true', 0);
+        // Give the violation events time to arrive
+        await new Promise((resolve) => setTimeout(resolve, 300));
+        return {
+            ran: ['__inlineScriptRan', '__inlineHandlerRan', '__javascriptUrlRan', '__evalRan'].filter((name) => window[name] === true),
+            violations: window.__violations,
+        };
+    });
+    const failures = [];
+    if (outcome.ran.length > 0) failures.push(`ran despite the policy: ${outcome.ran.join(', ')}`);
+    // Each kind of violation is reported, with the "enforce" disposition (not "report")
+    for (const directive of ['script-src-elem', 'script-src-attr', 'script-src']) {
+        if (!outcome.violations.includes(`enforce:${directive}`)) failures.push(`no enforced ${directive} violation was reported (${outcome.violations.join(', ') || 'none'})`);
+    }
+    // Only the deliberate violations are excluded: the console and violation lines about script-src and its refusals
+    return [...failures, ...takeUnexpectedDiagnostics([/script-src/, /Refused to (execute|evaluate|run)/, /Content Security Policy directive/])];
+});
+
+// A page of the app cannot be framed from another origin (X-Frame-Options: DENY and frame-ancestors 'none')
+await guarded('enforcement page cannot be framed', async () => {
+    const page = await sessions.pageFor(null);
+    // Another origin that does not exist: its page is answered here and frames the app
+    await page.route('http://framing-site.test/**', (route) => route.fulfill({
+        contentType: 'text/html',
+        body: `<!doctype html><title>framing</title><iframe id="victim" src="${context.baseUrl}/login" width="600" height="400"></iframe>`,
+    }));
+    try {
+        await page.goto('http://framing-site.test/', { waitUntil: 'load' });
+        await page.waitForTimeout(1000);
+        const failures = [];
+        const frame = page.frames().find((candidate) => candidate !== page.mainFrame());
+        if (!frame) failures.push('the test page has no frame');
+        else {
+            // A refused frame shows the browser's error page, never the app's login form
+            const framedUrl = frame.url();
+            const framedText = await frame.evaluate(() => document.body ? document.body.innerHTML : '').catch(() => '');
+            if (!framedUrl.startsWith('chrome-error:')) failures.push(`the frame was not refused (url ${framedUrl})`);
+            if (framedText.includes('name="email"')) failures.push('the login form was shown inside the frame');
+        }
+        // The same page as a top-level page still works (no regression of the check itself)
+        await hardLoad(page, '/login');
+        if (!(await visible(page, 'input[name="email"]'))) failures.push('the login page does not load on its own');
+        return [...failures, ...takeUnexpectedDiagnostics([/X-Frame-Options/, /frame-ancestors/, /Refused to (display|frame)/, /Failed to load resource/])];
+    } finally {
+        await page.unroute('http://framing-site.test/**').catch(() => {});
+    }
 });
 
 await sessions.closeAll();

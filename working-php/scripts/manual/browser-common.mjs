@@ -49,7 +49,7 @@ export const pages = [
     ['backups', 'admin', '/system/backups'],
 ];
 
-// What the pages reported since the last call: Content Security Policy violations (the report-only policy of S9a), console
+// What the pages reported since the last call: Content Security Policy violations (the policy is enforced since S9b), console
 // errors and uncaught exceptions. Every browser page created by createSessions() feeds this list; each check drains it
 // with takeDiagnostics() and fails when it is not empty.
 const diagnostics = [];
@@ -87,7 +87,7 @@ function shortSource(source) {
 
 // Record policy violations, console errors and uncaught exceptions of one browser page
 function watchPage(page) {
-    // Console errors, and the messages Chromium prints about the policy (in report-only mode: "[Report Only] Refused to ...")
+    // Console errors, and the messages Chromium prints about the policy ("Refused to ...")
     page.on('console', (message) => {
         const text = message.text();
         const isPolicyMessage = /Content Security Policy|Content-Security-Policy|\[Report Only\]/i.test(text);

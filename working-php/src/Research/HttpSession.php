@@ -165,6 +165,7 @@ class HttpSession
         }
         $this->lastBody = $body;
 
-        return ['status' => $status, 'headers' => $flat, 'body' => $body];
+        // 'all_headers' keeps every value of a repeated header (to check that a header is sent exactly once)
+        return ['status' => $status, 'headers' => $flat, 'all_headers' => $headers, 'body' => $body];
     }
 }

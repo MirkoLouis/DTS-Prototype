@@ -92,6 +92,55 @@ function ensureSslCert(string $lanIp): void {
 }
 
 /**
+ * Read the NGINX site template; a missing, unreadable or empty file is an error (never an empty string).
+ */
+function readNginxTemplate(string $path): string {
+    // file_get_contents() returns false for a missing or unreadable file
+    $template = is_file($path) ? @file_get_contents($path) : false;
+    if ($template === false) {
+        throw new RuntimeException("NGINX template cannot be read: {$path}");
+    }
+    if (trim($template) === '') {
+        throw new RuntimeException("NGINX template is empty: {$path}");
+    }
+
+    return $template;
+}
+
+/**
+ * Fill the placeholders of the NGINX site template (nginx/site.conf) and return the config text.
+ *
+ * The security header lines are generated from App\Common\Http\SecurityHeaders, the single source of the policy
+ * text. A placeholder that is still in the result would be installed as literal text and break NGINX (or silently
+ * drop a header), so it is an error with the names of the leftovers.
+ */
+function renderNginxConfig(string $template, string $projectRoot, string $phpVersion, string $lanIp): string {
+    // An empty template would pass every check below and be installed as an empty NGINX config
+    if (trim($template) === '') {
+        throw new RuntimeException('NGINX template is empty.');
+    }
+
+    // SecurityHeaders lives in the application (autoloaded from the project the template belongs to)
+    require_once $projectRoot . '/vendor/autoload.php';
+
+    $values = [
+        '__PROJECT_ROOT__'       => $projectRoot,
+        '__PHP_VERSION__'        => $phpVersion,
+        '__LAN_IP__'             => $lanIp,
+        '__SECURITY_HEADERS__'   => \App\Common\Http\SecurityHeaders::nginxAddHeaderDirectives(),
+        '__HIDDEN_PHP_HEADERS__' => \App\Common\Http\SecurityHeaders::nginxHiddenHeaderDirectives(),
+    ];
+    $config = str_replace(array_keys($values), array_values($values), $template);
+
+    // A leftover placeholder (a new one nobody fills in, or a typo) must never be installed
+    if (preg_match_all('/__[A-Z0-9_]+__/', $config, $leftovers) > 0) {
+        throw new RuntimeException('NGINX template has unfilled placeholders: ' . implode(', ', array_unique($leftovers[0])));
+    }
+
+    return $config;
+}
+
+/**
  * Write the resolved NGINX site config from the project template,
  * substituting dynamic values, and ensure the sites-enabled symlink exists.
  */
@@ -100,10 +149,8 @@ function installNginxConfig(string $projectRoot, string $phpVersion, string $lan
     $nginxTarget   = '/etc/nginx/sites-available/dts-prototype';
     $nginxLink     = '/etc/nginx/sites-enabled/dts-prototype';
 
-    $nginxConf = file_get_contents($nginxTemplate);
-    $nginxConf = str_replace('__PROJECT_ROOT__', $projectRoot, $nginxConf);
-    $nginxConf = str_replace('__PHP_VERSION__',  $phpVersion,  $nginxConf);
-    $nginxConf = str_replace('__LAN_IP__',       $lanIp,       $nginxConf);
+    // Fill in every placeholder; throws (before anything is written under /etc) when one is left over
+    $nginxConf = renderNginxConfig(readNginxTemplate($nginxTemplate), $projectRoot, $phpVersion, $lanIp);
 
     // Write via sudo tee — /etc/nginx/sites-available/ is root-owned
     $escapedConf = escapeshellarg($nginxConf);
