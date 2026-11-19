@@ -335,4 +335,316 @@ class SealChainsScriptTest extends TestCase
         $this->assertStringContainsString('does not match the database configured', $stderr);
         $this->assertSame($before, $this->sealState());
     }
+
+    // ---------------------------------------------------------------
+    // Chain seal upgrade (v1 to v2, version 2.7.15)
+    // ---------------------------------------------------------------
+
+    // The name of the test database, as the script must be told
+    private function databaseName(): string
+    {
+        return (string) \App\Common\Config\Config::get('database', 'dbname');
+    }
+
+    // Three finished documents sealed the way versions 2.7.12 to 2.7.14 did (v1 chain seals) and recorded as sealed
+    private function databaseSealedWithV1(): array
+    {
+        $documents = [];
+        foreach (['completed', 'in_transit', 'declined'] as $status) {
+            $document = Fixtures::submit();
+            Fixtures::advanceTo($document['id'], $status, ['Cash Unit']);
+            $documents[] = $document;
+        }
+        $this->rewriteChainSealsAsV1();
+        \App\Modules\System\SystemAuditService::record(ChainSealService::SEALED_EVENT, ['database' => $this->databaseName()]);
+
+        return $documents;
+    }
+
+    // Replace every chain seal by its v1 value, produced through the v1 function
+    private function rewriteChainSealsAsV1(): void
+    {
+        $db = Database::getInstance();
+        foreach ($db->query('SELECT * FROM documents')->fetchAll() as $document) {
+            [$newest, $count] = ChainSealService::chainHead((int) $document['id']);
+            $db->query('UPDATE documents SET chain_seal = :seal WHERE id = :id', [':seal' => ChainSealService::chainSealV1($document, $newest, $count), ':id' => $document['id']]);
+        }
+    }
+
+    // A document row by id
+    private function documentRow(int $id): array
+    {
+        return Database::getInstance()->query('SELECT * FROM documents WHERE id = :id', [':id' => $id])->fetch();
+    }
+
+    // The arguments of the upgrade run
+    private function upgradeArguments(): array
+    {
+        return ['--upgrade-chain-seals', '--database=' . $this->databaseName()];
+    }
+
+    // Until the upgrade has run, a v1 seal is neither tampering nor valid: the action is refused, nothing is frozen, the check counts it apart
+    public function test_old_version_seals_are_refused_without_freezing_and_reported_apart(): void
+    {
+        $documents = $this->databaseSealedWithV1();
+        $rowsBefore = array_map(fn ($document) => $this->documentRow($document['id']), $documents);
+        $logsBefore = (int) Database::getInstance()->query('SELECT COUNT(*) c FROM document_logs')->fetch()['c'];
+
+        // The pre-action check and a real workflow action throw the same exception family as "not sealed yet", with the instruction
+        foreach ([
+            fn () => \App\Modules\Integrity\PreActionIntegrityService::passes($rowsBefore[1]),
+            fn () => (new \App\Modules\Documents\DocumentWorkflowService())->scanDocument($documents[1]['tracking_code'], Fixtures::user('cash.unit'), \Tests\Support\TestDatabase::PIN),
+        ] as $call) {
+            try {
+                $call();
+                $this->fail('A document on the old seal version must be refused.');
+            } catch (\PHPUnit\Framework\AssertionFailedError $e) {
+                throw $e;
+            } catch (\App\Modules\Integrity\DocumentNotSealedException $e) {
+                $this->assertSame('Seals need upgrading: an administrator must run php scripts/seal-chains.php --upgrade-chain-seals', $e->getMessage());
+            }
+        }
+
+        // Nothing was frozen or written
+        foreach ($documents as $index => $document) {
+            $this->assertEquals($rowsBefore[$index], $this->documentRow($document['id']));
+        }
+        $this->assertSame($logsBefore, (int) Database::getInstance()->query('SELECT COUNT(*) c FROM document_logs')->fetch()['c']);
+
+        // The integrity check reports them as "old version", not as mismatches, and not as unsealed
+        $results = IntegrityAudit::run($this->fx['users']['admin']);
+        $this->assertSame(3, $results['chain_seals_old_version']);
+        $this->assertSame(0, $results['invalid_chain_seals']);
+        $this->assertSame(0, $results['unsealed_documents']);
+        $this->assertSame(0, $results['invalid_entry_seals']);
+
+        // System Overview shows the count apart from the mismatches
+        $client = \Tests\Support\HttpClient::start();
+        $client->loginAs('admin');
+        $this->assertStringContainsString('Chain seals on the old version', $client->get('/system-overview')['body']);
+
+        // Recovery of a frozen document takes the same path: "upgrade first", no refusal record, nothing changed
+        $admin = \App\Modules\Users\UserModel::findById($this->fx['users']['admin']);
+        $workflow = new \App\Modules\Documents\DocumentWorkflowService();
+        $workflow->freezeDocument($documents[1]['tracking_code'], $admin, \Tests\Support\TestDatabase::PIN);
+        $this->rewriteChainSealsAsV1();
+        $this->expectException(\App\Modules\Integrity\ChainSealsNeedUpgradeException::class);
+        $workflow->unfreezeDocument($documents[1]['tracking_code'], $admin, \Tests\Support\TestDatabase::PIN);
+    }
+
+    // The upgrade converts every document whose v1 seal verifies, leaves entry seals alone, and a second run changes nothing
+    public function test_upgrade_converts_v1_seals_and_is_idempotent(): void
+    {
+        $documents = $this->databaseSealedWithV1();
+        $entrySealsBefore = $this->sealState()[0];
+
+        [$exit, $stdout, $stderr] = $this->runScript($this->upgradeArguments());
+
+        $this->assertSame(0, $exit, $stdout . $stderr);
+        $this->assertStringContainsString('Chain seals upgraded to v2: 3', $stdout);
+        $this->assertSame($entrySealsBefore, $this->sealState()[0]);
+        foreach ($documents as $document) {
+            $this->assertTrue(ChainSealService::documentSealIsValid($this->documentRow($document['id'])));
+            $this->assertTrue(\App\Modules\Integrity\PreActionIntegrityService::passes($this->documentRow($document['id'])));
+        }
+        $results = IntegrityAudit::run($this->fx['users']['admin']);
+        $this->assertSame(0, $results['chain_seals_old_version']);
+        $this->assertSame(0, $results['invalid_chain_seals']);
+
+        // The upgrade is recorded outside the database, with counts
+        $this->assertTrue(ChainSealService::chainSealsUpgraded());
+        $this->assertStringContainsString('"event":"chain_seals_upgraded"', (string) file_get_contents(\App\Modules\System\SystemAuditService::path()));
+        $this->assertStringContainsString('"documents_upgraded":3', (string) file_get_contents(\App\Modules\System\SystemAuditService::path()));
+
+        // A second run changes nothing
+        $after = $this->sealState();
+        [$exit, $stdout] = $this->runScript($this->upgradeArguments());
+        $this->assertSame(0, $exit, $stdout);
+        $this->assertStringContainsString('Chain seals upgraded to v2: 0', $stdout);
+        $this->assertStringContainsString('Already on v2 (skipped):    3', $stdout);
+        $this->assertSame($after, $this->sealState());
+    }
+
+    // A document edited before the upgrade so that its v1 seal no longer verifies is listed and left untouched (exit 2); the others are upgraded
+    public function test_upgrade_lists_and_skips_a_document_that_does_not_verify(): void
+    {
+        $documents = $this->databaseSealedWithV1();
+        Database::getInstance()->query("UPDATE documents SET status = 'processing' WHERE id = :id", [':id' => $documents[0]['id']]);
+        $tamperedSeal = $this->documentRow($documents[0]['id'])['chain_seal'];
+
+        [$exit, $stdout] = $this->runScript($this->upgradeArguments());
+
+        $this->assertSame(2, $exit, $stdout);
+        $this->assertStringContainsString('Chain seals upgraded to v2: 2', $stdout);
+        $this->assertStringContainsString("LEFT UNTOUCHED {$documents[0]['tracking_code']}", $stdout);
+        $this->assertSame($tamperedSeal, $this->documentRow($documents[0]['id'])['chain_seal']);
+        $this->assertFalse(\App\Modules\Integrity\PreActionIntegrityService::passes($this->documentRow($documents[0]['id'])));
+    }
+
+    // Known limit, stated so the documentation stays honest: v1 never covered released_at, so an edit made BEFORE the upgrade cannot be seen by it
+    public function test_a_release_date_edited_before_the_upgrade_is_sealed_as_it_is(): void
+    {
+        $documents = $this->databaseSealedWithV1();
+        Database::getInstance()->query('UPDATE documents SET released_at = DATE_SUB(released_at, INTERVAL 1 DAY) WHERE id = :id', [':id' => $documents[0]['id']]);
+
+        [$exit] = $this->runScript($this->upgradeArguments());
+
+        $this->assertSame(0, $exit);
+        $this->assertTrue(ChainSealService::documentSealIsValid($this->documentRow($documents[0]['id'])));
+    }
+
+    // After the upgrade a v1 seal is a mismatch everywhere (frozen by the policy, counted by the check), also when released_at was edited behind it
+    public function test_after_the_upgrade_a_v1_seal_is_a_mismatch(): void
+    {
+        $documents = $this->databaseSealedWithV1();
+        $this->runScript($this->upgradeArguments());
+        $db = Database::getInstance();
+
+        // Replay a v1 seal on the completed document after editing its release date
+        $db->query('UPDATE documents SET released_at = DATE_SUB(released_at, INTERVAL 1 DAY) WHERE id = :id', [':id' => $documents[0]['id']]);
+        $this->rewriteChainSealsAsV1();
+        $row = $this->documentRow($documents[0]['id']);
+
+        // The check counts exactly the three v1 seals as mismatches, none as "old version"
+        $results = IntegrityAudit::run($this->fx['users']['admin']);
+        $this->assertSame(0, $results['chain_seals_old_version']);
+        $this->assertSame(3, $results['invalid_chain_seals']);
+
+        // The policy freezes the document through the pre-action check
+        $this->assertFalse(\App\Modules\Integrity\PreActionIntegrityService::passes($row));
+        $connection = $db->getConnection();
+        $connection->beginTransaction();
+        $this->assertFalse((new \App\Modules\Documents\DocumentPolicy())->process(\App\Modules\Users\UserModel::findById($this->fx['users']['admin']), $row));
+        $connection->commit();
+        $this->assertSame('frozen', $this->documentRow($documents[0]['id'])['status']);
+    }
+
+    // After the upgrade was recorded the command upgrades nothing: a replayed v1 seal is listed for investigation (exit 2) and stays as it is
+    public function test_the_command_after_the_upgrade_record_does_not_bless_a_replayed_v1_seal(): void
+    {
+        $documents = $this->databaseSealedWithV1();
+        $this->runScript($this->upgradeArguments());
+        Database::getInstance()->query('UPDATE documents SET released_at = DATE_SUB(released_at, INTERVAL 1 DAY) WHERE id = :id', [':id' => $documents[0]['id']]);
+        $this->rewriteChainSealsAsV1();
+        $before = $this->sealState();
+
+        [$exit, $stdout] = $this->runScript($this->upgradeArguments());
+
+        $this->assertSame(2, $exit, $stdout);
+        $this->assertStringContainsString('Chain seals upgraded to v2: 0', $stdout);
+        foreach ($documents as $document) {
+            $this->assertStringContainsString("LEFT UNTOUCHED {$document['tracking_code']}: v1 seal after the upgrade was recorded: investigate", $stdout);
+        }
+        $this->assertSame($before, $this->sealState());
+    }
+
+    // A damaged audit log cannot say whether the upgrade happened: the command refuses and changes nothing
+    public function test_the_command_refuses_with_a_damaged_audit_log(): void
+    {
+        $this->databaseSealedWithV1();
+        $path = \App\Modules\System\SystemAuditService::path();
+        file_put_contents($path, str_replace('database_sealed', 'database_sealed_', (string) file_get_contents($path)));
+        $before = $this->sealState();
+
+        [$exit, , $stderr] = $this->runScript($this->upgradeArguments());
+
+        $this->assertSame(1, $exit);
+        $this->assertStringContainsString('audit log does not verify', $stderr);
+        $this->assertSame($before, $this->sealState());
+    }
+
+    // The audit log does not verify: a v1 seal is refused (not frozen, not blessed, not a mismatch) with its own message
+    public function test_a_damaged_audit_log_refuses_a_v1_seal_without_freezing(): void
+    {
+        $documents = $this->databaseSealedWithV1();
+        $path = \App\Modules\System\SystemAuditService::path();
+        file_put_contents($path, str_replace('database_sealed', 'database_sealed_', (string) file_get_contents($path)));
+        $row = $this->documentRow($documents[1]['id']);
+        $admin = \App\Modules\Users\UserModel::findById($this->fx['users']['admin']);
+
+        foreach ([
+            fn () => \App\Modules\Integrity\PreActionIntegrityService::passes($row),
+            fn () => (new \App\Modules\Documents\DocumentPolicy())->process($admin, $row),
+        ] as $call) {
+            try {
+                $call();
+                $this->fail('A v1 seal must be refused while the audit log does not verify.');
+            } catch (\PHPUnit\Framework\AssertionFailedError $e) {
+                throw $e;
+            } catch (\App\Modules\Integrity\AuditLogDoesNotVerifyException $e) {
+                $this->assertSame('The system audit log does not verify; seals cannot be upgraded until it is restored', $e->getMessage());
+            }
+        }
+        $this->assertSame($row, $this->documentRow($documents[1]['id']));
+        $this->assertSame('in_transit', $row['status']);
+
+        // The integrity check counts it apart from the mismatches
+        $results = IntegrityAudit::run($this->fx['users']['admin']);
+        $this->assertSame(0, $results['invalid_chain_seals']);
+        $this->assertSame(3, $results['chain_seals_old_version']);
+    }
+
+    // A first full sealing that meets v1 seals does not declare the database upgraded
+    public function test_first_sealing_over_v1_seals_does_not_record_the_upgrade(): void
+    {
+        $this->databaseSealedWithV1();
+        // Forget the sealed record, as when the audit log is new but the data carries v1 seals
+        @unlink(\App\Modules\System\SystemAuditService::path());
+
+        [$exit, $stdout] = $this->runScript();
+
+        $this->assertStringContainsString('chain seals on the old version', $stdout);
+        $this->assertFalse(ChainSealService::chainSealsUpgraded());
+    }
+
+    // The upgrade's UPDATE is a compare-and-set: a seal changed after it was read is reported, not overwritten
+    public function test_upgrade_reports_a_concurrent_change(): void
+    {
+        $documents = $this->databaseSealedWithV1();
+        $stale = [$this->documentRow($documents[1]['id'])];
+        Database::getInstance()->query("UPDATE documents SET chain_seal = 'changed-meanwhile' WHERE id = :id", [':id' => $documents[1]['id']]);
+
+        $stats = ['upgraded' => 0, 'already_current' => 0, 'untouched' => [], 'refused' => null];
+        $method = new \ReflectionMethod(ChainSealService::class, 'upgradeBatch');
+        $arguments = [$stale, true, &$stats];
+        $method->invokeArgs(null, $arguments);
+
+        $this->assertSame(0, $stats['upgraded']);
+        $this->assertSame([[$documents[1]['tracking_code'], 'changed concurrently, run again']], $stats['untouched']);
+        $this->assertSame('changed-meanwhile', $this->documentRow($documents[1]['id'])['chain_seal']);
+    }
+
+    // The first sealing by this version writes v2 seals and records that no v1 window exists
+    public function test_first_sealing_records_the_chain_seals_as_current(): void
+    {
+        $this->unsealedDocuments();
+        $this->assertFalse(ChainSealService::chainSealsUpgraded());
+
+        [$exit, $stdout] = $this->runScript();
+
+        $this->assertSame(0, $exit, $stdout);
+        $this->assertTrue(ChainSealService::chainSealsUpgraded());
+    }
+
+    // The upgrade needs the database name, the right name and a key, and changes nothing without them
+    public function test_upgrade_refusals(): void
+    {
+        $this->databaseSealedWithV1();
+        $before = $this->sealState();
+
+        [$exit, , $stderr] = $this->runScript(['--upgrade-chain-seals']);
+        $this->assertSame(1, $exit);
+        $this->assertStringContainsString('--database=', $stderr);
+
+        [$exit, , $stderr] = $this->runScript(['--upgrade-chain-seals', '--database=deped_dts']);
+        $this->assertSame(1, $exit);
+        $this->assertStringContainsString('does not match the database configured', $stderr);
+
+        [$exit, , $stderr] = $this->runScript($this->upgradeArguments(), [IntegrityKey::TEST_OVERRIDE_VARIABLE => IntegrityKey::TEST_NO_KEY]);
+        $this->assertSame(1, $exit);
+        $this->assertStringContainsString('APP_INTEGRITY_KEY', $stderr);
+
+        $this->assertSame($before, $this->sealState());
+        $this->assertFalse(ChainSealService::chainSealsUpgraded());
+    }
 }

@@ -159,6 +159,57 @@ class RestoreBackupJobTest extends TestCase
         $this->assertStringContainsString('--seal-missing-on-sealed-database', $entry['data']['seal_command']);
     }
 
+    // Restoring a v1-sealed backup on an already upgraded database: the restore upgrades the restored seals itself, and v1 stays rejected elsewhere
+    public function test_restoring_v1_seals_on_an_upgraded_database_is_refused_not_frozen(): void
+    {
+        $document = Fixtures::submit();
+        Fixtures::advanceTo($document['id'], 'in_transit', ['Cash Unit']);
+        $db = Database::getInstance();
+        $v1 = function () use ($db): void {
+            foreach ($db->query('SELECT * FROM documents')->fetchAll() as $row) {
+                [$newest, $count] = \App\Modules\Integrity\ChainSealService::chainHead((int) $row['id']);
+                $db->query('UPDATE documents SET chain_seal = :s WHERE id = :id', [':s' => \App\Modules\Integrity\ChainSealService::chainSealV1($row, $newest, $count), ':id' => $row['id']]);
+            }
+        };
+        $v1();
+        $backup = (new CreateBackupJob())->handle();
+        $databaseName = \App\Common\Config\Config::get('database', 'dbname');
+        SystemAuditService::record(\App\Modules\Integrity\ChainSealService::SEALED_EVENT, ['database' => $databaseName]);
+        SystemAuditService::record(\App\Modules\Integrity\ChainSealService::UPGRADED_EVENT, ['database' => $databaseName]);
+        $this->assertSame(\App\Modules\Integrity\ChainSealService::UPGRADE_RECORDED, \App\Modules\Integrity\ChainSealService::upgradeState());
+        $adminId = $this->fx['users']['admin'];
+
+        (new RestoreBackupJob($backup, $adminId))->handle();
+
+        // The restore upgraded the restored v1 seal itself and says so in the audit record and the notification
+        $restored = array_values(array_filter(array_map(fn ($line) => json_decode($line, true), file(SystemAuditService::path(), FILE_IGNORE_NEW_LINES)), fn ($entry) => $entry['event'] === 'backup_restored'))[0];
+        $this->assertSame(1, $restored['data']['chain_seals_upgraded']);
+        $this->assertSame(0, $restored['data']['chain_seals_left_untouched']);
+        $notification = $db->query('SELECT message, type FROM notifications WHERE user_id = :u ORDER BY id DESC LIMIT 1', [':u' => $adminId])->fetch();
+        $this->assertStringContainsString('1 restored chain seal(s) on the old version were upgraded', $notification['message']);
+        $row = $db->query('SELECT * FROM documents WHERE id = :id', [':id' => $document['id']])->fetch();
+        $this->assertTrue(\App\Modules\Integrity\ChainSealService::documentSealIsValid($row));
+        $this->assertTrue(\App\Modules\Integrity\PreActionIntegrityService::passes($row));
+
+        // The upgrade stays recorded: v1 seals are still not accepted on a document that was NOT restored
+        $this->assertSame(\App\Modules\Integrity\ChainSealService::UPGRADE_RECORDED, \App\Modules\Integrity\ChainSealService::upgradeState());
+        $other = Fixtures::submit();
+        Fixtures::advanceTo($other['id'], 'completed', ['Cash Unit']);
+        $db->query('UPDATE documents SET released_at = DATE_SUB(released_at, INTERVAL 1 DAY) WHERE id = :id', [':id' => $other['id']]);
+        $replayed = $db->query('SELECT * FROM documents WHERE id = :id', [':id' => $other['id']])->fetch();
+        [$newest, $count] = \App\Modules\Integrity\ChainSealService::chainHead((int) $other['id']);
+        $db->query('UPDATE documents SET chain_seal = :s WHERE id = :id', [':s' => \App\Modules\Integrity\ChainSealService::chainSealV1($replayed, $newest, $count), ':id' => $other['id']]);
+        $replayed = $db->query('SELECT * FROM documents WHERE id = :id', [':id' => $other['id']])->fetch();
+
+        // A mismatch (frozen), not refused as "old version" and not upgraded
+        $this->assertFalse(\App\Modules\Integrity\PreActionIntegrityService::passes($replayed));
+        $connection = $db->getConnection();
+        $connection->beginTransaction();
+        $this->assertFalse((new \App\Modules\Documents\DocumentPolicy())->process(\App\Modules\Users\UserModel::findById($adminId), $replayed));
+        $connection->commit();
+        $this->assertSame('frozen', $db->query('SELECT status FROM documents WHERE id = :id', [':id' => $other['id']])->fetch()['status']);
+    }
+
     // Seals survive a backup and a restore: accents, an emoji and a slash in the title and remarks are unchanged, so every seal still verifies
     public function test_seals_survive_a_backup_round_trip_with_non_ascii_text(): void
     {

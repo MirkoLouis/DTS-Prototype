@@ -106,6 +106,12 @@ final class Tamper
         $pdo->prepare("UPDATE documents SET decline_reason = 'Declined by attacker.' WHERE id = ?")->execute([$documentId]);
     }
 
+    // Move the release date a day back (outside the state hash; caught by the v2 chain seal), which would shorten the turnaround time
+    public static function editReleasedAt(PDO $pdo, int $documentId): void
+    {
+        $pdo->prepare('UPDATE documents SET released_at = DATE_SUB(released_at, INTERVAL 1 DAY) WHERE id = ?')->execute([$documentId]);
+    }
+
     // Change one field inside the newest entry's stored snapshot (the block hash does not cover it; the entry seal does)
     public static function editNewestSnapshotField(PDO $pdo, int $documentId): void
     {

@@ -70,6 +70,9 @@ class IntegrityCheckJob
             $invalidChainSealsCount = 0;
             $invalidChainSealTrackingCodes = [];
             $unsealedDocumentsCount = 0;
+            // Whether v1 chain seals are still accepted (decided once from the audit log) and how many documents are still on them
+            $upgradeState = $sealConfigured ? ChainSealService::upgradeState() : ChainSealService::UPGRADE_PENDING;
+            $oldVersionChainSealsCount = 0;
 
             $processedDocs = 0;
             $processedLogs = 0;
@@ -164,7 +167,12 @@ class IntegrityCheckJob
                             $unsealedDocumentsCount++;
                         } elseif ($sealConfigured) {
                             $newestLog = $docLogs === [] ? null : ['id' => end($docLogs)['id'], 'hash' => end($docLogs)['hash']];
-                            $chainSealFailed = !ChainSealService::sealMatches($documentData, $newestLog, count($docLogs));
+                            $sealStatus = ChainSealService::sealStatus($documentData, $newestLog, count($docLogs), $upgradeState);
+                            // A seal that verifies on the old version is counted apart: it is not a mismatch (the upgrade has not been run, or the audit log cannot say)
+                            if ($sealStatus === ChainSealService::SEAL_OLD_VERSION || $sealStatus === ChainSealService::SEAL_OLD_VERSION_LOG_FAILED) {
+                                $oldVersionChainSealsCount++;
+                            }
+                            $chainSealFailed = $sealStatus === ChainSealService::SEAL_MISMATCH;
                         }
                         if ($chainSealFailed) {
                             $invalidChainSealsCount++;
@@ -244,6 +252,8 @@ class IntegrityCheckJob
                 'invalid_chain_seals' => $invalidChainSealsCount,
                 'invalid_chain_seal_tracking_codes' => $invalidChainSealTrackingCodes,
                 'unsealed_documents' => $unsealedDocumentsCount,
+                'chain_seals_old_version' => $oldVersionChainSealsCount,
+                'chain_seals_upgraded' => $upgradeState === ChainSealService::UPGRADE_RECORDED,
                 // The system audit log lives outside the database, so the audit checks it too
                 'audit_log' => \App\Modules\System\SystemAuditService::verify(),
             ];

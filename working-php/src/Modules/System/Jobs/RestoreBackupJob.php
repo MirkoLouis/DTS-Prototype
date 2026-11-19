@@ -6,6 +6,7 @@ use App\Common\Config\Config;
 use App\Common\Database\Database;
 use App\Common\Database\MysqlCli;
 use App\Common\Database\SqlScriptRunner;
+use App\Common\Security\IntegrityKey;
 use App\Modules\Notifications\NotificationService;
 use App\Modules\System\BackupService;
 use App\Modules\Integrity\ChainSealService;
@@ -73,6 +74,8 @@ class RestoreBackupJob
         $sealCommand = $sealedDatabase
             ? 'php scripts/seal-chains.php --seal-missing-on-sealed-database --database=' . (string) Config::get('database', 'dbname', '')
             : 'php scripts/seal-chains.php';
+        // Restored chain seals on the old version (v1) are upgraded here, by the same code as --upgrade-chain-seals
+        $seals = $this->upgradeRestoredChainSeals();
         SystemAuditService::record('backup_restored', [
             'file' => $this->fileName,
             'user_id' => $this->userId,
@@ -81,7 +84,8 @@ class RestoreBackupJob
             'documents_after' => $after['documents'],
             'logs_before' => $before['logs'],
             'logs_after' => $after['logs'],
-        ] + ($notices !== [] ? ['migration_notices' => $notices] : []) + ($unsealed > 0 ? ['unsealed_documents' => $unsealed, 'sealing_required' => true, 'seal_command' => $sealCommand] : []));
+        ] + ($notices !== [] ? ['migration_notices' => $notices] : []) + ($unsealed > 0 ? ['unsealed_documents' => $unsealed, 'sealing_required' => true, 'seal_command' => $sealCommand] : [])
+            + ($seals !== [] ? ['chain_seals_upgraded' => $seals['upgraded'], 'chain_seals_left_untouched' => $seals['left_untouched']] + ($seals['refused'] !== null ? ['chain_seal_upgrade_refused' => $seals['refused']] : []) : []));
 
         $lost = max(0, $before['documents'] - $after['documents']);
         $this->notify(
@@ -90,9 +94,59 @@ class RestoreBackupJob
                 . ($lost > 0 ? " ({$lost} newer document(s) are no longer in the database)" : '')
                 . ". The previous state was saved as {$safetyBackup}."
                 . ($notices !== [] ? ' Migration notice: ' . implode(' ', $notices) : '')
-                . ($unsealed > 0 ? " {$unsealed} restored document(s) are not sealed: actions on them are refused until an administrator runs the sealing step (run the Integrity Check first, then {$sealCommand})." : ''),
-            $lost > 0 || $unsealed > 0 || $notices !== [] ? 'warning' : 'success'
+                . ($unsealed > 0 ? " {$unsealed} restored document(s) are not sealed: actions on them are refused until an administrator runs the sealing step (run the Integrity Check first, then {$sealCommand})." : '')
+                . $this->chainSealUpgradeMessage($seals),
+            $lost > 0 || $unsealed > 0 || $this->chainSealUpgradeNeedsReview($seals) || $notices !== [] ? 'warning' : 'success'
         );
+    }
+
+    /**
+     * Upgrade the restored data's v1 chain seals to v2 (the restore means trusting the backup's content, so this adds no trust).
+     *
+     * Runs the shared upgrade in restore mode, which is allowed after the upgrade was recorded. Without a key nothing can be
+     * verified, so nothing is done. Returns [] when it did not run, otherwise the counts.
+     *
+     * @return array{upgraded: int, left_untouched: int, refused: ?string}|array{}
+     */
+    private function upgradeRestoredChainSeals(): array
+    {
+        // No key, no seal verification: the restore itself must not fail because of it
+        if (!IntegrityKey::isConfigured()) {
+            return [];
+        }
+        $stats = ChainSealService::upgradeChainSeals(true);
+
+        // Documents without any seal are the sealing step's business (counted as unsealed above)
+        $leftUntouched = count(array_filter($stats['untouched'], fn ($untouched) => $untouched[1] !== ChainSealService::REASON_NO_SEAL));
+
+        return ['upgraded' => $stats['upgraded'], 'left_untouched' => $leftUntouched, 'refused' => $stats['refused']];
+    }
+
+    /**
+     * Whether the restore-time upgrade left something an administrator must look at.
+     */
+    private function chainSealUpgradeNeedsReview(array $seals): bool
+    {
+        return $seals !== [] && ($seals['left_untouched'] > 0 || $seals['refused'] !== null);
+    }
+
+    /**
+     * The sentence for the notification about the restore-time upgrade of chain seals (empty when there is nothing to say).
+     */
+    private function chainSealUpgradeMessage(array $seals): string
+    {
+        if ($seals === []) {
+            return '';
+        }
+        $message = $seals['upgraded'] > 0 ? " {$seals['upgraded']} restored chain seal(s) on the old version were upgraded." : '';
+        if ($seals['left_untouched'] > 0) {
+            $message .= " {$seals['left_untouched']} restored document(s) have a chain seal that verifies under neither version and were left untouched: run the Integrity Check and investigate.";
+        }
+        if ($seals['refused'] !== null) {
+            $message .= " The chain seals were not upgraded: {$seals['refused']}";
+        }
+
+        return $message;
     }
 
     /**

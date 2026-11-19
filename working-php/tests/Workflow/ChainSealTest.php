@@ -72,16 +72,19 @@ class ChainSealTest extends TestCase
     public function test_chain_seal_input_is_normalized_once(): void
     {
         // Database rows may deliver numbers as text; the sealed list does not change
-        $asText = ['id' => '42', 'status' => 'completed', 'current_step' => '2', 'current_department_id' => '5', 'decline_reason' => null, 'released_by_user_id' => '7'];
-        $asNumbers = ['id' => 42, 'status' => 'completed', 'current_step' => 2, 'current_department_id' => 5, 'decline_reason' => null, 'released_by_user_id' => 7];
+        $asText = ['id' => '42', 'status' => 'completed', 'current_step' => '2', 'current_department_id' => '5', 'decline_reason' => null, 'released_by_user_id' => '7', 'released_at' => '2026-11-18 09:30:00'];
+        $asNumbers = ['id' => 42, 'status' => 'completed', 'current_step' => 2, 'current_department_id' => 5, 'decline_reason' => null, 'released_by_user_id' => 7, 'released_at' => '2026-11-18 09:30:00'];
         $newest = ['id' => '99', 'hash' => 'abc'];
 
-        $expected = [42, 'completed', 2, 5, null, 7, 99, 'abc', 4];
+        $expected = ['chain-seal-v2', 42, 'completed', 2, 5, null, 7, '2026-11-18 09:30:00', 99, 'abc', 4];
         $this->assertSame($expected, ChainSealService::chainSealInput($asText, $newest, 4));
         $this->assertSame($expected, ChainSealService::chainSealInput($asNumbers, $newest, 4));
 
-        // NULL and an empty decline reason differ; a document without logs has null head values and a zero count
-        $this->assertSame([42, 'completed', null, null, '', null, null, null, 0], ChainSealService::chainSealInput(['id' => 42, 'status' => 'completed', 'decline_reason' => ''], null, 0));
+        // NULL and an empty decline reason differ; a document without logs has null head values and a zero count; no release date is null
+        $this->assertSame(['chain-seal-v2', 42, 'completed', null, null, '', null, null, null, null, 0], ChainSealService::chainSealInput(['id' => 42, 'status' => 'completed', 'decline_reason' => ''], null, 0));
+
+        // The v1 input (kept only for the upgrade) has no marker and no release date
+        $this->assertSame([42, 'completed', 2, 5, null, 7, 99, 'abc', 4], ChainSealService::chainSealInputV1($asText, $newest, 4));
     }
 
     // Golden value: HMAC-SHA256 over the canonical JSON, with a fixed key and independent computation
@@ -89,10 +92,12 @@ class ChainSealTest extends TestCase
     {
         $key = str_repeat('K', 32);
         putenv(IntegrityKey::TEST_OVERRIDE_VARIABLE . '=' . base64_encode($key));
-        $document = ['id' => 42, 'status' => 'completed', 'current_step' => 2, 'current_department_id' => 5, 'decline_reason' => 'ñ / "q"', 'released_by_user_id' => 7];
+        $document = ['id' => 42, 'status' => 'completed', 'current_step' => 2, 'current_department_id' => 5, 'decline_reason' => 'ñ / "q"', 'released_by_user_id' => 7, 'released_at' => '2026-11-18 09:30:00'];
 
-        $expectedJson = '[42,"completed",2,5,"ñ / \"q\"",7,99,"abc",4]';
+        // v2 starts with the version marker and covers the release date; v1 is the old input without both
+        $expectedJson = '["chain-seal-v2",42,"completed",2,5,"ñ / \"q\"",7,"2026-11-18 09:30:00",99,"abc",4]';
         $this->assertSame(hash_hmac('sha256', $expectedJson, $key), ChainSealService::chainSeal($document, ['id' => 99, 'hash' => 'abc'], 4));
+        $this->assertSame(hash_hmac('sha256', '[42,"completed",2,5,"ñ / \"q\"",7,99,"abc",4]', $key), ChainSealService::chainSealV1($document, ['id' => 99, 'hash' => 'abc'], 4));
 
         // The entry seal binds the block hash and the SHA-256 of the stored snapshot text (null for a missing snapshot)
         $snapshot = '{"title": "ñ"}';
