@@ -147,7 +147,8 @@ ob_start(); ?>
                                             && ($integrityCheckResult['invalid_entry_seals'] ?? 0) == 0
                                             && ($integrityCheckResult['invalid_chain_seals'] ?? 0) == 0
                                             && ($integrityCheckResult['unsealed_entries'] ?? 0) == 0
-                                            && ($integrityCheckResult['unsealed_documents'] ?? 0) == 0);
+                                            && ($integrityCheckResult['unsealed_documents'] ?? 0) == 0
+                                            && ($integrityCheckResult['chain_seals_old_version'] ?? 0) == 0);
                                         $allVerified = $integrityCheckResult['verified_percentage'] == 100
                                             && $sealsClean
                                             && ($integrityCheckResult['live_state_errors_count'] ?? 0) == 0
@@ -186,6 +187,11 @@ ob_start(); ?>
                                                 <dd class="text-right font-mono text-red-500 font-bold">seal not configured</dd>
                                             <?php else: ?>
                                                 <dd class="text-right font-mono <?= ($integrityCheckResult['invalid_chain_seals'] ?? 0) > 0 ? 'text-red-500 font-bold' : '' ?>"><?= number_format((int) ($integrityCheckResult['invalid_chain_seals'] ?? 0)) ?><?= ($integrityCheckResult['unsealed_documents'] ?? 0) > 0 ? ' (' . number_format((int) $integrityCheckResult['unsealed_documents']) . ' unsealed)' : '' ?></dd>
+                                            <?php endif; ?>
+                                            <?php // Chain seals still on the old version: not mismatches; actions on them are refused until scripts/seal-chains.php --upgrade-chain-seals is run ?>
+                                            <?php if (($integrityCheckResult['chain_seals_old_version'] ?? 0) > 0): ?>
+                                                <dt class="text-gray-500 dark:text-gray-400">Chain seals on the old version</dt>
+                                                <dd class="text-right font-mono text-amber-600 font-bold"><?= number_format((int) $integrityCheckResult['chain_seals_old_version']) ?> (run <span class="whitespace-nowrap">seal-chains.php --upgrade-chain-seals</span>)</dd>
                                             <?php endif; ?>
                                             <?php $checkpoint = $integrityCheckResult['checkpoint'] ?? null; ?>
                                             <dt class="text-gray-500 dark:text-gray-400">Checkpoint heads missing</dt>

@@ -120,8 +120,15 @@ class MetricsBackfillTest extends TestCase
     public function test_rebuilding_twice_gives_identical_rows(): void
     {
         $this->seedTwoDays();
-        // A completed step with no earlier entry has no measurable duration, so it gets the deterministic estimate
-        $this->log(Fixtures::submit()['id'], 'Processing Complete', $this->day(0) . ' 08:00:00');
+        // A completed step with no earlier entry has no measurable duration, so it gets the deterministic estimate.
+        // The submission's own entries are moved after the step: written at "now", they would be an earlier entry
+        // whenever the test runs before 08:00, and the step would then be measured instead of estimated
+        $unmeasured = Fixtures::submit()['id'];
+        Database::getInstance()->query(
+            'UPDATE document_logs SET created_at = :c, updated_at = :c2 WHERE document_id = :d',
+            [':c' => $this->day(0) . ' 23:00:00', ':c2' => $this->day(0) . ' 23:00:00', ':d' => $unmeasured]
+        );
+        $this->log($unmeasured, 'Processing Complete', $this->day(0) . ' 08:00:00');
         $service = new MetricsBackfillService();
         $since = MetricsBackfillService::windowStart(new \DateTimeImmutable('now'));
 

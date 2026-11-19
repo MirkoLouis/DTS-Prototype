@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 
 ## 2026-11-18
 
+**Version:** 2.7.15
+
+### Security
+- The chain seal now covers `documents.released_at`. Neither the state hash nor the chain seal covered the release date, so someone with database access could change it undetected, which shortens or lengthens the turnaround times on the dashboard and in reports. The pre-action check and the integrity check now catch an edited release date.
+- The chain seal input is versioned: v2 starts with the marker `"chain-seal-v2"` and adds `released_at`; the old input is kept as v1 in `ChainSealService::chainSealInputV1()`. New writes (`createLog`, `sealExisting`) always produce v2.
+
+### Added
+- `php scripts/seal-chains.php --upgrade-chain-seals --database=<name>` re-seals every document whose current chain seal verifies under v1 (proof that it was untampered under the old rules) with the v2 seal. A document that verifies under neither version is listed and left untouched (exit code 2); a document already on v2 is skipped, so a second run changes nothing. Entry seals are never touched. It runs in batches, one transaction per batch, needs `--database` to match `.env` and a valid key, and records `chain_seals_upgraded` (with counts) in the system audit log.
+- Integrity check result `chain_seals_old_version` and a System Overview row "Chain seals on the old version", counted apart from chain seal mismatches.
+
+### Changed
+- Until the upgrade has run, a document whose chain seal verifies under v1 but not v2 is refused with "Seals need upgrading: an administrator must run php scripts/seal-chains.php --upgrade-chain-seals", is not frozen and is not counted as tampered (the same path as "not sealed yet"). A document matching neither version is a mismatch as before.
+- Once `chain_seals_upgraded` is recorded in the system audit log for the database (by the upgrade, or by the first sealing with this version), v1 seals are never accepted again (a restore upgrades the restored data itself, see below). A log that fails verification counts as upgraded (fail closed).
+- The upgrade runs once. After `chain_seals_upgraded` is recorded, `--upgrade-chain-seals` upgrades nothing and lists every document whose seal verifies only under v1 as "v1 seal after the upgrade was recorded: investigate" (exit code 2). It refuses (exit code 1, nothing changed) when the system audit log does not verify. Its `UPDATE` is a compare-and-set; a zero row count is reported as "changed concurrently, run again".
+- While the audit log does not verify, an action on a document with a v1 seal is refused with "The system audit log does not verify; seals cannot be upgraded until it is restored" (same path as "not sealed yet": not frozen, not blessed).
+- `sealExisting()` records `chain_seals_upgraded` on a first full sealing only when it found no v1 seal.
+- A backup restore upgrades the restored data's v1 chain seals itself, right after the import and the master migration, with the same code as the command (restore mode, which the command line cannot reach; only seals that verify under v1 become v2). The `backup_restored` audit record (`chain_seals_upgraded`, `chain_seals_left_untouched`) and the "Backup restored" notification give the counts. It does not reopen v1 acceptance for other documents.
+- `SystemAuditService::verify()` is cached per process (keyed by file path, size, modification time and key; dropped by `record()`), so a bulk caller does not re-read the whole log per document.
+- `seal-chains.php` header comment: the "database is sealed" rule is the `database_sealed` audit-log record, not "any document has a chain seal".
+
+### Upgrade note
+- A database sealed by 2.7.12 to 2.7.14 must be upgraded before use: stop the app and worker, back up, run `php scripts/seal-chains.php --upgrade-chain-seals --database=<name>`, run the Integrity Check (0 chain seal mismatches, 0 on the old version), restart. Until then every action on an existing document is refused (nothing is frozen).
+- The upgrade runs once; a restore upgrades the restored data itself; after the upgrade v1 seals are never accepted.
+- v1 never covered `released_at`: a release date edited before the FIRST upgrade cannot be seen by the upgrade and is sealed as it is. After it, this limit no longer applies.
+
+### Tests
+- Tamper matrix row `edit_released_at` (guard and audit). `SealChainsScriptTest`: a database sealed with v1 refuses actions without freezing and reports "old version"; the upgrade converts, leaves entry seals alone and is idempotent; a document edited before the upgrade is listed, not upgraded; after the upgrade a v1 seal is a mismatch (exact counts) and is frozen; the command after the record upgrades nothing and lists a replayed v1 seal; a damaged audit log makes the command refuse and an action refused without freezing; a first sealing over v1 seals does not record the upgrade; the compare-and-set conflict. `RestoreBackupJobTest`: a v1-sealed backup restored on an upgraded database is upgraded by the restore, and a replayed v1 seal on a non-restored document is a mismatch (frozen); refusals without `--database`, with a wrong name and without a key. Golden test for the v2 input.
+
+## 2026-11-18
+
 **Version:** 2.7.14
 
 ### Fixed

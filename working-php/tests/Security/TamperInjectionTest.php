@@ -61,6 +61,8 @@ class TamperInjectionTest extends TestCase
             ['edit_current_step', 'documents', true, true, true],
             ['edit_current_department_id', 'documents', true, true, true],
             ['edit_decline_reason', 'documents', true, true, true],
+            // The release date feeds turnaround times; the v2 chain seal covers it (2.7.15)
+            ['edit_released_at', 'documents', true, true, true],
             // The entry seal covers the stored snapshot, and the sealing script never re-seals an entry whose seal was removed
             ['edit_newest_snapshot_field', 'document_logs', true, true, true],
             ['null_newest_entry_seal_then_run_sealing_script', 'document_logs', true, true, true],

@@ -572,9 +572,10 @@ class DocumentWorkflowService
     {
         $db = Database::getInstance();
 
-        // A document that is merely not sealed yet is not "untrustworthy": the administrator must seal it first (no refusal record)
-        if (ChainSealService::isNotSealedYet($document)) {
-            throw new DocumentNotSealedException();
+        // A document that is merely not sealed yet, or sealed on the old version, is not "untrustworthy": the administrator must seal or upgrade it first (no refusal record)
+        $refusal = ChainSealService::sealingRefusal($document);
+        if ($refusal !== null) {
+            throw $refusal;
         }
 
         // The newest regular entry: ADMIN actions and the automatic freeze are not workflow steps

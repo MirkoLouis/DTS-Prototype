@@ -64,7 +64,15 @@ class PreActionIntegrityService
         // The chain seal must match the live workflow fields and the head of the chain
         $logCount = (int) $db->query("SELECT COUNT(*) AS c FROM document_logs WHERE document_id = :id", [':id' => $document['id']])->fetch()['c'];
 
-        return ChainSealService::sealMatches($document, $lastLog, $logCount);
+        $status = ChainSealService::sealStatus($document, $lastLog, $logCount);
+        $refusal = ChainSealService::refusalForSealStatus($status);
+        if ($refusal !== null) {
+            // An old-version seal (or one the audit log cannot judge): refuse without freezing, the same way as "not sealed yet" (every other check above passed)
+            error_log('Pre-action integrity check refused document ' . $document['id'] . ': ' . $refusal->getMessage());
+            throw $refusal;
+        }
+
+        return $status === ChainSealService::SEAL_CURRENT;
     }
 
     /**

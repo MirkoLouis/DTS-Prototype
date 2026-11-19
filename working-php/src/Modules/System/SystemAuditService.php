@@ -21,6 +21,9 @@ class SystemAuditService
     // Invalid UTF-8 (a file name, a tool's error text) is replaced, not rejected, so an entry is never dropped
     private const JSON_FLAGS = JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE;
 
+    // The last verify() result as [cache key, result]; one full read of the log per process while the file does not change
+    private static ?array $verifyCache = null;
+
     /**
      * Path of the audit log. The test suite keeps its own file in the .test folder.
      */
@@ -37,6 +40,9 @@ class SystemAuditService
      */
     public static function record(string $event, array $data = []): void
     {
+        // The file is about to change
+        self::$verifyCache = null;
+
         try {
             $directory = dirname(self::path());
             if (!is_dir($directory)) {
@@ -87,6 +93,25 @@ class SystemAuditService
      *         set (the log then only detects accidental damage); `bad_lines` holds 1-based line numbers
      */
     public static function verify(): array
+    {
+        // The result is cached for this process, keyed by the file's path, size and modification time and by the key, and dropped by record()
+        clearstatcache(true, self::path());
+        $stat = @stat(self::path());
+        $cacheKey = implode('|', [self::path(), $stat ? $stat['size'] : 'none', $stat ? $stat['mtime'] : 'none', hash('sha256', self::key())]);
+        if (self::$verifyCache !== null && self::$verifyCache[0] === $cacheKey) {
+            return self::$verifyCache[1];
+        }
+
+        $result = self::verifyFile();
+        self::$verifyCache = [$cacheKey, $result];
+
+        return $result;
+    }
+
+    /**
+     * Read and check every line of the file (verify() without the cache).
+     */
+    private static function verifyFile(): array
     {
         $result = ['keyed' => self::key() !== '', 'entries' => 0, 'bad_lines' => []];
         if (!is_file(self::path())) {
