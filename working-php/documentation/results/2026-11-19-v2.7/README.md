@@ -22,7 +22,7 @@ Each folder is a copy of one `storage/test-results/<run_id>/` run folder:
 | Run | Run id | Result |
 |---|---|---|
 | Full suite | 20261119-105830-275d | **744 / 744 passed** (unit 176, workflow 235, HTTP 273, security 60) |
-| Security × 5 | 20261119-111001-3aa2, -111117-bed9, -111228-d52d, -111339-9cc2, -111447-cc0e | **60 / 60 passed in each run.** Every run: 28 tamper tactics, each detected or not detected exactly as expected (0 deviations); 76 HTTP attack cases (CSRF, stored XSS, SQL injection, access control and others), each handled exactly as expected; 14 signature checks, all as expected |
+| Security × 5 | 20261119-111001-3aa2, -111117-bed9, -111228-d52d, -111339-9cc2, -111447-cc0e | **60 / 60 passed in each run.** Every run: 28 tamper-matrix rows (27 tactics and 1 untouched control), each detected or not detected exactly as expected (0 deviations); 76 HTTP attack cases (CSRF, stored XSS, SQL injection, access control and others), each handled exactly as expected; 14 signature checks, all as expected |
 | Concurrency × 5 | 20261119-111627-8cc7 | **5 / 5 tests passed.** Guest submissions: 100 / 100 succeeded in every run, 100 distinct tracking codes, 0 mismatches, 0 log faults. Step completion: exactly 1 of 5 succeeded in every run, 4 conflicts, 0 unaccounted outcomes. Rate limit: of 30 simultaneous submissions from one address, exactly 10 were accepted |
 | Benchmark | 20261119-111932-daea | **Passed**; every p95 under 1,000 ms (100,000 documents, 635,073 log entries) |
 | Route replay | 20261119-113135-2c36 | Heuristic **57.91 %** exact route, **66.85 %** first department (38,015 scored of 38,020). Identical to v2.5.2 |
@@ -33,7 +33,7 @@ Each folder is a copy of one `storage/test-results/<run_id>/` run folder:
 |---|---|---|
 | Content edits (title, submitter e-mail, route, corrupt script) | 4 | Detected by the pre-action check and the integrity check |
 | Workflow-state edits (status, step, holder, decline reason, **release date**) | 5 | Detected by both, through the chain seal (status, step and holder were undetected before v2.7.12; the release date before v2.7.15) |
-| Log edits covered by a hash (newest state hash, snapshot field, middle or tail deletion, appended or forged entries, missing seal, rewritten chain) | 12 | Detected by both |
+| Log edits covered by a hash (newest state hash, snapshot field, middle or tail deletion, appended or forged entries, missing seal, rewritten chain) | 11 | Detected by both |
 | Log fields outside the pre-action check (remarks, action, timestamp, user id) | 4 | Detected by the integrity check only, as designed |
 | Swapped log payloads | 1 | Detected by the integrity check; the pre-action check is observe-only for this row |
 | Privileged insider holding the server key | 2 | Not detected by the seal (documented limit); deleting a tail entry is still caught by the off-machine chain-head checkpoint |
