@@ -1,0 +1,11 @@
+timestamp,test,run,workers,successes,distinct_codes,mismatches,documents_added,submitted_log_faults,wall_seconds,max_request_seconds,server,cache_warmed,skew_seconds,notes
+2026-11-19T11:16:36+08:00,guest_submission,1,100,100,100,0,100,0,0.139,0.139,php-cli-server(workers=16),false,0.0031,"GET / cold cache; CacheMiddleware writes atomically (F3 fixed)"
+2026-11-19T11:16:38+08:00,guest_submission,2,100,100,100,0,100,0,0.141,0.138,php-cli-server(workers=16),false,0.0031,"GET / cold cache; CacheMiddleware writes atomically (F3 fixed)"
+2026-11-19T11:16:40+08:00,guest_submission,3,100,100,100,0,100,0,0.117,0.114,php-cli-server(workers=16),false,0.0032,"GET / cold cache; CacheMiddleware writes atomically (F3 fixed)"
+2026-11-19T11:16:42+08:00,guest_submission,4,100,100,100,0,100,0,0.125,0.124,php-cli-server(workers=16),false,0.0034,"GET / cold cache; CacheMiddleware writes atomically (F3 fixed)"
+2026-11-19T11:16:45+08:00,guest_submission,5,100,100,100,0,100,0,0.14,0.136,php-cli-server(workers=16),false,0.0039,"GET / cold cache; CacheMiddleware writes atomically (F3 fixed)"
+2026-11-19T11:16:50+08:00,task_completion,1,5,1,,,,,0.059,,in-process(pcntl_fork),false,0,"conflicts=4; unaccounted_outcomes=0; DB connection and user loaded before barrier"
+2026-11-19T11:16:52+08:00,task_completion,2,5,1,,,,,0.058,,in-process(pcntl_fork),false,0,"conflicts=4; unaccounted_outcomes=0; DB connection and user loaded before barrier"
+2026-11-19T11:16:54+08:00,task_completion,3,5,1,,,,,0.054,,in-process(pcntl_fork),false,0.0002,"conflicts=4; unaccounted_outcomes=0; DB connection and user loaded before barrier"
+2026-11-19T11:16:57+08:00,task_completion,4,5,1,,,,,0.056,,in-process(pcntl_fork),false,0.0001,"conflicts=4; unaccounted_outcomes=0; DB connection and user loaded before barrier"
+2026-11-19T11:16:59+08:00,task_completion,5,5,1,,,,,0.054,,in-process(pcntl_fork),false,0,"conflicts=4; unaccounted_outcomes=0; DB connection and user loaded before barrier"
