@@ -7,9 +7,10 @@ use App\Common\Security\IntegrityKey;
 use App\Common\Security\IntegrityKeyMissingException;
 
 /**
- * Pre-action integrity check and automatic freezing of tampered documents: before a mutating action,
- * the live document row is compared with the state sealed in its newest log entry, and a mismatch
- * freezes the document with a system-signed log entry.
+ * Part of the Trust Builder: the pre-action integrity check and the automatically freezing of tampered document.
+ * Before a mutating action, the live document row is compared with the state sealed in its newest log entry, and a
+ * mismatch freezes the document with a system-signed log entry. That entry's stored action is 'System Auto-Freeze';
+ * it must not change, because it is part of signed messages and block hashes.
  */
 class PreActionIntegrityService
 {

@@ -8,7 +8,8 @@ use App\Common\Security\IntegrityKey;
 use App\Modules\System\SystemAuditService;
 
 /**
- * Keyed seals (HMAC-SHA256 under APP_INTEGRITY_KEY) that close what the hash chain alone leaves open.
+ * Part of the Trust Builder: the keyed seals (HMAC-SHA256 under APP_INTEGRITY_KEY) that close what the hash chain
+ * alone leaves open.
  *
  * Entry seal  = HMAC(key, canonical JSON of [block hash, SHA-256 of the stored document_snapshot text]), stored in
  *               document_logs.seal. Without the key nobody can write a log entry whose seal verifies, even with a

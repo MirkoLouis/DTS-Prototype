@@ -3,7 +3,7 @@
 namespace App\Modules\Integrity;
 
 /**
- * Verification of log entries and whole chains (block hash, link, Ed25519 signature, snapshot against state hash,
+ * Part of the Trust Builder: verification of log entries and whole chains (block hash, link, Ed25519 signature, snapshot against state hash,
  * live row against the newest state hash). Shared by the integrity check, recovery (unfreeze, auto-resolve),
  * the pre-action check and the sealing script, so the rules exist once.
  */
