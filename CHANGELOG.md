@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## 2026-11-20
 
+**Version:** 2.8.0
+
+### Changed
+- Sign-in passwords are hashed with **Argon2id** instead of bcrypt. bcrypt verifies only the first 72 bytes of a password, so two long passwords that differ only after byte 72 were interchangeable (NIST SP 800-63B-4 3.1.1.2 item 9). The fixture accounts in `tests/Support/TestDatabase.php` and the production seeder (`scripts/seeders/setup-production-db.js`) now write Argon2id hashes.
+- An existing bcrypt hash still verifies and is upgraded to Argon2id on the account's next successful sign-in. A failed upgrade is logged and does not fail the sign-in.
+- A new sign-in password needs at least **15 characters** (NIST SP 800-63B-4 3.1.1.2 item 1), set in `CredentialPolicy`. The Security PIN keeps its 10-character minimum, and existing shorter passwords keep working until they are changed.
+
+### Added
+- `PasswordHasher` (`src/Modules/Auth/PasswordHasher.php`): hashing, verification and the rehash check in one place, used by sign-in, the account and credential-reset flows and the dummy hash of the login-timing defence.
+- A new password is checked against an offline list of the 3,000 most common passwords (OWASP ASVS 6.2.4), `src/Modules/Auth/data/common-passwords.txt`. It holds the first 3,000 distinct lower-cased entries of SecLists `100k-most-used-passwords-NCSC.txt` at commit `f90961c9c5be42d80e2f1b6e27b968530918862d`, under the MIT licence. The check runs before the length rule. Only 2 of its entries are 15 or more characters long, so the list mostly overlaps with what the length rule already refuses. A missing or empty list throws an error, so the check fails closed.
+- `composer test:password-hasher` (`tests/Unit/PasswordHasherTest.php`), `composer test:credential-policy` (`tests/Unit/CredentialPolicyTest.php`) and `composer test:password-rehash` (`tests/Http/PasswordRehashTest.php`).
+
+## 2026-11-20
+
 **Version:** 2.7.17
 
 ### Fixed
