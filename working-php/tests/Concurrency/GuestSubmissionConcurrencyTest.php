@@ -36,7 +36,7 @@ class GuestSubmissionConcurrencyTest extends TestCase
     // Four simultaneous logins must overlap; a single-threaded server would take about four times one login
     public function test_server_handles_requests_in_parallel(): void
     {
-        // A correct-password POST /login is a real endpoint that is slow on purpose (bcrypt cost 10)
+        // A correct-password POST /login is a real endpoint that is slow on purpose (Argon2id)
         $openForm = function (): HttpClient {
             $client = HttpClient::start();
             $client->get('/login');
