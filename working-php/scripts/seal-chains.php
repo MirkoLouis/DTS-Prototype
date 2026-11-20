@@ -13,7 +13,7 @@
  * Sealing existing data trusts what the database holds, so it VERIFIES first: a document is sealed only after its whole
  * chain verifies (every block hash, link from genesis, signature against the signer's key valid at that time, snapshot
  * against state hash, and the live row against the newest state hash). Documents that do not verify are refused and
- * listed with the reason (exit code 2). Run the full integrity check first as well (see the README, "Chain Seal").
+ * listed with the reason (exit code 2). Run the full integrity check first as well (see documentation/CHAIN_SEAL.md).
  *
  * Safety:
  *  - Refuses to run without a valid APP_INTEGRITY_KEY.

@@ -12,7 +12,7 @@
  *   composer manual:page-screenshots            or            php scripts/manual/page-screenshots.php
  *
  * Builds a fresh TEST database with the suite's fixtures, starts the PHP built-in server in the testing environment
- * with rate limiting off, runs scripts/manual/page-screenshots.mjs (Node + playwright-core, see the README) and stops
+ * with rate limiting off, runs scripts/manual/page-screenshots.mjs (Node + playwright-core, see documentation/TESTING.md) and stops
  * the server. Refuses to run unless the configured database name ends in _test. Output: .test/screens/<width>/<name>.png.
  */
 

@@ -5,7 +5,7 @@ namespace Tests\Unit;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Every test class has its own `composer run test:<name>` script, with a description, listed in the README.
+ * Every test class has its own `composer run test:<name>` script, with a description, listed in documentation/TESTING.md.
  */
 class ComposerScriptsTest extends TestCase
 {
@@ -71,14 +71,14 @@ class ComposerScriptsTest extends TestCase
         }
     }
 
-    // The README lists every test script
-    public function test_readme_lists_every_test_script(): void
+    // documentation/TESTING.md lists every test script
+    public function test_testing_doc_lists_every_test_script(): void
     {
-        $readme = file_get_contents(dirname(BASE_PATH) . '/README.md');
+        $readme = file_get_contents(BASE_PATH . '/documentation/TESTING.md');
 
-        // Each script name must appear in backticks somewhere in the README
+        // Each script name must appear in backticks somewhere in TESTING.md
         foreach (array_keys(self::expectedScripts()) as $name) {
-            $this->assertStringContainsString("`{$name}`", $readme, "README does not list {$name}");
+            $this->assertStringContainsString("`{$name}`", $readme, "TESTING.md does not list {$name}");
         }
     }
 }
