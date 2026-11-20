@@ -6,6 +6,7 @@ use App\Common\Database\Database;
 use App\Modules\Auth\AuthController;
 use App\Modules\Auth\PasswordHasher;
 use Tests\Support\HttpClient;
+use Tests\Support\PageMessages;
 use Tests\Support\TestDatabase;
 use Tests\TestCase;
 
@@ -88,7 +89,7 @@ class PasswordRehashTest extends TestCase
 
         [$client, $wrong] = $this->signIn('cash.unit', $base . 'c');
         $this->assertSame('/login', $wrong['headers']['location'] ?? '');
-        $this->assertStringContainsString(AuthController::FAILED_SIGN_IN_MESSAGE, $client->get('/login')['body']);
+        PageMessages::assertLoginAlert($client->get('/login')['body'], AuthController::FAILED_SIGN_IN_MESSAGE);
 
         [, $right] = $this->signIn('cash.unit', $base . 'b');
         $this->assertSame('/tasks', $right['headers']['location'] ?? '');

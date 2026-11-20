@@ -6,6 +6,7 @@ use App\Common\Database\Database;
 use App\Modules\Auth\AttemptThrottleService;
 use App\Modules\System\SystemAuditService;
 use Tests\Support\HttpClient;
+use Tests\Support\PageMessages;
 use Tests\Support\TestDatabase;
 use Tests\TestCase;
 
@@ -248,7 +249,7 @@ class CredentialResetTest extends TestCase
         $this->assertSame(204, $response['status']);
         $this->assertArrayNotHasKey('location', $response['headers']);
         $this->assertSame('/login', $response['headers']['x-pjax-location']);
-        $this->assertStringContainsString('Your password was reset. Please sign in again.', $session->get('/login')['body']);
+        PageMessages::assertLoginAlert($session->get('/login')['body'], 'Your password was reset. Please sign in again.');
     }
 
     // The same for a session that expired by idling
@@ -264,7 +265,7 @@ class CredentialResetTest extends TestCase
         $this->assertSame(204, $response['status']);
         $this->assertArrayNotHasKey('location', $response['headers']);
         $this->assertSame('/login', $response['headers']['x-pjax-location']);
-        $this->assertStringContainsString('session has expired', $session->get('/login')['body']);
+        PageMessages::assertLoginAlert($session->get('/login')['body'], 'session has expired');
     }
 
     // A plain request of an ended session is still redirected to the login page, which shows the message
@@ -277,7 +278,7 @@ class CredentialResetTest extends TestCase
 
         $this->assertSame(302, $response['status']);
         $this->assertSame('/login', $response['headers']['location']);
-        $this->assertStringContainsString('Your password was reset. Please sign in again.', $session->get('/login')['body']);
+        PageMessages::assertLoginAlert($session->get('/login')['body'], 'Your password was reset. Please sign in again.');
     }
 
     // A valid session is served normally to a PJAX request

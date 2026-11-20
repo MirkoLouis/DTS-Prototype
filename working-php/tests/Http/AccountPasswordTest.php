@@ -35,8 +35,13 @@ class AccountPasswordTest extends TestCase
     // Rename the hidden list file back to its real name when it is hidden
     private function restoreCommonPasswordList(): void
     {
-        if (is_file(self::HIDDEN_LIST_PATH)) {
-            rename(self::HIDDEN_LIST_PATH, self::LIST_PATH);
+        if (!is_file(self::HIDDEN_LIST_PATH)) {
+            return;
+        }
+
+        // A failed rename would leave the list missing, so fail loudly with both paths
+        if (!rename(self::HIDDEN_LIST_PATH, self::LIST_PATH)) {
+            $this->fail('Could not restore the common-password list: rename from ' . self::HIDDEN_LIST_PATH . ' to ' . self::LIST_PATH . ' failed.');
         }
     }
 
@@ -153,6 +158,29 @@ class AccountPasswordTest extends TestCase
         $this->assertMatchesRegularExpression('/<a href="\/account\/password"[^>]*>\s*Change password\s*<\/a>/', $menu);
     }
 
+    // The change form states the rules and its inputs enforce the minimum length
+    public function test_change_form_states_the_rules(): void
+    {
+        $body = $this->signedIn()->get('/account/password')['body'];
+        $document = new \DOMDocument();
+        @$document->loadHTML($body);
+        $xpath = new \DOMXPath($document);
+
+        // The rule paragraph names the minimum length and the common-password refusal
+        $rules = $xpath->query('//p[contains(., "at least 15 characters")]');
+        $this->assertGreaterThan(0, $rules->length, 'No rule paragraph mentions "at least 15 characters".');
+        $ruleText = preg_replace('/\s+/', ' ', $rules->item(0)->textContent);
+        $this->assertStringContainsString('at least 15 characters', $ruleText);
+        $this->assertStringContainsString('Commonly used passwords are refused.', $ruleText);
+
+        // Both password inputs carry the minimum length
+        foreach (['new_password', 'new_password_confirmation'] as $field) {
+            $input = $xpath->query('//input[@name="' . $field . '"]')->item(0);
+            $this->assertNotNull($input, $field);
+            $this->assertSame('15', $input->attributes->getNamedItem('minlength')?->nodeValue, $field);
+        }
+    }
+
     // A signed-out visitor is sent to the login page
     public function test_signed_out_visitor_is_redirected_to_login(): void
     {
@@ -178,7 +206,7 @@ class AccountPasswordTest extends TestCase
         $this->assertSame('/login', $response['headers']['location']);
         $this->assertSame('0', (string) $this->user('cash.unit')['must_change_password']);
         $this->assertSame([], $this->reminders('cash.unit'));
-        $this->assertStringContainsString('Your password has been changed. Please sign in again.', $client->get('/login')['body']);
+        PageMessages::assertLoginAlert($client->get('/login')['body'], 'Your password has been changed. Please sign in again.');
         $this->assertTrue($this->canSignIn('cash.unit', self::NEW_PASSWORD));
         $this->assertFalse($this->canSignIn('cash.unit', TestDatabase::PASSWORD));
     }
@@ -202,7 +230,7 @@ class AccountPasswordTest extends TestCase
         $this->change($client, 'not-the-password', self::NEW_PASSWORD);
 
         $this->assertSame($before, $this->user('cash.unit')['password']);
-        $this->assertStringContainsString('current password is not correct', $this->pageAfter($client));
+        PageMessages::assertToast($this->pageAfter($client), 'error', 'Your current password is not correct.');
     }
 
     // MAX_FAILURES wrong current passwords lock out the next attempt, even with the correct current password
@@ -216,7 +244,7 @@ class AccountPasswordTest extends TestCase
         $this->change($client, TestDatabase::PASSWORD, self::NEW_PASSWORD);
 
         $this->assertTrue(password_verify(TestDatabase::PASSWORD, $this->user('cash.unit')['password']));
-        $this->assertStringContainsString(AttemptThrottleService::MESSAGE, $this->pageAfter($client));
+        PageMessages::assertToast($this->pageAfter($client), 'error', AttemptThrottleService::MESSAGE);
     }
 
     // A correct change forgets earlier wrong attempts
@@ -232,26 +260,29 @@ class AccountPasswordTest extends TestCase
         $this->assertFalse($row);
     }
 
-    // Each refused new password leaves the stored password alone and names the reason
-    public function test_refused_new_passwords(): void
+    // Each refused new password leaves the stored password alone and shows its reason in an error toast
+    public function test_every_refused_new_password_shows_its_toast(): void
     {
+        $tooShort = CredentialPolicy::tooShortMessage('password', CredentialPolicy::MIN_LENGTH_PASSWORD);
         $cases = [
-            'shorter than 15' => ['Fourteen-Ch-14', 'Fourteen-Ch-14', 'at least 15 characters'],
-            'common password' => ['QWERTY123', 'QWERTY123', 'most commonly used'],
-            'common long password' => ['PolniyPizdec0211', 'PolniyPizdec0211', 'most commonly used'],
-            'confirmation mismatch' => [self::NEW_PASSWORD, 'Different-Pass-1', 'do not match'],
-            'same as current' => [TestDatabase::PASSWORD, TestDatabase::PASSWORD, 'different from the current'],
-            'the word password' => ['password', 'password', 'most commonly used'],
+            'shorter than 15' => [TestDatabase::PASSWORD, 'Fourteen-Ch-14', 'Fourteen-Ch-14', $tooShort],
+            'common password' => [TestDatabase::PASSWORD, 'QWERTY123', 'QWERTY123', CredentialPolicy::COMMON_PASSWORD_MESSAGE],
+            'common long password' => [TestDatabase::PASSWORD, 'PolniyPizdec0211', 'PolniyPizdec0211', CredentialPolicy::COMMON_PASSWORD_MESSAGE],
+            'the word password' => [TestDatabase::PASSWORD, 'password', 'password', CredentialPolicy::COMMON_PASSWORD_MESSAGE],
+            'confirmation mismatch' => [TestDatabase::PASSWORD, self::NEW_PASSWORD, 'Different-Pass-1', 'The new password and its confirmation do not match.'],
+            'same as current' => [TestDatabase::PASSWORD, TestDatabase::PASSWORD, TestDatabase::PASSWORD, 'The new password must be different from the current one.'],
+            'wrong current password' => ['not-the-password', self::NEW_PASSWORD, self::NEW_PASSWORD, 'Your current password is not correct.'],
         ];
 
-        foreach ($cases as $name => [$new, $confirmation, $message]) {
+        // One fresh sign-in per case: the stored hash must stay and the toast must name the reason
+        foreach ($cases as $name => [$current, $new, $confirmation, $message]) {
             $client = $this->signedIn();
             $before = $this->user('cash.unit')['password'];
 
-            $this->change($client, TestDatabase::PASSWORD, $new, $confirmation);
+            $this->change($client, $current, $new, $confirmation);
 
             $this->assertSame($before, $this->user('cash.unit')['password'], $name);
-            $this->assertStringContainsString($message, $this->pageAfter($client), $name);
+            PageMessages::assertToast($this->pageAfter($client), 'error', $message);
         }
     }
 
@@ -290,7 +321,7 @@ class AccountPasswordTest extends TestCase
         }
 
         $this->assertSame($before, $this->user('cash.unit')['password']);
-        $this->assertStringContainsString('different from your Security PIN', $this->pageAfter($client));
+        PageMessages::assertToast($this->pageAfter($client), 'error', 'The new password must be different from your Security PIN.');
 
         // The PIN still signs: it is neither locked out nor recorded as failed
         $userId = $this->fx['users']['cash.unit'];
@@ -332,7 +363,7 @@ class AccountPasswordTest extends TestCase
         $this->change($client, $passwords[$last], $passwords[$last + 1]);
 
         $this->assertTrue(password_verify($passwords[$last], $this->user('cash.unit')['password']));
-        $this->assertStringContainsString(AttemptThrottleService::MESSAGE, $this->pageAfter($client));
+        PageMessages::assertToast($this->pageAfter($client), 'error', AttemptThrottleService::MESSAGE);
     }
 
     // MAX_FAILURES refusals for "equals the Security PIN" lock out the next POST, even with a valid different password
@@ -349,7 +380,7 @@ class AccountPasswordTest extends TestCase
         $this->change($client, TestDatabase::PASSWORD, self::NEW_PASSWORD);
 
         $this->assertTrue(password_verify(TestDatabase::PASSWORD, $this->user('cash.unit')['password']));
-        $this->assertStringContainsString(AttemptThrottleService::MESSAGE, $this->pageAfter($client));
+        PageMessages::assertToast($this->pageAfter($client), 'error', AttemptThrottleService::MESSAGE);
     }
 
     // A successful change clears the wrong-current-password count but not the change-rate count
@@ -373,12 +404,12 @@ class AccountPasswordTest extends TestCase
 
         // The changing session lands on the login page with the message, and is no longer signed in
         $this->assertSame('/login', $response['headers']['location']);
-        $this->assertStringContainsString('Your password has been changed. Please sign in again.', $client->get('/login')['body']);
+        PageMessages::assertLoginAlert($client->get('/login')['body'], 'Your password has been changed. Please sign in again.');
         $this->assertSame('/login', $client->get('/tasks')['headers']['location'] ?? '');
 
         // The other session ends on its next request
         $this->assertSame('/login', $other->get('/tasks')['headers']['location'] ?? '');
-        $this->assertStringContainsString('Your password was reset. Please sign in again.', $other->get('/login')['body']);
+        PageMessages::assertLoginAlert($other->get('/login')['body'], 'Your password was reset. Please sign in again.');
 
         // The new password signs in
         $this->assertTrue($this->canSignIn('cash.unit', self::NEW_PASSWORD));
@@ -642,7 +673,7 @@ class AccountPasswordTest extends TestCase
         $this->setPin($client, '123456789');
 
         $this->assertNull($this->user('cash.unit')['private_key']);
-        $this->assertStringContainsString('at least 10 characters', $client->get('/tasks')['body']);
+        PageMessages::assertPinPromptError($client->get('/tasks')['body'], CredentialPolicy::tooShortMessage('Security PIN', CredentialPolicy::MIN_LENGTH_PIN));
     }
 
     // A 10-character PIN is accepted, while a 10-character password is refused by the password form
@@ -657,7 +688,7 @@ class AccountPasswordTest extends TestCase
 
         $this->change($client, TestDatabase::PASSWORD, 'Ten-Chars!');
 
-        $this->assertStringContainsString('at least 15 characters', $this->pageAfter($client));
+        PageMessages::assertToast($this->pageAfter($client), 'error', CredentialPolicy::tooShortMessage('password', CredentialPolicy::MIN_LENGTH_PASSWORD));
     }
 
     // A new PIN equal to the sign-in password is refused and no key is created
@@ -669,7 +700,7 @@ class AccountPasswordTest extends TestCase
         $this->setPin($client, TestDatabase::PASSWORD);
 
         $this->assertNull($this->user('cash.unit')['private_key']);
-        $this->assertStringContainsString('different from your sign-in password', $client->get('/tasks')['body']);
+        PageMessages::assertPinPromptError($client->get('/tasks')['body'], 'The Security PIN must be different from your sign-in password.');
     }
 
     // An account that already has a key cannot be re-keyed through the form: the key is replaced only by an admin reset
@@ -683,7 +714,8 @@ class AccountPasswordTest extends TestCase
         $after = $this->user('cash.unit');
         $this->assertSame($before['public_key'], $after['public_key']);
         $this->assertSame($before['private_key'], $after['private_key']);
-        $this->assertStringContainsString('Your Security PIN is already set. Ask an administrator to reset it.', $client->get('/tasks')['body']);
+        // The account has a key, so no setup prompt is shown: the refusal arrives as a toast
+        PageMessages::assertToast($client->get('/tasks')['body'], 'error', 'Your Security PIN is already set. Ask an administrator to reset it.');
     }
 
     // The "equals the sign-in password" refusal counts as a failed attempt: after MAX_FAILURES the next attempt is locked out first
@@ -698,7 +730,7 @@ class AccountPasswordTest extends TestCase
         $this->setPin($client, 'a-brand-new-pin-123');
 
         $this->assertNull($this->user('cash.unit')['private_key']);
-        $this->assertStringContainsString(AttemptThrottleService::MESSAGE, $client->get('/tasks')['body']);
+        PageMessages::assertPinPromptError($client->get('/tasks')['body'], AttemptThrottleService::MESSAGE);
     }
 
     // A PIN of 10 or more characters (any characters) is accepted and signs
