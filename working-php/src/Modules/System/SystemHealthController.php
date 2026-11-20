@@ -348,11 +348,8 @@ class SystemHealthController
             
             $_SESSION['success'] = "Document {$tracking_code} has been frozen.";
         } catch (\Exception $e) {
-            if (str_contains($e->getMessage(), 'Action Denied')) {
-                $_SESSION['console_error'] = $e->getMessage();
-            } else {
-                $_SESSION['error'] = document_message($tracking_code, $e->getMessage());
-            }
+            // Every refusal, including a policy refusal, is shown on the page
+            $_SESSION['error'] = document_message($tracking_code, $e->getMessage());
         }
         
         $referer = \App\Common\Http\SafeRedirect::refererOr("/documents/{$tracking_code}");
@@ -378,11 +375,8 @@ class SystemHealthController
             
             $_SESSION['success'] = "Document {$tracking_code} has been unfrozen and restored to " . ucfirst($previousStatus) . ".";
         } catch (\Exception $e) {
-            if (str_contains($e->getMessage(), 'Action Denied')) {
-                $_SESSION['console_error'] = $e->getMessage();
-            } else {
-                $_SESSION['error'] = document_message($tracking_code, $e->getMessage());
-            }
+            // Every refusal, including a policy refusal, is shown on the page
+            $_SESSION['error'] = document_message($tracking_code, $e->getMessage());
         }
         
         $referer = \App\Common\Http\SafeRedirect::refererOr("/documents/{$tracking_code}");

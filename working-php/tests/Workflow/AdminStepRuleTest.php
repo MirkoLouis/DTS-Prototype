@@ -54,7 +54,7 @@ class AdminStepRuleTest extends TestCase
 
         $message = $this->errorOf(fn () => (new DocumentWorkflowService())->scanDocument($s['tracking_code'], $this->admin(), TestDatabase::PIN));
 
-        $this->assertStringContainsString('Action Denied', $message);
+        $this->assertSame('This document is not for your department. It is waiting to be received by Cash Unit.', $message);
         $this->assertSame('in_transit', $this->doc($s['id'])['status']);
         $this->assertSame($before, $this->logCount($s['id']));
     }
@@ -68,7 +68,7 @@ class AdminStepRuleTest extends TestCase
 
         $message = $this->errorOf(fn () => (new DocumentWorkflowService())->completeTask($s['id'], '', $this->admin(), TestDatabase::PIN));
 
-        $this->assertStringContainsString('Action Denied', $message);
+        $this->assertSame('This document is being processed by the Cash Unit.', $message);
         $this->assertSame('processing', $this->doc($s['id'])['status']);
         $this->assertSame($before, $this->logCount($s['id']));
     }
