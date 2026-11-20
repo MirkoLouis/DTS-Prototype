@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## 2026-11-20
+
+**Version:** 2.7.16
+
+### Changed
+- The Security PIN cache lasts **4 hours** (14400 s) by default, down from the 20 hours (72000 s) that `.env.example` set (commit `a8ac3f7`) and the evaluation used. One constant, `SecurityPinCacheService::DEFAULT_DURATION_SECONDS`, is the fallback in `app.config.php` and in the PIN cache, and `.env.example` sets the same value. The token still ends sooner at logout or when the session is removed after `SESSION_LIFETIME` without activity.
+
+### Added
+- `composer test:pin-cache-duration` (`tests/Unit/PinCacheDurationTest.php`).
+
+### Upgrade note
+- An existing `.env` keeps its own `PIN_CACHE_DURATION`; set it to `14400` to apply the new length.
+
 ## 2026-11-18
 
 **Version:** 2.7.15
