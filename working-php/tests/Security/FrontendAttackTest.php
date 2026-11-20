@@ -254,7 +254,6 @@ class FrontendAttackTest extends TestCase
         return '';
     }
 
-
     /**
      * Append one result row to the shared CSV.
      */

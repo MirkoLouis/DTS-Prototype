@@ -14,7 +14,7 @@ All notable changes to this project will be documented in this file.
 - The browser-console channel (`$_SESSION['console_error']`, the `dts-console-error` JSON block and its reader in `server-handoff.js`); nothing writes to it any more.
 
 ### Added
-- `composer test:refusal-message` (`tests/Http/RefusalMessageTest.php`). The step-rule tests (`LifecycleTest`, `OfficerStepRuleTest`, `AdminStepRuleTest`, `FrontendAttackTest`) now assert the exact reason instead of "Action Denied".
+- `composer test:refusal-message` (`tests/Http/RefusalMessageTest.php`) and `composer test:document-denial-service` (`tests/Unit/DocumentDenialServiceTest.php`, every reason by policy and status). The step-rule tests (`LifecycleTest`, `OfficerStepRuleTest`, `AdminStepRuleTest`, `FrontendAttackTest`) now assert the exact reason instead of "Action Denied".
 
 ## 2026-11-20
 

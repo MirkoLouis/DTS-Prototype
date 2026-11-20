@@ -296,7 +296,6 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
         </main>
     </div>
 
-
     <?php // Hand the encrypted PIN-cache token to the browser, or tell it to discard a stale one (applied by server-handoff.js) ?>
     <?php if (isset($_SESSION[\App\Modules\Users\SecurityPinCacheService::SESSION_ISSUED]) || isset($_SESSION[\App\Modules\Users\SecurityPinCacheService::SESSION_CLEAR])): ?>
         <?= \App\Common\Utils\JsonDataBlock::render('dts-pin-token', [
