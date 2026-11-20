@@ -11,9 +11,6 @@ class AuthController
     // Shown after a failed sign-in, whichever of username and password was wrong
     public const FAILED_SIGN_IN_MESSAGE = 'Wrong username or password. Please double-check and try again.';
 
-    // bcrypt hash (cost 10, like the seeded accounts) of a discarded random string; checked when the username is unknown
-    private const DUMMY_PASSWORD_HASH = '$2y$10$W5vDh5KItZHM5nt1XrMXM.9WpjWvlPF0m//2BCSD.rffnXE3Z2LbC';
-
     /**
      * Show the login form.
      */
@@ -68,8 +65,8 @@ class AuthController
         $stmt = $db->query("SELECT * FROM users WHERE email = :email AND deactivated_at IS NULL LIMIT 1", [':email' => $email]);
         $user = $stmt->fetch();
 
-        // Always run one bcrypt check, so response time does not reveal whether the username exists
-        $passwordOk = password_verify($password, $user['password'] ?? self::DUMMY_PASSWORD_HASH);
+        // Always run one Argon2id check, so response time does not reveal whether the username exists
+        $passwordOk = PasswordHasher::verify($password, $user['password'] ?? PasswordHasher::DUMMY_HASH);
 
         // Verify the user exists and the password is correct
         if ($user && $passwordOk) {
@@ -98,6 +95,9 @@ class AuthController
 
             // Prevent session fixation (before anything that could fail)
             session_regenerate_id(true);
+
+            // A legacy bcrypt hash is replaced by Argon2id now that the plain password is known
+            $this->upgradeHashIfNeeded((int) $user['id'], $password, $user['password']);
 
             // A default or administrator-set password is flagged and reminded about (nothing is forced);
             // a failure here is logged and never fails the sign-in
@@ -145,6 +145,27 @@ class AuthController
 
         header("Location: /login");
         exit;
+    }
+
+    /**
+     * Store a fresh Argon2id hash when the stored one is outdated; a failure is logged and never fails the sign-in.
+     */
+    private function upgradeHashIfNeeded(int $userId, string $password, string $storedHash): void
+    {
+        // Nothing to do for a hash that already uses the current algorithm and cost
+        if (!PasswordHasher::needsRehash($storedHash)) {
+            return;
+        }
+
+        try {
+            // updated_at is left alone: the account itself did not visibly change
+            Database::getInstance()->query('UPDATE users SET password = :password WHERE id = :id', [
+                ':password' => PasswordHasher::hash($password),
+                ':id' => $userId,
+            ]);
+        } catch (\Throwable $e) {
+            error_log('Password rehash failed for user ' . $userId . ': ' . $e->getMessage());
+        }
     }
 
     /**
