@@ -60,6 +60,17 @@ class PageMessagesTest extends TestCase
         PageMessages::assertToast($html, 'error', 'Password too short.');
     }
 
+    // A notification item outside the toast container (the bell dropdown) is not a toast
+    public function test_toast_ignores_notification_items_outside_the_toast_container(): void
+    {
+        $html = '<html><body><nav><div id="bell-dropdown">' . $this->toastItem('error', 'Error', 'Password too short.') . '</div></nav>'
+            . '<main><p>Main content</p></main><div id="toast-container"></div></body></html>';
+
+        $this->assertSame([], PageMessages::toasts($html));
+        $this->expectException(AssertionFailedError::class);
+        PageMessages::assertToast($html, 'error', 'Password too short.');
+    }
+
     // A toast of another type does not satisfy the assertion
     public function test_toast_of_the_wrong_type_fails(): void
     {

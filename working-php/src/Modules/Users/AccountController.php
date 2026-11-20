@@ -96,7 +96,14 @@ class AccountController
     private function newPasswordRefusal(string $current, string $new, string $confirmation): ?string
     {
         // A password on the common-password list is refused first, whatever its length
-        if (CredentialPolicy::isCommonPassword($new)) {
+        // A missing or empty list cannot be checked against: say so, log the cause, and leave the password unchanged
+        try {
+            $isCommon = CredentialPolicy::isCommonPassword($new);
+        } catch (\RuntimeException $e) {
+            error_log('Common-password check unavailable: ' . $e->getMessage());
+            return CredentialPolicy::LIST_UNAVAILABLE_MESSAGE;
+        }
+        if ($isCommon) {
             return CredentialPolicy::COMMON_PASSWORD_MESSAGE;
         }
 

@@ -4,10 +4,12 @@ namespace Tests\Http;
 
 use App\Common\Database\Database;
 use App\Modules\Auth\AttemptThrottleService;
+use App\Modules\Auth\CredentialPolicy;
 use App\Modules\Integrity\DigitalSignatureService;
 use App\Modules\Notifications\NotificationService;
 use Tests\Support\Fixtures;
 use Tests\Support\HttpClient;
+use Tests\Support\PageMessages;
 use Tests\Support\TestDatabase;
 use Tests\TestCase;
 
@@ -18,6 +20,25 @@ class AccountPasswordTest extends TestCase
 {
     private const NEW_PASSWORD = 'Another-Pass-2027';
     private const REMINDER_LINK = '/account/password';
+
+    // The real common-password list and the name it is hidden under while a test needs it unavailable
+    private const LIST_PATH = __DIR__ . '/../../src/Modules/Auth/data/common-passwords.txt';
+    private const HIDDEN_LIST_PATH = self::LIST_PATH . '.hidden-by-test';
+
+    // Put the common-password list back if a test left it hidden, so a crash cannot leave it missing
+    protected function tearDown(): void
+    {
+        $this->restoreCommonPasswordList();
+        parent::tearDown();
+    }
+
+    // Rename the hidden list file back to its real name when it is hidden
+    private function restoreCommonPasswordList(): void
+    {
+        if (is_file(self::HIDDEN_LIST_PATH)) {
+            rename(self::HIDDEN_LIST_PATH, self::LIST_PATH);
+        }
+    }
 
     // Sign in as a seeded user and load the change-password page so the CSRF token is current
     private function signedIn(string $username = 'cash.unit'): HttpClient
@@ -232,6 +253,26 @@ class AccountPasswordTest extends TestCase
             $this->assertSame($before, $this->user('cash.unit')['password'], $name);
             $this->assertStringContainsString($message, $this->pageAfter($client), $name);
         }
+    }
+
+    // With the common-password list unavailable the form says so instead of the generic router error
+    public function test_unavailable_common_password_list_refuses_with_its_own_message(): void
+    {
+        $client = $this->signedIn();
+        $before = $this->user('cash.unit')['password'];
+
+        // Hide the list for the request only; the web server loads it per request
+        rename(self::LIST_PATH, self::HIDDEN_LIST_PATH);
+        try {
+            $this->change($client, TestDatabase::PASSWORD, self::NEW_PASSWORD);
+        } finally {
+            $this->restoreCommonPasswordList();
+        }
+        $page = $this->pageAfter($client);
+
+        $this->assertSame($before, $this->user('cash.unit')['password']);
+        PageMessages::assertToast($page, 'error', CredentialPolicy::LIST_UNAVAILABLE_MESSAGE);
+        $this->assertStringNotContainsString('An unexpected error occurred', $page);
     }
 
     // A new password equal to the Security PIN is refused, and the check never touches the PIN lockout

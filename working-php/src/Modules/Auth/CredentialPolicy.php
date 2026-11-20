@@ -19,6 +19,9 @@ class CredentialPolicy
     // Error shown for a new password found on the common-password list
     public const COMMON_PASSWORD_MESSAGE = 'This password is one of the most commonly used passwords. Choose a different one.';
 
+    // Error shown when the common-password list cannot be read, so a new password cannot be checked
+    public const LIST_UNAVAILABLE_MESSAGE = 'Your new password cannot be checked right now. Please try again later or contact the administrator.';
+
     // Sign-in password of a new or reset account; the only password allowed to be shorter than MIN_LENGTH_PASSWORD
     public const DEFAULT_PASSWORD = 'password';
 
