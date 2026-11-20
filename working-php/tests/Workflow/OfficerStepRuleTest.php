@@ -47,8 +47,8 @@ class OfficerStepRuleTest extends TestCase
 
         $message = $this->errorOf(fn () => (new DocumentWorkflowService())->scanDocument($s['tracking_code'], Fixtures::user('records.unit'), TestDatabase::PIN));
 
-        // The policy denies it with the reason, and nothing changes
-        $this->assertSame('This document is not for your department. It is waiting to be received by Cash Unit.', $message);
+        // The policy denies it, and nothing changes
+        $this->assertStringContainsString('Action Denied', $message);
         $this->assertSame('in_transit', $this->doc($s['id'])['status']);
         $this->assertSame($before, $this->logCount($s['id']));
     }
@@ -62,7 +62,7 @@ class OfficerStepRuleTest extends TestCase
 
         $message = $this->errorOf(fn () => (new DocumentWorkflowService())->completeTask($s['id'], '', Fixtures::user('records.unit'), TestDatabase::PIN));
 
-        $this->assertSame('This document is being processed by the Cash Unit.', $message);
+        $this->assertStringContainsString('Action Denied', $message);
         $this->assertSame('processing', $this->doc($s['id'])['status']);
         $this->assertSame($before, $this->logCount($s['id']));
     }

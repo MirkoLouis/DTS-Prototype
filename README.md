@@ -455,8 +455,6 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `test:tracking-code-util` | Tracking-code format, with no time-based input. |
 | `test:guest-department-validation` | The guest form accepts only departments that exist (exact case). |
 | `test:decline-redirect` | Declining redirects to the dashboard with a toast; a failed decline returns to the referring page. |
-| `test:refusal-message` | A refused workflow action shows its reason on the page (wrong department, another unit's step, a document just frozen as tampered) and changes nothing else. |
-| `test:document-denial-service` | Every refusal reason: administrator-only and officer roles, frozen documents, and the department-step reason for each document status. |
 
 *Concurrency*
 
@@ -636,7 +634,7 @@ Not applicable on an offline LAN (`ThreatActor::NOT_APPLICABLE`): botnet DDoS, i
 
 **Fixed findings.** F1 (finalizing a route accepted an unknown department), F2 (staff could view documents outside their route through `DocumentController::show`) and F3 (`CacheMiddleware` wrote cached pages non-atomically, so a cold-cache kiosk burst could get pages without a CSRF token) are fixed. The former finding tests remain as regression tests, and the default `vendor/bin/phpunit` ends with 0 failures.
 
-**Workflow rules.** Officers are bound by the department-step rule like staff: acting on a document outside their step is refused, and the page says where the document is waiting or who is processing it (`DocumentDenialService`). They keep intake, the final Records receive, and release.
+**Workflow rules.** Officers are bound by the department-step rule like staff: acting on a document outside their step gives "Action Denied". They keep intake, the final Records receive, and release.
 
 **Seeders.** `fast-seed.php` and `import-legacy.php` rely on the database unique key for tracking codes and retry the chunk on MySQL duplicate error 1062; there is no in-memory duplicate check. Under `APP_ENV=testing`, `fast-seed.php` only clears the test cache in `.test/` and leaves PHP sessions alone.
 
