@@ -313,7 +313,7 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
     $hideCloseButton = true;
     $modalDismissible = false; // mandatory: Escape and clicks outside do nothing until the PIN is set or the user logs out
 
-    $pinMinLength = \App\Modules\Auth\CredentialPolicy::MIN_LENGTH;
+    $pinMinLength = \App\Modules\Auth\CredentialPolicy::MIN_LENGTH_PIN;
 
     // A refusal of the previous PIN setup attempt (taken once): shown in the prompt as an alert linked to both fields
     $pinSetupError = $_SESSION['pin_setup_error'] ?? null;

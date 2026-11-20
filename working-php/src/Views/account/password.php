@@ -18,7 +18,7 @@ ob_start();
                     <strong>Sign-in password:</strong> <?= e(CredentialPolicy::SIGN_IN_PASSWORD_DEFINITION) ?>
                 </p>
                 <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                    Use at least <?= CredentialPolicy::MIN_LENGTH ?> characters, in any mix of letters, numbers and symbols.
+                    Use at least <?= CredentialPolicy::MIN_LENGTH_PASSWORD ?> characters, in any mix of letters, numbers and symbols. Commonly used passwords are refused.
                 </p>
                 <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">
                     <?= e(CredentialPolicy::SHARED_NOTE) ?>
@@ -33,13 +33,13 @@ ob_start();
                     </div>
 
                     <div>
-                        <label for="new_password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">New password * (at least <?= CredentialPolicy::MIN_LENGTH ?> characters)</label>
-                        <input type="password" name="new_password" id="new_password" required minlength="<?= CredentialPolicy::MIN_LENGTH ?>" autocomplete="new-password" class="mt-1 block w-full border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:border-accent-1 focus:ring-accent-1 sm:text-sm p-2 border">
+                        <label for="new_password" class="block text-sm font-medium text-gray-700 dark:text-gray-300">New password * (at least <?= CredentialPolicy::MIN_LENGTH_PASSWORD ?> characters)</label>
+                        <input type="password" name="new_password" id="new_password" required minlength="<?= CredentialPolicy::MIN_LENGTH_PASSWORD ?>" autocomplete="new-password" class="mt-1 block w-full border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:border-accent-1 focus:ring-accent-1 sm:text-sm p-2 border">
                     </div>
 
                     <div>
                         <label for="new_password_confirmation" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Confirm new password *</label>
-                        <input type="password" name="new_password_confirmation" id="new_password_confirmation" required minlength="<?= CredentialPolicy::MIN_LENGTH ?>" autocomplete="new-password" class="mt-1 block w-full border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:border-accent-1 focus:ring-accent-1 sm:text-sm p-2 border">
+                        <input type="password" name="new_password_confirmation" id="new_password_confirmation" required minlength="<?= CredentialPolicy::MIN_LENGTH_PASSWORD ?>" autocomplete="new-password" class="mt-1 block w-full border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md shadow-sm focus:border-accent-1 focus:ring-accent-1 sm:text-sm p-2 border">
                     </div>
 
                     <div class="flex items-center justify-end">

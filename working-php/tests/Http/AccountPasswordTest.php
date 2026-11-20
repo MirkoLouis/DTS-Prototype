@@ -12,7 +12,7 @@ use Tests\Support\TestDatabase;
 use Tests\TestCase;
 
 /**
- * Self-service password change, the password reminder, and the 10-character rule for passwords and Security PINs.
+ * Self-service password change, the password reminder, and the 15-character password rule and the 10-character PIN rule.
  */
 class AccountPasswordTest extends TestCase
 {
@@ -162,6 +162,16 @@ class AccountPasswordTest extends TestCase
         $this->assertFalse($this->canSignIn('cash.unit', TestDatabase::PASSWORD));
     }
 
+    // The new password is stored as an Argon2id hash
+    public function test_new_password_is_stored_as_argon2id(): void
+    {
+        $client = $this->signedIn();
+
+        $this->change($client, TestDatabase::PASSWORD, self::NEW_PASSWORD);
+
+        $this->assertSame('argon2id', password_get_info($this->user('cash.unit')['password'])['algoName']);
+    }
+
     // A wrong current password changes nothing
     public function test_wrong_current_password_changes_nothing(): void
     {
@@ -205,10 +215,12 @@ class AccountPasswordTest extends TestCase
     public function test_refused_new_passwords(): void
     {
         $cases = [
-            'shorter than 10' => ['Short-9ch', 'Short-9ch', 'at least 10 characters'],
+            'shorter than 15' => ['Fourteen-Ch-14', 'Fourteen-Ch-14', 'at least 15 characters'],
+            'common password' => ['QWERTY123', 'QWERTY123', 'most commonly used'],
+            'common long password' => ['PolniyPizdec0211', 'PolniyPizdec0211', 'most commonly used'],
             'confirmation mismatch' => [self::NEW_PASSWORD, 'Different-Pass-1', 'do not match'],
             'same as current' => [TestDatabase::PASSWORD, TestDatabase::PASSWORD, 'different from the current'],
-            'the word password' => ['password', 'password', 'at least 10 characters'],
+            'the word password' => ['password', 'password', 'most commonly used'],
         ];
 
         foreach ($cases as $name => [$new, $confirmation, $message]) {
@@ -553,6 +565,7 @@ class AccountPasswordTest extends TestCase
 
         $row = $this->user('new.person');
         $this->assertTrue(password_verify('password', $row['password']));
+        $this->assertSame('argon2id', password_get_info($row['password'])['algoName']);
         $this->assertSame('1', (string) $row['must_change_password']);
         $this->assertTrue($this->canSignIn('new.person', 'password'));
         $created = Database::getInstance()->query('SELECT message FROM notifications WHERE user_id = :u AND link = :l', [':u' => (int) $row['id'], ':l' => self::REMINDER_LINK])->fetchAll(\PDO::FETCH_COLUMN);
@@ -589,6 +602,21 @@ class AccountPasswordTest extends TestCase
 
         $this->assertNull($this->user('cash.unit')['private_key']);
         $this->assertStringContainsString('at least 10 characters', $client->get('/tasks')['body']);
+    }
+
+    // A 10-character PIN is accepted, while a 10-character password is refused by the password form
+    public function test_ten_character_pin_is_accepted(): void
+    {
+        $client = $this->signedIn();
+        $this->clearKey();
+
+        $this->setPin($client, '0123456789');
+
+        $this->assertNotNull($this->user('cash.unit')['private_key']);
+
+        $this->change($client, TestDatabase::PASSWORD, 'Ten-Chars!');
+
+        $this->assertStringContainsString('at least 15 characters', $this->pageAfter($client));
     }
 
     // A new PIN equal to the sign-in password is refused and no key is created

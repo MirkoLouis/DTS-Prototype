@@ -16,13 +16,10 @@ class CredentialPolicy
     public const MIN_LENGTH_PASSWORD = 15;
     public const MIN_LENGTH_PIN = 10;
 
-    // Shared minimum used by callers not yet moved to the two constants above (removed in a later task)
-    public const MIN_LENGTH = 10;
-
     // Error shown for a new password found on the common-password list
     public const COMMON_PASSWORD_MESSAGE = 'This password is one of the most commonly used passwords. Choose a different one.';
 
-    // Sign-in password of a new or reset account; the only password allowed to be shorter than MIN_LENGTH
+    // Sign-in password of a new or reset account; the only password allowed to be shorter than MIN_LENGTH_PASSWORD
     public const DEFAULT_PASSWORD = 'password';
 
     // Where a user changes their sign-in password, and the label of the reminder link that points there
@@ -47,7 +44,7 @@ class CredentialPolicy
     /**
      * Whether a secret is long enough for a new password or PIN.
      */
-    public static function isLongEnough(string $secret, int $minimum = self::MIN_LENGTH): bool
+    public static function isLongEnough(string $secret, int $minimum): bool
     {
         return mb_strlen($secret) >= $minimum;
     }
@@ -55,7 +52,7 @@ class CredentialPolicy
     /**
      * Error message for a secret that is too short, named by what it is ("password" or "Security PIN").
      */
-    public static function tooShortMessage(string $label, int $minimum = self::MIN_LENGTH): string
+    public static function tooShortMessage(string $label, int $minimum): string
     {
         return 'The new ' . $label . ' must be at least ' . $minimum . ' characters.';
     }
