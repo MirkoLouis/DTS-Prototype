@@ -91,10 +91,11 @@ class LifecycleTest extends TestCase
         $before = $this->logCount($submitted['id']);
 
         // Staff of another department are stopped by the policy before the scan logic runs
-        $this->assertStringContainsString('Action Denied', $this->scanError($submitted['tracking_code'], 'personnel.unit'));
+        $expected = 'This document is not for your department. It is waiting to be received by Cash Unit.';
+        $this->assertSame($expected, $this->scanError($submitted['tracking_code'], 'personnel.unit'));
 
         // The Records officer is bound by the same step rule, so the policy denies it too
-        $this->assertStringContainsString('Action Denied', $this->scanError($submitted['tracking_code'], 'records.unit'));
+        $this->assertSame($expected, $this->scanError($submitted['tracking_code'], 'records.unit'));
 
         // Neither attempt may change the document or its chain
         $this->assertSame('in_transit', $this->doc($submitted['id'])['status']);

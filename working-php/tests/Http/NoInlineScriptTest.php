@@ -175,7 +175,7 @@ class NoInlineScriptTest extends TestCase
             'system-overview' => ['Example failure', 'data-copy-text', 'debug-log-btn', 'autoresolve'],
             'intake' => ['Unread info', 'mark-notification-read'],
             'admin-dashboard-toast' => ['toast-message'],
-            'tasks-console-error' => ['id="dts-console-error"'],
+            'tasks-refused-action' => ['toast-message', 'This document is still pending intake'],
             'tasks-pin-token' => ['id="dts-pin-token"'],
             'security-pin-prompt' => ['id="security-key-modal"'],
             'guest-success' => ['QR Code for'],

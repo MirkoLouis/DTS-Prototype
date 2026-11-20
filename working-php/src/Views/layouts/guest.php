@@ -102,11 +102,5 @@
 
         <?= $content ?? '' ?>
     </div>
-
-    <?php // Session data for public/js/layout/server-handoff.js (a message for the browser console), as an inert JSON block ?>
-    <?php if (isset($_SESSION['console_error'])): ?>
-        <?= \App\Common\Utils\JsonDataBlock::render('dts-console-error', $_SESSION['console_error']) ?>
-        <?php unset($_SESSION['console_error']); ?>
-    <?php endif; ?>
 </body>
 </html>

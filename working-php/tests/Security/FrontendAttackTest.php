@@ -135,15 +135,16 @@ class FrontendAttackTest extends TestCase
         $staff->get('/tasks');
         $staff->post('/documents/scan', ['tracking_code' => $document['tracking_code'], 'pin' => TestDatabase::PIN]);
 
-        // The denial is flashed as a console_error, surfaced on the next app-layout page
+        // The denial is flashed as an error toast on the next app-layout page
         $page = $staff->get('/tasks')['body'];
         $row = Database::getInstance()->query('SELECT status FROM documents WHERE id = :id', [':id' => $document['id']])->fetch();
 
-        // R6: wrong-department staff are blocked by DocumentPolicy::process with "Action Denied: ..."
-        $denied = str_contains($page, 'Action Denied') && $row['status'] === 'in_transit';
-        $observed = sprintf('status=%s, message=%s', $row['status'], $this->consoleError($page) ?: '(none)');
+        // R6: wrong-department staff are blocked by DocumentPolicy::process, and the page says where the document is waiting
+        $reason = 'This document is not for your department. It is waiting to be received by Cash Unit.';
+        $denied = str_contains($page, $reason) && $row['status'] === 'in_transit';
+        $observed = sprintf('status=%s, message shown=%s', $row['status'], str_contains($page, $reason) ? 'yes' : 'no');
 
-        $this->record('scan_wrong_department', ThreatActor::STAFF_INSIDER, 'A04', 'POST /documents/scan', 'denied: "Action Denied: ..."', $observed, $denied);
+        $this->record('scan_wrong_department', ThreatActor::STAFF_INSIDER, 'A04', 'POST /documents/scan', 'denied, reason shown on the page', $observed, $denied);
         $this->assertTrue($denied, 'FINDING [scan_wrong_department]: a wrong-department scan was not denied as expected. ' . $observed);
     }
 
@@ -165,11 +166,12 @@ class FrontendAttackTest extends TestCase
         $page = $staff->get('/tasks')['body'];
         $row = Database::getInstance()->query('SELECT status, current_step FROM documents WHERE id = :id', [':id' => $document['id']])->fetch();
 
-        // Still at Personnel's step, processing, with the "Action Denied" message shown
-        $denied = str_contains($page, 'Action Denied') && $row['status'] === 'processing' && (int) $row['current_step'] === 1;
-        $observed = sprintf('status=%s, current_step=%s, message=%s', $row['status'], $row['current_step'], $this->consoleError($page) ?: '(none)');
+        // Still at Personnel's step, processing, with the reason shown on the page
+        $reason = 'This document is being processed by the Personnel Unit.';
+        $denied = str_contains($page, $reason) && $row['status'] === 'processing' && (int) $row['current_step'] === 1;
+        $observed = sprintf('status=%s, current_step=%s, message shown=%s', $row['status'], $row['current_step'], str_contains($page, $reason) ? 'yes' : 'no');
 
-        $this->record('cross_step_completion', ThreatActor::STAFF_INSIDER, 'A04', 'POST /tasks/{id}/complete', 'denied: "Action Denied: ..."', $observed, $denied);
+        $this->record('cross_step_completion', ThreatActor::STAFF_INSIDER, 'A04', 'POST /tasks/{id}/complete', 'denied, reason shown on the page', $observed, $denied);
         $this->assertTrue($denied, 'FINDING [cross_step_completion]: staff completed a task not at their step. ' . $observed);
     }
 
@@ -247,18 +249,6 @@ class FrontendAttackTest extends TestCase
         if (preg_match('/<meta name="csrf-token" content="([^"]+)"/', $body, $m)
             || preg_match('/name="csrf_token" value="([^"]+)"/', $body, $m)) {
             return $m[1];
-        }
-
-        return '';
-    }
-
-    /**
-     * Pull the console.error(...) message the app layout emits for a flashed console_error.
-     */
-    private function consoleError(string $body): string
-    {
-        if (preg_match('/console\.error\((".*?")\);/s', $body, $m)) {
-            return (string) json_decode($m[1]);
         }
 
         return '';
