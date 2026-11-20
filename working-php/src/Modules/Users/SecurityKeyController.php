@@ -5,7 +5,6 @@ namespace App\Modules\Users;
 use App\Common\Database\Database;
 use App\Modules\Auth\AttemptThrottleService;
 use App\Modules\Auth\CredentialPolicy;
-use App\Modules\Auth\PasswordHasher;
 
 class SecurityKeyController
 {
@@ -119,9 +118,9 @@ class SecurityKeyController
             return AttemptThrottleService::MESSAGE;
         }
 
-        // A new PIN needs its own minimum length (existing shorter PINs keep working)
-        if (!CredentialPolicy::isLongEnough($pin, CredentialPolicy::MIN_LENGTH_PIN)) {
-            return CredentialPolicy::tooShortMessage('Security PIN', CredentialPolicy::MIN_LENGTH_PIN);
+        // A new PIN has the same minimum length as a new password (existing shorter PINs keep working)
+        if (!CredentialPolicy::isLongEnough($pin)) {
+            return CredentialPolicy::tooShortMessage('Security PIN');
         }
 
         if ($pin !== $pinConfirm) {
@@ -129,7 +128,7 @@ class SecurityKeyController
         }
 
         // The PIN must differ from the sign-in password; a match counts as a failed attempt
-        if (PasswordHasher::verify($pin, $account['password'])) {
+        if (password_verify($pin, $account['password'])) {
             $lockedNow = AttemptThrottleService::recordFailure($throttleKey, time());
             return $lockedNow ? AttemptThrottleService::MESSAGE : 'The Security PIN must be different from your sign-in password.';
         }

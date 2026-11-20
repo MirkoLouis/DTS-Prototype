@@ -6,7 +6,6 @@ use App\Common\Database\Database;
 use App\Common\Http\SessionService;
 use App\Modules\Auth\AttemptThrottleService;
 use App\Modules\Auth\CredentialPolicy;
-use App\Modules\Auth\PasswordHasher;
 use App\Modules\Auth\PasswordReminderService;
 use App\Modules\Integrity\DigitalSignatureService;
 
@@ -55,7 +54,7 @@ class AccountController
         $user = Database::getInstance()->query('SELECT password, private_key FROM users WHERE id = :id', [':id' => $userId])->fetch();
 
         // A wrong current password counts as a failed attempt and shows the timeout message when it triggers the lock
-        if (!$user || !PasswordHasher::verify($current, $user['password'])) {
+        if (!$user || !password_verify($current, $user['password'])) {
             $lockedNow = AttemptThrottleService::recordFailure($throttleKey, time());
             $this->backWithError($lockedNow ? AttemptThrottleService::MESSAGE : 'Your current password is not correct.');
         }
@@ -77,7 +76,7 @@ class AccountController
         // Store the new password and drop the reminder; earlier wrong current passwords are forgotten
         AttemptThrottleService::clear($throttleKey);
         Database::getInstance()->query('UPDATE users SET password = :password, updated_at = NOW() WHERE id = :id', [
-            ':password' => PasswordHasher::hash($new),
+            ':password' => password_hash($new, PASSWORD_BCRYPT),
             ':id' => $userId,
         ]);
         PasswordReminderService::clear($userId);
@@ -95,14 +94,9 @@ class AccountController
      */
     private function newPasswordRefusal(string $current, string $new, string $confirmation): ?string
     {
-        // A password on the common-password list is refused first, whatever its length
-        if (CredentialPolicy::isCommonPassword($new)) {
-            return CredentialPolicy::COMMON_PASSWORD_MESSAGE;
-        }
-
         // Minimum length (any mix of letters, numbers and symbols)
-        if (!CredentialPolicy::isLongEnough($new, CredentialPolicy::MIN_LENGTH_PASSWORD)) {
-            return CredentialPolicy::tooShortMessage('password', CredentialPolicy::MIN_LENGTH_PASSWORD);
+        if (!CredentialPolicy::isLongEnough($new)) {
+            return CredentialPolicy::tooShortMessage('password');
         }
 
         if ($new !== $confirmation) {

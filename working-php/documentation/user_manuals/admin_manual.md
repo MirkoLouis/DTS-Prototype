@@ -44,7 +44,7 @@ Every user action that mutates document state requires a cryptographically secur
 
 ### Changing Your Own Password
 
-Your sign-in password is part of your sign-in credentials; it proves who you are when you log in. To change it, open the user menu (your name, top right) and click **Change password**. Enter your current password and the new one twice. The new password needs at least 15 characters, must not be a commonly used password, must differ from your current password and from `password`, and must not be your Security PIN. Five wrong current passwords in a minute lock this page for one minute, and a password can be changed at most five times per minute. Create your Security PIN first; the change-password form is refused until you have one.
+Your sign-in password is part of your sign-in credentials; it proves who you are when you log in. To change it, open the user menu (your name, top right) and click **Change password**. Enter your current password and the new one twice. The new password needs at least 10 characters, must differ from your current password and from `password`, and must not be your Security PIN. Five wrong current passwords in a minute lock this page for one minute, and a password can be changed at most five times per minute. Create your Security PIN first; the change-password form is refused until you have one.
 
 If you are still using the default password, or an administrator set it, you get a notification with a **Change password** link each time you sign in; it pops up first and then stays in the notification list. Nothing is forced, but please change it. When you change your password you are signed out everywhere, including this browser, and sign in again with the new password.
 
