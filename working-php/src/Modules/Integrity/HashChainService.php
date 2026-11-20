@@ -5,8 +5,10 @@ namespace App\Modules\Integrity;
 use App\Common\Database\Database;
 
 /**
- * SHA-256 hash-chain micro-sharding builder: each document keeps its own independent hash chain
- * (one micro-shard per document), and every block is sealed with an Ed25519 signature.
+ * Trust Builder: the micro-sharded SHA-256 hash chain. Each document keeps its own independent hash chain
+ * (one micro-shard per document), and every block is signed with an Ed25519 signature. The Trust Builder's
+ * other parts are ChainSealService (HMAC-SHA256 entry and chain seals), ChainVerificationService (verification)
+ * and PreActionIntegrityService (the pre-action integrity check and the automatically freezing of tampered document).
  *
  * Log format v2. Every writer (createLog, seeders) and every verifier (IntegrityCheckJob,
  * the hash debugger) builds its inputs through the helpers below, so the format is defined
