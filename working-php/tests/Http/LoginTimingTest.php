@@ -2,7 +2,9 @@
 
 namespace Tests\Http;
 
+use App\Common\Database\Database;
 use Tests\Support\HttpClient;
+use Tests\Support\TestDatabase;
 use Tests\TestCase;
 
 /**
@@ -42,5 +44,31 @@ class LoginTimingTest extends TestCase
             $unknown,
             sprintf('unknown username answered in %.1f ms, wrong password in %.1f ms', $unknown * 1000, $known * 1000)
         );
+    }
+
+    // During the bcrypt to Argon2id migration a not-yet-upgraded account answers in the same time as an unknown username
+    public function test_unknown_username_takes_as_long_as_a_wrong_password_for_a_bcrypt_account(): void
+    {
+        // Give an account that no other timing test uses a legacy bcrypt (cost 10) hash
+        Database::getInstance()->query(
+            'UPDATE users SET password = :p WHERE email = :e',
+            [':p' => TestDatabase::LEGACY_BCRYPT_HASH, ':e' => 'records.unit']
+        );
+
+        // Two wrong passwords for the bcrypt account (below the lockout limit)
+        $bcryptKnown = min($this->failedLoginSeconds('records.unit'), $this->failedLoginSeconds('records.unit'));
+
+        // Three different usernames that do not exist
+        $unknown = min(
+            $this->failedLoginSeconds('no.such.user.d'),
+            $this->failedLoginSeconds('no.such.user.e'),
+            $this->failedLoginSeconds('no.such.user.f')
+        );
+
+        $message = sprintf('bcrypt account answered in %.1f ms, unknown username in %.1f ms', $bcryptKnown * 1000, $unknown * 1000);
+
+        // Both directions: a fast refusal or a slow one would each reveal which kind of account exists
+        $this->assertGreaterThanOrEqual(0.5 * $unknown, $bcryptKnown, $message);
+        $this->assertGreaterThanOrEqual(0.5 * $bcryptKnown, $unknown, $message);
     }
 }

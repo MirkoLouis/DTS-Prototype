@@ -64,6 +64,22 @@ class PasswordRehashTest extends TestCase
         $this->assertSame(TestDatabase::LEGACY_BCRYPT_HASH, $this->storedHash('cash.unit'));
     }
 
+    // A password changed between verification and upgrade is never reverted by the rehash (compare-and-swap)
+    public function test_rehash_does_not_overwrite_a_password_changed_meanwhile(): void
+    {
+        $userId = (int) Database::getInstance()->query('SELECT id FROM users WHERE email = :e', [':e' => 'cash.unit'])->fetch()['id'];
+
+        // The row holds a newer hash than the legacy one the sign-in verified
+        $newerHash = PasswordHasher::hash('A-Newer-Password-2026');
+        $this->storeHash('cash.unit', $newerHash);
+
+        // Run the upgrade with the stale (verified) legacy hash
+        $method = new \ReflectionMethod(AuthController::class, 'upgradeHashIfNeeded');
+        $method->invoke(new AuthController(), $userId, TestDatabase::PASSWORD, TestDatabase::LEGACY_BCRYPT_HASH);
+
+        $this->assertSame($newerHash, $this->storedHash('cash.unit'));
+    }
+
     // Argon2id has no 72-byte limit: a password differing only after byte 72 is refused
     public function test_long_password_differing_after_byte_72_is_refused(): void
     {

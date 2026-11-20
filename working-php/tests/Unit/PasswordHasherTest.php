@@ -55,6 +55,36 @@ class PasswordHasherTest extends TestCase
         $this->assertTrue(PasswordHasher::needsRehash($old));
     }
 
+    // Sign-in verification accepts the right password for an Argon2id and for a bcrypt hash
+    public function test_verify_for_sign_in_accepts_argon2id_and_bcrypt_hashes(): void
+    {
+        $argon2id = PasswordHasher::hash('Fixture-Pass-2026');
+        $bcrypt = password_hash('Fixture-Pass-2026', PASSWORD_BCRYPT, ['cost' => 10]);
+
+        $this->assertTrue(PasswordHasher::verifyForSignIn('Fixture-Pass-2026', $argon2id));
+        $this->assertTrue(PasswordHasher::verifyForSignIn('Fixture-Pass-2026', $bcrypt));
+    }
+
+    // Sign-in verification refuses a wrong password and a missing hash
+    public function test_verify_for_sign_in_refuses_wrong_password_and_missing_hash(): void
+    {
+        $argon2id = PasswordHasher::hash('Fixture-Pass-2026');
+        $bcrypt = password_hash('Fixture-Pass-2026', PASSWORD_BCRYPT, ['cost' => 10]);
+
+        $this->assertFalse(PasswordHasher::verifyForSignIn('wrong', $argon2id));
+        $this->assertFalse(PasswordHasher::verifyForSignIn('wrong', $bcrypt));
+        $this->assertFalse(PasswordHasher::verifyForSignIn('Fixture-Pass-2026', null));
+    }
+
+    // The bcrypt dummy hash has the cost of the migrating accounts' hashes
+    public function test_bcrypt_dummy_hash_is_cost_10_bcrypt(): void
+    {
+        $info = password_get_info(PasswordHasher::BCRYPT_DUMMY_HASH);
+
+        $this->assertSame('bcrypt', $info['algoName']);
+        $this->assertSame(10, $info['options']['cost']);
+    }
+
     // The dummy hash costs the same as a real hash, so unknown-user sign-in takes the same time
     public function test_dummy_hash_has_the_same_parameters_as_real_hashes(): void
     {

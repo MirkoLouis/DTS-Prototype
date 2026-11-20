@@ -65,8 +65,9 @@ class AuthController
         $stmt = $db->query("SELECT * FROM users WHERE email = :email AND deactivated_at IS NULL LIMIT 1", [':email' => $email]);
         $user = $stmt->fetch();
 
-        // Always run one Argon2id check, so response time does not reveal whether the username exists
-        $passwordOk = PasswordHasher::verify($password, $user['password'] ?? PasswordHasher::DUMMY_HASH);
+        // Every attempt does one Argon2id and one bcrypt check, so response time does not reveal whether the username
+        // exists or whether its hash is still bcrypt
+        $passwordOk = PasswordHasher::verifyForSignIn($password, $user['password'] ?? null);
 
         // Verify the user exists and the password is correct
         if ($user && $passwordOk) {
@@ -158,10 +159,12 @@ class AuthController
         }
 
         try {
-            // updated_at is left alone: the account itself did not visibly change
-            Database::getInstance()->query('UPDATE users SET password = :password WHERE id = :id', [
+            // Compare-and-swap: only replace the hash that was verified, so a password change or admin reset
+            // made in the meantime is never reverted; updated_at is left alone (the account did not visibly change)
+            Database::getInstance()->query('UPDATE users SET password = :password WHERE id = :id AND password = :stored', [
                 ':password' => PasswordHasher::hash($password),
                 ':id' => $userId,
+                ':stored' => $storedHash,
             ]);
         } catch (\Throwable $e) {
             error_log('Password rehash failed for user ' . $userId . ': ' . $e->getMessage());
