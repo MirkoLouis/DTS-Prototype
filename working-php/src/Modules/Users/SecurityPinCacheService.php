@@ -21,9 +21,6 @@ class SecurityPinCacheService
     // Prefix that distinguishes a cached PIN token from a typed PIN
     public const TOKEN_PREFIX = 'pt1.';
 
-    // Token lifetime when PIN_CACHE_DURATION is not set: four hours (the session's idle limit can end it sooner)
-    public const DEFAULT_DURATION_SECONDS = 14400;
-
     // Session keys used by the PIN cache
     private const SESSION_KEY = 'pin_cache_key';
     public const SESSION_ISSUED = 'pin_token_issued';
@@ -106,7 +103,7 @@ class SecurityPinCacheService
         $payload = json_encode([
             'pin' => $pin,
             'uid' => $userId,
-            'exp' => time() + Config::get('app', 'pin_cache_duration', self::DEFAULT_DURATION_SECONDS)
+            'exp' => time() + Config::get('app', 'pin_cache_duration', 900)
         ]);
 
         // Encrypt with a fresh nonce and prepend it to the ciphertext

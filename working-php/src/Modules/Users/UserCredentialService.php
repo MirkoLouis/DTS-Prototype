@@ -5,7 +5,6 @@ namespace App\Modules\Users;
 use App\Common\Database\Database;
 use App\Common\Middleware\CacheMiddleware;
 use App\Modules\Auth\CredentialPolicy;
-use App\Modules\Auth\PasswordHasher;
 use App\Modules\Auth\PasswordReminderService;
 use App\Modules\Integrity\DigitalSignatureService;
 
@@ -32,11 +31,11 @@ class UserCredentialService
     }
 
     /**
-     * Argon2id hash of the default password, for accounts that start with it.
+     * bcrypt hash of the default password, for accounts that start with it.
      */
     public static function defaultPasswordHash(): string
     {
-        return PasswordHasher::hash(CredentialPolicy::DEFAULT_PASSWORD);
+        return password_hash(CredentialPolicy::DEFAULT_PASSWORD, PASSWORD_BCRYPT);
     }
 
     /**

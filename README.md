@@ -5,7 +5,7 @@
 <p align="center">Tracks official documents through the DepEd Division of Iligan City, with a signed, hash-chained log of every step.</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/version-2.8.0-blue?style=flat" alt="Version 2.8.0">
+  <img src="https://img.shields.io/badge/version-2.7.15-blue?style=flat" alt="Version 2.7.15">
   <img src="https://img.shields.io/badge/PHP-8.3-777bb4?style=flat" alt="PHP 8.3">
   <img src="https://img.shields.io/badge/MySQL-8.0-4479a1?style=flat" alt="MySQL 8.0">
   <img src="https://img.shields.io/badge/platform-web%20%7C%20Linux%20server-lightgrey?style=flat" alt="Platform: web, Linux server">
@@ -78,7 +78,7 @@ The DTS replaces the paper routing slip at the DepEd Division of Iligan City. A 
 | Server | PHP 8.3, nginx + PHP-FPM, MySQL 8.0 |
 | UI | Server-rendered PHP views, Tailwind CSS 3.4, plain JavaScript |
 | Libraries | dompdf 3.1.6, chillerlan/php-qrcode 6.0.1, OpenSpout 5.3.0, Symfony Cache 7.4.14 |
-| Crypto | libsodium (Ed25519, AES key wrap), Argon2id, SHA-256 |
+| Crypto | libsodium (Ed25519, Argon2id key from the PIN), AES-256, bcrypt passwords, SHA-256 |
 | Tests | PHPUnit 12.5.42, Playwright (manual browser checks) |
 
 ## Architecture

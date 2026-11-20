@@ -14,11 +14,8 @@ class TestDatabase
     // Sign-in password of every fixture user: not the default 'password', so a test login raises no password reminder
     public const PASSWORD = 'Fixture-Pass-2026';
 
-    // bcrypt (cost 10) of PASSWORD, kept for tests of the bcrypt-to-Argon2id upgrade
-    public const LEGACY_BCRYPT_HASH = '$2y$10$cQgY8zv5tAuC1uqp.iGdp.tEB87OjvZAxOi0V1q8aIV46DrDh14py';
-
-    // Argon2id (PHP defaults) of PASSWORD, computed once so seeding stays fast
-    private const PASSWORD_HASH = '$argon2id$v=19$m=65536,t=4,p=1$amRyNmNXb1ZJMGNzWGczcQ$8EEFKkRYQMBHpA4KubUyDDHbp4Ha+WFUNxykSvytUBg';
+    // bcrypt (cost 10) of PASSWORD, computed once so seeding stays fast
+    private const PASSWORD_HASH = '$2y$10$cQgY8zv5tAuC1uqp.iGdp.tEB87OjvZAxOi0V1q8aIV46DrDh14py';
 
     public const DEPARTMENTS = [
         'Records Unit', 'Cash Unit', 'Administrative Unit', 'Personnel Unit', 'Supply Unit',

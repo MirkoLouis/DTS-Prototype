@@ -46,8 +46,6 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `test:tracking-code-util` | Tracking-code format, with no time-based input. |
 | `test:guest-department-validation` | The guest form accepts only departments that exist (exact case). |
 | `test:decline-redirect` | Declining redirects to the dashboard with a toast; a failed decline returns to the referring page. |
-| `test:refusal-message` | A refused workflow action shows its reason on the page (wrong department, another unit's step, a document just frozen as tampered) and changes nothing else. |
-| `test:document-denial-service` | Every refusal reason: administrator-only and officer roles, frozen documents, and the department-step reason for each document status. |
 
 *Concurrency*
 
@@ -66,9 +64,6 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `test:key-cache-invalidation` | Entries signed after a key reset verify within the same long-lived process. |
 | `test:core-module-structure` | Module structure guard: old classes removed, log format v2 byte-identical, tampered documents frozen. |
 | `test:integrity-key` | The shared integrity-key helper accepts only base64 of exactly 32 bytes; the test override is ignored outside the testing environment. |
-| `test:pin-cache-duration` | The Security PIN cache lasts four hours by default: one constant, used by the config fallback, the PIN cache and .env.example. |
-| `test:password-hasher` | PasswordHasher is the one place passwords are hashed: Argon2id, with older bcrypt hashes still verifiable and flagged for rehash. |
-| `test:credential-policy` | CredentialPolicy holds the credential rules: separate password and PIN minimum lengths and the common-password blocklist. |
 | `test:chain-seal` | Entry seals and chain seals: the sealed fields and their normalization, every workflow action leaves valid seals, the automatic freeze keeps the mismatch, unfreeze and auto-resolve re-seal, unfreeze refuses changed content, recovery never rolls back (it refuses when the newest entry fails), unsealed documents are refused and not frozen. |
 | `test:seal-chains-script` | scripts/seal-chains.php seals existing data once after verifying each chain (refusing chains that do not verify), never seals a missing seal on an already sealed database or overwrites a seal without an explicit flag and the database name, and refuses without a key or against another database. |
 | `test:missing-integrity-key` | Without APP_INTEGRITY_KEY the worker does not start, the integrity check reports "seal not configured", and the pre-action check refuses the action without freezing. |
@@ -114,8 +109,7 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `test:json-data-block` | The JSON data block helper escapes script and comment endings, quotes and ampersands, and refuses unsafe element ids. |
 | `test:tracking-form-print` | Print-tracking-form links on officer pages, none for staff; the slip PDF is served only to the submitting session or to staff allowed to view the document. |
 | `test:cache-query-string` | The response cache stores bare URLs only; URLs with a query string create no cache files. |
-| `test:login-timing` | An unknown username takes about as long to refuse as a wrong password (one Argon2id check either way). |
-| `test:password-rehash` | Sign-in verifies with Argon2id, upgrades a legacy bcrypt hash once on success, and fixture accounts use Argon2id. |
+| `test:login-timing` | An unknown username takes about as long to refuse as a wrong password (one bcrypt check either way). |
 | `test:released-report-service` | Report rows are text cells only (no formula injection); report filters are whitelisted. |
 | `test:report-filters` | Stored report filters carry no CSRF token; a formula-like title is downloaded as text. |
 | `test:report-ownership` | A report job is downloaded, inspected and cancelled only by the user who requested it. |
@@ -230,7 +224,7 @@ Not applicable on an offline LAN (`ThreatActor::NOT_APPLICABLE`): botnet DDoS, i
 
 **Fixed findings.** F1 (finalizing a route accepted an unknown department), F2 (staff could view documents outside their route through `DocumentController::show`) and F3 (`CacheMiddleware` wrote cached pages non-atomically, so a cold-cache kiosk burst could get pages without a CSRF token) are fixed. The former finding tests remain as regression tests, and the default `vendor/bin/phpunit` ends with 0 failures.
 
-**Workflow rules.** Officers are bound by the department-step rule like staff: acting on a document outside their step is refused, and the page says where the document is waiting or who is processing it (`DocumentDenialService`). They keep intake, the final Records receive, and release.
+**Workflow rules.** Officers are bound by the department-step rule like staff: acting on a document outside their step gives "Action Denied". They keep intake, the final Records receive, and release.
 
 **Seeders.** `fast-seed.php` and `import-legacy.php` rely on the database unique key for tracking codes and retry the chunk on MySQL duplicate error 1062; there is no in-memory duplicate check. Under `APP_ENV=testing`, `fast-seed.php` only clears the test cache in `.test/` and leaves PHP sessions alone.
 

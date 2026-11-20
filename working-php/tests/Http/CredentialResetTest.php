@@ -119,7 +119,6 @@ class CredentialResetTest extends TestCase
 
         $after = $this->user('cash.unit');
         $this->assertTrue(password_verify('password', $after['password']));
-        $this->assertSame('argon2id', password_get_info($after['password'])['algoName']);
         $this->assertSame('1', (string) $after['must_change_password']);
         $this->assertSame($before['private_key'], $after['private_key']);
         $this->assertSame($before['public_key'], $after['public_key']);
