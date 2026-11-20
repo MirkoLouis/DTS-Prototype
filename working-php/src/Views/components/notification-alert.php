@@ -40,7 +40,7 @@ $toastClasses = isset($notification['is_toast']) && $notification['is_toast'] ? 
 // Errors and warnings interrupt a screen reader (role="alert"); success and information wait their turn (role="status", a polite live region)
 $liveRegionRole = in_array($type, ['error', 'warning'], true) ? 'alert' : 'status';
 ?>
-<div role="<?= $liveRegionRole ?>" data-notification-item class="rounded-md border <?= $borderColor ?> <?= $bgColor ?> p-4 shadow-sm mb-3 relative <?= $toastClasses ?>">
+<div role="<?= $liveRegionRole ?>" data-notification-item data-notification-type="<?= e($type) ?>" class="rounded-md border <?= $borderColor ?> <?= $bgColor ?> p-4 shadow-sm mb-3 relative <?= $toastClasses ?>">
     <div class="flex items-start gap-4">
         <svg aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="-mt-0.5 w-6 h-6 <?= $iconColor ?>">
             <?= $iconSvg ?>
