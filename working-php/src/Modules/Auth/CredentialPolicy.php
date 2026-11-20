@@ -65,7 +65,15 @@ class CredentialPolicy
      */
     public static function isCommonPassword(string $password): bool
     {
-        return isset(self::commonPasswordSet()[mb_strtolower($password)]);
+        return self::isListed($password, self::commonPasswordSet());
+    }
+
+    /**
+     * Whether a password, lower-cased (also non-ASCII letters), is a key of the given set.
+     */
+    public static function isListed(string $password, array $set): bool
+    {
+        return isset($set[mb_strtolower($password)]);
     }
 
     /**

@@ -137,13 +137,19 @@ class CredentialPolicyTest extends TestCase
         CredentialPolicy::loadCommonPasswords($path);
     }
 
-    // Header and blank lines are skipped, \r is stripped, and non-ASCII entries match after lower-casing
-    public function test_loader_skips_headers_and_matches_non_ascii_case_insensitively(): void
+    // Header and blank lines are skipped and \r is stripped
+    public function test_loader_skips_headers_and_blank_lines(): void
     {
         $path = $this->tempListFile("# header\r\n\r\nécole\r\nsecret\n");
         $set = CredentialPolicy::loadCommonPasswords($path);
 
         $this->assertSame(['école' => true, 'secret' => true], $set);
-        $this->assertArrayHasKey(mb_strtolower('ÉCOLE'), $set);
+    }
+
+    // The lookup lower-cases non-ASCII letters, and matches whole entries only
+    public function test_listed_match_lower_cases_non_ascii(): void
+    {
+        $this->assertTrue(CredentialPolicy::isListed('ÉCOLE', ['école' => true]));
+        $this->assertFalse(CredentialPolicy::isListed('ÉCOLES', ['école' => true]));
     }
 }

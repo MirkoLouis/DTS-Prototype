@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 ## 2026-11-20
 
+**Version:** 2.8.1
+
+### Fixed
+- The change-password form says when the common-password check is unavailable, instead of the generic error.
+
+### Changed
+- S13 message tests check the toast, the login alert or the PIN prompt instead of the whole page. The login-timing checks retry once before failing.
+
+### Added
+- `PageMessages`; `composer test:page-messages`; the failed-upgrade test.
+
+## 2026-11-20
+
 **Version:** 2.8.0
 
 ### Changed

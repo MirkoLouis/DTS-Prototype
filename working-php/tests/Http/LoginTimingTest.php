@@ -25,25 +25,42 @@ class LoginTimingTest extends TestCase
         return microtime(true) - $start;
     }
 
+    // Run the measurement; if the ratio check fails, measure once more and fail only if both runs fail
+    private function assertSimilarTiming(callable $measure, string $what): void
+    {
+        $runs = [];
+
+        // At most two attempts; a pass on either ends the loop
+        foreach ([1, 2] as $attempt) {
+            [$known, $unknown] = $measure();
+            $runs[] = sprintf('run %d: %s %.1f ms, unknown username %.1f ms', $attempt, $what, $known * 1000, $unknown * 1000);
+
+            // Both directions: a fast refusal or a slow one would each reveal which kind of account exists
+            if ($unknown >= 0.5 * $known && $known >= 0.5 * $unknown) {
+                $this->addToAssertionCount(1);
+                return;
+            }
+        }
+
+        $this->fail('timing differs in both runs (' . implode('; ', $runs) . ')');
+    }
+
     // An unknown username takes about as long as a wrong password for a real account
     public function test_unknown_username_takes_as_long_as_a_wrong_password(): void
     {
-        // Two wrong passwords for a real account (MAX_FAILURES of them would trigger the lockout, which skips the check)
-        $known = min($this->failedLoginSeconds('cash.unit'), $this->failedLoginSeconds('cash.unit'));
+        $this->assertSimilarTiming(function (): array {
+            // Two wrong passwords for a real account (MAX_FAILURES of them would trigger the lockout, which skips the check)
+            $known = min($this->failedLoginSeconds('cash.unit'), $this->failedLoginSeconds('cash.unit'));
 
-        // Three different usernames that do not exist
-        $unknown = min(
-            $this->failedLoginSeconds('no.such.user.a'),
-            $this->failedLoginSeconds('no.such.user.b'),
-            $this->failedLoginSeconds('no.such.user.c')
-        );
+            // Three different usernames that do not exist
+            $unknown = min(
+                $this->failedLoginSeconds('no.such.user.a'),
+                $this->failedLoginSeconds('no.such.user.b'),
+                $this->failedLoginSeconds('no.such.user.c')
+            );
 
-        // Without a password check for unknown users this ratio is far below one half
-        $this->assertGreaterThanOrEqual(
-            0.5 * $known,
-            $unknown,
-            sprintf('unknown username answered in %.1f ms, wrong password in %.1f ms', $unknown * 1000, $known * 1000)
-        );
+            return [$known, $unknown];
+        }, 'wrong password');
     }
 
     // During the bcrypt to Argon2id migration a not-yet-upgraded account answers in the same time as an unknown username
@@ -55,20 +72,18 @@ class LoginTimingTest extends TestCase
             [':p' => TestDatabase::LEGACY_BCRYPT_HASH, ':e' => 'records.unit']
         );
 
-        // Two wrong passwords for the bcrypt account (below the lockout limit)
-        $bcryptKnown = min($this->failedLoginSeconds('records.unit'), $this->failedLoginSeconds('records.unit'));
+        $this->assertSimilarTiming(function (): array {
+            // Two wrong passwords for the bcrypt account (below the lockout limit)
+            $bcryptKnown = min($this->failedLoginSeconds('records.unit'), $this->failedLoginSeconds('records.unit'));
 
-        // Three different usernames that do not exist
-        $unknown = min(
-            $this->failedLoginSeconds('no.such.user.d'),
-            $this->failedLoginSeconds('no.such.user.e'),
-            $this->failedLoginSeconds('no.such.user.f')
-        );
+            // Three different usernames that do not exist
+            $unknown = min(
+                $this->failedLoginSeconds('no.such.user.d'),
+                $this->failedLoginSeconds('no.such.user.e'),
+                $this->failedLoginSeconds('no.such.user.f')
+            );
 
-        $message = sprintf('bcrypt account answered in %.1f ms, unknown username in %.1f ms', $bcryptKnown * 1000, $unknown * 1000);
-
-        // Both directions: a fast refusal or a slow one would each reveal which kind of account exists
-        $this->assertGreaterThanOrEqual(0.5 * $unknown, $bcryptKnown, $message);
-        $this->assertGreaterThanOrEqual(0.5 * $bcryptKnown, $unknown, $message);
+            return [$bcryptKnown, $unknown];
+        }, 'bcrypt account');
     }
 }

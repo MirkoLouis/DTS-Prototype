@@ -15,6 +15,13 @@ use Tests\TestCase;
  */
 class PasswordRehashTest extends TestCase
 {
+    // Drop the trigger of the failed-upgrade test, so no later test sees it
+    protected function tearDown(): void
+    {
+        Database::getInstance()->query('DROP TRIGGER IF EXISTS s13_block_rehash');
+        parent::tearDown();
+    }
+
     // The stored password hash of a username
     private function storedHash(string $username): string
     {
@@ -62,6 +69,25 @@ class PasswordRehashTest extends TestCase
 
         $this->signIn('cash.unit', 'not-the-password');
 
+        $this->assertSame(TestDatabase::LEGACY_BCRYPT_HASH, $this->storedHash('cash.unit'));
+    }
+
+    // A database error during the upgrade is logged; the bcrypt hash stays and the sign-in still succeeds
+    public function test_failed_upgrade_keeps_the_bcrypt_hash_and_signs_in(): void
+    {
+        $this->storeHash('cash.unit', TestDatabase::LEGACY_BCRYPT_HASH);
+        $userId = (int) $this->fx['users']['cash.unit'];
+
+        // A trigger that refuses any password change of this one account
+        Database::getInstance()->query(
+            'CREATE TRIGGER s13_block_rehash BEFORE UPDATE ON users FOR EACH ROW BEGIN '
+            . 'IF OLD.id = ' . $userId . " AND NEW.password <> OLD.password THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'blocked by test'; "
+            . 'END IF; END'
+        );
+
+        [, $response] = $this->signIn('cash.unit', TestDatabase::PASSWORD);
+
+        $this->assertSame('/tasks', $response['headers']['location'] ?? '');
         $this->assertSame(TestDatabase::LEGACY_BCRYPT_HASH, $this->storedHash('cash.unit'));
     }
 
