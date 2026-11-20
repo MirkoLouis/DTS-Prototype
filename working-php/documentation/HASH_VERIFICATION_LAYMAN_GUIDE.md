@@ -89,7 +89,7 @@ The cryptographic math asks a simple True/False question:
 A notebook can also be attacked by tearing out its newest pages: nothing after them is left to notice the gap. Once a day the system writes a **checkpoint**: a signed list of the last fingerprint of every notebook, saved outside the database. The audit checks that every fingerprint on the newest checkpoint still exists. Keep copies of checkpoints off the server so they cannot be rewritten together with the database.
 
 ### Remembering your PIN for a while
-To avoid typing the PIN for every step during busy hours, the browser keeps a **locked envelope** instead of the PIN: the PIN sealed with a key that exists only in your login session on the server. The envelope is useless to anyone else, stops working when you log out, and expires after the configured time (`PIN_CACHE_DURATION`, four hours by default), or sooner if your session ends after 12 hours without activity.
+To avoid typing the PIN for every step during busy hours, the browser keeps a **locked envelope** instead of the PIN: the PIN sealed with a key that exists only in your login session on the server. The envelope is useless to anyone else, stops working when you log out, and expires after the configured time (`PIN_CACHE_DURATION`).
 
 ---
 
