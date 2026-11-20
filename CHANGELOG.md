@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 ## 2026-11-20
 
+**Version:** 2.7.17
+
+### Fixed
+- A refused workflow action now shows its reason on the page. Before, every policy refusal ("Action Denied: Document failed integrity check or you lack permissions.") went only to the browser console, so a department scanning a document that was not at its step, or a user acting on a document the pre-action integrity check had just frozen, saw nothing. The refusal is now an `ActionDeniedException` whose message comes from one place, `DocumentDenialService::messageFor()`: where the document is waiting or who is processing it, that it is frozen and needs an administrator, or which role may do the action. The seven controllers show it as an error toast with the tracking code.
+- The PIN-required message of `DigitalSignatureService::signAction` is shown on the page as well (it also went to the console).
+
+### Removed
+- The browser-console channel (`$_SESSION['console_error']`, the `dts-console-error` JSON block and its reader in `server-handoff.js`); nothing writes to it any more.
+
+### Added
+- `composer test:refusal-message` (`tests/Http/RefusalMessageTest.php`). The step-rule tests (`LifecycleTest`, `OfficerStepRuleTest`, `AdminStepRuleTest`, `FrontendAttackTest`) now assert the exact reason instead of "Action Denied".
+
+## 2026-11-20
+
 **Version:** 2.7.16
 
 ### Changed

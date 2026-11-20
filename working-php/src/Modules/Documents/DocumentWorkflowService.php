@@ -52,7 +52,10 @@ class DocumentWorkflowService
                 if (!$this->policy->$policyMethod($user, $document)) {
                     // Commit early here: if the policy failed due to tampering, the pre-action integrity check might have logged an automatic freezing event
                     $conn->commit();
-                    throw new Exception("Action Denied: Document failed integrity check or you lack permissions.");
+
+                    // Explain the refusal from the document as it is now (frozen if the check just froze it)
+                    $statusNow = $this->db->query("SELECT status FROM documents WHERE id = :id", [':id' => $document['id']])->fetch()['status'] ?? $document['status'];
+                    throw new ActionDeniedException(DocumentDenialService::messageFor($policyMethod, ['status' => $statusNow] + $document));
                 }
             }
             

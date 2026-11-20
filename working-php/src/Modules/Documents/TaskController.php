@@ -35,11 +35,8 @@ class TaskController
             
             $_SESSION['success'] = "Document $trackingCode is now in transit.";
         } catch (\Exception $e) {
-            if (str_contains($e->getMessage(), 'Action Denied')) {
-                $_SESSION['console_error'] = $e->getMessage();
-            } else {
-                $_SESSION['error'] = document_message($trackingCode, $e->getMessage());
-            }
+            // Every refusal, including a policy refusal, is shown on the page
+            $_SESSION['error'] = document_message($trackingCode, $e->getMessage());
         }
         
         header("Location: /tasks");

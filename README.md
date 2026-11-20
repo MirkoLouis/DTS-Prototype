@@ -455,6 +455,7 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `test:tracking-code-util` | Tracking-code format, with no time-based input. |
 | `test:guest-department-validation` | The guest form accepts only departments that exist (exact case). |
 | `test:decline-redirect` | Declining redirects to the dashboard with a toast; a failed decline returns to the referring page. |
+| `test:refusal-message` | A refused workflow action shows its reason on the page (wrong department, another unit's step, a document just frozen as tampered) and changes nothing else. |
 
 *Concurrency*
 

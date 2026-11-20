@@ -99,12 +99,12 @@ class RenderedPages
         $admin->post('/clear-personal-cache', []);
         $pages['admin-dashboard-toast'] = $admin->get('/admin-dashboard')['body'];
 
-        // A refused action (completing a task the account does not hold) leaves a console message for the browser ("dts-console-error" JSON block)
+        // A refused action (completing a task the account does not hold) shows its reason as an error toast
         $staff = HttpClient::start();
         $staff->loginAs('cash.unit');
         $staff->get('/tasks');
         $staff->post('/tasks/' . $pending['id'] . '/complete', ['pin' => TestDatabase::PIN]);
-        $pages['tasks-console-error'] = $staff->get('/tasks')['body'];
+        $pages['tasks-refused-action'] = $staff->get('/tasks')['body'];
 
         // A signed action with a typed PIN makes the server hand out the PIN cache token ("dts-pin-token" JSON block)
         $signer = HttpClient::start();
