@@ -38,7 +38,7 @@ Application settings in `.env` during the tests:
 - `APP_DEBUG=true`
 - `PIN_CACHE_DURATION=72000` (20 hours)
 
-The paper should state the value used during the evaluation (M13). `.env.example` now defaults to 900 seconds (15 minutes).
+The paper should state the value used during the evaluation (M13). Since 2.7.16 the default is 14400 seconds (4 hours), both in `.env.example` and when the variable is missing.
 
 ## Data
 

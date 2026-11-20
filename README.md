@@ -473,6 +473,7 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `test:key-cache-invalidation` | Entries signed after a key reset verify within the same long-lived process. |
 | `test:core-module-structure` | Module structure guard: old classes removed, log format v2 byte-identical, tampered documents frozen. |
 | `test:integrity-key` | The shared integrity-key helper accepts only base64 of exactly 32 bytes; the test override is ignored outside the testing environment. |
+| `test:pin-cache-duration` | The Security PIN cache lasts four hours by default: one constant, used by the config fallback, the PIN cache and .env.example. |
 | `test:chain-seal` | Entry seals and chain seals: the sealed fields and their normalization, every workflow action leaves valid seals, the automatic freeze keeps the mismatch, unfreeze and auto-resolve re-seal, unfreeze refuses changed content, recovery never rolls back (it refuses when the newest entry fails), unsealed documents are refused and not frozen. |
 | `test:seal-chains-script` | scripts/seal-chains.php seals existing data once after verifying each chain (refusing chains that do not verify), never seals a missing seal on an already sealed database or overwrites a seal without an explicit flag and the database name, and refuses without a key or against another database. |
 | `test:missing-integrity-key` | Without APP_INTEGRITY_KEY the worker does not start, the integrity check reports "seal not configured", and the pre-action check refuses the action without freezing. |
