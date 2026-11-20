@@ -1,0 +1,6 @@
+run_id,suite,class,test,data_set,status,duration_ms,assertions,message,timestamp
+20261119-111627-8cc7,concurrency,"Tests\Concurrency\GuestSubmissionConcurrencyTest",test_server_handles_requests_in_parallel,,passed,2485.585,2,,2026-11-19T11:16:30+08:00
+20261119-111627-8cc7,concurrency,"Tests\Concurrency\GuestSubmissionConcurrencyTest",test_simultaneous_submissions_cannot_exceed_the_rate_limit,,passed,2086.362,3,,2026-11-19T11:16:33+08:00
+20261119-111627-8cc7,concurrency,"Tests\Concurrency\GuestSubmissionConcurrencyTest",test_100_simultaneous_submissions_get_unique_matching_codes,,passed,11038.145,30,,2026-11-19T11:16:45+08:00
+20261119-111627-8cc7,concurrency,"Tests\Concurrency\TaskCompletionConcurrencyTest",test_forked_workers_use_distinct_connections,,passed,2005.635,3,,2026-11-19T11:16:47+08:00
+20261119-111627-8cc7,concurrency,"Tests\Concurrency\TaskCompletionConcurrencyTest",test_simultaneous_task_completion_only_one_succeeds,,passed,11010.606,25,,2026-11-19T11:16:59+08:00
