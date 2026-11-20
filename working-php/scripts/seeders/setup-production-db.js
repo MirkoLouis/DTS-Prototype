@@ -252,8 +252,8 @@ async function setupDatabase() {
         }
 
         // 4. Seed Users
-        // The app hashes passwords with Argon2id (PasswordHasher). We use a pre-hashed string for 'password'
-        const hashedPassword = '$argon2id$v=19$m=65536,t=4,p=1$Q3JOdzNTMmYuVVdZdDJaeg$pEv+9Ev61ZWBV7kpvIU8BgtmIcGBRaqlWabvVIqTfLY';
+        // PHP password_hash() uses bcrypt. We will use a pre-hashed string for 'password'
+        const hashedPassword = '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi';
         
         // Admin User
         await connection.query(

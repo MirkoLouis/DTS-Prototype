@@ -296,6 +296,12 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
         </main>
     </div>
 
+    <?php // Session data for public/js/layout/server-handoff.js (a message for the browser console), as an inert JSON block ?>
+    <?php if (isset($_SESSION['console_error'])): ?>
+        <?= \App\Common\Utils\JsonDataBlock::render('dts-console-error', $_SESSION['console_error']) ?>
+        <?php unset($_SESSION['console_error']); ?>
+    <?php endif; ?>
+
     <?php // Hand the encrypted PIN-cache token to the browser, or tell it to discard a stale one (applied by server-handoff.js) ?>
     <?php if (isset($_SESSION[\App\Modules\Users\SecurityPinCacheService::SESSION_ISSUED]) || isset($_SESSION[\App\Modules\Users\SecurityPinCacheService::SESSION_CLEAR])): ?>
         <?= \App\Common\Utils\JsonDataBlock::render('dts-pin-token', [
@@ -313,7 +319,7 @@ $mobileInactiveClass = "block pl-3 pr-4 py-2 border-l-4 border-transparent text-
     $hideCloseButton = true;
     $modalDismissible = false; // mandatory: Escape and clicks outside do nothing until the PIN is set or the user logs out
 
-    $pinMinLength = \App\Modules\Auth\CredentialPolicy::MIN_LENGTH_PIN;
+    $pinMinLength = \App\Modules\Auth\CredentialPolicy::MIN_LENGTH;
 
     // A refusal of the previous PIN setup attempt (taken once): shown in the prompt as an alert linked to both fields
     $pinSetupError = $_SESSION['pin_setup_error'] ?? null;

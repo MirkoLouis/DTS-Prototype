@@ -36,7 +36,7 @@ return [
     'app' => [
         'env' => $env['APP_ENV'] ?? 'production',
         'debug' => filter_var($env['APP_DEBUG'] ?? 'false', FILTER_VALIDATE_BOOLEAN),
-        'pin_cache_duration' => (int) ($env['PIN_CACHE_DURATION'] ?? \App\Modules\Users\SecurityPinCacheService::DEFAULT_DURATION_SECONDS),
+        'pin_cache_duration' => (int) ($env['PIN_CACHE_DURATION'] ?? 900),
         'system_signing_secret' => $env['SYSTEM_SIGNING_SECRET'] ?? '',
         'system_signing_public' => $env['SYSTEM_SIGNING_PUBLIC'] ?? '',
         // Secret (base64 of 32 random bytes) that keys the system audit log and, later, the chain seal

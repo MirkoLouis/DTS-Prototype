@@ -338,7 +338,7 @@ The settings and habits the developers recommend for any server that holds real 
 ### 2. Accounts, passwords and PINs
 
 - **Change the password of every seeded account before going live.** They all start as `password` (see [Default Test Accounts](#-default-test-accounts-password-password)). Each account's owner signs in and uses **Change password** in the user menu (`/account/password`); an admin cannot type another person's password. The sign-in password is part of your sign-in credentials; it proves who you are when you log in.
-- **Password rules.** A new password has at least 15 characters (any mix of letters, numbers and symbols), is not among the 3,000 most commonly used passwords (compared case-insensitively), differs from the current one and from `password`, and is not the user's Security PIN. Five wrong current passwords within a minute time the user out for one minute, and an account can change its password at most five times per minute. A user creates their Security PIN first and can then change the password (the change-password form is refused until a PIN exists).
+- **Password rules.** A new password has at least 10 characters (any mix of letters, numbers and symbols), differs from the current one and from `password`, and is not the user's Security PIN. Five wrong current passwords within a minute time the user out for one minute, and an account can change its password at most five times per minute. A user creates their Security PIN first and can then change the password (the change-password form is refused until a PIN exists).
 - **New accounts start with the password `password`.** The admin creates an account without typing a password. An account is flagged for a reminder when an admin creates it or resets its sign-in password, and when someone signs in with `password`. While flagged, every sign-in leaves one notification ("You are using the default password." or "Your password was set by an administrator.") with a **Change password** link; it pops up as a toast on the first page after sign-in and then stays in the notification list. Nothing is forced: the account works as usual until its owner changes the password, which removes the flag and the reminder. Changing your password signs you out everywhere, including the current session; an admin reset of the sign-in password signs that user out of all their sessions (a Security PIN-only reset does not).
 - **One account per person or unit; never delete, deactivate.** A deactivated account can no longer sign in, and everything it signed stays verifiable. Staff and Records Officer accounts need a department; a Records Officer belongs to the Records Unit.
 - **Each user sets their own Security PIN** at first login and must not share it: the PIN is what makes a signature theirs. The Security PIN is a second passcode that unlocks your signing key; you enter it to sign an action on a document. A new PIN has at least 10 characters (any characters) and must differ from the sign-in password; using the same passcode for sign-in and for signing is a security risk, because anyone who learns one would have both. Existing shorter PINs keep working until they are reset. A Security PIN can only be replaced through an admin reset; the PIN form refuses an account that already has one, and repeated PINs equal to the sign-in password lock the form for one minute.
@@ -455,8 +455,6 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `test:tracking-code-util` | Tracking-code format, with no time-based input. |
 | `test:guest-department-validation` | The guest form accepts only departments that exist (exact case). |
 | `test:decline-redirect` | Declining redirects to the dashboard with a toast; a failed decline returns to the referring page. |
-| `test:refusal-message` | A refused workflow action shows its reason on the page (wrong department, another unit's step, a document just frozen as tampered) and changes nothing else. |
-| `test:document-denial-service` | Every refusal reason: administrator-only and officer roles, frozen documents, and the department-step reason for each document status. |
 
 *Concurrency*
 
@@ -475,9 +473,6 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `test:key-cache-invalidation` | Entries signed after a key reset verify within the same long-lived process. |
 | `test:core-module-structure` | Module structure guard: old classes removed, log format v2 byte-identical, tampered documents frozen. |
 | `test:integrity-key` | The shared integrity-key helper accepts only base64 of exactly 32 bytes; the test override is ignored outside the testing environment. |
-| `test:pin-cache-duration` | The Security PIN cache lasts four hours by default: one constant, used by the config fallback, the PIN cache and .env.example. |
-| `test:password-hasher` | PasswordHasher is the one place passwords are hashed: Argon2id, with older bcrypt hashes still verifiable and flagged for rehash. |
-| `test:credential-policy` | CredentialPolicy holds the credential rules: separate password and PIN minimum lengths and the common-password blocklist. |
 | `test:chain-seal` | Entry seals and chain seals: the sealed fields and their normalization, every workflow action leaves valid seals, the automatic freeze keeps the mismatch, unfreeze and auto-resolve re-seal, unfreeze refuses changed content, recovery never rolls back (it refuses when the newest entry fails), unsealed documents are refused and not frozen. |
 | `test:seal-chains-script` | scripts/seal-chains.php seals existing data once after verifying each chain (refusing chains that do not verify), never seals a missing seal on an already sealed database or overwrites a seal without an explicit flag and the database name, and refuses without a key or against another database. |
 | `test:missing-integrity-key` | Without APP_INTEGRITY_KEY the worker does not start, the integrity check reports "seal not configured", and the pre-action check refuses the action without freezing. |
@@ -523,8 +518,7 @@ You do not create the database by hand: `TestLifecycle` (called from `tests/boot
 | `test:json-data-block` | The JSON data block helper escapes script and comment endings, quotes and ampersands, and refuses unsafe element ids. |
 | `test:tracking-form-print` | Print-tracking-form links on officer pages, none for staff; the slip PDF is served only to the submitting session or to staff allowed to view the document. |
 | `test:cache-query-string` | The response cache stores bare URLs only; URLs with a query string create no cache files. |
-| `test:login-timing` | An unknown username takes about as long to refuse as a wrong password (one Argon2id check either way). |
-| `test:password-rehash` | Sign-in verifies with Argon2id, upgrades a legacy bcrypt hash once on success, and fixture accounts use Argon2id. |
+| `test:login-timing` | An unknown username takes about as long to refuse as a wrong password (one bcrypt check either way). |
 | `test:released-report-service` | Report rows are text cells only (no formula injection); report filters are whitelisted. |
 | `test:report-filters` | Stored report filters carry no CSRF token; a formula-like title is downloaded as text. |
 | `test:report-ownership` | A report job is downloaded, inspected and cancelled only by the user who requested it. |
@@ -639,7 +633,7 @@ Not applicable on an offline LAN (`ThreatActor::NOT_APPLICABLE`): botnet DDoS, i
 
 **Fixed findings.** F1 (finalizing a route accepted an unknown department), F2 (staff could view documents outside their route through `DocumentController::show`) and F3 (`CacheMiddleware` wrote cached pages non-atomically, so a cold-cache kiosk burst could get pages without a CSRF token) are fixed. The former finding tests remain as regression tests, and the default `vendor/bin/phpunit` ends with 0 failures.
 
-**Workflow rules.** Officers are bound by the department-step rule like staff: acting on a document outside their step is refused, and the page says where the document is waiting or who is processing it (`DocumentDenialService`). They keep intake, the final Records receive, and release.
+**Workflow rules.** Officers are bound by the department-step rule like staff: acting on a document outside their step gives "Action Denied". They keep intake, the final Records receive, and release.
 
 **Seeders.** `fast-seed.php` and `import-legacy.php` rely on the database unique key for tracking codes and retry the chunk on MySQL duplicate error 1062; there is no in-memory duplicate check. Under `APP_ENV=testing`, `fast-seed.php` only clears the test cache in `.test/` and leaves PHP sessions alone.
 
