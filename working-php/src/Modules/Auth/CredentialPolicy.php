@@ -69,7 +69,7 @@ class CredentialPolicy
     }
 
     /**
-     * The common-password list as a set, read once per process.
+     * The common-password list as a set, read once per process; a failed load is never cached.
      *
      * @return array<string, true>
      */
@@ -77,13 +77,26 @@ class CredentialPolicy
     {
         static $set = null;
 
-        // Reuse the set once it is loaded
-        if ($set !== null) {
-            return $set;
+        // Load on first use only; loadCommonPasswords throws before $set is assigned
+        $set ??= self::loadCommonPasswords(__DIR__ . '/data/common-passwords.txt');
+
+        return $set;
+    }
+
+    /**
+     * Read a common-password list file into a set; throws if it is missing, unreadable or has no entries,
+     * so a broken deployment never silently disables the blocklist.
+     *
+     * @return array<string, true>
+     */
+    public static function loadCommonPasswords(string $path): array
+    {
+        $lines = is_readable($path) ? file($path, FILE_IGNORE_NEW_LINES) : false;
+        if ($lines === false) {
+            throw new \RuntimeException('Common-password list is missing or unreadable: ' . $path);
         }
 
         $set = [];
-        $lines = file(__DIR__ . '/data/common-passwords.txt', FILE_IGNORE_NEW_LINES) ?: [];
 
         // Keep every entry line; skip header comments and blank lines
         foreach ($lines as $line) {
@@ -92,6 +105,11 @@ class CredentialPolicy
                 continue;
             }
             $set[$entry] = true;
+        }
+
+        // An empty list would let every password through
+        if ($set === []) {
+            throw new \RuntimeException('Common-password list has no entries: ' . $path);
         }
 
         return $set;
