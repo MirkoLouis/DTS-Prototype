@@ -77,22 +77,48 @@ The DTS replaces the paper routing slip at the DepEd Division of Iligan City. A 
 | :--- | :--- |
 | Server | PHP 8.3, nginx + PHP-FPM, MySQL 8.0 |
 | UI | Server-rendered PHP views, Tailwind CSS 3.4, plain JavaScript |
-| Libraries | dompdf 3.1.6, chillerlan/php-qrcode 6.0.1, OpenSpout 5.3.0, Symfony Cache 7.4.14 |
+| Libraries | dompdf 3.1.6, chillerlan/php-qrcode 6.0.1, OpenSpout 5.3.0 |
 | Crypto | libsodium (Ed25519, Argon2id key from the PIN), AES-256, bcrypt passwords, SHA-256 |
 | Tests | PHPUnit 12.5.42, Playwright (manual browser checks) |
 
 ## Architecture
 
 ```mermaid
-flowchart LR
-  Browser --> Nginx[nginx + PHP-FPM] --> Router[public/index.php] --> Modules[Controllers in src/Modules]
-  Modules --> Services[Workflow, routing and integrity services] --> DB[(MySQL)]
-  Worker[console.php worker] --> DB
-  Worker --> Storage[(Checkpoints, backups, reports)]
-  Services --> Storage
+flowchart TB
+  subgraph Clients
+    Guest[Guest at the kiosk] & Officer[Records Officer] & Staff[Department Staff] & Admin[Administrator] --> Browser[Browser: PJAX, QR scanner, signing modal]
+  end
+  Browser -->|HTTPS :8000| Nginx[nginx TLS + PHP-FPM]
+  subgraph App[working-php]
+    Nginx --> Front[public/index.php: security headers, session, CSRF token]
+    Front --> Router[Router: CSRF check, route match]
+    Router --> MW[Middleware: Auth, RoleGuard, page cache, rate limit]
+    MW --> Modules[Modules: Documents, Routing, Integrity, Users, Auth, Analytics, Notifications, System]
+    Modules --> Workflow[DocumentWorkflowService: one transaction, version lock]
+    Workflow --> Integrity[Pre-action integrity check, auto-freeze]
+    Workflow --> Chain[HashChain + ChainSeal]
+    Workflow --> Sign[DigitalSignature: Ed25519, key unlocked by PIN]
+    Modules --> Exports[dompdf + QR slip, OpenSpout XLSX]
+  end
+  subgraph Worker[Background worker]
+    Console[console.php: queue + scheduler] --> Runner[runner.php: reports, backups, restore, integrity check]
+    Console --> Sched[Checkpoints, metrics, cache cleanup, stale documents]
+  end
+  subgraph Data
+    DB[(MySQL: documents, document_logs, users and keys, jobs, rate limits, cache, metrics)]
+    Files[(storage/: sessions, checkpoints, backups, logs, system-audit.log)]
+    PageCache[(cache/responses/)]
+  end
+  Modules --> DB
+  Chain & Sign --> DB
+  MW --> PageCache
+  Front --> Files
+  Console --> DB
+  Runner & Sched --> Files
+  Exports --> Browser
 ```
 
-Each request goes through one front controller to a module (Documents, Routing, Integrity, Users and so on); state changes run in one transaction in `DocumentWorkflowService`. The worker runs queued jobs and the scheduler: integrity checks, daily signed checkpoints, backups and metrics. How the hash chain and seals work: [CRYPTOGRAPHIC_LOGS_EXPLAINED.md](working-php/documentation/CRYPTOGRAPHIC_LOGS_EXPLAINED.md).
+Every request goes through one front controller, the middleware its route declares, then a module. State changes run in one transaction in `DocumentWorkflowService`, which checks the document against its last log entry before writing a signed, sealed entry to the hash chain. The worker runs queued jobs and the scheduler. More diagrams (request pipeline, worker, data stores, roles, deployment): [ARCHITECTURE.md](working-php/documentation/ARCHITECTURE.md).
 
 ## Getting Started
 
@@ -103,7 +129,7 @@ cd working-php
 npm install && npm run build && composer install
 cp .env.example .env                 # then set DB_HOST, DB_DATABASE, DB_USERNAME, DB_PASSWORD
 composer run seed:prod               # tables, departments, first accounts and keys
-composer run dev                     # web server on https://localhost:8000, Tailwind watcher, queue worker
+composer run dev                     # web server on https://localhost:8000 and queue worker (Linux)
 ```
 
 `database.sql` is only for a new, empty database; an existing one is upgraded with `scripts/migrations/master-migration.sql`. Before the system holds real documents, work through [SECURITY_BASELINES.md](working-php/documentation/SECURITY_BASELINES.md).
@@ -153,6 +179,7 @@ Step-by-step guides per role: [Administrator](working-php/documentation/user_man
 
 | File | What it covers |
 | :--- | :--- |
+| [ARCHITECTURE.md](working-php/documentation/ARCHITECTURE.md) | Request pipeline, modules, worker and scheduler, data stores, roles, deployment |
 | [OPERATIONS.md](working-php/documentation/OPERATIONS.md) | Seeders, every script, the worker as a service, log rotation, disk space, updating a server |
 | [SECURITY_BASELINES.md](working-php/documentation/SECURITY_BASELINES.md) | Secrets, passwords and PINs, network, backups, off-server evidence, Content Security Policy |
 | [CHAIN_SEAL.md](working-php/documentation/CHAIN_SEAL.md) | Entry and chain seals, sealing an existing database, the v1 to v2 upgrade |
