@@ -136,7 +136,7 @@ class CredentialResetTest extends TestCase
         $response = $client->post('/login', ['email' => 'cash.unit', 'password' => 'password']);
         $this->assertSame('/tasks', $response['headers']['location']);
         $messages = Database::getInstance()->query('SELECT message FROM notifications WHERE user_id = :u AND link = :l', [':u' => $this->fx['users']['cash.unit'], ':l' => '/account/password'])->fetchAll(\PDO::FETCH_COLUMN);
-        $this->assertSame(['You are using the default password.'], $messages);
+        $this->assertSame([\App\Modules\Auth\PasswordReminderService::DESCRIPTION_DEFAULT_PASSWORD], $messages);
     }
 
     // Both resets both

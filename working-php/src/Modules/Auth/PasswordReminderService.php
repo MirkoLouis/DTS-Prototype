@@ -17,6 +17,9 @@ class PasswordReminderService
     public const MESSAGE_DEFAULT_PASSWORD = 'You are using the default password.';
     public const MESSAGE_SET_BY_ADMINISTRATOR = 'Your password was set by an administrator.';
 
+    // Text under the default-password title: why the default password should not be kept
+    public const DESCRIPTION_DEFAULT_PASSWORD = 'Every new account starts with this password, so anyone who knows it can sign in as you. Change it to one only you know.';
+
     /**
      * Set the reminder flag of an account.
      */
@@ -50,8 +53,10 @@ class PasswordReminderService
         // Earlier reminders go first (and so does a toast still waiting for one), so reminders never pile up
         $notifications = new NotificationService();
         $notifications->deleteForUserByLink($userId, CredentialPolicy::CHANGE_PASSWORD_PATH);
-        $message = $usedDefaultPassword ? self::MESSAGE_DEFAULT_PASSWORD : self::MESSAGE_SET_BY_ADMINISTRATOR;
-        $notificationId = $notifications->notifyUser($userId, $message, $message, 'warning', CredentialPolicy::CHANGE_PASSWORD_PATH, CredentialPolicy::CHANGE_PASSWORD_LABEL);
+        // The default-password reminder explains why under its title; the administrator one repeats its title
+        $title = $usedDefaultPassword ? self::MESSAGE_DEFAULT_PASSWORD : self::MESSAGE_SET_BY_ADMINISTRATOR;
+        $message = $usedDefaultPassword ? self::DESCRIPTION_DEFAULT_PASSWORD : self::MESSAGE_SET_BY_ADMINISTRATOR;
+        $notificationId = $notifications->notifyUser($userId, $title, $message, 'warning', CredentialPolicy::CHANGE_PASSWORD_PATH, CredentialPolicy::CHANGE_PASSWORD_LABEL);
 
         // The reminder pops up as a toast on the first page after sign-in, then lives in the notification list
         NotificationService::toastOnNextPage($notificationId);

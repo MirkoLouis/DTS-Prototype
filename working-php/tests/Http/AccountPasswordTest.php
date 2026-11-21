@@ -358,7 +358,7 @@ class AccountPasswordTest extends TestCase
         $reminders = $this->reminders('cash.unit');
         $this->assertCount(1, $reminders);
         $this->assertSame('You are using the default password.', $reminders[0]['title']);
-        $this->assertSame('You are using the default password.', $reminders[0]['message']);
+        $this->assertSame('Every new account starts with this password, so anyone who knows it can sign in as you. Change it to one only you know.', $reminders[0]['message']);
         $this->assertSame('Change password', $reminders[0]['link_label']);
 
         // Signing in again replaces the reminder instead of adding another
@@ -435,7 +435,7 @@ class AccountPasswordTest extends TestCase
 
         $body = $client->get('/tasks')['body'];
 
-        $this->assertMatchesRegularExpression('/You are using the default password\.\s*<\/p>\s*<a class="notification-link[^"]*"[^>]*href="\/account\/password"[^>]*>\s*Change password\s*<\/a>/', $body);
+        $this->assertMatchesRegularExpression('/' . preg_quote(\App\Modules\Auth\PasswordReminderService::DESCRIPTION_DEFAULT_PASSWORD, '/') . '\s*<\/p>\s*<a class="notification-link[^"]*"[^>]*href="\/account\/password"[^>]*>\s*Change password\s*<\/a>/', $body);
         $api = json_decode($client->get('/api/notifications/unread')['body'], true);
         $this->assertSame(self::REMINDER_LINK, $api['notifications'][0]['link']);
     }
@@ -556,7 +556,7 @@ class AccountPasswordTest extends TestCase
         $this->assertSame('1', (string) $row['must_change_password']);
         $this->assertTrue($this->canSignIn('new.person', 'password'));
         $created = Database::getInstance()->query('SELECT message FROM notifications WHERE user_id = :u AND link = :l', [':u' => (int) $row['id'], ':l' => self::REMINDER_LINK])->fetchAll(\PDO::FETCH_COLUMN);
-        $this->assertSame(['You are using the default password.'], $created);
+        $this->assertSame([\App\Modules\Auth\PasswordReminderService::DESCRIPTION_DEFAULT_PASSWORD], $created);
     }
 
     // The edit page has no password fields, and a posted password field is ignored
