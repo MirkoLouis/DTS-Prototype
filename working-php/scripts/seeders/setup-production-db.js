@@ -72,7 +72,7 @@ async function setupDatabase() {
         console.log('🔐 Ensuring integrity key exists...');
         require('child_process').execFileSync('php', [path.join(__dirname, '../generate-keys.php'), '--integrity'], { stdio: 'inherit' });
 
-        console.log('🧹 Dropping this app's tables, then building the schema (including document_snapshot)...');
+        console.log("🧹 Dropping this app's tables, then building the schema (including document_snapshot)...");
 
         // database.sql names no database and drops nothing: drop the app's tables in DB_DATABASE (the checks above allowed it), select it, build the schema
         await rebuildSchema(connection, process.env.DB_DATABASE, sqlContent, process.argv.includes('--force'));
@@ -270,10 +270,8 @@ async function setupDatabase() {
                     ['Records Officer', 'records.unit', hashedPassword, dept.id]
                 );
             } else {
-                // Generate clean department username slug (e.g., cash.unit, administrative.unit)
-                const slug = dept.name.toLowerCase().replace(/ and /g, '.and.').replace(/ /g, '.');
-                const email = slug;
-                
+                const email = departmentUsername(dept.name);
+
                 await connection.query(
                     "INSERT INTO users (name, email, password, must_change_password, department_id, role, created_at, updated_at) VALUES (?, ?, ?, 1, ?, 'staff', NOW(), NOW())",
                     [`${dept.name} Staff`, email, hashedPassword, dept.id]
@@ -293,6 +291,29 @@ async function setupDatabase() {
             await connection.end();
         }
     }
+}
+
+// Usernames of departments whose names have three or more words: their acronym plus ".unit"
+const SHORT_DEPARTMENT_USERNAMES = {
+    'Health and Nutrition': 'hun.unit',
+    'Bids and Awards Committee Unit': 'bac.unit',
+    'Schools Division Superintendent Office': 'sds.unit',
+    'Assistant Schools Division Superintendent Office': 'asds.unit',
+    'Curriculum Implementation Division': 'cid.unit',
+    'School Governance and Operations Division': 'sgod.unit',
+};
+
+/**
+ * Username of a department's staff account: the short form for long names,
+ * otherwise the lower-cased name with dots (e.g. cash.unit, administrative.unit).
+ */
+function departmentUsername(departmentName) {
+    // Long names use their acronym
+    if (Object.hasOwn(SHORT_DEPARTMENT_USERNAMES, departmentName)) {
+        return SHORT_DEPARTMENT_USERNAMES[departmentName];
+    }
+
+    return departmentName.toLowerCase().replace(/ and /g, '.and.').replace(/ /g, '.');
 }
 
 setupDatabase();

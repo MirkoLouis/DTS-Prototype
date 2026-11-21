@@ -123,7 +123,7 @@ Every setting is listed in [`working-php/.env.example`](working-php/.env.example
 Step-by-step guides per role: [Administrator](working-php/documentation/user_manuals/admin_manual.md), [Records Officer](working-php/documentation/user_manuals/officer_manual.md), [Department Staff](working-php/documentation/user_manuals/staff_manual.md). Sample output: [tracking form PDF](working-php/documentation/exports/document-tracking-form-DEPED-E5345FDA4F.pdf).
 
 <details>
-<summary><b>Default test accounts</b> (password: <code>password</code>, change it after the first sign-in)</summary>
+<summary><b>Default accounts</b> (password: <code>password</code>, change it after the first sign-in)</summary>
 
 | Role | Username |
 | :--- | :--- |
@@ -136,12 +136,12 @@ Step-by-step guides per role: [Administrator](working-php/documentation/user_man
 | Staff: Budget Unit | `budget.unit` |
 | Staff: Accounting | `accounting.unit` |
 | Staff: Legal Unit | `legal.unit` |
-| Staff: Health & Nutrition | `health.and.nutrition` |
-| Staff: BAC Unit | `bids.and.awards.committee.unit` |
-| Staff: SDS Office | `schools.division.superintendent.office` |
-| Staff: ASDS Office | `assistant.schools.division.superintendent.office` |
-| Staff: CID | `curriculum.implementation.division` |
-| Staff: SGOD | `school.governance.and.operations.division` |
+| Staff: Health & Nutrition | `hun.unit` |
+| Staff: BAC Unit | `bac.unit` |
+| Staff: SDS Office | `sds.unit` |
+| Staff: ASDS Office | `asds.unit` |
+| Staff: CID | `cid.unit` |
+| Staff: SGOD | `sgod.unit` |
 | Staff: ICT Unit | `ict.unit` |
 
 </details>
