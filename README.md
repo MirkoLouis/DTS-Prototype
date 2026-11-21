@@ -5,9 +5,9 @@
 <p align="center">Tracks official documents through the DepEd Division of Iligan City, with a signed, hash-chained log of every step.</p>
 
 <p align="center">
+  <a href="https://github.com/MirkoLouis/DTS-Prototype/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/MirkoLouis/DTS-Prototype/ci.yml?branch=main&label=CI&style=flat" alt="CI status"></a>
   <img src="https://img.shields.io/badge/version-2.7.15-blue?style=flat" alt="Version 2.7.15">
   <img src="https://img.shields.io/badge/PHP-8.3-777bb4?style=flat" alt="PHP 8.3">
-  <img src="https://img.shields.io/badge/MySQL-8.0-4479a1?style=flat" alt="MySQL 8.0">
   <img src="https://img.shields.io/badge/platform-web%20%7C%20Linux%20server-lightgrey?style=flat" alt="Platform: web, Linux server">
 </p>
 
