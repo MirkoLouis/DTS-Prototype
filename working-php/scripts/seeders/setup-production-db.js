@@ -72,7 +72,7 @@ async function setupDatabase() {
         console.log('🔐 Ensuring integrity key exists...');
         require('child_process').execFileSync('php', [path.join(__dirname, '../generate-keys.php'), '--integrity'], { stdio: 'inherit' });
 
-        console.log('🧹 Dropping this app's tables, then building the schema (including document_snapshot)...');
+        console.log("🧹 Dropping this app's tables, then building the schema (including document_snapshot)...");
 
         // database.sql names no database and drops nothing: drop the app's tables in DB_DATABASE (the checks above allowed it), select it, build the schema
         await rebuildSchema(connection, process.env.DB_DATABASE, sqlContent, process.argv.includes('--force'));
