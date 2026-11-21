@@ -28,11 +28,11 @@ class KeyCacheInvalidationTest extends TestCase
      */
     public function test_new_entry_verifies_after_key_reset_in_same_process(): void
     {
-        $cashId = $this->fx['users']['cash.unit'];
+        $cashId = $this->fx['users']['cash'];
 
         // Entry signed with the original key; verifying it fills the cache
         $old = $this->signedLogs('Before reset');
-        $this->assertNotSame([], $old, 'Harness error: no cash.unit entries were signed.');
+        $this->assertNotSame([], $old, 'Harness error: no cash entries were signed.');
         $this->assertTrue($this->allValid($old), 'Entries signed with the original key must verify.');
 
         // Reset the key as the controller does, including its cache clear
@@ -54,7 +54,7 @@ class KeyCacheInvalidationTest extends TestCase
      */
     public function test_stale_cache_without_clear_fails_new_entry(): void
     {
-        $cashId = $this->fx['users']['cash.unit'];
+        $cashId = $this->fx['users']['cash'];
 
         // Fill the cache with the original key history
         $old = $this->signedLogs('Before reset');
@@ -76,13 +76,13 @@ class KeyCacheInvalidationTest extends TestCase
         $this->assertTrue($this->verifyRow($newest));
     }
 
-    // Submit and complete one document through Cash Unit; return all cash.unit log rows so far
+    // Submit and complete one document through Cash Unit; return all cash log rows so far
     private function signedLogs(string $title): array
     {
         $document = Fixtures::submit(['title' => $title]);
         Fixtures::advanceTo($document['id'], 'completed', ['Cash Unit']);
 
-        return Database::getInstance()->query('SELECT * FROM document_logs WHERE user_id = :u ORDER BY id', [':u' => $this->fx['users']['cash.unit']])->fetchAll();
+        return Database::getInstance()->query('SELECT * FROM document_logs WHERE user_id = :u ORDER BY id', [':u' => $this->fx['users']['cash']])->fetchAll();
     }
 
     // True when every given log row verifies

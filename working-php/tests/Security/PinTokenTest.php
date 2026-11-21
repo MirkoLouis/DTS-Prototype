@@ -34,7 +34,7 @@ class PinTokenTest extends TestCase
 
         // Session B is a fresh login as the same user; it never held the sealing key
         $sessionB = HttpClient::start();
-        $sessionB->loginAs('cash.unit');
+        $sessionB->loginAs('cash');
         $sessionB->get('/tasks');
         $sessionB->post('/documents/scan', ['tracking_code' => $target['tracking_code'], 'pin' => $token]);
         $page = $sessionB->get('/tasks')['body'];
@@ -103,7 +103,7 @@ class PinTokenTest extends TestCase
         $logsBefore = $this->logCount($document['id']);
 
         $staff = HttpClient::start();
-        $staff->loginAs('cash.unit');
+        $staff->loginAs('cash');
         $staff->get('/tasks');
 
         // A single wrong PIN (one failure, below the 3-strike lockout)
@@ -131,7 +131,7 @@ class PinTokenTest extends TestCase
         Fixtures::advanceTo($document['id'], 'in_transit', ['Cash Unit']);
 
         $client = HttpClient::start();
-        $client->loginAs('cash.unit');
+        $client->loginAs('cash');
         $client->get('/tasks');
 
         // A successful typed-PIN action makes the server issue the cache token
@@ -149,7 +149,7 @@ class PinTokenTest extends TestCase
     }
 
     /**
-     * A document in transit to the Cash Unit, so cash.unit would receive it if the PIN resolved.
+     * A document in transit to the Cash Unit, so cash would receive it if the PIN resolved.
      *
      * @return array{0: array{id:int, tracking_code:string}, 1: int} the document and its log count
      */

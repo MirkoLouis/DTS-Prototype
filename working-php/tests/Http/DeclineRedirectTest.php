@@ -16,7 +16,7 @@ class DeclineRedirectTest extends TestCase
         // A pending document opened on the officer's manage page
         $s = Fixtures::submit();
         $client = HttpClient::start();
-        $client->loginAs('records.unit');
+        $client->loginAs('records');
         $managePath = "/documents/{$s['id']}/manage";
         $client->get($managePath);
 
@@ -49,7 +49,7 @@ class DeclineRedirectTest extends TestCase
         // A pending document opened on the officer's manage page
         $s = Fixtures::submit();
         $client = HttpClient::start();
-        $client->loginAs('records.unit');
+        $client->loginAs('records');
         $managePath = "/documents/{$s['id']}/manage";
         $client->get($managePath);
 

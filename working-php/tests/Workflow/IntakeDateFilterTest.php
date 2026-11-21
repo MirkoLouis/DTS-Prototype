@@ -16,7 +16,7 @@ class IntakeDateFilterTest extends TestCase
     // Tracking codes on the first page of the officer's intake list for a given day
     private function intakeCodesFor(string $date): array
     {
-        $officerId = $this->fx['users']['records.unit'];
+        $officerId = $this->fx['users']['records'];
         [$documents] = (new DocumentQueryService())->getPaginatedOfficerIntake($officerId, ['date' => $date]);
 
         return array_column($documents, 'tracking_code');
@@ -41,7 +41,7 @@ class IntakeDateFilterTest extends TestCase
         // The Cash Unit completes its step on one document
         $document = Fixtures::submit();
         Fixtures::advanceTo($document['id'], 'completed', ['Cash Unit']);
-        $cashId = $this->fx['users']['cash.unit'];
+        $cashId = $this->fx['users']['cash'];
         $today = (new \DateTimeImmutable('now', new \DateTimeZone(HashChainService::APP_TIMEZONE)))->format('Y-m-d');
         $service = new DocumentQueryService();
 
@@ -60,7 +60,7 @@ class IntakeDateFilterTest extends TestCase
         Fixtures::advanceTo($document['id'], 'in_transit', ['Cash Unit']);
         Database::getInstance()->query(
             "UPDATE document_logs SET created_at = '2026-03-05 23:59:59' WHERE document_id = :id AND user_id = :officer",
-            [':id' => $document['id'], ':officer' => $this->fx['users']['records.unit']]
+            [':id' => $document['id'], ':officer' => $this->fx['users']['records']]
         );
 
         $this->assertContains($document['tracking_code'], $this->intakeCodesFor('2026-03-05'));

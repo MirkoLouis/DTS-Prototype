@@ -160,7 +160,7 @@ for (const viewport of widths) {
         }
     }
     // Menu and notification list close each other, and the menu closes when the viewport grows past lg
-    const page = await sessionFor('records.unit');
+    const page = await sessionFor('records');
     try {
         await page.goto(`${context.baseUrl}/intake`, { waitUntil: 'networkidle' });
         const menuOpen = () => page.locator('#mobile-menu-button').getAttribute('aria-expanded');

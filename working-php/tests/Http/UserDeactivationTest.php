@@ -37,7 +37,7 @@ class UserDeactivationTest extends TestCase
     {
         $document = Fixtures::submit();
         Fixtures::advanceTo($document['id'], 'completed', ['Cash Unit']);
-        $cash = $this->fx['users']['cash.unit'];
+        $cash = $this->fx['users']['cash'];
         $signedBefore = (int) Database::getInstance()->query('SELECT COUNT(*) c FROM document_logs WHERE user_id = :u', [':u' => $cash])->fetch()['c'];
 
         $response = $this->admin()->post("/users/{$cash}/delete", []);
@@ -69,9 +69,9 @@ class UserDeactivationTest extends TestCase
     // Staff cannot reach the deactivate route
     public function test_staff_cannot_deactivate(): void
     {
-        $personnel = $this->fx['users']['personnel.unit'];
+        $personnel = $this->fx['users']['personnel'];
         $client = HttpClient::start();
-        $client->loginAs('cash.unit');
+        $client->loginAs('cash');
 
         $response = $client->post("/users/{$personnel}/delete", []);
 
@@ -83,10 +83,10 @@ class UserDeactivationTest extends TestCase
     // Staff cannot reach the reactivate route
     public function test_staff_cannot_reactivate(): void
     {
-        $personnel = $this->fx['users']['personnel.unit'];
+        $personnel = $this->fx['users']['personnel'];
         (new UserService())->deactivate($personnel, $this->fx['users']['admin']);
         $client = HttpClient::start();
-        $client->loginAs('cash.unit');
+        $client->loginAs('cash');
 
         $response = $client->post("/users/{$personnel}/reactivate", []);
 
@@ -97,7 +97,7 @@ class UserDeactivationTest extends TestCase
     // The RESTful DELETE route deactivates too
     public function test_delete_method_deactivates(): void
     {
-        $cash = $this->fx['users']['cash.unit'];
+        $cash = $this->fx['users']['cash'];
 
         $response = $this->admin()->delete("/users/{$cash}");
 
@@ -108,7 +108,7 @@ class UserDeactivationTest extends TestCase
     // Deactivated rows show a badge and a Reactivate action instead of Deactivate
     public function test_users_list_shows_deactivated_with_reactivate(): void
     {
-        $cash = $this->fx['users']['cash.unit'];
+        $cash = $this->fx['users']['cash'];
         (new UserService())->deactivate($cash, $this->fx['users']['admin']);
 
         $body = $this->admin()->get('/users')['body'];
@@ -121,7 +121,7 @@ class UserDeactivationTest extends TestCase
     // Reactivate clears the deactivation
     public function test_reactivate_restores_account(): void
     {
-        $cash = $this->fx['users']['cash.unit'];
+        $cash = $this->fx['users']['cash'];
         (new UserService())->deactivate($cash, $this->fx['users']['admin']);
 
         $response = $this->admin()->post("/users/{$cash}/reactivate", []);

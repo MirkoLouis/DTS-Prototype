@@ -111,8 +111,8 @@ class ChainSealTest extends TestCase
     {
         $service = new DocumentWorkflowService();
         $pin = TestDatabase::PIN;
-        $records = Fixtures::user('records.unit');
-        $cash = Fixtures::user('cash.unit');
+        $records = Fixtures::user('records');
+        $cash = Fixtures::user('cash');
         $admin = $this->admin();
 
         // Submit
@@ -450,7 +450,7 @@ class ChainSealTest extends TestCase
         foreach ([
             fn () => PreActionIntegrityService::passes($rowBefore),
             fn () => (new \App\Modules\Documents\DocumentPolicy())->process($this->admin(), $rowBefore),
-            fn () => (new DocumentWorkflowService())->scanDocument($doc['tracking_code'], Fixtures::user('cash.unit'), TestDatabase::PIN),
+            fn () => (new DocumentWorkflowService())->scanDocument($doc['tracking_code'], Fixtures::user('cash'), TestDatabase::PIN),
         ] as $call) {
             try {
                 $call();
@@ -530,7 +530,7 @@ class ChainSealTest extends TestCase
         $doc = Fixtures::submit();
         Database::getInstance()->query('DELETE FROM document_logs WHERE document_id = :id', [':id' => $doc['id']]);
         $client = \Tests\Support\HttpClient::start();
-        $client->loginAs('records.unit');
+        $client->loginAs('records');
         $managePath = "/documents/{$doc['id']}/manage";
         $client->get($managePath);
 

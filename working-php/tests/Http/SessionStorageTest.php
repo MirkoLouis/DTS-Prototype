@@ -82,7 +82,7 @@ class SessionStorageTest extends TestCase
     public function test_session_idle_past_the_limit_is_ended_on_the_next_request(): void
     {
         $client = HttpClient::start();
-        $client->loginAs('cash.unit');
+        $client->loginAs('cash');
         $this->assertSame(200, $client->get('/tasks')['status']);
 
         $this->age($this->sessionFile($client), 43201);
@@ -97,7 +97,7 @@ class SessionStorageTest extends TestCase
     public function test_session_idle_within_the_limit_keeps_working(): void
     {
         $client = HttpClient::start();
-        $client->loginAs('cash.unit');
+        $client->loginAs('cash');
         $client->get('/tasks');
 
         $this->age($this->sessionFile($client), 43000);
@@ -109,7 +109,7 @@ class SessionStorageTest extends TestCase
     public function test_background_polling_does_not_extend_the_session(): void
     {
         $client = HttpClient::start();
-        $client->loginAs('cash.unit');
+        $client->loginAs('cash');
         $client->get('/tasks');
         $file = $this->sessionFile($client);
         $this->age($file, 1000);

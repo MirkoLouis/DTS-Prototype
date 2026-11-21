@@ -118,7 +118,7 @@ class RateLimitHttpTest extends TestCase
     public function test_signed_in_users_are_limited_as_well(): void
     {
         $client = HttpClient::start();
-        $client->loginAs('records.unit');
+        $client->loginAs('records');
 
         $this->printRequests($client, 10);
         $this->assertSame(429, $client->get('/documents/' . self::UNKNOWN_CODE . '/print-tracking-form')['status']);

@@ -335,9 +335,9 @@ class AccessibilityMarkupTest extends TestCase
     // A refused Security PIN setup is shown inside the mandatory prompt (an alert linked to both fields), not only as a toast
     public function test_a_refused_pin_setup_is_shown_inside_the_prompt(): void
     {
-        Database::getInstance()->query('UPDATE users SET public_key = NULL, private_key = NULL, security_key_set_at = NULL WHERE email = :e', [':e' => 'personnel.unit']);
+        Database::getInstance()->query('UPDATE users SET public_key = NULL, private_key = NULL, security_key_set_at = NULL WHERE email = :e', [':e' => 'personnel']);
         $client = HttpClient::start();
-        $client->loginAs('personnel.unit');
+        $client->loginAs('personnel');
         $client->get('/tasks');
         $client->post('/security-key', ['pin' => 'Long-Enough-Pin-1', 'pin_confirm' => 'Different-Pin-22']);
         $body = $client->get('/tasks')['body'];

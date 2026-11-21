@@ -28,7 +28,7 @@ class DocumentVisibilityTest extends TestCase
     {
         $doc = $this->personnelDoc();
         $client = HttpClient::start();
-        $client->loginAs('personnel.unit');
+        $client->loginAs('personnel');
         $response = $client->get('/documents/' . $doc['tracking_code']);
 
         $this->assertSame(200, $response['status']);
@@ -40,7 +40,7 @@ class DocumentVisibilityTest extends TestCase
     {
         $doc = $this->personnelDoc();
         $client = HttpClient::start();
-        $client->loginAs('cash.unit');
+        $client->loginAs('cash');
         $response = $client->get('/documents/' . $doc['tracking_code']);
 
         $this->assertSame(302, $response['status']);
@@ -58,7 +58,7 @@ class DocumentVisibilityTest extends TestCase
     {
         $doc = $this->personnelDoc();
         $client = HttpClient::start();
-        $client->loginAs('cash.unit');
+        $client->loginAs('cash');
         $response = $client->get('/documents/' . $doc['tracking_code'] . '/hash-chain');
 
         $this->assertSame(302, $response['status']);
@@ -69,7 +69,7 @@ class DocumentVisibilityTest extends TestCase
     public function test_officer_and_admin_can_view_any(): void
     {
         $doc = $this->personnelDoc();
-        foreach (['records.unit', 'admin'] as $username) {
+        foreach (['records', 'admin'] as $username) {
             $client = HttpClient::start();
             $client->loginAs($username);
             $this->assertSame(200, $client->get('/documents/' . $doc['tracking_code'])['status'], $username);

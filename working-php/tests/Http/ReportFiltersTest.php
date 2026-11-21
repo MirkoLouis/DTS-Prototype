@@ -17,7 +17,7 @@ class ReportFiltersTest extends TestCase
     private function officer(): HttpClient
     {
         $client = HttpClient::start();
-        $client->loginAs('records.unit');
+        $client->loginAs('records');
         $client->get('/statistics');
 
         return $client;
@@ -57,7 +57,7 @@ class ReportFiltersTest extends TestCase
         $db->query(
             "INSERT INTO report_jobs (id, user_id, status, progress, total_documents, filters, created_at, updated_at)
              VALUES ('formulatest1', :uid, 'completed', 100, 1, '[]', DATE_ADD(NOW(), INTERVAL 1 MINUTE), NOW())",
-            [':uid' => $this->fx['users']['records.unit']]
+            [':uid' => $this->fx['users']['records']]
         );
 
         // Download the spreadsheet and read its worksheet XML

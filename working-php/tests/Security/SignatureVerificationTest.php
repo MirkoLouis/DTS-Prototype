@@ -147,9 +147,9 @@ class SignatureVerificationTest extends TestCase
     public function test_signature_survives_key_reset(): void
     {
         $db = Database::getInstance();
-        $cashId = $this->fx['users']['cash.unit'];
+        $cashId = $this->fx['users']['cash'];
 
-        // Document signed with the original cash.unit key
+        // Document signed with the original cash key
         $before = Fixtures::submit(['title' => 'Before reset']);
         Fixtures::advanceTo($before['id'], 'completed', ['Cash Unit']);
         $oldKey = $db->query('SELECT public_key FROM users WHERE id = :id', [':id' => $cashId])->fetch()['public_key'];
@@ -168,7 +168,7 @@ class SignatureVerificationTest extends TestCase
         $newKey = $db->query('SELECT public_key FROM users WHERE id = :id', [':id' => $cashId])->fetch()['public_key'];
         $this->assertNotSame($oldKey, $newKey, 'Harness error: the reset did not change the public key.');
 
-        // Verify every cash.unit entry and check which key it resolved to
+        // Verify every cash entry and check which key it resolved to
         $logs = $db->query('SELECT * FROM document_logs WHERE user_id = :u ORDER BY id', [':u' => $cashId])->fetchAll();
         $valid = 0;
         $invalid = [];

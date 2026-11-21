@@ -56,7 +56,7 @@ class Fixtures
     {
         $service = new DocumentWorkflowService();
         $pin = TestDatabase::PIN;
-        $records = self::user('records.unit');
+        $records = self::user('records');
 
         // Declining happens at intake, before any routing
         if ($status === 'declined') {

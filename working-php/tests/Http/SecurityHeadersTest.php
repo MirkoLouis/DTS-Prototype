@@ -101,7 +101,7 @@ class SecurityHeadersTest extends TestCase
     {
         $doc = Fixtures::submit();
         $client = HttpClient::start();
-        $client->loginAs('records.unit');
+        $client->loginAs('records');
         $response = $client->get('/documents/' . $doc['tracking_code'] . '/print-tracking-form');
 
         $this->assertSame(200, $response['status']);
@@ -139,11 +139,11 @@ class SecurityHeadersTest extends TestCase
         Database::getInstance()->query(
             "INSERT INTO report_jobs (id, user_id, status, progress, total_documents, filters, created_at, updated_at)
              VALUES ('headersjob1', :uid, 'completed', 100, 1, '[]', DATE_ADD(NOW(), INTERVAL 1 MINUTE), NOW())",
-            [':uid' => $this->fx['users']['records.unit']]
+            [':uid' => $this->fx['users']['records']]
         );
 
         $client = HttpClient::start();
-        $client->loginAs('records.unit');
+        $client->loginAs('records');
         $client->get('/statistics');
         $response = $client->get('/statistics/report/download/headersjob1');
 
@@ -156,7 +156,7 @@ class SecurityHeadersTest extends TestCase
     public function test_same_origin_referer_is_still_used_for_the_return_page(): void
     {
         $client = HttpClient::start();
-        $client->loginAs('records.unit');
+        $client->loginAs('records');
         $client->get('/intake');
 
         // A decline without a reason is refused and the redirect goes back to the page named by the Referer (not the default /intake)

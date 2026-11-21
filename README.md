@@ -128,21 +128,21 @@ Step-by-step guides per role: [Administrator](working-php/documentation/user_man
 | Role | Username |
 | :--- | :--- |
 | Administrator | `admin` |
-| Records Officer | `records.unit` |
-| Staff: Cash Unit | `cash.unit` |
-| Staff: Admin Unit | `administrative.unit` |
-| Staff: Personnel | `personnel.unit` |
-| Staff: Supply Unit | `supply.unit` |
-| Staff: Budget Unit | `budget.unit` |
-| Staff: Accounting | `accounting.unit` |
-| Staff: Legal Unit | `legal.unit` |
-| Staff: Health & Nutrition | `health.and.nutrition` |
-| Staff: BAC Unit | `bids.and.awards.committee.unit` |
-| Staff: SDS Office | `schools.division.superintendent.office` |
-| Staff: ASDS Office | `assistant.schools.division.superintendent.office` |
-| Staff: CID | `curriculum.implementation.division` |
-| Staff: SGOD | `school.governance.and.operations.division` |
-| Staff: ICT Unit | `ict.unit` |
+| Records Officer | `records` |
+| Staff: Cash Unit | `cash` |
+| Staff: Admin Unit | `administrative` |
+| Staff: Personnel | `personnel` |
+| Staff: Supply Unit | `supply` |
+| Staff: Budget Unit | `budget` |
+| Staff: Accounting | `accounting` |
+| Staff: Legal Unit | `legal` |
+| Staff: Health & Nutrition | `hnu` |
+| Staff: BAC Unit | `bac` |
+| Staff: SDS Office | `sds` |
+| Staff: ASDS Office | `asds` |
+| Staff: CID | `cid` |
+| Staff: SGOD | `sgod` |
+| Staff: ICT Unit | `ict` |
 
 </details>
 

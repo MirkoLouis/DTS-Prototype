@@ -454,16 +454,16 @@ const dialogSpecs = [
         { opener: '.restore-backup-trigger', modal: '#restore-modal' },
         { opener: '#restore-form button[type="submit"]', modal: '#signing-modal' },
     ] },
-    { name: 'dialog-scan-qr-intake', role: 'records.unit', route: '/intake', steps: [{ opener: '#scan-qr-btn', modal: '#qr-modal' }] },
-    { name: 'dialog-scan-qr-releasing', role: 'records.unit', route: '/releasing', steps: [{ opener: '#scan-qr-btn', modal: '#qr-modal' }] },
-    { name: 'dialog-scan-qr-tasks', role: 'cash.unit', route: '/tasks', steps: [{ opener: '#scan-qr-btn', modal: '#qr-modal' }] },
-    { name: 'dialog-report-progress', role: 'records.unit', route: '/statistics', steps: [{ opener: '#generate-report-btn', modal: '#report-progress-modal' }] },
-    { name: 'dialog-past-reports', role: 'records.unit', route: '/statistics', steps: [{ opener: '.open-modal-btn[data-modal="past-reports-modal"]', modal: '#past-reports-modal' }] },
+    { name: 'dialog-scan-qr-intake', role: 'records', route: '/intake', steps: [{ opener: '#scan-qr-btn', modal: '#qr-modal' }] },
+    { name: 'dialog-scan-qr-releasing', role: 'records', route: '/releasing', steps: [{ opener: '#scan-qr-btn', modal: '#qr-modal' }] },
+    { name: 'dialog-scan-qr-tasks', role: 'cash', route: '/tasks', steps: [{ opener: '#scan-qr-btn', modal: '#qr-modal' }] },
+    { name: 'dialog-report-progress', role: 'records', route: '/statistics', steps: [{ opener: '#generate-report-btn', modal: '#report-progress-modal' }] },
+    { name: 'dialog-past-reports', role: 'records', route: '/statistics', steps: [{ opener: '.open-modal-btn[data-modal="past-reports-modal"]', modal: '#past-reports-modal' }] },
     { name: 'dialog-integrity-progress', role: 'admin', route: '/system-overview', steps: [{ opener: '#run-integrity-check', modal: '#integrity-progress-modal' }] },
     // The launcher stores an integrity result naming one log entry, so System Overview lists a real "Verify Hash" button
     { name: 'dialog-verify-hash', role: 'admin', route: '/system-overview', steps: [{ opener: '.debug-log-btn', modal: '#debug-hash-modal' }] },
     { name: 'dialog-average-tat', role: 'admin', route: '/admin-dashboard', steps: [{ opener: '#view-all-avg-tat-btn', modal: '#avg-tat-modal' }] },
-    { name: 'dialog-decline', role: 'records.unit', route: `/documents/${context.documentId}/manage`, steps: [{ opener: 'button[type="button"]:has-text("Decline Document")', modal: '#declineModal' }] },
+    { name: 'dialog-decline', role: 'records', route: `/documents/${context.documentId}/manage`, steps: [{ opener: 'button[type="button"]:has-text("Decline Document")', modal: '#declineModal' }] },
     { name: 'dialog-guest-track', role: null, route: '/', steps: [{ opener: 'button:has-text("Track a Document")', modal: '#track-modal' }] },
     { name: 'dialog-guest-track-again', role: null, route: `/track?codes=${context.trackingCode}`, steps: [{ opener: 'button:has-text("Track Another Document")', modal: '#track-modal' }] },
     { name: 'dialog-guest-qr', role: null, route: '/', before: stubQrLibrary(), after: expectCameraStopped, steps: [
@@ -537,7 +537,7 @@ for (const viewport of viewports) {
     for (const spec of confirmSpecs) {
         await guarded(viewport.width, spec.name, async () => runConfirmAfterNavigationSpec(await sessions.pageFor(spec.role), spec));
     }
-    await guarded(viewport.width, 'report-second-activation', async () => runReportSecondClickSpec(await sessions.pageFor('records.unit')));
+    await guarded(viewport.width, 'report-second-activation', async () => runReportSecondClickSpec(await sessions.pageFor('records')));
     await guarded(viewport.width, 'guest-qr-closed-while-starting', async () => runPendingCameraSpec(await sessions.pageFor(null), '/'));
     await guarded(viewport.width, 'guest-track-qr-closed-while-starting', async () => runPendingCameraSpec(await sessions.pageFor(null), `/track?codes=${context.trackingCode}`));
     await sessions.closeAll();

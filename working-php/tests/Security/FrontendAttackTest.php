@@ -72,7 +72,7 @@ class FrontendAttackTest extends TestCase
     public function test_stored_xss_in_submission_is_escaped(): void
     {
         $officer = HttpClient::start();
-        $officer->loginAs('records.unit');
+        $officer->loginAs('records');
         $guest = HttpClient::start();
 
         // Each payload gets its own document, carried in both the title and the submitter name
@@ -101,7 +101,7 @@ class FrontendAttackTest extends TestCase
     public function test_forged_final_route_with_unknown_department_is_rejected(): void
     {
         $officer = HttpClient::start();
-        $officer->loginAs('records.unit');
+        $officer->loginAs('records');
 
         // A fresh pending document to finalise
         $document = Fixtures::submit();
@@ -131,7 +131,7 @@ class FrontendAttackTest extends TestCase
 
         // Personnel staff tries to receive it
         $staff = HttpClient::start();
-        $staff->loginAs('personnel.unit');
+        $staff->loginAs('personnel');
         $staff->get('/tasks');
         $staff->post('/documents/scan', ['tracking_code' => $document['tracking_code'], 'pin' => TestDatabase::PIN]);
 
@@ -158,7 +158,7 @@ class FrontendAttackTest extends TestCase
 
         // Cash staff tries to complete the Personnel step
         $staff = HttpClient::start();
-        $staff->loginAs('cash.unit');
+        $staff->loginAs('cash');
         $staff->get('/tasks');
         $staff->post('/tasks/' . $document['id'] . '/complete', ['pin' => TestDatabase::PIN]);
 
@@ -179,7 +179,7 @@ class FrontendAttackTest extends TestCase
     public function test_staff_cannot_reach_admin_routes(): void
     {
         $staff = HttpClient::start();
-        $staff->loginAs('cash.unit');
+        $staff->loginAs('cash');
 
         // A document whose freeze endpoint the staff member will probe
         $document = Fixtures::submit();
@@ -212,7 +212,7 @@ class FrontendAttackTest extends TestCase
 
         // Cash staff (not on the route) requests the detail page
         $staff = HttpClient::start();
-        $staff->loginAs('cash.unit');
+        $staff->loginAs('cash');
         $response = $staff->get('/documents/' . $document['tracking_code']);
 
         // Denied would be a 403/redirect, or at least not leaking the document's contents

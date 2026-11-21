@@ -54,9 +54,9 @@ class TestDatabase
     // username => [display name, role, department name or null]
     private const USERS = [
         'admin' => ['Admin User', 'admin', null],
-        'records.unit' => ['Records Officer', 'officer', 'Records Unit'],
-        'cash.unit' => ['Cash Unit Staff', 'staff', 'Cash Unit'],
-        'personnel.unit' => ['Personnel Unit Staff', 'staff', 'Personnel Unit'],
+        'records' => ['Records Officer', 'officer', 'Records Unit'],
+        'cash' => ['Cash Unit Staff', 'staff', 'Cash Unit'],
+        'personnel' => ['Personnel Unit Staff', 'staff', 'Personnel Unit'],
     ];
 
     // Per-process cache of generated keypairs (username => [public b64, wrapped private b64]); Argon2id is slow

@@ -38,10 +38,10 @@ class PinRateLimitTest extends TestCase
         return (int) Database::getInstance()->query('SELECT COUNT(*) c FROM document_logs WHERE document_id = :id AND action = :a', [':id' => $id, ':a' => $action])->fetch()['c'];
     }
 
-    // Resolve the PIN as a controller would, then scan as cash.unit; returns the exception message or null
+    // Resolve the PIN as a controller would, then scan as cash; returns the exception message or null
     private function scanWith(string $code, string $typedPin): ?string
     {
-        $user = Fixtures::user('cash.unit');
+        $user = Fixtures::user('cash');
         $_SESSION['user_id'] = $user->id;
 
         try {
@@ -93,7 +93,7 @@ class PinRateLimitTest extends TestCase
         $this->assertSame(AttemptThrottleService::MESSAGE, $this->scanWith($s['tracking_code'], TestDatabase::PIN));
 
         // Move the lock into the past instead of waiting a minute
-        $key = AttemptThrottleService::key('pin', (string) $this->fx['users']['cash.unit']);
+        $key = AttemptThrottleService::key('pin', (string) $this->fx['users']['cash']);
         Database::getInstance()->query('UPDATE attempt_throttles SET locked_until = :t, first_failed_at = :f WHERE throttle_key = :k', [
             ':t' => time() - 1,
             ':f' => time() - 120,
@@ -108,7 +108,7 @@ class PinRateLimitTest extends TestCase
     // A cached PIN token is a valid PIN and never counts as a failure
     public function test_cached_token_does_not_count_as_failure(): void
     {
-        $user = Fixtures::user('cash.unit');
+        $user = Fixtures::user('cash');
         $_SESSION['user_id'] = $user->id;
 
         // A correct typed PIN issues a token; resolving it repeatedly records nothing

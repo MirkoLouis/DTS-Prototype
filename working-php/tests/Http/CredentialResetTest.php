@@ -66,10 +66,10 @@ class CredentialResetTest extends TestCase
     // Without a PIN nothing changes and nothing is recorded
     public function test_reset_without_a_pin_changes_nothing(): void
     {
-        $before = $this->user('cash.unit');
-        $this->reset($this->admin(), 'cash.unit', ['target' => 'both']);
+        $before = $this->user('cash');
+        $this->reset($this->admin(), 'cash', ['target' => 'both']);
 
-        $this->assertSame($before, $this->user('cash.unit'));
+        $this->assertSame($before, $this->user('cash'));
         $this->assertSame([], $this->auditEvents());
     }
 
@@ -77,29 +77,29 @@ class CredentialResetTest extends TestCase
     public function test_reset_with_a_wrong_pin_changes_nothing_and_counts_toward_the_lockout(): void
     {
         $client = $this->admin();
-        $before = $this->user('cash.unit');
+        $before = $this->user('cash');
         for ($i = 0; $i < AttemptThrottleService::MAX_FAILURES; $i++) {
-            $this->reset($client, 'cash.unit', ['target' => 'both', 'pin' => '000000']);
+            $this->reset($client, 'cash', ['target' => 'both', 'pin' => '000000']);
             $client->get('/users');
         }
 
-        $this->assertSame($before, $this->user('cash.unit'));
+        $this->assertSame($before, $this->user('cash'));
         $this->assertSame([], $this->auditEvents());
         $key = AttemptThrottleService::key('pin', (string) $this->fx['users']['admin']);
         $this->assertGreaterThan(0, AttemptThrottleService::secondsLocked($key, time()));
 
         // Locked out: even the right PIN is refused
-        $this->reset($client, 'cash.unit', ['target' => 'both', 'pin' => TestDatabase::PIN]);
-        $this->assertSame($before, $this->user('cash.unit'));
+        $this->reset($client, 'cash', ['target' => 'both', 'pin' => TestDatabase::PIN]);
+        $this->assertSame($before, $this->user('cash'));
     }
 
     // Resetting the Security PIN clears only the key, and is recorded
     public function test_reset_pin_clears_only_the_key(): void
     {
-        $before = $this->user('cash.unit');
-        $response = $this->reset($this->admin(), 'cash.unit', ['target' => 'pin', 'pin' => TestDatabase::PIN]);
+        $before = $this->user('cash');
+        $response = $this->reset($this->admin(), 'cash', ['target' => 'pin', 'pin' => TestDatabase::PIN]);
 
-        $after = $this->user('cash.unit');
+        $after = $this->user('cash');
         $this->assertSame(302, $response['status']);
         $this->assertSame('/users', $response['headers']['location']);
         $this->assertNull($after['public_key']);
@@ -107,48 +107,48 @@ class CredentialResetTest extends TestCase
         $this->assertNull($after['security_key_set_at']);
         $this->assertSame($before['password'], $after['password']);
         $this->assertSame($before['must_change_password'], $after['must_change_password']);
-        $this->assertSame(0, $this->openKeyPeriods('cash.unit'));
+        $this->assertSame(0, $this->openKeyPeriods('cash'));
         $this->assertSingleAudit('pin');
     }
 
     // Resetting the sign-in password sets the default password and the flag, and leaves the key alone
     public function test_reset_password_changes_only_the_password(): void
     {
-        $before = $this->user('cash.unit');
-        $this->reset($this->admin(), 'cash.unit', ['target' => 'password', 'pin' => TestDatabase::PIN]);
+        $before = $this->user('cash');
+        $this->reset($this->admin(), 'cash', ['target' => 'password', 'pin' => TestDatabase::PIN]);
 
-        $after = $this->user('cash.unit');
+        $after = $this->user('cash');
         $this->assertTrue(password_verify('password', $after['password']));
         $this->assertSame('1', (string) $after['must_change_password']);
         $this->assertSame($before['private_key'], $after['private_key']);
         $this->assertSame($before['public_key'], $after['public_key']);
-        $this->assertSame(1, $this->openKeyPeriods('cash.unit'));
+        $this->assertSame(1, $this->openKeyPeriods('cash'));
         $this->assertSingleAudit('password');
     }
 
     // After the reset the user signs in with "password" and gets the default-password reminder
     public function test_reset_user_signs_in_with_the_default_password_and_is_reminded(): void
     {
-        $this->reset($this->admin(), 'cash.unit', ['target' => 'password', 'pin' => TestDatabase::PIN]);
+        $this->reset($this->admin(), 'cash', ['target' => 'password', 'pin' => TestDatabase::PIN]);
 
         $client = HttpClient::start();
         $client->get('/login');
-        $response = $client->post('/login', ['email' => 'cash.unit', 'password' => 'password']);
+        $response = $client->post('/login', ['email' => 'cash', 'password' => 'password']);
         $this->assertSame('/tasks', $response['headers']['location']);
-        $messages = Database::getInstance()->query('SELECT message FROM notifications WHERE user_id = :u AND link = :l', [':u' => $this->fx['users']['cash.unit'], ':l' => '/account/password'])->fetchAll(\PDO::FETCH_COLUMN);
+        $messages = Database::getInstance()->query('SELECT message FROM notifications WHERE user_id = :u AND link = :l', [':u' => $this->fx['users']['cash'], ':l' => '/account/password'])->fetchAll(\PDO::FETCH_COLUMN);
         $this->assertSame(['You are using the default password.'], $messages);
     }
 
     // Both resets both
     public function test_reset_both(): void
     {
-        $this->reset($this->admin(), 'cash.unit', ['target' => 'both', 'pin' => TestDatabase::PIN]);
+        $this->reset($this->admin(), 'cash', ['target' => 'both', 'pin' => TestDatabase::PIN]);
 
-        $after = $this->user('cash.unit');
+        $after = $this->user('cash');
         $this->assertTrue(password_verify('password', $after['password']));
         $this->assertSame('1', (string) $after['must_change_password']);
         $this->assertNull($after['private_key']);
-        $this->assertSame(0, $this->openKeyPeriods('cash.unit'));
+        $this->assertSame(0, $this->openKeyPeriods('cash'));
         $this->assertSingleAudit('both');
     }
 
@@ -156,13 +156,13 @@ class CredentialResetTest extends TestCase
     public function test_invalid_target_is_refused(): void
     {
         $client = $this->admin();
-        $before = $this->user('cash.unit');
+        $before = $this->user('cash');
         foreach (['', 'everything', 'PIN', ['pin']] as $target) {
-            $this->reset($client, 'cash.unit', ['target' => $target, 'pin' => TestDatabase::PIN]);
+            $this->reset($client, 'cash', ['target' => $target, 'pin' => TestDatabase::PIN]);
             $client->get('/users');
         }
 
-        $this->assertSame($before, $this->user('cash.unit'));
+        $this->assertSame($before, $this->user('cash'));
         $this->assertSame([], $this->auditEvents());
     }
 
@@ -178,14 +178,14 @@ class CredentialResetTest extends TestCase
     public function test_non_admin_is_refused(): void
     {
         $client = HttpClient::start();
-        $client->loginAs('personnel.unit');
+        $client->loginAs('personnel');
         $client->get('/tasks');
-        $before = $this->user('cash.unit');
+        $before = $this->user('cash');
 
-        $response = $this->reset($client, 'cash.unit', ['target' => 'both', 'pin' => TestDatabase::PIN]);
+        $response = $this->reset($client, 'cash', ['target' => 'both', 'pin' => TestDatabase::PIN]);
 
         $this->assertSame(403, $response['status']);
-        $this->assertSame($before, $this->user('cash.unit'));
+        $this->assertSame($before, $this->user('cash'));
         $this->assertSame([], $this->auditEvents());
     }
 
@@ -212,16 +212,16 @@ class CredentialResetTest extends TestCase
     // A reset of the sign-in password ends every session of that user and the user can sign in again with the default password
     public function test_password_reset_ends_the_users_sessions(): void
     {
-        $first = $this->signedIn('cash.unit');
-        $second = $this->signedIn('cash.unit');
-        $this->reset($this->admin(), 'cash.unit', ['target' => 'password', 'pin' => TestDatabase::PIN]);
+        $first = $this->signedIn('cash');
+        $second = $this->signedIn('cash');
+        $this->reset($this->admin(), 'cash', ['target' => 'password', 'pin' => TestDatabase::PIN]);
 
         $this->assertTrue($this->isSentToLogin($first));
         $this->assertTrue($this->isSentToLogin($second));
 
         $again = HttpClient::start();
         $again->get('/login');
-        $response = $again->post('/login', ['email' => 'cash.unit', 'password' => 'password']);
+        $response = $again->post('/login', ['email' => 'cash', 'password' => 'password']);
         $this->assertSame('/tasks', $response['headers']['location']);
     }
 
@@ -239,8 +239,8 @@ class CredentialResetTest extends TestCase
     // page (loaded next) still has the flash message; a followed redirect would have consumed it inside fetch()
     public function test_pjax_request_of_an_ended_session_is_not_redirected_and_keeps_the_message(): void
     {
-        $session = $this->signedIn('cash.unit');
-        $this->reset($this->admin(), 'cash.unit', ['target' => 'password', 'pin' => TestDatabase::PIN]);
+        $session = $this->signedIn('cash');
+        $this->reset($this->admin(), 'cash', ['target' => 'password', 'pin' => TestDatabase::PIN]);
 
         $response = $this->pjaxGet($session, '/tasks');
 
@@ -253,7 +253,7 @@ class CredentialResetTest extends TestCase
     // The same for a session that expired by idling
     public function test_pjax_request_of_an_idle_expired_session_keeps_the_expiry_message(): void
     {
-        $session = $this->signedIn('cash.unit');
+        $session = $this->signedIn('cash');
         $file = \App\Common\Http\SessionService::directory() . '/sess_' . $session->cookie(session_name());
         $aged = preg_replace('/last_activity\|i:\d+;/', 'last_activity|i:' . (time() - 43201) . ';', (string) file_get_contents($file));
         file_put_contents($file, $aged);
@@ -269,8 +269,8 @@ class CredentialResetTest extends TestCase
     // A plain request of an ended session is still redirected to the login page, which shows the message
     public function test_plain_request_of_an_ended_session_is_still_redirected(): void
     {
-        $session = $this->signedIn('cash.unit');
-        $this->reset($this->admin(), 'cash.unit', ['target' => 'password', 'pin' => TestDatabase::PIN]);
+        $session = $this->signedIn('cash');
+        $this->reset($this->admin(), 'cash', ['target' => 'password', 'pin' => TestDatabase::PIN]);
 
         $response = $session->get('/tasks');
 
@@ -282,7 +282,7 @@ class CredentialResetTest extends TestCase
     // A valid session is served normally to a PJAX request
     public function test_pjax_request_of_a_valid_session_gets_the_page(): void
     {
-        $session = $this->signedIn('cash.unit');
+        $session = $this->signedIn('cash');
 
         $this->assertSame(200, $this->pjaxGet($session, '/tasks')['status']);
     }
@@ -290,8 +290,8 @@ class CredentialResetTest extends TestCase
     // A reset of the Security PIN alone leaves sessions working
     public function test_pin_reset_keeps_the_users_sessions(): void
     {
-        $session = $this->signedIn('cash.unit');
-        $this->reset($this->admin(), 'cash.unit', ['target' => 'pin', 'pin' => TestDatabase::PIN]);
+        $session = $this->signedIn('cash');
+        $this->reset($this->admin(), 'cash', ['target' => 'pin', 'pin' => TestDatabase::PIN]);
 
         $this->assertSame(200, $session->get('/tasks')['status']);
     }
@@ -299,8 +299,8 @@ class CredentialResetTest extends TestCase
     // Resetting both ends the sessions
     public function test_both_reset_ends_the_users_sessions(): void
     {
-        $session = $this->signedIn('cash.unit');
-        $this->reset($this->admin(), 'cash.unit', ['target' => 'both', 'pin' => TestDatabase::PIN]);
+        $session = $this->signedIn('cash');
+        $this->reset($this->admin(), 'cash', ['target' => 'both', 'pin' => TestDatabase::PIN]);
 
         $this->assertTrue($this->isSentToLogin($session));
     }
@@ -317,7 +317,7 @@ class CredentialResetTest extends TestCase
     // A session from before the column existed (no stored value) keeps working while the account's counter is 0
     public function test_session_without_a_stored_version_keeps_working_while_the_counter_is_zero(): void
     {
-        $session = $this->signedIn('cash.unit');
+        $session = $this->signedIn('cash');
         $file = \App\Common\Http\SessionService::directory() . '/sess_' . $session->cookie(session_name());
         $stored = (string) file_get_contents($file);
         $stripped = preg_replace('/session_version\|i:\d+;/', '', $stored);
@@ -327,18 +327,18 @@ class CredentialResetTest extends TestCase
         $this->assertSame(200, $session->get('/tasks')['status']);
 
         // Once the counter moves, the same session ends
-        Database::getInstance()->query('UPDATE users SET session_version = 1 WHERE email = :e', [':e' => 'cash.unit']);
+        Database::getInstance()->query('UPDATE users SET session_version = 1 WHERE email = :e', [':e' => 'cash']);
         $this->assertTrue($this->isSentToLogin($session));
     }
 
     // The old reset-signature route is gone and its action no longer works
     public function test_old_reset_signature_route_is_gone(): void
     {
-        $before = $this->user('cash.unit');
-        $response = $this->admin()->post('/users/' . $this->fx['users']['cash.unit'] . '/reset-signature', ['pin' => TestDatabase::PIN]);
+        $before = $this->user('cash');
+        $response = $this->admin()->post('/users/' . $this->fx['users']['cash'] . '/reset-signature', ['pin' => TestDatabase::PIN]);
 
         $this->assertSame(404, $response['status']);
-        $this->assertSame($before, $this->user('cash.unit'));
+        $this->assertSame($before, $this->user('cash'));
     }
 
     // The reset modal, the PIN prompt and the Reset buttons their script attaches to are part of the page content
@@ -376,20 +376,20 @@ class CredentialResetTest extends TestCase
     // Every account row offers the reset, also accounts without a Security PIN
     public function test_every_active_row_offers_the_reset(): void
     {
-        Database::getInstance()->query('UPDATE users SET public_key = NULL, private_key = NULL, security_key_set_at = NULL WHERE email = :e', [':e' => 'cash.unit']);
+        Database::getInstance()->query('UPDATE users SET public_key = NULL, private_key = NULL, security_key_set_at = NULL WHERE email = :e', [':e' => 'cash']);
         $body = $this->admin()->get('/users')['body'];
 
         $this->assertSame(4, substr_count($body, 'data-reset-user-id='), 'one trigger per active account (4 fixture users)');
     }
 
-    // Assert exactly one audit entry for the reset of cash.unit with the given target
+    // Assert exactly one audit entry for the reset of cash with the given target
     private function assertSingleAudit(string $target): void
     {
         $events = $this->auditEvents();
         $this->assertCount(1, $events);
         $this->assertSame('user_credentials_reset', $events[0]['event']);
         $this->assertSame([
-            'target_user_id' => $this->fx['users']['cash.unit'],
+            'target_user_id' => $this->fx['users']['cash'],
             'target' => $target,
             'user_id' => $this->fx['users']['admin'],
         ], $events[0]['data']);

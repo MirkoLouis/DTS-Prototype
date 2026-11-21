@@ -27,7 +27,7 @@ class MetricsBackfillTest extends TestCase
     {
         Database::getInstance()->query(
             'INSERT INTO document_logs (document_id, user_id, action, hash, created_at, updated_at) VALUES (:d, :u, :a, :h, :c, :c2)',
-            [':d' => $documentId, ':u' => $this->fx['users']['records.unit'], ':a' => $action, ':h' => bin2hex(random_bytes(8)), ':c' => $createdAt, ':c2' => $createdAt]
+            [':d' => $documentId, ':u' => $this->fx['users']['records'], ':a' => $action, ':h' => bin2hex(random_bytes(8)), ':c' => $createdAt, ':c2' => $createdAt]
         );
     }
 

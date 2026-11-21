@@ -17,7 +17,7 @@ class RouteValidationTest extends TestCase
     // Run finalizeIntake as the records officer
     private function finalize(int $id, array $route): void
     {
-        (new DocumentWorkflowService())->finalizeIntake($id, $route, Fixtures::user('records.unit'), TestDatabase::PIN);
+        (new DocumentWorkflowService())->finalizeIntake($id, $route, Fixtures::user('records'), TestDatabase::PIN);
     }
 
     // Unknown names are rejected, named, and nothing is written
@@ -76,7 +76,7 @@ class RouteValidationTest extends TestCase
     {
         $doc = Fixtures::submit();
         $client = HttpClient::start();
-        $client->loginAs('records.unit');
+        $client->loginAs('records');
         $client->get('/documents/' . $doc['id'] . '/manage');
         $client->post('/documents/' . $doc['id'] . '/finalize', ['final_route' => json_encode(['<b>x</b>']), 'pin' => TestDatabase::PIN]);
         $page = $client->get('/documents/' . $doc['id'] . '/manage')['body'];
@@ -92,7 +92,7 @@ class RouteValidationTest extends TestCase
         $payload = '<script>alert(1)</script>';
         $doc = Fixtures::submit();
         $client = HttpClient::start();
-        $client->loginAs('records.unit');
+        $client->loginAs('records');
         $client->get('/documents/' . $doc['id'] . '/manage');
         $client->post('/documents/' . $doc['id'] . '/finalize', ['final_route' => json_encode([$payload]), 'pin' => TestDatabase::PIN]);
 

@@ -30,9 +30,9 @@ class LifecycleTest extends TestCase
     {
         $service = new DocumentWorkflowService();
         $pin = TestDatabase::PIN;
-        $records = Fixtures::user('records.unit');
-        $cash = Fixtures::user('cash.unit');
-        $personnel = Fixtures::user('personnel.unit');
+        $records = Fixtures::user('records');
+        $cash = Fixtures::user('cash');
+        $personnel = Fixtures::user('personnel');
 
         // Submit and remember the code
         $submitted = Fixtures::submit();
@@ -91,10 +91,10 @@ class LifecycleTest extends TestCase
         $before = $this->logCount($submitted['id']);
 
         // Staff of another department are stopped by the policy before the scan logic runs
-        $this->assertStringContainsString('Action Denied', $this->scanError($submitted['tracking_code'], 'personnel.unit'));
+        $this->assertStringContainsString('Action Denied', $this->scanError($submitted['tracking_code'], 'personnel'));
 
         // The Records officer is bound by the same step rule, so the policy denies it too
-        $this->assertStringContainsString('Action Denied', $this->scanError($submitted['tracking_code'], 'records.unit'));
+        $this->assertStringContainsString('Action Denied', $this->scanError($submitted['tracking_code'], 'records'));
 
         // Neither attempt may change the document or its chain
         $this->assertSame('in_transit', $this->doc($submitted['id'])['status']);

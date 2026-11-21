@@ -62,7 +62,7 @@ class TaskCompletionConcurrencyTest extends TestCase
             $prepare = function (int $i): UserModel {
                 Database::getInstance();
 
-                return Fixtures::user('cash.unit');
+                return Fixtures::user('cash');
             };
             $results = Barrier::forkAll($workers, function (int $i, UserModel $cash) use ($documentId): array {
                 $start = microtime(true);

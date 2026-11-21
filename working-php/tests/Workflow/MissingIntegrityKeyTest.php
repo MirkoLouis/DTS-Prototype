@@ -140,7 +140,7 @@ class MissingIntegrityKeyTest extends TestCase
         }
 
         // So does the policy and the workflow action that uses it (receive at Cash Unit)
-        $cash = Fixtures::user('cash.unit');
+        $cash = Fixtures::user('cash');
         try {
             (new DocumentWorkflowService())->scanDocument($document['tracking_code'], $cash, TestDatabase::PIN);
             $this->fail('The workflow action must refuse without a key.');

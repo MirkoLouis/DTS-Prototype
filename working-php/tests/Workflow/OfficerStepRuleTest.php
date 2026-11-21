@@ -45,7 +45,7 @@ class OfficerStepRuleTest extends TestCase
         Fixtures::advanceTo($s['id'], 'in_transit', ['Cash Unit']);
         $before = $this->logCount($s['id']);
 
-        $message = $this->errorOf(fn () => (new DocumentWorkflowService())->scanDocument($s['tracking_code'], Fixtures::user('records.unit'), TestDatabase::PIN));
+        $message = $this->errorOf(fn () => (new DocumentWorkflowService())->scanDocument($s['tracking_code'], Fixtures::user('records'), TestDatabase::PIN));
 
         // The policy denies it, and nothing changes
         $this->assertStringContainsString('Action Denied', $message);
@@ -60,7 +60,7 @@ class OfficerStepRuleTest extends TestCase
         Fixtures::advanceTo($s['id'], 'processing', ['Cash Unit']);
         $before = $this->logCount($s['id']);
 
-        $message = $this->errorOf(fn () => (new DocumentWorkflowService())->completeTask($s['id'], '', Fixtures::user('records.unit'), TestDatabase::PIN));
+        $message = $this->errorOf(fn () => (new DocumentWorkflowService())->completeTask($s['id'], '', Fixtures::user('records'), TestDatabase::PIN));
 
         $this->assertStringContainsString('Action Denied', $message);
         $this->assertSame('processing', $this->doc($s['id'])['status']);
@@ -73,7 +73,7 @@ class OfficerStepRuleTest extends TestCase
         $s = Fixtures::submit();
         Fixtures::advanceTo($s['id'], 'in_transit', ['Records Unit', 'Cash Unit']);
         $service = new DocumentWorkflowService();
-        $officer = Fixtures::user('records.unit');
+        $officer = Fixtures::user('records');
 
         $service->scanDocument($s['tracking_code'], $officer, TestDatabase::PIN);
         $this->assertSame('processing', $this->doc($s['id'])['status']);

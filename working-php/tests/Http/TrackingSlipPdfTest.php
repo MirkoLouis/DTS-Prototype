@@ -22,7 +22,7 @@ class TrackingSlipPdfTest extends TestCase
     {
         $doc = Fixtures::submit();
         $client = HttpClient::startWithoutRateLimit();
-        $client->loginAs('records.unit');
+        $client->loginAs('records');
         $response = $client->get('/documents/' . $doc['tracking_code'] . '/print-tracking-form');
 
         $this->assertSame(200, $response['status']);

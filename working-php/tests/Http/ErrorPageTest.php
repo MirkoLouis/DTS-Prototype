@@ -60,7 +60,7 @@ class ErrorPageTest extends TestCase
         switch ($case) {
             case 'a signed-in user opens a page their role may not open':
                 // Staff may not open the admin-only user list
-                $guest->loginAs('cash.unit');
+                $guest->loginAs('cash');
                 return [$guest->get('/users'), 403, '/tasks'];
             case 'a guest opens an unknown address':
                 return [$guest->get('/no-such-page'), 404, '/'];
@@ -164,7 +164,7 @@ class ErrorPageTest extends TestCase
     // For a signed-in user the way back is the home page of their role
     public function test_unknown_route_for_signed_in_users_links_to_their_home(): void
     {
-        foreach (['admin' => '/admin-dashboard', 'records.unit' => '/intake', 'cash.unit' => '/tasks'] as $username => $home) {
+        foreach (['admin' => '/admin-dashboard', 'records' => '/intake', 'cash' => '/tasks'] as $username => $home) {
             $client = HttpClient::start();
             $client->loginAs($username);
 
@@ -179,7 +179,7 @@ class ErrorPageTest extends TestCase
     public function test_wrong_role_shows_the_403_page(): void
     {
         $client = HttpClient::start();
-        $client->loginAs('cash.unit');
+        $client->loginAs('cash');
 
         $response = $client->get('/users');
 
@@ -206,7 +206,7 @@ class ErrorPageTest extends TestCase
     {
         $cases = [
             [$this->jsonClient()->get('/no-such-page'), 404],
-            [$this->jsonClient('cash.unit')->get('/users'), 403],
+            [$this->jsonClient('cash')->get('/users'), 403],
         ];
         $client = $this->jsonClient();
         $client->get('/');

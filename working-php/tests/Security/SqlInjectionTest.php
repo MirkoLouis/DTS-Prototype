@@ -87,7 +87,7 @@ class SqlInjectionTest extends TestCase
 
         // Target 4: POST /intake/find (tracking_code), authenticated as the Records officer
         $officer = HttpClient::start();
-        $officer->loginAs('records.unit');
+        $officer->loginAs('records');
         foreach (self::PAYLOADS as $payload) {
             $officer->get('/intake');
             [$status, $body, $elapsed] = $this->timed(fn () => $officer->post('/intake/find', ['tracking_code' => $payload]));

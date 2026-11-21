@@ -126,37 +126,37 @@ class UserDepartmentTest extends TestCase
     // Editing an account moves it to another department
     public function test_edit_changes_department(): void
     {
-        $id = $this->fx['users']['personnel.unit'];
+        $id = $this->fx['users']['personnel'];
         $cash = $this->departmentId('Cash Unit');
-        $this->admin()->post("/users/{$id}/update", ['name' => 'Personnel Unit Staff', 'email' => 'personnel.unit', 'role' => 'staff', 'department_id' => $cash]);
+        $this->admin()->post("/users/{$id}/update", ['name' => 'Personnel Unit Staff', 'email' => 'personnel', 'role' => 'staff', 'department_id' => $cash]);
 
-        $this->assertSame($cash, (int) $this->user('personnel.unit')['department_id']);
+        $this->assertSame($cash, (int) $this->user('personnel')['department_id']);
     }
 
     // The edit form shows the current department selected, and saving it unchanged keeps it
     public function test_edit_keeps_department_when_unchanged(): void
     {
-        $id = $this->fx['users']['personnel.unit'];
+        $id = $this->fx['users']['personnel'];
         $personnel = $this->departmentId('Personnel Unit');
         $client = $this->admin();
         $form = $client->get("/users/{$id}/edit")['body'];
 
         // The current department is the selected option
         $this->assertMatchesRegularExpression('/<option value="' . $personnel . '"\s+selected>/', $form);
-        $client->post("/users/{$id}/update", ['name' => 'Personnel Unit Staff', 'email' => 'personnel.unit', 'role' => 'staff', 'department_id' => $personnel]);
-        $this->assertSame($personnel, (int) $this->user('personnel.unit')['department_id']);
+        $client->post("/users/{$id}/update", ['name' => 'Personnel Unit Staff', 'email' => 'personnel', 'role' => 'staff', 'department_id' => $personnel]);
+        $this->assertSame($personnel, (int) $this->user('personnel')['department_id']);
     }
 
     // Editing cannot strip the department from a staff account
     public function test_edit_without_department_is_rejected(): void
     {
-        $id = $this->fx['users']['personnel.unit'];
+        $id = $this->fx['users']['personnel'];
         $personnel = $this->departmentId('Personnel Unit');
         $client = $this->admin();
-        $client->post("/users/{$id}/update", ['name' => 'Personnel Unit Staff', 'email' => 'personnel.unit', 'role' => 'staff', 'department_id' => '']);
+        $client->post("/users/{$id}/update", ['name' => 'Personnel Unit Staff', 'email' => 'personnel', 'role' => 'staff', 'department_id' => '']);
 
         $this->assertStringContainsString('Please choose a department for this account.', $this->errorOn($client, "/users/{$id}/edit"));
-        $this->assertSame($personnel, (int) $this->user('personnel.unit')['department_id']);
+        $this->assertSame($personnel, (int) $this->user('personnel')['department_id']);
     }
 
     // Both forms offer the department list
@@ -167,44 +167,44 @@ class UserDepartmentTest extends TestCase
 
         $this->assertStringContainsString('name="department_id"', $create);
         $this->assertStringContainsString('ICT Unit', $create);
-        $this->assertStringContainsString('name="department_id"', $client->get('/users/' . $this->fx['users']['cash.unit'] . '/edit')['body']);
+        $this->assertStringContainsString('name="department_id"', $client->get('/users/' . $this->fx['users']['cash'] . '/edit')['body']);
     }
 
     // The Records Unit rule also applies when an account is edited into the officer role
     public function test_edit_to_officer_outside_records_unit_is_rejected(): void
     {
-        $id = $this->fx['users']['cash.unit'];
+        $id = $this->fx['users']['cash'];
         $cash = $this->departmentId('Cash Unit');
         $client = $this->admin();
-        $client->post("/users/{$id}/update", ['name' => 'Cash Unit Staff', 'email' => 'cash.unit', 'role' => 'officer', 'department_id' => $cash]);
+        $client->post("/users/{$id}/update", ['name' => 'Cash Unit Staff', 'email' => 'cash', 'role' => 'officer', 'department_id' => $cash]);
 
         $this->assertStringContainsString('Records Officers must belong to the Records Unit.', $this->errorOn($client, "/users/{$id}/edit"));
-        $this->assertSame('staff', $this->user('cash.unit')['role']);
+        $this->assertSame('staff', $this->user('cash')['role']);
     }
 
     // An invalid role is refused on edit as well, and the account keeps its role
     public function test_edit_with_invalid_role_is_rejected(): void
     {
-        $id = $this->fx['users']['cash.unit'];
+        $id = $this->fx['users']['cash'];
         $client = $this->admin();
-        $client->post("/users/{$id}/update", ['name' => 'Cash Unit Staff', 'email' => 'cash.unit', 'role' => 'superuser', 'department_id' => $this->departmentId('Cash Unit')]);
+        $client->post("/users/{$id}/update", ['name' => 'Cash Unit Staff', 'email' => 'cash', 'role' => 'superuser', 'department_id' => $this->departmentId('Cash Unit')]);
 
         $this->assertStringContainsString('Please choose a valid role.', $this->errorOn($client, "/users/{$id}/edit"));
-        $this->assertSame('staff', $this->user('cash.unit')['role']);
+        $this->assertSame('staff', $this->user('cash')['role']);
     }
 
     // An edit saves the department and, since an edit no longer changes passwords, ignores a posted password
     public function test_edit_saves_department_and_ignores_a_posted_password(): void
     {
-        $id = $this->fx['users']['personnel.unit'];
+        $id = $this->fx['users']['personnel'];
         $cash = $this->departmentId('Cash Unit');
         $hashBefore = Database::getInstance()->query('SELECT password FROM users WHERE id = :id', [':id' => $id])->fetch()['password'];
         $this->admin()->post("/users/{$id}/update", [
-            'name' => 'Personnel Unit Staff', 'email' => 'personnel.unit', 'role' => 'staff', 'department_id' => $cash,
+            'name' => 'Personnel Unit Staff', 'email' => 'personnel', 'role' => 'staff', 'department_id' => $cash,
             'password' => 'newpassword1', 'password_confirmation' => 'newpassword1',
         ]);
 
-        $this->assertSame($cash, (int) $this->user('personnel.unit')['department_id']);
+        $this->assertSame($cash, (int) $this->user('personnel')['department_id']);
         $hash = Database::getInstance()->query('SELECT password FROM users WHERE id = :id', [':id' => $id])->fetch()['password'];
         $this->assertSame($hashBefore, $hash);
     }

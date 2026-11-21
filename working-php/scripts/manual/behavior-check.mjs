@@ -88,7 +88,7 @@ async function hopThroughPages(page, startRoute, routes) {
 }
 
 // The modes every behaviour check runs in: [name, prepare(page, route)] (prepare leaves the page on `route`)
-const HOP_ROUTES = { admin: ['/all-documents', '/system-overview', '/users', '/admin-dashboard'], 'records.unit': ['/tasks', '/releasing', '/statistics', '/intake'], 'cash.unit': ['/statistics', '/tasks/completed', '/tasks'] };
+const HOP_ROUTES = { admin: ['/all-documents', '/system-overview', '/users', '/admin-dashboard'], 'records': ['/tasks', '/releasing', '/statistics', '/intake'], 'cash': ['/statistics', '/tasks/completed', '/tasks'] };
 // `via`: pages to click through last when the page is linked only from another page (for example System Overview links Backups)
 const modesFor = (role, route, startFrom, via = []) => [
     ['hard load', async (page) => { await hardLoad(page, route); }],
@@ -141,8 +141,8 @@ for (const [name, role, route] of pages) {
 // In-app navigation: from the first page of a role to every other page of its navigation and to pages linked from them
 const navigationChains = [
     ['admin', '/admin-dashboard', ['/all-documents', '/system-overview', '/users', '/users/create', '/system/backups'].map((route) => route)],
-    ['records.unit', '/intake', ['/tasks', '/tasks/completed', '/releasing', '/statistics', '/account/password']],
-    ['cash.unit', '/tasks', ['/tasks/completed', '/statistics', '/account/password']],
+    ['records', '/intake', ['/tasks', '/tasks/completed', '/releasing', '/statistics', '/account/password']],
+    ['cash', '/tasks', ['/tasks/completed', '/statistics', '/account/password']],
 ];
 for (const [role, startRoute, routes] of navigationChains) {
     for (const route of routes) {
@@ -167,7 +167,7 @@ for (const [role, startRoute, routes] of navigationChains) {
 
 // Pages that are only reached through a link in a list: document view, manage route, hash chain
 await guarded('policy in-app       document view, hash chain, manage', async () => {
-    const page = await sessions.pageFor('records.unit');
+    const page = await sessions.pageFor('records');
     await hardLoad(page, '/releasing');
     await markDocument(page);
     for (const route of [`/documents/${context.documentCode}`, `/documents/${context.documentCode}/hash-chain`]) {
@@ -189,7 +189,7 @@ await guarded('policy in-app       document view, hash chain, manage', async () 
 // ---------------------------------------------------------------------------------------------------------------------------
 
 // Theme toggle: one click changes the theme once (a listener bound on every page would change it twice, i.e. not at all)
-for (const [role, route, startFrom] of [['admin', '/users', '/admin-dashboard'], ['records.unit', '/statistics', '/intake']]) {
+for (const [role, route, startFrom] of [['admin', '/users', '/admin-dashboard'], ['records', '/statistics', '/intake']]) {
     for (const [mode, prepare] of modesFor(role, route, startFrom)) {
         await guarded(`behaviour theme-toggle ${role} ${route} ${mode}`, async () => {
             const page = await sessions.pageFor(role);
@@ -311,9 +311,9 @@ for (const [mode, prepare] of modesFor('admin', '/system/backups', '/admin-dashb
 }
 
 // Decline dialog (opened by .open-modal-btn, closed by .close-modal-btn) and its PIN prompt
-for (const [mode, prepare] of modesFor('records.unit', `/documents/${context.documentId}/manage`, '/intake')) {
+for (const [mode, prepare] of modesFor('records', `/documents/${context.documentId}/manage`, '/intake')) {
     await guarded(`behaviour decline-dialog ${mode}`, async () => {
-        const page = await sessions.pageFor('records.unit');
+        const page = await sessions.pageFor('records');
         if (mode === 'in-app') {
             await hopThroughPages(page, '/intake', ['/tasks', '/releasing']);
             await page.evaluate((target) => { const link = document.createElement('a'); link.href = target; document.body.appendChild(link); link.click(); link.remove(); }, `/documents/${context.documentId}/manage`);
@@ -344,9 +344,9 @@ for (const [mode, prepare] of modesFor('records.unit', `/documents/${context.doc
 }
 
 // Task completion button: the PIN prompt opens with the document's message and sends exactly one request
-for (const [mode, prepare] of modesFor('cash.unit', '/tasks', '/statistics')) {
+for (const [mode, prepare] of modesFor('cash', '/tasks', '/statistics')) {
     await guarded(`behaviour complete-task ${mode}`, async () => {
-        const page = await sessions.pageFor('cash.unit');
+        const page = await sessions.pageFor('cash');
         await prepare(page);
         const failures = [];
         const buttons = await page.locator('.complete-btn').count();
@@ -366,8 +366,8 @@ for (const [mode, prepare] of modesFor('cash.unit', '/tasks', '/statistics')) {
 // Charts: drawn (not empty) and redrawn when a filter changes (a new data request, the chart takes the new data)
 const chartPages = [
     { role: 'admin', route: '/admin-dashboard', startFrom: '/users', canvases: ['statusDistributionChart', 'returnDeclineChart', 'throughputChart', 'processingHotspotsChart'], filter: '#returnDeclinePeriod', urlPart: 'decline-trends' },
-    { role: 'records.unit', route: '/statistics', startFrom: '/intake', canvases: ['currentLoadChart', 'throughputChart', 'avgProcessingTimeChart'], filter: '#throughputPeriod', urlPart: 'throughput' },
-    { role: 'cash.unit', route: '/statistics', startFrom: '/tasks', canvases: ['currentLoadChart', 'throughputChart', 'avgProcessingTimeChart'], filter: '#currentLoadPeriod', urlPart: 'current-load' },
+    { role: 'records', route: '/statistics', startFrom: '/intake', canvases: ['currentLoadChart', 'throughputChart', 'avgProcessingTimeChart'], filter: '#throughputPeriod', urlPart: 'throughput' },
+    { role: 'cash', route: '/statistics', startFrom: '/tasks', canvases: ['currentLoadChart', 'throughputChart', 'avgProcessingTimeChart'], filter: '#currentLoadPeriod', urlPart: 'current-load' },
 ];
 for (const spec of chartPages) {
     for (const [mode, prepare] of modesFor(spec.role, spec.route, spec.startFrom)) {
@@ -402,9 +402,9 @@ for (const spec of chartPages) {
 }
 
 // Route builder: remove and add a step; one click changes the list by exactly one step (and a hostile unit name stays text)
-for (const [mode, prepare] of modesFor('records.unit', `/documents/${context.documentId}/manage`, '/intake')) {
+for (const [mode, prepare] of modesFor('records', `/documents/${context.documentId}/manage`, '/intake')) {
     await guarded(`behaviour route-builder ${mode}`, async () => {
-        const page = await sessions.pageFor('records.unit');
+        const page = await sessions.pageFor('records');
         if (mode === 'in-app') {
             await hopThroughPages(page, '/intake', ['/tasks', '/releasing', '/statistics']);
             await page.evaluate((target) => { const link = document.createElement('a'); link.href = target; document.body.appendChild(link); link.click(); link.remove(); }, `/documents/${context.documentId}/manage`);
@@ -454,7 +454,7 @@ const clipboardStub = () => {
     window.__clipboardWrites = [];
     Object.defineProperty(navigator, 'clipboard', { value: { writeText: (text) => { window.__clipboardWrites.push(text); return Promise.resolve(); } }, configurable: true });
 };
-for (const [role, route, startFrom] of [['admin', '/users', '/admin-dashboard'], ['records.unit', '/releasing', '/intake'], ['admin', '/system-overview', '/users']]) {
+for (const [role, route, startFrom] of [['admin', '/users', '/admin-dashboard'], ['records', '/releasing', '/intake'], ['admin', '/system-overview', '/users']]) {
     for (const [mode, prepare] of modesFor(role, route, startFrom)) {
         await guarded(`behaviour copy-button ${role} ${route} ${mode}`, async () => {
             const page = await sessions.pageFor(role);
@@ -478,7 +478,7 @@ for (const [role, route, startFrom] of [['admin', '/users', '/admin-dashboard'],
 }
 // The hash chain page copies a hash (reached from the document page)
 await guarded('behaviour copy-button hash-chain hard load', async () => {
-    const page = await sessions.pageFor('records.unit');
+    const page = await sessions.pageFor('records');
     await hardLoad(page, `/documents/${context.documentCode}/hash-chain`);
     await page.evaluate(clipboardStub);
     const button = page.locator('[data-copy-text]').first();
@@ -529,9 +529,9 @@ await guarded('behaviour toast after confirm (no duplicate)', async () => {
 });
 
 // Staff QR dialog (html5-qrcode stubbed): opens, a decoded code is trimmed and asks for the PIN on the tasks page
-for (const [mode, prepare] of modesFor('cash.unit', '/tasks', '/statistics')) {
+for (const [mode, prepare] of modesFor('cash', '/tasks', '/statistics')) {
     await guarded(`behaviour staff-qr-dialog ${mode}`, async () => {
-        const page = await sessions.pageFor('cash.unit');
+        const page = await sessions.pageFor('cash');
         await prepare(page);
         await page.evaluate(() => {
             window.__scannerRenders = 0;
@@ -674,7 +674,7 @@ const postFromPage = (page, path, fields) => page.evaluate(async ({ path, fields
 
 // A token issued by the server after a signed action is stored in sessionStorage by the page that carries it
 await guarded('behaviour pin-token: an issued token is stored', async () => {
-    const page = await sessions.pageFor('cash.unit');
+    const page = await sessions.pageFor('cash');
     await hardLoad(page, '/tasks');
     await page.evaluate(() => sessionStorage.clear());
     // A typed PIN on a signed action (receiving the in-transit document) makes the server issue the token for the next page
@@ -686,7 +686,7 @@ await guarded('behaviour pin-token: an issued token is stored', async () => {
 
 // A token the server cannot open is answered with a "clear" block, which removes it from sessionStorage
 await guarded('behaviour pin-token: a refused token is cleared', async () => {
-    const page = await sessions.pageFor('cash.unit');
+    const page = await sessions.pageFor('cash');
     await hardLoad(page, '/tasks');
     await page.evaluate(() => sessionStorage.setItem('dts_pin_token', 'pt1.not-a-real-token'));
     await postFromPage(page, '/documents/scan', { tracking_code: context.documentCode, pin: 'pt1.not-a-real-token' });
@@ -755,7 +755,7 @@ await guarded('behaviour users-reset: password, pin and both reach the request',
 });
 
 // Polling stops after in-app navigation: with a fake clock, no chart request is sent after leaving the page, and no Chart remains
-for (const [role, route, leaveTo, apiPart, startFrom] of [['records.unit', '/statistics', '/tasks', '/api/statistics/', '/intake'], ['admin', '/admin-dashboard', '/users', '/api/admin-dashboard/', '/all-documents']]) {
+for (const [role, route, leaveTo, apiPart, startFrom] of [['records', '/statistics', '/tasks', '/api/statistics/', '/intake'], ['admin', '/admin-dashboard', '/users', '/api/admin-dashboard/', '/all-documents']]) {
     await guarded(`behaviour polling stops after in-app navigation ${route}`, async () => {
         // A page of its own: its clock is faked
         const clockSessions = createSessions(browser, VIEWPORT);

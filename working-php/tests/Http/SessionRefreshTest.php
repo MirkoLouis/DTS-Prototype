@@ -22,13 +22,13 @@ class SessionRefreshTest extends TestCase
     {
         // Personnel staff sees the Personnel Unit task page
         $client = HttpClient::start();
-        $client->loginAs('personnel.unit');
+        $client->loginAs('personnel');
         $this->assertStringContainsString('Personnel Unit Tasks', $client->get('/tasks')['body']);
 
         // The admin moves the account to the Cash Unit while it stays signed in
         Database::getInstance()->query('UPDATE users SET department_id = :dept WHERE id = :id', [
             ':dept' => $this->departmentId('Cash Unit'),
-            ':id' => $this->fx['users']['personnel.unit'],
+            ':id' => $this->fx['users']['personnel'],
         ]);
 
         // The very next page is the Cash Unit's

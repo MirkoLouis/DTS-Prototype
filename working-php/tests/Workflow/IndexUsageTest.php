@@ -65,7 +65,7 @@ class IndexUsageTest extends TestCase
     {
         $service = new NotificationService();
         $departmentId = $this->fx['departments']['Records Unit'];
-        $userId = $this->fx['users']['records.unit'];
+        $userId = $this->fx['users']['records'];
         $otherDepartment = $this->fx['departments']['Cash Unit'];
         $db = Database::getInstance();
 

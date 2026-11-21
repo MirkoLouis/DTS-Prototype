@@ -241,9 +241,9 @@ class PerformanceBenchmarkTest extends TestCase
             $admin = HttpClient::start();
             $admin->loginAs('admin');
             $officer = HttpClient::start();
-            $officer->loginAs('records.unit');
+            $officer->loginAs('records');
             $staff = HttpClient::start();
-            $staff->loginAs('cash.unit');
+            $staff->loginAs('cash');
             // The guest loop sends more /track requests from one IP than the per-IP limit allows
             $guest = HttpClient::startWithoutRateLimit();
 

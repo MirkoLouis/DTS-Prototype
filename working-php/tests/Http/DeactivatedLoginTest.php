@@ -15,14 +15,14 @@ class DeactivatedLoginTest extends TestCase
     // Deactivate the Cash Unit account as the admin
     private function deactivateCash(): void
     {
-        (new UserService())->deactivate($this->fx['users']['cash.unit'], $this->fx['users']['admin']);
+        (new UserService())->deactivate($this->fx['users']['cash'], $this->fx['users']['admin']);
     }
 
     // A signed-in Cash Unit client
     private function cashClient(): HttpClient
     {
         $client = HttpClient::start();
-        $client->loginAs('cash.unit');
+        $client->loginAs('cash');
 
         return $client;
     }
@@ -34,7 +34,7 @@ class DeactivatedLoginTest extends TestCase
         $client = HttpClient::start();
         $client->get('/login');
 
-        $response = $client->post('/login', ['email' => 'cash.unit', 'password' => TestDatabase::PASSWORD]);
+        $response = $client->post('/login', ['email' => 'cash', 'password' => TestDatabase::PASSWORD]);
 
         $this->assertSame(302, $response['status']);
         $this->assertStringContainsString('/login', $response['headers']['location']);
@@ -100,10 +100,10 @@ class DeactivatedLoginTest extends TestCase
     public function test_reactivated_user_can_log_in(): void
     {
         $this->deactivateCash();
-        (new UserService())->reactivate($this->fx['users']['cash.unit']);
+        (new UserService())->reactivate($this->fx['users']['cash']);
 
         $client = HttpClient::start();
-        $client->loginAs('cash.unit');
+        $client->loginAs('cash');
 
         $this->assertSame(200, $client->get('/tasks')['status']);
     }

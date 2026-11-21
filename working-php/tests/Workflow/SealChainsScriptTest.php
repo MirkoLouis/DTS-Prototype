@@ -393,7 +393,7 @@ class SealChainsScriptTest extends TestCase
         // The pre-action check and a real workflow action throw the same exception family as "not sealed yet", with the instruction
         foreach ([
             fn () => \App\Modules\Integrity\PreActionIntegrityService::passes($rowsBefore[1]),
-            fn () => (new \App\Modules\Documents\DocumentWorkflowService())->scanDocument($documents[1]['tracking_code'], Fixtures::user('cash.unit'), \Tests\Support\TestDatabase::PIN),
+            fn () => (new \App\Modules\Documents\DocumentWorkflowService())->scanDocument($documents[1]['tracking_code'], Fixtures::user('cash'), \Tests\Support\TestDatabase::PIN),
         ] as $call) {
             try {
                 $call();

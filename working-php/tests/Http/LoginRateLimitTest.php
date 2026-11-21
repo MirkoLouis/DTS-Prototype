@@ -46,17 +46,17 @@ class LoginRateLimitTest extends TestCase
 
         // The failures before the limit show the normal credentials error and keep the username
         for ($i = 1; $i < AttemptThrottleService::MAX_FAILURES; $i++) {
-            $result = $this->attempt($client, 'cash.unit', 'wrong');
+            $result = $this->attempt($client, 'cash', 'wrong');
             $this->assertStringContainsString(self::FAILED_MESSAGE, $result['page']);
             $this->assertStringNotContainsString(AttemptThrottleService::MESSAGE, $result['page']);
         }
 
         // The failure that reaches the limit locks; the lockout message is unchanged and the username is still kept
-        $result = $this->attempt($client, 'cash.unit', 'wrong');
+        $result = $this->attempt($client, 'cash', 'wrong');
         $this->assertFalse($this->loggedIn($result));
         $this->assertStringContainsString(AttemptThrottleService::MESSAGE, $result['page']);
         $this->assertSame('Too many failed attempts. Timed out for 1 minute.', AttemptThrottleService::MESSAGE);
-        $this->assertSame('cash.unit', $this->usernameValue($result['page']));
+        $this->assertSame('cash', $this->usernameValue($result['page']));
     }
 
     // A wrong password shows the message, keeps the username in the field and puts nothing in the password field
@@ -64,10 +64,10 @@ class LoginRateLimitTest extends TestCase
     {
         $client = HttpClient::start();
 
-        $result = $this->attempt($client, 'cash.unit', 'my-secret-guess');
+        $result = $this->attempt($client, 'cash', 'my-secret-guess');
 
         $this->assertStringContainsString(self::FAILED_MESSAGE, $result['page']);
-        $this->assertSame('cash.unit', $this->usernameValue($result['page']));
+        $this->assertSame('cash', $this->usernameValue($result['page']));
         $this->assertStringNotContainsString('my-secret-guess', $result['page']);
         $this->assertMatchesRegularExpression('/<input id="password"(?:(?!>).)*?\bautofocus\b/s', $result['page']);
         $this->assertDoesNotMatchRegularExpression('/<input id="email"(?:(?!>).)*?\bautofocus\b/s', $result['page']);
@@ -88,13 +88,13 @@ class LoginRateLimitTest extends TestCase
     // A deactivated account gets the same message too
     public function test_deactivated_account_gets_the_same_message(): void
     {
-        \App\Common\Database\Database::getInstance()->query('UPDATE users SET deactivated_at = NOW() WHERE email = :e', [':e' => 'cash.unit']);
+        \App\Common\Database\Database::getInstance()->query('UPDATE users SET deactivated_at = NOW() WHERE email = :e', [':e' => 'cash']);
         $client = HttpClient::start();
 
-        $result = $this->attempt($client, 'cash.unit', TestDatabase::PASSWORD);
+        $result = $this->attempt($client, 'cash', TestDatabase::PASSWORD);
 
         $this->assertStringContainsString(self::FAILED_MESSAGE, $result['page']);
-        $this->assertSame('cash.unit', $this->usernameValue($result['page']));
+        $this->assertSame('cash', $this->usernameValue($result['page']));
     }
 
     // A username is escaped where it is put back into the field
@@ -115,10 +115,10 @@ class LoginRateLimitTest extends TestCase
     {
         $client = HttpClient::start();
         for ($i = 0; $i < AttemptThrottleService::MAX_FAILURES; $i++) {
-            $this->attempt($client, 'cash.unit', 'wrong');
+            $this->attempt($client, 'cash', 'wrong');
         }
 
-        $result = $this->attempt($client, 'cash.unit', TestDatabase::PASSWORD);
+        $result = $this->attempt($client, 'cash', TestDatabase::PASSWORD);
         $this->assertFalse($this->loggedIn($result));
         $this->assertStringContainsString(AttemptThrottleService::MESSAGE, $result['page']);
     }
@@ -130,9 +130,9 @@ class LoginRateLimitTest extends TestCase
 
         // Failures just below the limit, then a success that must clear them
         for ($i = 1; $i < AttemptThrottleService::MAX_FAILURES; $i++) {
-            $this->attempt($client, 'cash.unit', 'wrong');
+            $this->attempt($client, 'cash', 'wrong');
         }
-        $success = $this->attempt($client, 'cash.unit', TestDatabase::PASSWORD);
+        $success = $this->attempt($client, 'cash', TestDatabase::PASSWORD);
         $this->assertTrue($this->loggedIn($success));
 
         // Log out through the real form (POST with the page's CSRF token)
@@ -141,8 +141,8 @@ class LoginRateLimitTest extends TestCase
 
         // Failures just below the limit again would lock only if the earlier ones still counted
         for ($i = 1; $i < AttemptThrottleService::MAX_FAILURES; $i++) {
-            $this->attempt($client, 'cash.unit', 'wrong');
+            $this->attempt($client, 'cash', 'wrong');
         }
-        $this->assertTrue($this->loggedIn($this->attempt($client, 'cash.unit', TestDatabase::PASSWORD)));
+        $this->assertTrue($this->loggedIn($this->attempt($client, 'cash', TestDatabase::PASSWORD)));
     }
 }

@@ -20,7 +20,7 @@ class UserServiceTest extends TestCase
     // A second deactivation keeps the original timestamp
     public function test_deactivate_sets_timestamp_once(): void
     {
-        $cash = $this->fx['users']['cash.unit'];
+        $cash = $this->fx['users']['cash'];
         $admin = $this->fx['users']['admin'];
         $service = new UserService();
 
@@ -50,7 +50,7 @@ class UserServiceTest extends TestCase
     // Reactivation clears the timestamp
     public function test_reactivate_clears_timestamp(): void
     {
-        $cash = $this->fx['users']['cash.unit'];
+        $cash = $this->fx['users']['cash'];
         $service = new UserService();
 
         $service->deactivate($cash, $this->fx['users']['admin']);

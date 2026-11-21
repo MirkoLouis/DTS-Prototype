@@ -32,7 +32,7 @@ class IctUnitTest extends TestCase
         // Open a pending document's manage page as the Records Officer
         $s = Fixtures::submit();
         $client = HttpClient::start();
-        $client->loginAs('records.unit');
+        $client->loginAs('records');
         $page = $client->get("/documents/{$s['id']}/manage")['body'];
 
         // The route builder lists the ICT Unit

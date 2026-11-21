@@ -94,7 +94,7 @@ Fixtures::advanceTo($declined['id'], 'declined');
 
 
 // A spare fixture user without a signing key, to show the mandatory Security PIN prompt (same columns as UserCredentialService)
-$keylessUser = 'personnel.unit';
+$keylessUser = 'personnel';
 \App\Common\Database\Database::getInstance()->query(
     'UPDATE users SET public_key = NULL, private_key = NULL, security_key_set_at = NULL WHERE email = :email',
     [':email' => $keylessUser]
@@ -197,7 +197,7 @@ $context = [
     'documentCode' => $inTransit['tracking_code'],
     'documentId' => $pending['id'],
     'keylessUser' => $keylessUser,
-    'editUserId' => $fixture['users']['cash.unit'],
+    'editUserId' => $fixture['users']['cash'],
     'screensDirectory' => Config::testPath('screens'),
 ];
 $contextFile = Config::testPath('screens/context.json');

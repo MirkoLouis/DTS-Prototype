@@ -263,7 +263,7 @@ final class Tamper
         // The attacker key becomes active exactly at the forged entry's time, so older entries still verify
         $keypair = sodium_crypto_sign_keypair();
         $createdAt = self::forgedTimestamp();
-        self::injectKey($pdo, (int) self::userId($pdo, 'records.unit'), sodium_crypto_sign_publickey($keypair), $createdAt);
+        self::injectKey($pdo, (int) self::userId($pdo, 'records'), sodium_crypto_sign_publickey($keypair), $createdAt);
 
         $secret = sodium_crypto_sign_secretkey($keypair);
         self::appendForgedLog($pdo, $documentId, fn (string $message) => base64_encode(sodium_crypto_sign_detached($message, $secret)), $createdAt, $seal);
@@ -325,7 +325,7 @@ final class Tamper
         $previousHash = end($logs)['hash'];
         $document = self::document($pdo, $documentId);
         $stateHash = HashChainService::calculateStateHash($document);
-        $userId = (int) self::userId($pdo, 'records.unit');
+        $userId = (int) self::userId($pdo, 'records');
         $createdAt ??= self::forgedTimestamp();
         $epoch = HashChainService::logTimestamp($createdAt);
 

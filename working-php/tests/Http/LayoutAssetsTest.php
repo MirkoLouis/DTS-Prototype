@@ -29,7 +29,7 @@ class LayoutAssetsTest extends TestCase
     {
         $submitted = Fixtures::submit();
         $client = HttpClient::start();
-        $client->loginAs('records.unit');
+        $client->loginAs('records');
         $client->get('/intake');
 
         // Finalize with a route and the PIN
@@ -74,8 +74,8 @@ class LayoutAssetsTest extends TestCase
     {
         return [
             'admin' => ['admin', '/admin-dashboard', ['/admin-dashboard', '/all-documents', '/system-overview', '/users']],
-            'officer' => ['records.unit', '/intake', ['/intake', '/tasks', '/tasks/completed', '/releasing', '/statistics']],
-            'staff' => ['cash.unit', '/tasks', ['/tasks', '/tasks/completed', '/statistics']],
+            'officer' => ['records', '/intake', ['/intake', '/tasks', '/tasks/completed', '/releasing', '/statistics']],
+            'staff' => ['cash', '/tasks', ['/tasks', '/tasks/completed', '/statistics']],
         ];
     }
 
@@ -120,7 +120,7 @@ class LayoutAssetsTest extends TestCase
     {
         $path = \App\Modules\Auth\CredentialPolicy::CHANGE_PASSWORD_PATH;
         $client = HttpClient::start();
-        $client->loginAs('records.unit');
+        $client->loginAs('records');
 
         foreach (['/intake' => false, $path => true] as $page => $expectedActive) {
             $xpath = $this->xpathFor($client->get($page)['body']);

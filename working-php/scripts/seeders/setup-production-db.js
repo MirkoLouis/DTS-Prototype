@@ -261,18 +261,26 @@ async function setupDatabase() {
             ['Admin User', 'admin', hashedPassword]
         );
 
+        const USERNAME_ABBREVIATIONS = {
+            'Health and Nutrition': 'hnu',
+            'Bids and Awards Committee Unit': 'bac',
+            'Schools Division Superintendent Office': 'sds',
+            'Assistant Schools Division Superintendent Office': 'asds',
+            'Curriculum Implementation Division': 'cid',
+            'School Governance and Operations Division': 'sgod',
+        };
+
         const [depts] = await connection.query('SELECT id, name FROM departments');
         
         for (const dept of depts) {
             if (dept.name === 'Records Unit') {
                 await connection.query(
                     "INSERT INTO users (name, email, password, must_change_password, department_id, role, created_at, updated_at) VALUES (?, ?, ?, 1, ?, 'officer', NOW(), NOW())",
-                    ['Records Officer', 'records.unit', hashedPassword, dept.id]
+                    ['Records Officer', 'records', hashedPassword, dept.id]
                 );
             } else {
-                // Generate clean department username slug (e.g., cash.unit, administrative.unit)
-                const slug = dept.name.toLowerCase().replace(/ and /g, '.and.').replace(/ /g, '.');
-                const email = slug;
+                // One-word username: plain units drop "Unit", longer names use their abbreviation
+                const email = USERNAME_ABBREVIATIONS[dept.name] ?? dept.name.toLowerCase().replace(/ unit$/, '');
                 
                 await connection.query(
                     "INSERT INTO users (name, email, password, must_change_password, department_id, role, created_at, updated_at) VALUES (?, ?, ?, 1, ?, 'staff', NOW(), NOW())",

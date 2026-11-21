@@ -51,7 +51,7 @@ class DocumentToastCodeTest extends TestCase
         $s = Fixtures::submit();
         Fixtures::advanceTo($s['id'], 'processing', ['Cash Unit']);
         $client = HttpClient::start();
-        $client->loginAs('cash.unit');
+        $client->loginAs('cash');
         $client->get('/tasks');
 
         // Scan it from the tasks page
@@ -70,7 +70,7 @@ class DocumentToastCodeTest extends TestCase
         $s = Fixtures::submit();
         Fixtures::advanceTo($s['id'], 'in_transit', ['Cash Unit']);
         $client = HttpClient::start();
-        $client->loginAs('records.unit');
+        $client->loginAs('records');
         $client->get('/intake');
         $client->post('/intake/find', ['tracking_code' => $s['tracking_code']], true, '/intake');
 

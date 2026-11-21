@@ -45,7 +45,7 @@ class GuestSubmissionConcurrencyTest extends TestCase
         };
         $login = function (HttpClient $client): array {
             $start = microtime(true);
-            $response = $client->post('/login', ['email' => 'cash.unit', 'password' => TestDatabase::PASSWORD]);
+            $response = $client->post('/login', ['email' => 'cash', 'password' => TestDatabase::PASSWORD]);
 
             return ['start' => $start, 'end' => microtime(true), 'status' => $response['status']];
         };

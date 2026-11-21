@@ -23,16 +23,16 @@ class UserListFilterTest extends TestCase
     public function test_all_roles_filter_lists_every_role(): void
     {
         $body = $this->usersPage('?role=all')['body'];
-        $this->assertStringContainsString('cash.unit', $body);
-        $this->assertStringContainsString('records.unit', $body);
+        $this->assertStringContainsString('cash', $body);
+        $this->assertStringContainsString('records', $body);
     }
 
     // A real role narrows the list to that role
     public function test_role_filter_narrows_to_one_role(): void
     {
         $body = $this->usersPage('?role=officer')['body'];
-        $this->assertStringContainsString('records.unit', $body);
-        $this->assertStringNotContainsString('cash.unit', $body);
+        $this->assertStringContainsString('records', $body);
+        $this->assertStringNotContainsString('cash', $body);
     }
 
     // A value that is not a role is ignored instead of emptying the list
@@ -40,7 +40,7 @@ class UserListFilterTest extends TestCase
     {
         $response = $this->usersPage('?role=nonsense');
         $this->assertSame(200, $response['status']);
-        $this->assertStringContainsString('cash.unit', $response['body']);
+        $this->assertStringContainsString('cash', $response['body']);
     }
 
     // An array value (?role[]=a) is ignored too and never errors
@@ -48,6 +48,6 @@ class UserListFilterTest extends TestCase
     {
         $response = $this->usersPage('?role[]=staff');
         $this->assertSame(200, $response['status']);
-        $this->assertStringContainsString('cash.unit', $response['body']);
+        $this->assertStringContainsString('cash', $response['body']);
     }
 }

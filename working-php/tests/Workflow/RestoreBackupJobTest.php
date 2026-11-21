@@ -216,8 +216,8 @@ class RestoreBackupJobTest extends TestCase
         $service = new \App\Modules\Documents\DocumentWorkflowService();
         $pin = \Tests\Support\TestDatabase::PIN;
         $document = Fixtures::submit(['title' => 'Café Ünïcode 📄 / Ωmega']);
-        $records = Fixtures::user('records.unit');
-        $cash = Fixtures::user('cash.unit');
+        $records = Fixtures::user('records');
+        $cash = Fixtures::user('cash');
         $service->finalizeIntake($document['id'], ['Cash Unit'], $records, $pin);
         $service->scanDocument($document['tracking_code'], $cash, $pin);
         $service->completeTask($document['id'], 'Approved / forwarded 📎 señor', $cash, $pin);

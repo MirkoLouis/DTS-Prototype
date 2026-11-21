@@ -24,7 +24,7 @@ class ContentTypeTest extends TestCase
     private const XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
 
     // Roles the sweep signs in as: a guest sees the public side, the others each see their own pages and the 403 pages
-    private const ROLES = ['guest', 'admin', 'records.unit', 'cash.unit'];
+    private const ROLES = ['guest', 'admin', 'records', 'cash'];
 
     // Every route of the front controller as [method, path pattern]; PUT is the same handler as the POST route
     private function routes(): array
@@ -222,7 +222,7 @@ class ContentTypeTest extends TestCase
         // The tracking form (shown in the browser)
         $document = Fixtures::submit();
         Fixtures::advanceTo($document['id'], 'completed', ['Cash Unit']);
-        $officer = $this->clientFor('records.unit');
+        $officer = $this->clientFor('records');
         $pdf = $officer->get('/documents/' . $document['tracking_code'] . '/print-tracking-form');
         $this->assertSame('application/pdf', $pdf['headers']['content-type'] ?? '');
         $this->assertStringStartsWith('inline; filename=', $pdf['headers']['content-disposition'] ?? '');
@@ -231,7 +231,7 @@ class ContentTypeTest extends TestCase
         Database::getInstance()->query(
             "INSERT INTO report_jobs (id, user_id, status, progress, total_documents, filters, created_at, updated_at)
              VALUES ('typejob1', :uid, 'completed', 100, 1, '[]', DATE_ADD(NOW(), INTERVAL 1 MINUTE), NOW())",
-            [':uid' => $this->fx['users']['records.unit']]
+            [':uid' => $this->fx['users']['records']]
         );
         $officer->get('/statistics');
         $report = $officer->get('/statistics/report/download/typejob1');

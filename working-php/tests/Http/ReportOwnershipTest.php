@@ -18,7 +18,7 @@ class ReportOwnershipTest extends TestCase
         Database::getInstance()->query(
             "INSERT INTO report_jobs (id, user_id, status, progress, total_documents, filters, created_at, updated_at)
              VALUES (:id, :uid, :status, 0, 1, :filters, DATE_ADD(NOW(), INTERVAL 1 MINUTE), NOW())",
-            [':id' => $id, ':uid' => $this->fx['users']['records.unit'], ':status' => $status, ':filters' => json_encode(['search' => 'secret-filter'])]
+            [':id' => $id, ':uid' => $this->fx['users']['records'], ':status' => $status, ':filters' => json_encode(['search' => 'secret-filter'])]
         );
 
         return $id;
@@ -48,7 +48,7 @@ class ReportOwnershipTest extends TestCase
         Fixtures::advanceTo($document['id'], 'completed', ['Cash Unit']);
         $id = $this->officerJob('ownedjob1', 'completed');
 
-        $response = $this->signedIn('cash.unit')->get("/statistics/report/download/{$id}");
+        $response = $this->signedIn('cash')->get("/statistics/report/download/{$id}");
         $this->assertSame(302, $response['status']);
         $this->assertSame('/statistics', $response['headers']['location'] ?? '');
         $this->assertStringNotContainsString($document['tracking_code'], $response['body']);
@@ -61,7 +61,7 @@ class ReportOwnershipTest extends TestCase
         Fixtures::advanceTo($document['id'], 'completed', ['Cash Unit']);
         $id = $this->officerJob('ownedjob2', 'completed');
 
-        $response = $this->signedIn('records.unit')->get("/statistics/report/download/{$id}");
+        $response = $this->signedIn('records')->get("/statistics/report/download/{$id}");
         $this->assertSame(200, $response['status']);
         $this->assertStringStartsWith('PK', $response['body']);
     }
@@ -71,11 +71,11 @@ class ReportOwnershipTest extends TestCase
     {
         $id = $this->officerJob('ownedjob3', 'queued');
 
-        $other = $this->signedIn('cash.unit')->get("/statistics/report/status?job_id={$id}");
+        $other = $this->signedIn('cash')->get("/statistics/report/status?job_id={$id}");
         $this->assertSame(404, $other['status']);
         $this->assertStringNotContainsString('secret-filter', $other['body']);
 
-        $own = $this->signedIn('records.unit')->get("/statistics/report/status?job_id={$id}");
+        $own = $this->signedIn('records')->get("/statistics/report/status?job_id={$id}");
         $this->assertSame(200, $own['status']);
         $this->assertSame('queued', json_decode($own['body'], true)['status'] ?? null);
     }
@@ -85,10 +85,10 @@ class ReportOwnershipTest extends TestCase
     {
         $id = $this->officerJob('ownedjob4', 'queued');
 
-        $this->signedIn('cash.unit')->post('/statistics/report/cancel', ['job_id' => $id]);
+        $this->signedIn('cash')->post('/statistics/report/cancel', ['job_id' => $id]);
         $this->assertSame('queued', $this->jobStatus($id));
 
-        $this->signedIn('records.unit')->post('/statistics/report/cancel', ['job_id' => $id]);
+        $this->signedIn('records')->post('/statistics/report/cancel', ['job_id' => $id]);
         $this->assertSame('cancelled', $this->jobStatus($id));
     }
 }

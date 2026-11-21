@@ -43,14 +43,14 @@ class ThrottleTableMissingTest extends TestCase
 
         // Wrong password: an ordinary redirect back to /login, not a 500
         $client->get('/login');
-        $bad = $client->post('/login', ['email' => 'cash.unit', 'password' => 'wrong']);
+        $bad = $client->post('/login', ['email' => 'cash', 'password' => 'wrong']);
         $this->assertSame(302, $bad['status']);
         $this->assertStringContainsString('/login', $bad['headers']['location'] ?? '');
         $this->assertStringContainsString('Wrong username or password. Please double-check and try again.', $client->get('/login')['body']);
 
         // Correct password: redirected away from the login page
         $client->get('/login');
-        $good = $client->post('/login', ['email' => 'cash.unit', 'password' => TestDatabase::PASSWORD]);
+        $good = $client->post('/login', ['email' => 'cash', 'password' => TestDatabase::PASSWORD]);
         $this->assertSame(302, $good['status']);
         $this->assertStringNotContainsString('/login', $good['headers']['location'] ?? '/login');
     }
@@ -60,7 +60,7 @@ class ThrottleTableMissingTest extends TestCase
     {
         $s = Fixtures::submit();
         Fixtures::advanceTo($s['id'], 'in_transit', ['Cash Unit']);
-        $user = Fixtures::user('cash.unit');
+        $user = Fixtures::user('cash');
         $_SESSION['user_id'] = $user->id;
 
         // A wrong PIN is not counted but must not crash resolution

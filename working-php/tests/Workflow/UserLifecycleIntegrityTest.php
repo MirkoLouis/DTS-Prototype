@@ -20,7 +20,7 @@ class UserLifecycleIntegrityTest extends TestCase
     {
         $document = Fixtures::submit();
         Fixtures::advanceTo($document['id'], 'completed', ['Cash Unit']);
-        $cashId = $this->fx['users']['cash.unit'];
+        $cashId = $this->fx['users']['cash'];
 
         $this->assertSame('23000', $this->deleteError($cashId));
 
@@ -35,7 +35,7 @@ class UserLifecycleIntegrityTest extends TestCase
     // A user with a key history but no log entries cannot be deleted either
     public function test_key_history_blocks_user_delete(): void
     {
-        $this->assertSame('23000', $this->deleteError($this->fx['users']['personnel.unit']));
+        $this->assertSame('23000', $this->deleteError($this->fx['users']['personnel']));
     }
 
     // Try a raw DELETE and return the SQLSTATE it raised

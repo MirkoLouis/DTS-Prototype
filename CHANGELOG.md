@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file.
 
+## Unreleased
+
+### Changed
+- Default account usernames are one word. Plain units drop the `.unit` suffix (`records.unit` → `records`, `cash.unit` → `cash`, `ict.unit` → `ict`); longer names use their abbreviation: `hnu` (Health and Nutrition), `bac`, `sds`, `asds`, `cid`, `sgod`. `setup-production-db.js` seeds the new names, and the README, tests and manual browser scripts use them. Existing databases keep their old usernames until an admin renames them or the database is reseeded.
+
 ## 2026-11-18
 
 **Version:** 2.7.15

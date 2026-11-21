@@ -13,7 +13,7 @@ class TrackingFormPrintTest extends TestCase
     {
         $doc = Fixtures::submit();
         $client = HttpClient::start();
-        $client->loginAs('records.unit');
+        $client->loginAs('records');
         $response = $client->get('/documents/' . $doc['id'] . '/manage');
 
         $this->assertSame(200, $response['status']);
@@ -25,7 +25,7 @@ class TrackingFormPrintTest extends TestCase
     {
         $doc = Fixtures::submit();
         $client = HttpClient::start();
-        $client->loginAs('records.unit');
+        $client->loginAs('records');
         $response = $client->get('/documents/' . $doc['tracking_code']);
 
         $this->assertSame(200, $response['status']);
@@ -38,7 +38,7 @@ class TrackingFormPrintTest extends TestCase
         $doc = Fixtures::submit();
         Fixtures::advanceTo($doc['id'], 'in_transit', ['Cash Unit']);
         $client = HttpClient::start();
-        $client->loginAs('cash.unit');
+        $client->loginAs('cash');
         $response = $client->get('/documents/' . $doc['tracking_code']);
 
         $this->assertSame(200, $response['status']);
@@ -98,7 +98,7 @@ class TrackingFormPrintTest extends TestCase
         $doc = Fixtures::submit();
         Fixtures::advanceTo($doc['id'], 'in_transit', ['Personnel Unit']);
         $client = HttpClient::start();
-        $client->loginAs('cash.unit');
+        $client->loginAs('cash');
         $response = $client->get('/documents/' . $doc['tracking_code'] . '/print-tracking-form');
 
         $this->assertSame(302, $response['status']);
@@ -112,7 +112,7 @@ class TrackingFormPrintTest extends TestCase
         $doc = Fixtures::submit();
         Fixtures::advanceTo($doc['id'], 'in_transit', ['Cash Unit']);
         $client = HttpClient::start();
-        $client->loginAs('cash.unit');
+        $client->loginAs('cash');
 
         $this->assertPdf($client->get('/documents/' . $doc['tracking_code'] . '/print-tracking-form'));
     }
@@ -122,7 +122,7 @@ class TrackingFormPrintTest extends TestCase
     {
         $doc = Fixtures::submit();
         $client = HttpClient::start();
-        $client->loginAs('records.unit');
+        $client->loginAs('records');
 
         $this->assertPdf($client->get('/documents/' . $doc['tracking_code'] . '/print-tracking-form'));
     }
@@ -133,10 +133,10 @@ class TrackingFormPrintTest extends TestCase
         // The officer is signed in, then deactivated while the session is still open
         $doc = Fixtures::submit();
         $client = HttpClient::start();
-        $client->loginAs('records.unit');
+        $client->loginAs('records');
         \App\Common\Database\Database::getInstance()->query(
             'UPDATE users SET deactivated_at = NOW() WHERE id = :id',
-            [':id' => $this->fx['users']['records.unit']]
+            [':id' => $this->fx['users']['records']]
         );
 
         // The print route has no AuthMiddleware, so it must refuse the deactivated account itself
@@ -149,7 +149,7 @@ class TrackingFormPrintTest extends TestCase
     public function test_unknown_code_is_not_found(): void
     {
         $client = HttpClient::start();
-        $client->loginAs('records.unit');
+        $client->loginAs('records');
 
         $this->assertSame(404, $client->get('/documents/DEPED-ZZZZZZZZZZ/print-tracking-form')['status']);
     }
@@ -160,7 +160,7 @@ class TrackingFormPrintTest extends TestCase
         // A guest submits on a shared browser, then Cash Unit staff sign in on it
         $client = HttpClient::start();
         $code = $this->submitAsGuest($client);
-        $client->loginAs('cash.unit');
+        $client->loginAs('cash');
 
         // The document is not on the Cash Unit's route, so the slip is refused like any other
         $response = $client->get("/documents/{$code}/print-tracking-form");

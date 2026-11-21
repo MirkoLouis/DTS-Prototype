@@ -22,7 +22,7 @@ class RouteLearningTest extends TestCase
         $others = $this->fx['purposes']['Others'];
         $doc = Fixtures::submit(['purpose_id' => $others]);
 
-        (new DocumentWorkflowService())->finalizeIntake($doc['id'], ['Cash Unit', 'Personnel Unit'], Fixtures::user('records.unit'), TestDatabase::PIN);
+        (new DocumentWorkflowService())->finalizeIntake($doc['id'], ['Cash Unit', 'Personnel Unit'], Fixtures::user('records'), TestDatabase::PIN);
 
         $this->assertSame([], json_decode($this->storedRoute($others), true));
     }
@@ -33,7 +33,7 @@ class RouteLearningTest extends TestCase
         $purposeId = (int) Database::getInstance()->query('SELECT id FROM purposes WHERE is_official = 1 ORDER BY id LIMIT 1')->fetch()['id'];
         $doc = Fixtures::submit(['purpose_id' => $purposeId, 'department' => 'Records Unit']);
 
-        (new DocumentWorkflowService())->finalizeIntake($doc['id'], ['Records Unit', 'Cash Unit', 'Personnel Unit'], Fixtures::user('records.unit'), TestDatabase::PIN);
+        (new DocumentWorkflowService())->finalizeIntake($doc['id'], ['Records Unit', 'Cash Unit', 'Personnel Unit'], Fixtures::user('records'), TestDatabase::PIN);
 
         $this->assertSame(['Cash Unit', 'Personnel Unit'], json_decode($this->storedRoute($purposeId), true));
     }

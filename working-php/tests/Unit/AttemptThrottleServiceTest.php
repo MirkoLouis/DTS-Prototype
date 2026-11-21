@@ -33,7 +33,7 @@ class AttemptThrottleServiceTest extends TestCase
     // MAX_FAILURES - 1 failures inside one minute do not lock; the MAX_FAILURES-th locks the key for a full minute
     public function test_locks_on_the_last_allowed_failure_within_a_minute(): void
     {
-        $key = $this->loginKey('cash.unit');
+        $key = $this->loginKey('cash');
         $now = self::T;
 
         // The failures before the limit do not lock
@@ -52,7 +52,7 @@ class AttemptThrottleServiceTest extends TestCase
     // Failures spread over more than a minute each restart the window
     public function test_failures_more_than_a_minute_apart_do_not_lock(): void
     {
-        $key = $this->loginKey('cash.unit');
+        $key = $this->loginKey('cash');
 
         // Each failure falls outside the previous window
         foreach ([self::T, self::T + 61, self::T + 122] as $now) {
@@ -64,7 +64,7 @@ class AttemptThrottleServiceTest extends TestCase
     // The lock lifts once the minute has passed
     public function test_lock_expires_after_one_minute(): void
     {
-        $key = $this->loginKey('cash.unit');
+        $key = $this->loginKey('cash');
         $this->lock($key);
 
         $this->assertSame(1, AttemptThrottleService::secondsLocked($key, self::T + 59));
@@ -74,7 +74,7 @@ class AttemptThrottleServiceTest extends TestCase
     // A failure right after the lock expires starts a fresh count instead of relocking
     public function test_failure_after_expired_lock_starts_new_window(): void
     {
-        $key = $this->loginKey('cash.unit');
+        $key = $this->loginKey('cash');
         $this->lock($key);
 
         $this->assertFalse(AttemptThrottleService::recordFailure($key, self::T + 60));
@@ -84,11 +84,11 @@ class AttemptThrottleServiceTest extends TestCase
     // Locking one email leaves another email on the same IP untouched
     public function test_lock_is_per_email_not_per_ip(): void
     {
-        $locked = $this->loginKey('cash.unit');
+        $locked = $this->loginKey('cash');
         $this->lock($locked);
 
         $this->assertSame(60, AttemptThrottleService::secondsLocked($locked, self::T));
-        $this->assertSame(0, AttemptThrottleService::secondsLocked($this->loginKey('personnel.unit'), self::T));
+        $this->assertSame(0, AttemptThrottleService::secondsLocked($this->loginKey('personnel'), self::T));
         $this->assertSame($locked, $this->loginKey('  CASH.Unit '));
     }
 
@@ -105,7 +105,7 @@ class AttemptThrottleServiceTest extends TestCase
     // Clearing forgets earlier failures
     public function test_clear_resets_failures(): void
     {
-        $key = $this->loginKey('cash.unit');
+        $key = $this->loginKey('cash');
         for ($i = 1; $i < AttemptThrottleService::MAX_FAILURES; $i++) {
             AttemptThrottleService::recordFailure($key, self::T);
         }

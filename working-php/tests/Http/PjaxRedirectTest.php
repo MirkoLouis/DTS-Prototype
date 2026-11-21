@@ -67,7 +67,7 @@ class PjaxRedirectTest extends TestCase
     public function test_redirect_without_a_flash_is_announced_too(): void
     {
         $client = HttpClient::start();
-        $client->loginAs('cash.unit');
+        $client->loginAs('cash');
 
         $response = $this->pjaxGet($client, '/dashboard');
 
@@ -105,7 +105,7 @@ class PjaxRedirectTest extends TestCase
     public function test_page_without_a_redirect_is_served_normally(): void
     {
         $client = HttpClient::start();
-        $client->loginAs('cash.unit');
+        $client->loginAs('cash');
 
         $response = $this->pjaxGet($client, '/tasks');
 
