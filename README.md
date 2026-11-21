@@ -162,7 +162,7 @@ Step-by-step guides per role: [Administrator](working-php/documentation/user_man
 | Staff: Budget Unit | `budget.unit` |
 | Staff: Accounting | `accounting.unit` |
 | Staff: Legal Unit | `legal.unit` |
-| Staff: Health & Nutrition | `hun.unit` |
+| Staff: Health & Nutrition | `hn.unit` |
 | Staff: BAC Unit | `bac.unit` |
 | Staff: SDS Office | `sds.unit` |
 | Staff: ASDS Office | `asds.unit` |

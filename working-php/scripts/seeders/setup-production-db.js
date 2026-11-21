@@ -295,7 +295,7 @@ async function setupDatabase() {
 
 // Usernames of departments whose names have three or more words: their acronym plus ".unit"
 const SHORT_DEPARTMENT_USERNAMES = {
-    'Health and Nutrition': 'hun.unit',
+    'Health and Nutrition': 'hn.unit',
     'Bids and Awards Committee Unit': 'bac.unit',
     'Schools Division Superintendent Office': 'sds.unit',
     'Assistant Schools Division Superintendent Office': 'asds.unit',
