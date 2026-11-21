@@ -1,0 +1,77 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: working-php
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: ci-db-secret
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -pci-db-secret"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: sodium, pdo_mysql, zip, mbstring, pcntl, posix, openssl, gd, dom
+          tools: composer
+          coverage: none
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ runner.os }}-${{ hashFiles('working-php/composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-
+
+      - name: Validate composer.json
+        run: composer validate
+
+      - name: Install dependencies
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      # The seeder tests run the Node seeders, which need mysql2 (no lockfile yet, so npm install)
+      - name: Install Node packages
+        run: npm install --no-audit --no-fund
+
+      # Throwaway config for the runner. The password must differ from the user name (MysqlCliTest),
+      # and IntegrityKeyTest reads an integrity key from .env in production mode.
+      - name: Create .env.testing and .env
+        run: |
+          cp .env.testing.example .env.testing
+          sed -i 's/^DB_PASSWORD=.*/DB_PASSWORD=ci-db-secret/' .env.testing
+          APP_ENV=testing php scripts/generate-keys.php --system
+          APP_ENV=testing php scripts/generate-keys.php --integrity
+          php scripts/generate-keys.php --integrity
+
+      - name: Run tests
+        run: vendor/bin/phpunit
